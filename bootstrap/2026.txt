@@ -1,0 +1,47 @@
+Expenses
+1. Upkeep 1.2m 
+2. Food 1m 
+3. Fuel car 1m 
+4. Fuel gen 500k 
+5. solar 300k 
+6. batteries 400k 
+7. A/c * 2 - 600k 
+8. Fans * 2 - 150k 
+9. Fridge  250k 
+10. Can fix 1m 
+11. Car - 7m 
+12. DS 5m 
+13. settee 1m
+14. Bed 300k 
+15. Interioir 1m 
+16. travel 9m 
+17. Wardrobe 1m 
+18. House 400k 
+19. rent 1.2m 
+20. domestic staff 300k
+21. repairs 600k 
+22. school 1m 
+23. savings 2.8m 
+24. shares 3m 
+26. House 50m 
+27. utils 1m
+28. MBA 28m 
+Total 109m = $80k
+
+Breakdown
+1. Upkeep 7m
+2. Car 8m 
+3. House 6.2m
+4. invest 61m 
+5. Other 9m 
+
+Q1 - $8k - 2667 = 450|900|1350
+	Emails 450k|900k|1.35m 
+Q2 - $16k
+Q3 - $24k
+Q4 - $32k
+
+php artisan make:migration add_admin_fields_to_users_table
+
+
+
