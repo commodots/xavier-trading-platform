@@ -13,42 +13,43 @@
 
         <div class="mb-4">
           <label class="block text-gray-300 mb-1">Full Name</label>
-          <input
-            v-model="name"
-            type="text"
-            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
+          <input v-model="name" type="text" class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
             required />
         </div>
+
+        <p v-if="localErrors.name" class="text-red-400 text-sm mt-1 mb-4">
+          {{ localErrors.name[0] }}
+        </p>
 
         <div class="mb-4">
           <label class="block text-gray-300 mb-1">Email</label>
-          <input
-            v-model="email"
-            type="email"
-            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
+          <input v-model="email" type="email" class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
             required />
         </div>
 
+        <p v-if="localErrors.email" class="text-red-400 text-sm mt-1 mb-4">
+          {{ localErrors.email[0] }}
+        </p>
+
         <div class="mb-4">
           <label class="block text-gray-300 mb-1">Password</label>
-          <input
-            v-model="password"
-            type="password"
-            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
-            required />
+          <input v-model="password" type="password"
+            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2" required />
+          <p v-if="localErrors.password" class="text-red-400 text-sm mt-1">
+            {{ localErrors.password[0] || localErrors.password }}
+          </p>
         </div>
 
         <div class="mb-4">
           <label class="block text-gray-300 mb-1">Confirm Password</label>
-          <input
-            v-model="password_confirmation"
-            type="password"
-            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
-            required />
+          <input v-model="password_confirmation" type="password"
+            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2" required />
+          <p v-if="localErrors.password_confirmation" class="text-red-400 text-sm mt-1">
+            {{ localErrors.password_confirmation[0] || localErrors.password_confirmation }}
+          </p>
         </div>
 
-        <button
-          type="submit"
+        <button type="submit"
           class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white py-2 rounded-lg font-semibold hover:opacity-90">
           Create Account
         </button>
@@ -76,9 +77,31 @@ const email = ref("");
 const password = ref("");
 const password_confirmation = ref("");
 
+const localErrors = ref({});
+const MIN_PASSWORD_LENGTH = 8;
+
 const submit = async () => {
+  localErrors.value = {};
+  let passedClientValidation = true;
+
+  // Check Password Length
+  if (password.value.length < MIN_PASSWORD_LENGTH) {
+    localErrors.value.password = [`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`];
+    passedClientValidation = false;
+  }
+
+  // Check Password Confirmation Match
+  if (password.value !== password_confirmation.value) {
+    localErrors.value.password_confirmation = ["Password does not match."];
+    passedClientValidation = false;
+  }
+
+  if (!passedClientValidation) {
+    return; 
+  }
+
   try {
-    const res = await axios.post("/api/register", {
+    const res = await axios.post("/register", {
       name: name.value,
       email: email.value,
       password: password.value,

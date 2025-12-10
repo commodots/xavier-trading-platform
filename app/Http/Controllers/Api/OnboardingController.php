@@ -18,21 +18,28 @@ class OnboardingController extends Controller
     public function onboard(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'surname' => 'required|string|max:100',
-            'email' => 'required|email|unique:users,email',
-            'mobile' => 'required|string|max:20',
-            'dob' => 'required|date',
-            'id_type' => 'required|in:bvn,vnin',
-            'id_value' => 'required|string|max:20',
             'password' => 'required|string|min:8',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:20',
+            'dob' => 'nullable|date',
+            'id_type' => 'nullable|in:bvn,vnin',
+            'id_value' => 'nullable|string|max:20',
         ]);
+
+        $nameInput = $request->input('name');
+        $nameParts = explode(' ', $nameInput, 2);
+        $firstName = trim($nameParts[0]);
+        $lastName = trim($nameParts[1] ?? '');
 
         DB::beginTransaction();
 
         try {
             // 🔍 Step 1: Verify user identity (dummy or real QoreID)
-            $verification = QoreidService::verifyIdentity(
+            /* 
+             $verification = QoreidService::verifyIdentity(
                 $validated['id_type'],
                 $validated['id_value']
             );
@@ -42,19 +49,21 @@ class OnboardingController extends Controller
             }
 
             $kycData = $verification['data'] ?? [];
+            */
 
             // 🧍 Step 2: Create user account
             $user = User::create([
-                'name'=>$validated['first_name'] . ' ' . $validated['surname'],
-				'first_name' => $validated['first_name'],
-                'surname' => $validated['surname'],
+                'name' => $nameInput,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $validated['email'],
-                'phone' => $validated['mobile'],
-                'dob' => $validated['dob'],
+                //'phone' => $validated['phone'],
+                //'dob' => $validated['dob'],
                 'password' => Hash::make($validated['password']),
                 'verified' => true,
             ]);
-
+            DB::commit();
+            /*
             // 🪪 Step 3: Save KYC data
             UserKyc::create([
                 'user_id' => $user->id,
@@ -85,14 +94,14 @@ class OnboardingController extends Controller
 
             DB::commit();
 
-			$token = $user->createToken('xavier_token')->plainTextToken;
-   			return response()->json([
-				'success' => true,
-				'message' => 'Onboarding completed successfully',
-				'token' => $token,
-				'data' => new UserResource($user->load(['wallet', 'kyc'])),
-			], 200);
-
+            $token = $user->createToken('xavier_token')->plainTextToken;
+            return response()->json([
+                'success' => true,
+                'message' => 'Onboarding completed successfully',
+                'token' => $token,
+                'data' => new UserResource($user->load(['wallet', 'kyc'])),
+            ], 200);
+            */
         } catch (Exception $e) {
             DB::rollBack();
 

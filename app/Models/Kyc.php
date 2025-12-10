@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Kyc extends Model
 {
+    protected $table = 'user_kycs';
+    
     protected $fillable = [
         'user_id',
         'provider',
