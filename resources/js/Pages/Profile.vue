@@ -5,11 +5,11 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">👤 Profile</h1>
-          <p class="text-gray-400 text-sm">Manage your account details and complete your KYC.</p>
+          <p class="text-sm text-gray-400">Manage your account details and complete your KYC.</p>
         </div>
         <button
           @click="logout"
-          class="bg-red-500/80 hover:bg-red-500 text-white text-sm px-4 py-2 rounded-lg"
+          class="px-4 py-2 text-sm text-white rounded-lg bg-red-500/80 hover:bg-red-500"
         >
           Logout
         </button>
@@ -39,27 +39,27 @@
             class="w-24 h-24 rounded-full border border-[#1F2A44] object-cover"
           />
           <div>
-            <h2 class="text-xl font-semibold">{{ user.first_name }} {{ user.surname }}</h2>
-            <p class="text-gray-400 text-sm">{{ user.email }}</p>
-            <p class="text-gray-400 text-sm">📱 {{ user.mobile }}</p>
+            <h2 class="text-xl font-semibold">{{ user.first_name }} {{ user.last_name }}</h2>
+            <p class="text-sm text-gray-400">{{ user.email }}</p>
+            <p class="text-sm text-gray-400">📱 {{ user.phone }}</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
           <div>
-            <label class="text-gray-400 block mb-1">Date of Birth</label>
+            <label class="block mb-1 text-gray-400">Date of Birth</label>
             <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.dob || '—' }}</div>
           </div>
           <div>
-            <label class="text-gray-400 block mb-1">Address</label>
+            <label class="block mb-1 text-gray-400">Address</label>
             <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.address || '—' }}</div>
           </div>
           <div>
-            <label class="text-gray-400 block mb-1">State</label>
+            <label class="block mb-1 text-gray-400">State</label>
             <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.state || '—' }}</div>
           </div>
           <div>
-            <label class="text-gray-400 block mb-1">Country</label>
+            <label class="block mb-1 text-gray-400">Country</label>
             <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.country || '—' }}</div>
           </div>
         </div>
@@ -67,9 +67,9 @@
 
       <div v-if="activeTab === 'KYC & Verification'" class="bg-[#0F1724] border border-[#1F2A44] rounded-xl p-6">
         <form @submit.prevent="updateKyc" class="space-y-5">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label class="text-gray-400 block mb-2 text-sm">BVN / NIN</label>
+              <label class="block mb-2 text-sm text-gray-400">BVN / NIN</label>
               <input
                 v-model="kyc.id_value"
                 type="text"
@@ -78,7 +78,7 @@
               />
             </div>
             <div>
-              <label class="text-gray-400 block mb-2 text-sm">ID Type</label>
+              <label class="block mb-2 text-sm text-gray-400">ID Type</label>
               <select
                 v-model="kyc.id_type"
                 class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 focus:border-[#00D4FF] outline-none"
@@ -92,19 +92,19 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label class="text-gray-400 block mb-2 text-sm">Upload ID Front</label>
+              <label class="block mb-2 text-sm text-gray-400">Upload ID Front</label>
               <input type="file" @change="handleFile($event, 'id_front')" class="text-sm text-gray-300" />
             </div>
             <div>
-              <label class="text-gray-400 block mb-2 text-sm">Upload ID Back</label>
+              <label class="block mb-2 text-sm text-gray-400">Upload ID Back</label>
               <input type="file" @change="handleFile($event, 'id_back')" class="text-sm text-gray-300" />
             </div>
           </div>
 
           <div>
-            <label class="text-gray-400 block mb-2 text-sm">Proof of Address</label>
+            <label class="block mb-2 text-sm text-gray-400">Proof of Address</label>
             <input type="file" @change="handleFile($event, 'proof')" class="text-sm text-gray-300" />
           </div>
 
@@ -115,7 +115,7 @@
             {{ loading ? "Updating..." : "Update KYC" }}
           </button>
 
-          <p v-if="message" class="text-sm text-yellow-400 mt-2 text-center">{{ message }}</p>
+          <p v-if="message" class="mt-2 text-sm text-center text-yellow-400">{{ message }}</p>
         </form>
       </div>
     </div>

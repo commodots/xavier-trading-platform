@@ -3,48 +3,51 @@
     <div class="w-full max-w-md bg-[#1C1F2E]/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
 
       <!-- Logo + Title -->
-      <div class="text-center mb-10">
-        <img src="/images/xavier-logo.png" class="mx-auto h-20 mb-4 drop-shadow-lg" />
+      <div class="mb-10 text-center">
+        <img src="/images/xavier-logo.png" class="h-20 mx-auto mb-4 drop-shadow-lg" />
         <h1 class="text-3xl font-bold">Create Account</h1>
-        <p class="text-gray-400 mt-1">Start your investment journey</p>
+        <p class="mt-1 text-gray-400">Start your investment journey</p>
       </div>
 
       <form @submit.prevent="submit">
 
         <div class="mb-4">
-          <label class="block text-gray-300 mb-1">Full Name</label>
-          <input v-model="name" type="text" class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
+          <label class="block mb-1 text-gray-300">Full Name</label>
+          <input v-model="name" type="text" class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg"
             required />
         </div>
 
-        <p v-if="localErrors.name" class="text-red-400 text-sm mt-1 mb-4">
+        <p v-if="localErrors.name" class="mt-1 mb-4 text-sm text-red-400">
           {{ localErrors.name[0] }}
         </p>
 
         <div class="mb-4">
-          <label class="block text-gray-300 mb-1">Email</label>
-          <input v-model="email" type="email" class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2"
+          <label class="block mb-1 text-gray-300">Email</label>
+          <input v-model="email" type="email" class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg"
             required />
+          <p class="mt-1 text-xs text-gray-500">Must be a valid email address</p>
         </div>
 
-        <p v-if="localErrors.email" class="text-red-400 text-sm mt-1 mb-4">
+        <p v-if="localErrors.email" class="mt-1 mb-4 text-sm text-red-400">
           {{ localErrors.email[0] }}
         </p>
 
         <div class="mb-4">
-          <label class="block text-gray-300 mb-1">Password</label>
+          <label class="block mb-1 text-gray-300">Password</label>
           <input v-model="password" type="password"
-            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2" required />
-          <p v-if="localErrors.password" class="text-red-400 text-sm mt-1">
+            class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg" required />
+          <p class="mt-1 text-xs text-gray-500">At least 8 characters</p>
+          <p v-if="localErrors.password" class="mt-1 text-sm text-red-400">
             {{ localErrors.password[0] || localErrors.password }}
           </p>
         </div>
 
         <div class="mb-4">
-          <label class="block text-gray-300 mb-1">Confirm Password</label>
+          <label class="block mb-1 text-gray-300">Confirm Password</label>
           <input v-model="password_confirmation" type="password"
-            class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2" required />
-          <p v-if="localErrors.password_confirmation" class="text-red-400 text-sm mt-1">
+            class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg" required />
+          <p class="mt-1 text-xs text-gray-500">Must match your password</p>
+          <p v-if="localErrors.password_confirmation" class="mt-1 text-sm text-red-400">
             {{ localErrors.password_confirmation[0] || localErrors.password_confirmation }}
           </p>
         </div>
@@ -56,7 +59,7 @@
 
       </form>
 
-      <p class="mt-6 text-center text-gray-400 text-sm">
+      <p class="mt-6 text-sm text-center text-gray-400">
         Already have an account?
         <a href="/login" class="text-[#00D4FF] hover:underline">Sign In</a>
       </p>
@@ -112,7 +115,7 @@ const submit = async () => {
     localStorage.setItem("xavier_token", res.data.token);
     localStorage.setItem("user", JSON.stringify(res.data.user));
 
-    router.push("/dashboard");
+    router.push("/verify-email");
   } catch (err) {
     console.error(err);
     alert(err.response?.data?.message || "Registration failed");

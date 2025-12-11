@@ -4,6 +4,9 @@ import { createRouter, createWebHistory } from "vue-router";
 // Auth
 import Login from "@/Pages/Auth/Login.vue";
 import Register from "@/Pages/Auth/Register.vue";
+import ForgotPassword from "@/Pages/Auth/ForgotPassword.vue";
+import ResetPassword from "@/Pages/Auth/ResetPassword.vue";
+import VerifyEmail from "@/Pages/Auth/VerifyEmail.vue";
 
 // Main User Pages
 import Dashboard from "@/Pages/Dashboard.vue";
@@ -33,7 +36,9 @@ const routes = [
   { path: "/", redirect: "/login" },
   { path: "/login", name: "login", component: Login },
   { path: "/register", name: "register", component: Register },
-
+  { path: "/forgot-password", name: "forgot-password", component: ForgotPassword },
+  { path: "/reset-password", name: "reset-password", component: ResetPassword },
+{ path: "/verify-email", name: "verify-email", component: VerifyEmail },
   /* ----------------------------------------------
      USER AUTH PAGES
   ------------------------------------------------*/

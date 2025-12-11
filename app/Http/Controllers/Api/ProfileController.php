@@ -17,7 +17,7 @@ class ProfileController extends Controller
 
     public function update(Request $r) {
         $user = Auth::user();
-        $data = $r->only(['first_name','surname','mobile','email','dob']);
+        $data = $r->only(['first_name','last_name','phone','email','dob']);
         $user->update($data);
         return response()->json(['success'=>true,'data'=>$user]);
     }

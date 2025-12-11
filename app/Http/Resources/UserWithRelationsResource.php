@@ -11,9 +11,9 @@ class UserWithRelationsResource extends JsonResource
         return [
             'id'         => $this->id,
             'first_name' => $this->first_name,
-            'surname'    => $this->surname,
+            'last_name'    => $this->last_name,
             'email'      => $this->email,
-            'mobile'     => $this->mobile,
+            'phone'     => $this->phone,
             'dob'        => $this->dob,
             'wallet'     => new WalletResource($this->whenLoaded('wallet')),
             'kyc'        => new KycResource($this->whenLoaded('kyc')),

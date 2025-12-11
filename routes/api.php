@@ -15,7 +15,10 @@ use App\Http\Controllers\Api\{
     WalletController,
     SystemSettingsController
 };
-
+use App\Http\Controllers\Auth\{
+    PasswordResetLinkController,
+    NewPasswordController
+};
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -25,6 +28,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
 Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
+Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
 
 /*
 |--------------------------------------------------------------------------
