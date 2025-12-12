@@ -7,6 +7,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Facades\Crypt;
 
 class User extends Authenticatable
 {
@@ -72,5 +74,12 @@ class User extends Authenticatable
         // Automatically update the combined 'name' field
         $firstName = $this->attributes['first_name'] ?? '';
         $this->attributes['name'] = trim("{$firstName} {$value}");
+    }
+    protected function google2faSecret(): Attribute
+    {
+        return new Attribute(
+            get: fn ($value) => $value ? Crypt::decryptString($value) : null,
+            set: fn ($value) => Crypt::encryptString($value),
+        );
     }
 }

@@ -7,6 +7,8 @@ import Register from "@/Pages/Auth/Register.vue";
 import ForgotPassword from "@/Pages/Auth/ForgotPassword.vue";
 import ResetPassword from "@/Pages/Auth/ResetPassword.vue";
 import VerifyEmail from "@/Pages/Auth/VerifyEmail.vue";
+import TwoFactorSetup from "@/Pages/TwoFactorSetup.vue";
+
 
 // Main User Pages
 import Dashboard from "@/Pages/Dashboard.vue";
@@ -17,6 +19,7 @@ import NgxMarket from "@/Pages/NGXMarket.vue";
 import GlobalMarket from "@/Pages/GlobalStocks.vue";
 import CryptoMarket from "@/Pages/CryptoMarket.vue";
 import Profile from "@/Pages/Profile/Index.vue";
+import Settings from "@/Pages/Settings.vue";
 
 // OMS
 import Orders from "@/Pages/Orders.vue";
@@ -38,7 +41,8 @@ const routes = [
   { path: "/register", name: "register", component: Register },
   { path: "/forgot-password", name: "forgot-password", component: ForgotPassword },
   { path: "/reset-password", name: "reset-password", component: ResetPassword },
-{ path: "/verify-email", name: "verify-email", component: VerifyEmail },
+  { path: "/verify-email", name: "verify-email", component: VerifyEmail },
+  { path: "/two-factor-setup", name: "two-factor-setup", component: TwoFactorSetup },
   /* ----------------------------------------------
      USER AUTH PAGES
   ------------------------------------------------*/
@@ -67,6 +71,13 @@ const routes = [
     path: "/portfolio",
     name: "portfolio",
     component: Portfolio,
+    meta: { requiresAuth: true },
+  },
+
+  {
+    path: "/settings",
+    name: "settings",
+    component: Settings,
     meta: { requiresAuth: true },
   },
 
@@ -101,7 +112,9 @@ const routes = [
     component: Profile,
     meta: { requiresAuth: true },
   },
-
+  
+  
+ 
   /* ----------------------------------------------
      OMS
   ------------------------------------------------*/
@@ -122,11 +135,11 @@ const routes = [
     ADMIN PAGES
   ------------------------------------------------*/
   {
-	  path: "/admin",
-	  name: "admin-dashboard",
-	  component: () => import("@/Pages/Admin/Dashboard.vue"),
-	  meta: { requiresAuth: true, adminOnly: true },
-	},
+    path: "/admin",
+    name: "admin-dashboard",
+    component: () => import("@/Pages/Admin/Dashboard.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
 
   {
     path: "/admin/users",
@@ -135,11 +148,11 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
-	  path: "/admin/users/:id",
-	  name: "admin-user-detail",
-	  component: () => import("@/Pages/Admin/UserDetail.vue"),
-	  meta: { requiresAuth: true, adminOnly: true },
-	},
+    path: "/admin/users/:id",
+    name: "admin-user-detail",
+    component: () => import("@/Pages/Admin/UserDetail.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
   {
     path: "/admin/kyc",
     name: "admin-kyc",
@@ -159,11 +172,11 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
-	  path: '/admin/orderbook',
-	  name: 'admin-orderbook',
-	  component: () => import('@/Pages/Admin/OrderBook.vue'),
-	  meta: { requiresAuth: true }
-	},
+    path: '/admin/orderbook',
+    name: 'admin-orderbook',
+    component: () => import('@/Pages/Admin/OrderBook.vue'),
+    meta: { requiresAuth: true }
+  },
 
 ];
 
@@ -179,7 +192,7 @@ const router = createRouter({
    NAVIGATION GUARDS
 ----------------------------------------------------*/
 router.beforeEach((to, from, next) => {
-  
+
   const token = localStorage.getItem("xavier_token");
 
   let user = {};
