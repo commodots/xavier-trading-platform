@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use PragmaRX\Google2FA\Google2FA;
+use App\Models\User;
 
 class TwoFactorController extends Controller
 {
@@ -57,6 +58,20 @@ class TwoFactorController extends Controller
         $user->save();
 
         return response()->json(['success' => true, 'message' => '2FA Activated']);
+    }
+
+    // 💡 STEP 4: Disable 2FA (Authenticated)
+    public function disable2FA(Request $request)
+    {
+        // Requires 'auth:sanctum' middleware
+        $user = $request->user();
+
+        // Clear the secret and disable the flag
+        $user->google2fa_secret = null;
+        $user->is_2fa_enabled = false;
+        $user->save();
+
+        return response()->json(['success' => true, 'message' => '2FA Disabled']);
     }
 
     // 💡 STEP 5: 2FA Code Verification After Login Attempt (Public)

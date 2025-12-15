@@ -228,4 +228,6 @@ class AdminController extends Controller
             'user_growth' => [100, 150, 200, 260, 340, 500, 650]
         ]);
     }
+
+    
 }
