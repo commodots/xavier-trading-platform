@@ -15,7 +15,8 @@ use App\Http\Controllers\Api\{
     WalletController,
     SystemSettingsController,
     TwoFactorController,
-    AdminServiceController
+    AdminServiceController,
+    PortfolioController
 };
 use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
@@ -47,6 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
     /* Wallet */
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
     Route::post('/wallet/convert', [WalletController::class, 'convert']);
+
+    Route::get('/portfolio', [PortfolioController::class, 'summary']);
+    
+    Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
 
     // Authenticated Endpoints
     Route::get('/2fa/setup', [TwoFactorController::class, 'enable2FA']);

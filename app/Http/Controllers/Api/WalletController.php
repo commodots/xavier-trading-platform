@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Models\Wallet;
+use App\Models\Transaction;
+
 
 class WalletController extends Controller
 {
@@ -13,18 +16,24 @@ class WalletController extends Controller
     public function balances()
     {
         $user = Auth::user();
-        $wallet = $user->wallet;
+        
+        // --- 1. Fetch Wallets from separate rows ---
+        // Get the specific NGN and USD wallet objects
+        $ngnWallet = $user->wallets()->where('currency', 'NGN')->first();
+        $usdWallet = $user->wallets()->where('currency', 'USD')->first();
 
-        if (!$wallet) {
-            $wallet = $user->wallet()->create([
-                'balance_ngn' => 0,
-                'balance_usd' => 0,
-            ]);
-        }
+        // --- 2. Consolidate and Default (NULL-SAFE) ---
+        // Use the null-safe operator (?->) to prevent 500 errors if a wallet is missing.
+        $consolidatedWallet = [
+            'balance_ngn' => $ngnWallet?->balance ?? 0,
+            'balance_usd' => $usdWallet?->balance ?? 0,
+            'id' => $user->id, // Optional
+        ];
 
+        // --- 3. Return the consolidated object ---
         return response()->json([
             'success' => true,
-            'data' => $wallet
+            'data' => $consolidatedWallet
         ]);
     }
 
@@ -63,7 +72,6 @@ class WalletController extends Controller
 
             $wallet->balance_ngn -= $amount;
             $wallet->balance_usd += $usd;
-
         } else {
             if ($wallet->balance_usd < $amount) {
                 return response()->json(['success' => false, 'message' => 'Insufficient USD balance']);
@@ -83,4 +91,31 @@ class WalletController extends Controller
             'data' => $wallet
         ]);
     }
+    public function recentTransactions(Request $request)
+    {
+        // Fetch the last 10 transactions for the authenticated user, newest first
+        $transactions = $request->user()
+            ->transactions() // Assumes you have a 'transactions' relationship on your User model
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+            
+        // Map the transactions to the format expected by the Vue component
+        $formattedTransactions = $transactions->map(function ($transaction) {
+            return [
+                'id' => $transaction->id,
+                // Format date to match your Vue template (e.g., "2025-11-01")
+                'date' => $transaction->created_at->format('Y-m-d'), 
+                'type' => ucfirst($transaction->type), // E.g., "Deposit"
+                'currency' => $transaction->asset, // Using 'asset' column for currency/asset symbol
+                'amount' => (float) $transaction->amount, // Cast to float for precision
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'transactions' => $formattedTransactions
+        ]);
+    }
+
 }

@@ -67,6 +67,8 @@
 import MainLayout from "@/layouts/MainLayout.vue";
 import { ref, onMounted } from "vue";
 import VueApexCharts from "vue3-apexcharts";
+import axios from "axios";
+
 
 const apexchart = VueApexCharts;
 
@@ -84,18 +86,20 @@ const chartOptions = ref({
 onMounted(async () => {
   const token = localStorage.getItem("xavier_token");
 
-  const res = await axios.get("/api/dashboard", {
+  const res = await axios.get("/portfolio", {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  totalEquity.value = res.data.total_equity;
-  holdings.value = res.data.holdings;
+  const data = res.data;
+
+  totalEquity.value = data.total_equity;
+  holdings.value = data.holdings;
 
   chartSeries.value = [
-    res.data.wallet_balance,
-    res.data.ngx_value,
-    res.data.global_stocks_value_usd,
-    res.data.crypto_value
+    data.wallet_balance,
+    data.ngx_value,
+    data.global_stocks_value_usd,
+    data.crypto_value
   ];
 });
 </script>

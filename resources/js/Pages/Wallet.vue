@@ -172,19 +172,32 @@ const formatAmount = (amt, currency) => {
 };
 
 onMounted(async () => {
-  const token = localStorage.getItem("xavier_token");
+    const token = localStorage.getItem("xavier_token");
 
-  const res = await axios.get("/api/wallet/balances", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    // 1. Fetch Balances (Existing call)
+    try {
+        const balanceRes = await axios.get("/wallet/balances", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        balances.value = balanceRes.data.data;
+    } catch (e) {
+        console.error("Failed to fetch balances:", e);
+    }
+    
+    // 2. Fetch Recent Transactions (NEW CALL)
+    try {
+        const transactionRes = await axios.get("/wallet/transactions", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
 
-  balances.value = res.data.data;
-
-  // dummy transactions
-  transactions.value = [
-    { id: 1, date: "2025-11-01", type: "Convert", currency: "USD", amount: 50 },
-    { id: 2, date: "2025-10-29", type: "Deposit", currency: "NGN", amount: 200000 },
-  ];
+        // The API returns { transactions: [...] }
+        transactions.value = transactionRes.data.transactions;
+        
+    } catch (e) {
+        console.error("Failed to fetch transactions:", e);
+        // Fallback to empty array if call fails
+        transactions.value = [];
+    }
 });
 
 // Currency Conversion
@@ -199,11 +212,14 @@ const convertCurrency = async () => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (res.data.success) {
-      balances.value = res.data.data;
+    const data = res.data;
+    console.log(data);
+
+    if (data.success) {
+      balances.value = data;
       message.value = "Conversion successful ✔";
     } else {
-      message.value = res.data.message;
+      message.value = data.message;
     }
   } catch (e) {
     message.value = "Server error";
