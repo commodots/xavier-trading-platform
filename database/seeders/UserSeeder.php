@@ -13,9 +13,8 @@ class UserSeeder extends Seeder
         // Admin
         User::create([
             'first_name' => 'System',
-            'surname' => 'Admin',
-            'name' => 'System Admin',
-            'email' => 'admin@xavier.con',
+            'last_name' => 'Admin',
+            'email' => 'admin@xavier.com',
             'phone' => '08000000000',
             'role' => 'admin',
             'status' => 'active',

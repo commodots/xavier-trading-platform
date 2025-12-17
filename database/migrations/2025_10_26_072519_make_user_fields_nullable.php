@@ -9,8 +9,8 @@ return new class extends Migration {
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('first_name')->nullable()->change();
-            $table->string('surname')->nullable()->change();
-            $table->string('mobile')->nullable()->change();
+            $table->string('last_name')->nullable()->change();
+            $table->string('phone')->nullable()->change();
             $table->date('dob')->nullable()->change();
             $table->string('bvn')->nullable()->change();
         });
@@ -20,8 +20,8 @@ return new class extends Migration {
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('first_name')->nullable(false)->change();
-            $table->string('surname')->nullable(false)->change();
-            $table->string('mobile')->nullable(false)->change();
+            $table->string('last_name')->nullable(false)->change();
+            $table->string('phone')->nullable(false)->change();
             $table->date('dob')->nullable(false)->change();
             $table->string('bvn')->nullable(false)->change();
         });

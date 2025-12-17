@@ -4,6 +4,8 @@ import router from "./router";
 import "./style.css"; // Tailwind
 import axios from "axios";
 import VueApexCharts from "vue3-apexcharts";
+
+
 const app = createApp(App);
 
 app.config.globalProperties.$axios = axios;
@@ -16,3 +18,4 @@ if (token) {
 app.component('apexchart', VueApexCharts);
 app.use(router);
 app.mount("#app");
+

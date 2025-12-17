@@ -9,7 +9,7 @@
       <div class="space-y-4">
         <div>
           <label class="text-sm text-gray-400">Select role</label>
-          <select v-model="selected" class="w-full mt-2 bg-transparent border border-gray-600 rounded px-3 py-2">
+          <select v-model="selected" class="w-full px-3 py-2 mt-2 bg-transparent border border-gray-600 rounded text-neutral-400">
             <option v-for="r in roles" :key="r" :value="r">{{ r }}</option>
           </select>
         </div>
@@ -19,7 +19,7 @@
         </div>
 
         <div class="flex justify-end gap-3 mt-4">
-          <button @click="$emit('close')" class="px-3 py-2 rounded bg-transparent border border-gray-600 text-sm">Cancel</button>
+          <button @click="$emit('close')" class="px-3 py-2 text-sm bg-transparent border border-gray-600 rounded">Cancel</button>
           <button @click="save" :disabled="saving" class="px-4 py-2 rounded bg-[#00D4FF] text-black font-semibold">
             {{ saving ? 'Saving...' : 'Save Role' }}
           </button>

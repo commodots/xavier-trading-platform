@@ -12,15 +12,15 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'first_name' => $this->first_name,
-            'surname' => $this->surname,
+            'last_name' => $this->last_name,
             'email' => $this->email,
-            'mobile' => $this->mobile,
+            'phone' => $this->phone,
             'dob' => $this->dob,
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,
 
             // Nested resources
-            'wallet' => new WalletResource($this->whenLoaded('wallet')),
+            'wallet' => WalletResource::collection($this->whenLoaded('wallet')),
             'kyc' => new KycResource($this->whenLoaded('kyc')),
         ];
     }

@@ -50,13 +50,13 @@ class AdminController extends Controller
     */
     public function users(Request $request)
 	{
-		$query = User::select('id','first_name','surname','email','phone','role','status','created_at');
+		$query = User::select('id','first_name','last_name','email','phone','role','status','created_at');
 
 		if ($request->q) {
 			$query->where(function($q) use ($request) {
 				$q->where('email', 'like', "%{$request->q}%")
 				  ->orWhere('first_name', 'like', "%{$request->q}%")
-				  ->orWhere('surname', 'like', "%{$request->q}%");
+				  ->orWhere('last_name', 'like', "%{$request->q}%");
 			});
 		}
 
@@ -98,7 +98,7 @@ class AdminController extends Controller
             'user' => [
                 'id'         => $user->id,
                 'first_name' => $user->first_name,
-                'last_name'  => $user->surname,   // Map surname → last_name
+                'last_name'  => $user->last_name,
                 'email'      => $user->email,
                 'phone'      => $user->phone,
                 'role'       => $user->role,

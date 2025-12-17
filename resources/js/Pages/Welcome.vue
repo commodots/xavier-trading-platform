@@ -27,21 +27,21 @@ const goToDashboard = () => {
         class="mx-auto h-[90px] w-auto mb-6 object-contain"
       />
 
-      <h1 class="text-3xl font-bold mb-2">Welcome to Xavier</h1>
-      <p class="text-gray-400 mb-6 text-base">
+      <h1 class="mb-2 text-3xl font-bold">Welcome to Xavier</h1>
+      <p class="mb-6 text-base text-gray-400">
         Smart Trading Simplified — Your account is ready, and your wallet has been created.
       </p>
 
       <div v-if="user" class="bg-[#0B132B]/70 rounded-xl py-4 mb-6 border border-[#00D4FF]/20">
-        <p class="text-lg font-semibold text-[#00D4FF]">{{ user.first_name }} {{ user.surname }}</p>
+        <p class="text-lg font-semibold text-[#00D4FF]">{{ user.first_name }} {{ user.last_name }}</p>
         <p class="text-sm text-gray-400">{{ user.email }}</p>
         <p class="text-sm text-gray-400">DOB: {{ new Date(user.dob).toLocaleDateString() }}</p>
       </div>
 
-      <div class="space-y-2 mb-8">
-        <p class="text-gray-300 text-sm">✅ BVN verified successfully</p>
-        <p class="text-gray-300 text-sm">💳 Wallet initialized with NGN balance</p>
-        <p class="text-gray-300 text-sm">🚀 You're all set to explore your dashboard</p>
+      <div class="mb-8 space-y-2">
+        <p class="text-sm text-gray-300">✅ BVN verified successfully</p>
+        <p class="text-sm text-gray-300">💳 Wallet initialized with NGN balance</p>
+        <p class="text-sm text-gray-300">🚀 You're all set to explore your dashboard</p>
       </div>
 
       <button
@@ -53,7 +53,7 @@ const goToDashboard = () => {
     </div>
 
     <!-- Footer -->
-    <p class="text-gray-500 text-xs mt-10">
+    <p class="mt-10 text-xs text-gray-500">
       © {{ new Date().getFullYear() }} Xavier Management Ltd — All Rights Reserved
     </p>
   </div>

@@ -13,19 +13,26 @@ use App\Http\Controllers\Api\{
     AdminController,
     MarketController,
     WalletController,
-    SystemSettingsController
+    SystemSettingsController,
+    TwoFactorController
 };
-
+use App\Http\Controllers\Auth\{
+    PasswordResetLinkController,
+    NewPasswordController
+};
 /*
 |--------------------------------------------------------------------------
 | Public Routes
 |--------------------------------------------------------------------------
 */
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
 Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
-
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
+Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
+Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
 /*
 |--------------------------------------------------------------------------
 | Protected Routes
@@ -39,6 +46,10 @@ Route::middleware('auth:sanctum')->group(function () {
     /* Wallet */
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
     Route::post('/wallet/convert', [WalletController::class, 'convert']);
+
+    // Authenticated Endpoints
+    Route::get('/2fa/setup', [TwoFactorController::class, 'enable2FA']);
+    Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm2FA']);
 
     /* Profile */
     Route::get('/profile/me', [ProfileController::class, 'me']);

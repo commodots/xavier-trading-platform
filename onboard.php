@@ -16,9 +16,9 @@ $uniqueEmail = 'aisha' . rand(1000, 9999) . '@example.test';
 // === Payload (switch between BVN or vNIN) ===
 $payload = [
     "first_name" => "Aisha",
-    "surname" => "Ogunleye",
+    "last_name" => "Ogunleye",
     "email" => $uniqueEmail,
-    "mobile" => "+2348089001122",
+    "phone" => "+2348089001122",
     "dob" => "1994-07-15",
     "id_type" => "vnin",            // 'bvn' or 'vnin'
     "id_value" => "12345678901",    // sample fake NIN for test

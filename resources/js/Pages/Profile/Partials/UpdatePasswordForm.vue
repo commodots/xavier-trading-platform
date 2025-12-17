@@ -1,42 +1,87 @@
 <script setup>
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
+import { ref, reactive } from 'vue';
+import axios from 'axios';
+ import InputError from '@/Components/InputError.vue';
+ import InputLabel from '@/Components/InputLabel.vue';
+ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+
 
 const passwordInput = ref(null);
 const currentPasswordInput = ref(null);
 
-const form = useForm({
+// --- STATE MANAGEMENT ---
+
+
+const form = reactive({
     current_password: '',
     password: '',
     password_confirmation: '',
 });
 
-const updatePassword = () => {
-    form.put(route('password.update'), {
-        preserveScroll: true,
-        onSuccess: () => form.reset(),
-        onError: () => {
-            if (form.errors.password) {
-                form.reset('password', 'password_confirmation');
+
+const errors = reactive({});
+const processing = ref(false);
+const recentlySuccessful = ref(false);
+
+
+const updatePassword = async () => {
+    processing.value = true;
+    recentlySuccessful.value = false;
+    // Clear previous errors
+    Object.keys(errors).forEach(key => delete errors[key]);
+
+    try {
+        // Laravel uses a PUT or PATCH request for updates. We'll use PATCH on the API.
+        // Assuming your backend route is POST /api/password (or PUT/PATCH /api/password)
+        await api.patch('/password', form);
+
+        // --- SUCCESS LOGIC (Based on Inertia's onSuccess) ---
+        
+        // 1. Reset the form fields
+        form.current_password = '';
+        form.password = '';
+        form.password_confirmation = '';
+
+        // 2. Show success message
+        recentlySuccessful.value = true;
+        setTimeout(() => recentlySuccessful.value = false, 3000);
+
+    } catch (e) {
+        // --- ERROR LOGIC (Based on Inertia's onError) ---
+        
+        if (e.response && e.response.status === 422) {
+            const apiErrors = e.response.data.errors;
+            Object.assign(errors, apiErrors); // Populate errors state
+
+            // 1. Handle validation errors and focus (Inertia's logic replicated)
+            if (apiErrors.password) {
+                form.password = '';
+                form.password_confirmation = '';
+                // Focus the new password field if it failed validation
                 passwordInput.value.focus();
             }
-            if (form.errors.current_password) {
-                form.reset('current_password');
+            if (apiErrors.current_password) {
+                form.current_password = '';
+                // Focus the current password field if it failed validation
                 currentPasswordInput.value.focus();
             }
-        },
-    });
+            
+        } else {
+            console.error("Password update failed:", e);
+            // Handle other server errors (e.g., 500)
+            errors.general = ['An unexpected error occurred. Please try again.'];
+        }
+    } finally {
+        processing.value = false;
+    }
 };
 </script>
 
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-gray-900">
+            <h2 class="text-lg font-medium text-white mt-3">
                 Update Password
             </h2>
 
@@ -60,7 +105,7 @@ const updatePassword = () => {
                 />
 
                 <InputError
-                    :message="form.errors.current_password"
+                    :message="errors.current_password ? errors.current_password[0] : ''"
                     class="mt-2"
                 />
             </div>
@@ -77,7 +122,7 @@ const updatePassword = () => {
                     autocomplete="new-password"
                 />
 
-                <InputError :message="form.errors.password" class="mt-2" />
+                <InputError :message="errors.password ? errors.password[0] : ''" class="mt-2" />
             </div>
 
             <div>
@@ -95,13 +140,13 @@ const updatePassword = () => {
                 />
 
                 <InputError
-                    :message="form.errors.password_confirmation"
+                    :message="errors.password_confirmation ? errors.password_confirmation[0] : ''"
                     class="mt-2"
                 />
             </div>
 
             <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
+                <PrimaryButton :disabled="processing">Save</PrimaryButton>
 
                 <Transition
                     enter-active-class="transition ease-in-out"
@@ -110,7 +155,7 @@ const updatePassword = () => {
                     leave-to-class="opacity-0"
                 >
                     <p
-                        v-if="form.recentlySuccessful"
+                        v-if="recentlySuccessful"
                         class="text-sm text-gray-600"
                     >
                         Saved.

@@ -3,13 +3,15 @@ import { ref } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
 
+
 const router = useRouter();
+
 
 const form = ref({
   first_name: "",
-  surname: "",
+  last_name: "",
   email: "",
-  mobile: "",
+  phone: "",
   dob: "",
   id_type: "bvn",
   id_value: "",
@@ -60,12 +62,12 @@ const submit = async () => {
         Smart Trading,<br />Simplified for You
       </h2>
 
-      <p class="text-gray-400 text-base leading-relaxed max-w-md">
+      <p class="max-w-md text-base leading-relaxed text-gray-400">
         Step into the future of finance with <strong>Xavier</strong> — a digital-first 
         trading platform offering secure wallets, intelligent analytics, and instant onboarding.
       </p>
 
-      <ul class="text-gray-400 text-sm space-y-2 mt-3">
+      <ul class="mt-3 space-y-2 text-sm text-gray-400">
         <li>✔ Instant BVN/NIN verification</li>
         <li>✔ Auto-created wallet</li>
         <li>✔ Smart insights & dashboard</li>
@@ -75,18 +77,18 @@ const submit = async () => {
     <!-- RIGHT SECTION -->
     <div class="w-full md:w-[55%] flex items-center justify-center px-8 py-12">
       <div class="bg-[#1C1F2E]/90 backdrop-blur-md rounded-2xl shadow-2xl p-10 w-full max-w-lg">
-        <h2 class="text-2xl font-bold mb-6 text-center">Let’s get you started</h2>
+        <h2 class="mb-6 text-2xl font-bold text-center">Let’s get you started</h2>
 
         <form @submit.prevent="submit">
           <div class="grid grid-cols-2 gap-4 mb-4">
             <input v-model="form.first_name" type="text" placeholder="First Name" required
               class="bg-transparent border border-gray-600 rounded-lg px-4 py-2 focus:border-[#00D4FF] focus:ring-0 outline-none" />
-            <input v-model="form.surname" type="text" placeholder="Surname" required
+            <input v-model="form.last_name" type="text" placeholder="Last Name" required
               class="bg-transparent border border-gray-600 rounded-lg px-4 py-2 focus:border-[#00D4FF] focus:ring-0 outline-none" />
           </div>
 
           <div class="mb-4">
-            <input v-model="form.mobile" type="tel" placeholder="Mobile Number" required
+            <input v-model="form.phone" type="tel" placeholder="Phone Number" required
               class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 focus:border-[#00D4FF] focus:ring-0 outline-none" />
           </div>
 
@@ -113,12 +115,12 @@ const submit = async () => {
           </button>
         </form>
 
-        <p class="mt-6 text-center text-gray-400 text-sm">
+        <p class="mt-6 text-sm text-center text-gray-400">
           Already have an account?
           <router-link to="/login" class="text-[#00D4FF] font-semibold hover:underline">Sign in</router-link>
         </p>
 
-        <p v-if="message" class="mt-4 text-center text-sm text-yellow-400">{{ message }}</p>
+        <p v-if="message" class="mt-4 text-sm text-center text-yellow-400">{{ message }}</p>
       </div>
     </div>
   </div>

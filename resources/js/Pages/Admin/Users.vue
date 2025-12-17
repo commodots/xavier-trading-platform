@@ -1,9 +1,9 @@
 <template>
   <MainLayout>
-    <div class="p-6 text-white space-y-8">
+    <div class="p-6 space-y-8 text-white">
 
       <!-- HEADER -->
-      <div class="flex justify-between items-center">
+      <div class="flex items-center justify-between">
         <h1 class="text-3xl font-bold">Users Management</h1>
 
         <!-- Search -->
@@ -17,7 +17,7 @@
       </div>
 
       <!-- TABS -->
-      <div class="flex gap-4 border-b border-gray-700 pb-2">
+      <div class="flex gap-4 pb-2 border-b border-gray-700">
         <button
           class="px-4 py-2 rounded-t-lg"
           :class="activeTab === 'clients'
@@ -43,7 +43,7 @@
       <div v-if="activeTab === 'clients'"
         class="bg-[#111827] p-6 rounded-xl shadow-lg border border-[#1F2A44]"
       >
-        <h2 class="text-xl font-semibold mb-4 text-green-400">Client Accounts</h2>
+        <h2 class="mb-4 text-xl font-semibold text-green-400">Client Accounts</h2>
 
         <div v-if="loading" class="py-10 text-center text-gray-400 animate-pulse">
           Loading clients...
@@ -51,7 +51,7 @@
 
         <table v-else class="w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-700 text-left text-gray-400">
+            <tr class="text-left text-gray-400 border-b border-gray-700">
               <th class="py-2">User</th>
               <th>Email</th>
               <th>Phone</th>
@@ -67,11 +67,11 @@
               :key="u.id"
               class="border-b border-gray-800 hover:bg-[#1E293B] transition"
             >
-              <td class="py-3 flex items-center gap-3">
-                <div class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs font-bold">
+              <td class="flex items-center gap-3 py-3">
+                <div class="flex items-center justify-center w-8 h-8 text-xs font-bold bg-gray-600 rounded-full">
                   {{ initials(u) }}
                 </div>
-                {{ u.first_name }} {{ u.surname }}
+                {{ u.first_name }} {{ u.last_name }}
               </td>
 
               <td>{{ u.email }}</td>
@@ -92,7 +92,7 @@
               <td>
                 <button
                   @click="openUser(u.id)"
-                  class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition"
+                  class="px-3 py-1 text-xs text-white transition bg-blue-600 rounded hover:bg-blue-700"
                 >
                   View
                 </button>
@@ -102,7 +102,7 @@
         </table>
 
         <!-- CLIENT PAGINATION -->
-        <div class="flex justify-between items-center mt-4 text-sm">
+        <div class="flex items-center justify-between mt-4 text-sm">
           <button
             class="px-3 py-1 bg-gray-700 rounded disabled:opacity-40"
             :disabled="clientPage <= 1"
@@ -127,7 +127,7 @@
       <div v-if="activeTab === 'staff'"
         class="bg-[#111827] p-6 rounded-xl shadow-lg border border-[#1F2A44]"
       >
-        <h2 class="text-xl font-semibold mb-4 text-blue-400">Staff Accounts</h2>
+        <h2 class="mb-4 text-xl font-semibold text-blue-400">Staff Accounts</h2>
 
         <div v-if="loading" class="py-10 text-center text-gray-400 animate-pulse">
           Loading staff...
@@ -135,7 +135,7 @@
 
         <table v-else class="w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-700 text-left text-gray-400">
+            <tr class="text-left text-gray-400 border-b border-gray-700">
               <th class="py-2">User</th>
               <th>Email</th>
               <th>Role</th>
@@ -151,17 +151,17 @@
               :key="u.id"
               class="border-b border-gray-800 hover:bg-[#1E293B] transition"
             >
-              <td class="py-3 flex items-center gap-3">
-                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
+              <td class="flex items-center gap-3 py-3">
+                <div class="flex items-center justify-center w-8 h-8 text-xs font-bold bg-blue-600 rounded-full">
                   {{ initials(u) }}
                 </div>
-                {{ u.first_name }} {{ u.surname }}
+                {{ u.first_name }} {{ u.last_name }}
               </td>
 
               <td>{{ u.email }}</td>
 
               <td>
-                <span class="px-2 py-1 text-xs rounded bg-purple-700 capitalize">
+                <span class="px-2 py-1 text-xs capitalize bg-purple-700 rounded">
                   {{ u.role }}
                 </span>
               </td>
@@ -181,7 +181,7 @@
               <td>
                 <button
                   @click="openUser(u.id)"
-                  class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition"
+                  class="px-3 py-1 text-xs text-white transition bg-blue-600 rounded hover:bg-blue-700"
                 >
                   View
                 </button>
@@ -191,7 +191,7 @@
         </table>
 
         <!-- STAFF PAGINATION -->
-        <div class="flex justify-between items-center mt-4 text-sm">
+        <div class="flex items-center justify-between mt-4 text-sm">
           <button
             class="px-3 py-1 bg-gray-700 rounded disabled:opacity-40"
             :disabled="staffPage <= 1"
@@ -261,7 +261,7 @@ const paginatedStaff = computed(() =>
 // INITIALS
 const initials = (u) =>
   (u.first_name?.[0] || "").toUpperCase() +
-  (u.surname?.[0] || "").toUpperCase();
+  (u.last_name?.[0] || "").toUpperCase();
 
 // DEBOUNCED SEARCH
 let timer = null;

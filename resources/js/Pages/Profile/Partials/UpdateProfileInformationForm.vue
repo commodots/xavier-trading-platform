@@ -1,31 +1,110 @@
 <script setup>
-import InputError from '@/Components/InputError.vue';
+import { ref, reactive, onMounted } from 'vue'; 
+import axios from 'axios';
+import InputError from '@/Components/InputError.vue'; // Keep your custom components
 import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import PrimaryButton from '@/Components/PrimaryButton.vue';import TextInput from '@/Components/TextInput.vue';
 
+const user = ref({ 
+    name: '', 
+    email: '', 
+    email_verified_at: null 
+});
+
+// 2. Form Data (Mutable)
+const form = reactive({
+    name: '',
+    email: '',
+});
+
+// 3. UI State (Replaces Inertia's helpers)
+const errors = reactive({});
+const processing = ref(false);
+const recentlySuccessful = ref(false);
+
+// 4. Props (Simplified as we don't rely on Inertia props as much)
 defineProps({
     mustVerifyEmail: {
         type: Boolean,
+        default: false,
     },
     status: {
         type: String,
     },
 });
 
-const user = usePage().props.auth.user;
+// --- LIFECYCLE HOOK ---
 
-const form = useForm({
-    name: user.name,
-    email: user.email,
+// Fetch the current user data when the component loads
+onMounted(async () => {
+    try {
+        // Assuming you have a protected '/profile' endpoint
+        const response = await api.get('/profile');
+        const userData = response.data.data; // Assuming API returns data.data (as per previous context)
+
+        // Set both the display user and the form data
+        user.value = userData; 
+        form.name = userData.name;
+        form.email = userData.email;
+    } catch (e) {
+        console.error("Failed to load profile data.", e);
+        // Handle error: e.g., redirect to login if 401
+    }
 });
+
+
+// --- METHODS ---
+
+async function updateProfile() {
+    processing.value = true;
+    recentlySuccessful.value = false;
+    // Clear previous errors
+    Object.keys(errors).forEach(key => delete errors[key]);
+
+    try {
+        // 🛑 Use api.patch() for updates
+        const response = await api.patch('/profile', { // Assuming the API route is /api/profile
+            name: form.name,
+            email: form.email,
+        });
+
+        // Update the reactive user state with the new data
+        user.value.name = response.data.data.name;
+        user.value.email = response.data.data.email;
+        
+        // Success feedback
+        recentlySuccessful.value = true;
+        setTimeout(() => recentlySuccessful.value = false, 3000);
+
+    } catch (e) {
+        if (e.response && e.response.status === 422) {
+            // Laravel Validation Errors (422)
+            Object.assign(errors, e.response.data.errors);
+        } else {
+            console.error("Profile update failed:", e);
+        }
+    } finally {
+        processing.value = false;
+    }
+}
+
+// Handler for email verification re-send
+async function sendVerification() {
+    try {
+        // 🛑 Assuming a POST request to a /verification-notification endpoint
+        await api.post('/verification-notification');
+        // Set success status to show the message
+        // You would need a reactive 'status' variable if you want to mirror the Inertia logic exactly
+    } catch (e) {
+        console.error("Failed to re-send verification email.", e);
+    }
+}
 </script>
 
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-gray-900">
+            <h2 class="text-lg font-medium text-white mt-3">
                 Profile Information
             </h2>
 
@@ -34,10 +113,7 @@ const form = useForm({
             </p>
         </header>
 
-        <form
-            @submit.prevent="form.patch(route('profile.update'))"
-            class="mt-6 space-y-6"
-        >
+        <form @submit.prevent="updateProfile" class="mt-6 space-y-6">
             <div>
                 <InputLabel for="name" value="Name" />
 
@@ -51,7 +127,7 @@ const form = useForm({
                     autocomplete="name"
                 />
 
-                <InputError class="mt-2" :message="form.errors.name" />
+                <InputError class="mt-2" :message="errors.name ? errors.name[0] : ''" />
             </div>
 
             <div>
@@ -66,20 +142,19 @@ const form = useForm({
                     autocomplete="username"
                 />
 
-                <InputError class="mt-2" :message="form.errors.email" />
+                <InputError class="mt-2" :message="errors.email ? errors.email[0] : ''" />
             </div>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">
                 <p class="mt-2 text-sm text-gray-800">
                     Your email address is unverified.
-                    <Link
-                        :href="route('verification.send')"
-                        method="post"
-                        as="button"
+                    <button
+                        @click="sendVerification"
+                        type="button"
                         class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
                         Click here to re-send the verification email.
-                    </Link>
+                    </button>
                 </p>
 
                 <div
@@ -91,7 +166,7 @@ const form = useForm({
             </div>
 
             <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
+                <PrimaryButton :disabled="processing">Save</PrimaryButton>
 
                 <Transition
                     enter-active-class="transition ease-in-out"
@@ -100,7 +175,7 @@ const form = useForm({
                     leave-to-class="opacity-0"
                 >
                     <p
-                        v-if="form.recentlySuccessful"
+                        v-if="recentlySuccessful"
                         class="text-sm text-gray-600"
                     >
                         Saved.

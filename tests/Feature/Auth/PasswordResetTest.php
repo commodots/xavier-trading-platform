@@ -6,11 +6,30 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_generate_token_for_frontend(): void
+    {
+        // 1. Create a user to test with
+        $user = User::factory()->create([
+            'email' => 'test@frontend.com',
+        ]);
+
+        // 2. Generate the token directly without sending an email
+        $token = Password::getRepository()->create($user);
+
+        // 3. Construct the full URL needed for your Vue ResetPassword component
+        $url = "/reset-password?email={$user->email}&token={$token}";
+
+        // 4. Verify token was generated
+        $this->assertNotNull($token, 'Failed to generate password reset token.');
+    }
+
 
     public function test_reset_password_link_screen_can_be_rendered(): void
     {
@@ -24,7 +43,6 @@ class PasswordResetTest extends TestCase
         Notification::fake();
 
         $user = User::factory()->create();
-
         $this->post('/forgot-password', ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class);
@@ -39,7 +57,8 @@ class PasswordResetTest extends TestCase
         $this->post('/forgot-password', ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-            $response = $this->get('/reset-password/'.$notification->token);
+
+            $response = $this->get('/reset-password/' . $notification->token);
 
             $response->assertStatus(200);
 
@@ -52,20 +71,29 @@ class PasswordResetTest extends TestCase
         Notification::fake();
 
         $user = User::factory()->create();
+        $newPassword = 'newPassword';
+
 
         $this->post('/forgot-password', ['email' => $user->email]);
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user, $newPassword) {
+
+
             $response = $this->post('/reset-password', [
                 'token' => $notification->token,
                 'email' => $user->email,
-                'password' => 'password',
-                'password_confirmation' => 'password',
+                'password' => $newPassword,
+                'password_confirmation' => $newPassword,
             ]);
 
-            $response
-                ->assertSessionHasNoErrors()
-                ->assertRedirect(route('login'));
+
+            $response->assertStatus(200)
+                ->assertJsonStructure(['status']);
+
+            $this->assertTrue(
+                \Illuminate\Support\Facades\Hash::check($newPassword, $user->fresh()->password),
+                'The user\'s password was not correctly reset in the database.'
+            );
 
             return true;
         });

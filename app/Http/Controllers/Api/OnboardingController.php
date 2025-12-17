@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\UserKyc;
 use App\Models\Wallet;
@@ -17,54 +18,40 @@ class OnboardingController extends Controller
 {
     public function onboard(Request $request)
     {
+        // Step 1: Validate registration data (KYC fields are optional)
         $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'surname' => 'required|string|max:100',
-            'email' => 'required|email|unique:users,email',
-            'mobile' => 'required|string|max:20',
-            'dob' => 'required|date',
-            'id_type' => 'required|in:bvn,vnin',
-            'id_value' => 'required|string|max:20',
             'password' => 'required|string|min:8',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:20',
+            'dob' => 'nullable|date',
+            'id_type' => 'nullable|in:bvn,vnin',
+            'id_value' => 'nullable|string|max:20',
         ]);
+
+        $nameInput = $request->input('name');
+        $nameParts = explode(' ', $nameInput, 2);
+        $firstName = trim($nameParts[0]);
+        $lastName = trim($nameParts[1] ?? '');
 
         DB::beginTransaction();
 
         try {
-            // 🔍 Step 1: Verify user identity (dummy or real QoreID)
-            $verification = QoreidService::verifyIdentity(
-                $validated['id_type'],
-                $validated['id_value']
-            );
-
-            if (empty($verification['success'])) {
-                throw new Exception($verification['message'] ?? 'Verification failed');
-            }
-
-            $kycData = $verification['data'] ?? [];
-
-            // 🧍 Step 2: Create user account
+            // 🧍 Step 2: Create user account first (required)
             $user = User::create([
-                'name'=>$validated['first_name'] . ' ' . $validated['surname'],
-				'first_name' => $validated['first_name'],
-                'surname' => $validated['surname'],
+                'name' => $nameInput,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $validated['email'],
-                'phone' => $validated['mobile'],
-                'dob' => $validated['dob'],
+                'phone' => $validated['phone'] ?? null,
+                'dob' => $validated['dob'] ?? null,
                 'password' => Hash::make($validated['password']),
-                'verified' => true,
+                'verified' => false, // Email not verified yet
             ]);
 
-            // 🪪 Step 3: Save KYC data
-            UserKyc::create([
-                'user_id' => $user->id,
-                'provider' => $verification['provider'] ?? 'QoreID-Dummy',
-                'id_type' => $validated['id_type'],
-                'id_value' => $validated['id_value'],
-                'data' => json_encode($kycData),
-            ]);
-
-            // 💰 Step 4: Create Wallet for the user
+            // 💰 Step 3: Create Wallet for the user
             $wallet = Wallet::create([
                 'user_id' => $user->id,
                 'account_number' => 'XAV' . rand(10000000, 99999999),
@@ -73,25 +60,68 @@ class OnboardingController extends Controller
                 'status' => 'active',
             ]);
 
-            // 🖼️ Step 5: Optional — Save photo (dummy or real)
-            if (!empty($kycData['photo'])) {
-                $photo = $kycData['photo'];
-                if (str_starts_with($photo, 'data:image') || str_starts_with($photo, 'iVBOR')) {
-                    $photoPath = 'photos/' . uniqid('user_') . '.png';
-                    \Storage::disk('public')->put($photoPath, base64_decode($photo));
-                    $user->update(['photo' => $photoPath]);
+            // 🔍 Step 4: Optional KYC verification (if user provided ID)
+            $kycData = [];
+            if (!empty($validated['id_type']) && !empty($validated['id_value'])) {
+                // Attempt to verify identity via QoreID
+                $verification = QoreidService::verifyIdentity(
+                    $validated['id_type'],
+                    $validated['id_value']
+                );
+
+
+                if (!empty($verification['success'])) {
+                    $kycData = $verification['data'] ?? [];
+                    
+                    // Save verified KYC data
+                    UserKyc::create([
+                        'user_id' => $user->id,
+                        'provider' => $verification['provider'] ?? 'QoreID',
+                        'id_type' => $validated['id_type'],
+                        'id_value' => $validated['id_value'],
+                        'data' => json_encode($kycData),
+                        'verified_at' => now(),
+                    ]);
+
+                    // 🖼️ Save photo from KYC data
+                    if (!empty($kycData['photo'])) {
+                        $photo = $kycData['photo'];
+                        if (str_starts_with($photo, 'data:image') || str_starts_with($photo, 'iVBOR')) {
+                            $photoPath = 'photos/' . uniqid('user_') . '.png';
+                            Storage::disk('public')->put($photoPath, base64_decode($photo));
+                            $user->update(['photo' => $photoPath]);
+                        }
+                    }
+                } else {
+                    // KYC verification failed, but allow user to continue
+                    // Create a record with pending status
+                    UserKyc::create([
+                        'user_id' => $user->id,
+                        'provider' => 'manual',
+                        'id_type' => $validated['id_type'],
+                        'id_value' => $validated['id_value'],
+                        'data' => null,
+                    ]);
                 }
+            } else {
+                // No KYC data provided, create empty record
+                UserKyc::create([
+                    'user_id' => $user->id,
+                    'provider' => 'manual',
+                ]);
             }
 
             DB::commit();
 
-			$token = $user->createToken('xavier_token')->plainTextToken;
-   			return response()->json([
-				'success' => true,
-				'message' => 'Onboarding completed successfully',
-				'token' => $token,
-				'data' => new UserResource($user->load(['wallet', 'kyc'])),
-			], 200);
+            // Generate authentication token
+            $token = $user->createToken('xavier_token')->plainTextToken;
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Account created successfully',
+                'token' => $token,
+                'user' => new UserResource($user->load(['wallet', 'kyc'])),
+            ], 201);
 
         } catch (Exception $e) {
             DB::rollBack();
@@ -99,7 +129,7 @@ class OnboardingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-            ], 500);
+            ], 422);
         }
     }
 }

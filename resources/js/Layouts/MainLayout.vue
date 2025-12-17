@@ -36,6 +36,7 @@
 
             <div class="text-xs text-gray-500 mt-6 mb-1">ACCOUNT</div>
             <SidebarLink to="/profile" :icon="User">Profile</SidebarLink>
+            <SidebarLink to="/settings" :icon="Settings">Settings</SidebarLink>
           </div>
 
 
@@ -99,6 +100,7 @@ import {
   Users,
   ShieldCheck,
   ListOrdered,
+  Settings
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

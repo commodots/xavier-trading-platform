@@ -16,7 +16,7 @@
 
           <button
             @click="openRoleModal"
-            class="px-3 py-2 rounded bg-blue-600 text-white text-sm"
+            class="px-3 py-2 text-sm text-white bg-blue-600 rounded"
             :disabled="loading"
           >
             Assign Role
@@ -30,7 +30,7 @@
       <!-- Error -->
       <div
         v-if="error"
-        class="p-4 bg-red-600/10 border border-red-600 rounded text-red-300"
+        class="p-4 text-red-300 border border-red-600 rounded bg-red-600/10"
       >
         {{ error }}
       </div>
@@ -42,7 +42,7 @@
         <div class="bg-[#0F172A] p-6 rounded-xl border border-[#1F2A44] grid grid-cols-1 md:grid-cols-3 gap-6">
 
           <!-- Left -->
-          <div class="flex items-start gap-4 col-span-2">
+          <div class="flex items-start col-span-2 gap-4">
             <div class="w-20 h-20 rounded-full bg-[#111827] flex items-center justify-center text-2xl font-bold">
               {{ initials }}
             </div>
@@ -58,7 +58,7 @@
                 Phone: {{ user.phone || "N/A" }}
               </div>
 
-              <div class="text-xs text-gray-400 mt-2">
+              <div class="mt-2 text-xs text-gray-400">
                 Joined: {{ formatDate(user.created_at) }}
               </div>
             </div>
@@ -71,12 +71,12 @@
               @click="toggleStatus"
               :disabled="togglingStatus"
               :class="user.status === 'active' ? 'bg-red-600' : 'bg-green-600'"
-              class="text-white px-4 py-2 rounded"
+              class="px-4 py-2 text-white rounded"
             >
               {{ togglingStatus ? "Updating..." : (user.status === "active" ? "Disable Account" : "Enable Account") }}
             </button>
 
-            <button @click="resetPassword" class="px-4 py-2 rounded bg-gray-700 text-white">
+            <button @click="resetPassword" class="px-4 py-2 text-white bg-gray-700 rounded">
               Reset Password
             </button>
 
@@ -87,11 +87,11 @@
         </div>
 
         <!-- WALLET + KYC -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 
           <!-- Wallet -->
           <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
-            <h3 class="font-semibold mb-4">Wallet Balances</h3>
+            <h3 class="mb-4 font-semibold">Wallet Balances</h3>
 
             <div class="space-y-2">
               <div class="flex justify-between">
@@ -107,13 +107,13 @@
 
           <!-- KYC -->
           <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
-            <h3 class="font-semibold mb-4">KYC Information</h3>
+            <h3 class="mb-4 font-semibold">KYC Information</h3>
 
             <div v-if="kyc">
               <div class="text-sm text-gray-300">
                 Status:
                 <span
-                  class="px-2 py-1 rounded text-xs ml-2"
+                  class="px-2 py-1 ml-2 text-xs rounded"
                   :class="{
                     'bg-green-600': kyc.status === 'verified',
                     'bg-yellow-600 text-black': kyc.status === 'pending',
@@ -124,7 +124,7 @@
                 </span>
               </div>
 
-              <div class="mt-3 text-sm text-gray-300 space-y-1">
+              <div class="mt-3 space-y-1 text-sm text-gray-300">
                 <div><strong>BVN:</strong> {{ kyc.bvn || "—" }}</div>
                 <div><strong>ID Type:</strong> {{ kyc.id_type || "—" }}</div>
                 <div><strong>ID Number:</strong> {{ kyc.id_number || "—" }}</div>
@@ -132,7 +132,7 @@
 
               <button
                 @click="goKycReview"
-                class="mt-4 px-3 py-2 rounded bg-blue-600 text-white text-sm"
+                class="px-3 py-2 mt-4 text-sm text-white bg-blue-600 rounded"
               >
                 Review KYC
               </button>
@@ -230,14 +230,14 @@ const togglingStatus = ref(false);
 // COMPUTED
 const fullName = computed(() => {
   const f = user.value.first_name || "";
-  const l = user.value.surname || "";
+  const l = user.value.last_name || "";
   const name = `${f} ${l}`.trim();
   return name || user.value.email || "Unnamed user";
 });
 
 const initials = computed(() => {
   const f = user.value.first_name?.[0] || "";
-  const l = user.value.surname?.[0] || "";
+  const l = user.value.last_name?.[0] || "";
   return (f + l).toUpperCase() || "U";
 });
 

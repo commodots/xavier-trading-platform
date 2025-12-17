@@ -8,55 +8,60 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Http\Resources\UserWithRelationsResource;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
     // Register (if you want a separate register endpoint)
     public function register(Request $request)
-	{
-		return app(\App\Http\Controllers\Api\OnboardingController::class)->onboard($request);
-	}
+    {
+        return app(\App\Http\Controllers\Api\OnboardingController::class)->onboard($request);
+    }
 
 
     // Login
     public function login(Request $request)
     {
-        $data = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        $credentials = $request->only('email', 'password');
 
-        $user = User::where('email', $data['email'])->first();
-
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid credentials provided.'],
-            ]);
+        if (!Auth::attempt($credentials)) {
+            return response()->json(['success' => false, 'message' => 'Invalid credentials'], 401);
         }
+        $user = Auth::user();
+        // 1. Check for 2FA requirement
+            if ($user->google2fa_enabled) {
+                
+                Auth::logout(); 
 
-        // delete existing tokens if you want single session
-        // $user->tokens()->delete();
+                return response()->json([
+                'success' => true,
+                'requires_2fa' => true,
+                'email' => $user->email
+                ]);
+            } 
+            
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
+            // 🛑 Log out of the temporary session 
+            Auth::logout();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-        $user->token = $token;
-
-        return response()->json([
-		'token' => $token,
-		'user' => [
-			'id' => $user->id,
-			'name' => $user->name,
-			'email' => $user->email,
-			'role' => $user->role,       // <<< REQUIRED
-			'wallet' => $user->wallet ?? null,
-			'kyc' => $user->kyc ?? null,
-		]
-	]);
+            return response()->json([
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role, // <<< REQUIRED
+                    'wallet' => $user->wallet ?? null,
+                    'kyc' => $user->kyc ?? null,
+                ]
+            ]);
     }
 
-    // Profile (requires auth:sanctum)
+    // Profile
     public function profile(Request $request)
     {
-        $user = $request->user()->load(['wallet','kyc']);
+        $user = $request->user()->load(['wallet', 'kyc']);
         return response()->json([
             'success' => true,
             'data' => new UserWithRelationsResource($user)
@@ -71,3 +76,4 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'Logged out']);
     }
 }
+
