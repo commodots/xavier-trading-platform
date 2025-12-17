@@ -34,5 +34,10 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+	
+	'ngx' => [
+    'mode' => env('NGX_MODE', 'dummy'), // live | test | dummy
+],
+
 
 ];

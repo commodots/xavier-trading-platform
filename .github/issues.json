@@ -1,0 +1,142 @@
+[
+  {
+    "title": "Set up base API authentication (Sanctum)",
+    "body": "Ensure Sanctum token auth works for web + mobile clients. Verify login, logout, token refresh.",
+    "labels": ["backend", "api", "mvp"]
+  },
+  {
+    "title": "Implement role-based access control (Admin/User)",
+    "body": "Use middleware + Spatie roles to restrict admin routes and sensitive endpoints.",
+    "labels": ["backend", "security", "mvp"]
+  },
+  {
+    "title": "Finalize User model relationships",
+    "body": "Confirm relationships: wallets, KYC, orders, transactions. Clean up naming inconsistencies (phone/mobile).",
+    "labels": ["backend", "mvp"]
+  },
+  {
+    "title": "Admin dashboard summary API",
+    "body": "Expose KPIs: total users, pending KYC, transactions count, wallet balances.",
+    "labels": ["backend", "admin", "api"]
+  },
+  {
+    "title": "Admin user management API",
+    "body": "List users, view user detail, toggle status, update role.",
+    "labels": ["backend", "admin", "api", "mvp"]
+  },
+  {
+    "title": "Admin KYC review workflow",
+    "body": "Approve/reject KYC submissions, store status, audit trail.",
+    "labels": ["backend", "admin", "compliance"]
+  },
+  {
+    "title": "User onboarding flow",
+    "body": "Registration, BVN verification (mock), profile completion.",
+    "labels": ["backend", "frontend", "mvp"]
+  },
+  {
+    "title": "KYC submission API",
+    "body": "Upload ID, selfie, BVN/NIN fields. Store and validate.",
+    "labels": ["backend", "api", "compliance"]
+  },
+  {
+    "title": "Wallet schema and balance engine",
+    "body": "Implement NGN/USD wallets with balance, ledger logic.",
+    "labels": ["backend", "wallet", "mvp"]
+  },
+  {
+    "title": "Dummy payment gateway integration",
+    "body": "Mock Paystack/NIBSS endpoints for deposits and withdrawals.",
+    "labels": ["backend", "integration", "mvp"]
+  },
+  {
+    "title": "Wallet deposit API",
+    "body": "Create deposit endpoint with pending/completed states.",
+    "labels": ["backend", "wallet", "api"]
+  },
+  {
+    "title": "Wallet withdrawal API",
+    "body": "Withdrawal request, approval, balance checks.",
+    "labels": ["backend", "wallet", "api"]
+  },
+  {
+    "title": "Transaction history API",
+    "body": "Paginated wallet and trade transactions per user.",
+    "labels": ["backend", "api"]
+  },
+  {
+    "title": "Market data mock service",
+    "body": "Create dummy NGX, crypto, FX market feeds for testing.",
+    "labels": ["backend", "integration", "mvp"]
+  },
+  {
+    "title": "Order management system (OMS) core",
+    "body": "Place order, cancel order, order status lifecycle.",
+    "labels": ["backend", "trading", "mvp"]
+  },
+  {
+    "title": "Admin order monitoring",
+    "body": "View all orders, filter by status, cancel/block orders.",
+    "labels": ["backend", "admin"]
+  },
+  {
+    "title": "User dashboard API",
+    "body": "Portfolio summary, wallet balances, recent activity.",
+    "labels": ["backend", "api"]
+  },
+  {
+    "title": "Admin transactions log",
+    "body": "Paginated view of all system transactions.",
+    "labels": ["backend", "admin"]
+  },
+  {
+    "title": "Notification system (basic)",
+    "body": "In-app notifications for deposits, trades, KYC updates.",
+    "labels": ["backend", "mvp"]
+  },
+  {
+    "title": "Admin settings management",
+    "body": "System settings: trading hours, limits, toggles.",
+    "labels": ["backend", "admin"]
+  },
+  {
+    "title": "Audit logging",
+    "body": "Log admin actions: role changes, KYC decisions.",
+    "labels": ["backend", "security"]
+  },
+  {
+    "title": "API rate limiting & security hardening",
+    "body": "Protect sensitive endpoints, throttle abuse.",
+    "labels": ["backend", "security"]
+  },
+  {
+    "title": "Prepare NGX FIX adapter (stub)",
+    "body": "Create placeholder service for NGX FIX integration.",
+    "labels": ["integration", "backend"]
+  },
+  {
+    "title": "Prepare CSCS settlement adapter (stub)",
+    "body": "Create placeholder for settlement reconciliation.",
+    "labels": ["integration", "backend"]
+  },
+  {
+    "title": "CI pipeline (GitHub Actions)",
+    "body": "Lint, test, and basic build checks on PRs.",
+    "labels": ["infra", "devops"]
+  },
+  {
+    "title": "Environment configuration",
+    "body": "Standardize .env example, secrets handling.",
+    "labels": ["infra"]
+  },
+  {
+    "title": "Seed demo users and data",
+    "body": "Seed admin, demo users, wallets, market data.",
+    "labels": ["backend", "mvp"]
+  },
+  {
+    "title": "API documentation (Swagger)",
+    "body": "Document all public and admin APIs.",
+    "labels": ["api", "docs"]
+  }
+]

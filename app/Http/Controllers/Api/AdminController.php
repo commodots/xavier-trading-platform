@@ -211,6 +211,22 @@ class AdminController extends Controller
         ]);
     }
 
+	class ServiceConfigController extends Controller
+	{
+		public function update(Request $request)
+		{
+			ServiceConfig::updateOrCreate(
+				['service' => $request->service],
+				[
+					'mode' => $request->mode,
+					'config' => $request->config
+				]
+			);
+
+			return response()->json(['success' => true]);
+		}
+}
+
 
     /*
     |--------------------------------------------------------------------------
@@ -228,4 +244,23 @@ class AdminController extends Controller
             'user_growth' => [100, 150, 200, 260, 340, 500, 650]
         ]);
     }
+	
+	public function placeOrder(Request $request)
+	{
+		$order = Order::create([
+			'user_id' => auth()->id(),
+			'symbol' => $request->symbol,
+			'side' => $request->side,
+			'type' => $request->type,
+			'price' => $request->price,
+			'quantity' => $request->quantity,
+			'status' => 'open',
+			'source' => 'web',
+		]);
+
+		ExecutionRouter::route($order);
+
+		return response()->json($order);
+	}
+
 }
