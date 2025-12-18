@@ -10,16 +10,16 @@
       <img
         v-if="!collapsed"
         src="/images/xavier-logo.png"
-        class="h-12 object-contain transition-all duration-300"
+        class="object-contain h-12 transition-all duration-300"
       />
 
-      <button @click="$emit('toggle')" class="text-gray-400 hover:text-white transition">
+      <button @click="$emit('toggle')" class="text-gray-400 transition hover:text-white">
         <Menu class="w-6 h-6" />
       </button>
     </div>
 
     <!-- MENU ITEMS -->
-    <nav class="flex-1 overflow-y-auto py-4 space-y-1">
+    <nav class="flex-1 py-4 space-y-1 overflow-y-auto">
       <SidebarLink
         v-for="item in filteredMenu"
         :key="item.to"
@@ -35,7 +35,7 @@
     <div class="p-4 border-t border-[#1F2A44]">
       <button
         @click="logout"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition"
+        class="flex items-center w-full gap-3 px-3 py-2 text-white transition bg-red-600 rounded-lg hover:bg-red-700"
       >
         <LogOut class="w-5 h-5" />
         <span v-if="!collapsed">Logout</span>
@@ -64,6 +64,7 @@ import {
   PieChart,
   ShoppingCart,
   Menu,
+  MonitorCog
 } from "lucide-vue-next";
 
 // Props
@@ -102,6 +103,7 @@ const menu = [
   { label: "Admin Transactions", to: "/admin/transactions", icon: List, admin: true },
   { label: "KYC Review", to: "/admin/kyc", icon: ShieldCheck, admin: true },
   { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, admin: true },
+  { label: "Services", to: "/admin/control-panel", icon: MonitorCog, admin: true },
 ];
 
 // Only show admin items if user is admin

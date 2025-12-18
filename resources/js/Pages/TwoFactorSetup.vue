@@ -1,7 +1,7 @@
 <template>
   <GuestLayout>
     
-      <h2 class="text-3xl font-bold mb-6  text-gray-600">Two-Factor Authentication Setup</h2>
+      <h2 class="mb-6 text-3xl font-bold text-gray-600">Two-Factor Authentication Setup</h2>
 
       <div v-if="message"
         :class="message.type === 'success' ? 'bg-green-900/50 text-green-300' : ' text-red-500'"
@@ -9,37 +9,37 @@
         {{ message.text }}
       </div>
 
-      <div v-if="!is2faEnabled" class="mb-6 border-b border-slate-700 pb-4">
-        <p class="text-lg text-gray-600">Status: <span class="text-red-500 font-semibold">Disabled</span></p>
+      <div v-if="!is2faEnabled" class="pb-4 mb-6 border-b border-slate-700">
+        <p class="text-lg text-gray-600">Status: <span class="font-semibold text-red-500">Disabled</span></p>
         <button @click="startSetup" :disabled="processing || qrImage"
-          class="mt-3 py-2 px-6 bg-blue-700 rounded hover:bg-blue-600 disabled:opacity-50">
+          class="px-6 py-2 mt-3 bg-blue-700 rounded hover:bg-blue-600 disabled:opacity-50">
           {{ qrImage ? 'Loading QR...' : 'Start 2FA Setup' }}
         </button>
       </div>
-      <div v-else class="mb-6 border-b border-slate-700 pb-4">
-        <p class="text-lg">Status: <span class="text-green-400 font-semibold">Enabled!</span></p>
-        <p class="text-sm text-slate-400 mt-2">Your account is protected with 2FA.</p>
+      <div v-else class="pb-4 mb-6 border-b border-slate-700">
+        <p class="text-lg">Status: <span class="font-semibold text-green-400">Enabled!</span></p>
+        <p class="mt-2 text-sm text-slate-400">Your account is protected with 2FA.</p>
       </div>
 
 
       <div v-if="qrImage && !is2faEnabled">
-        <h3 class="text-xl font-semibold mb-4">Step 1: Scan the QR Code</h3>
-        <p class="text-sm text-slate-300 mb-4">
+        <h3 class="mb-4 text-xl font-semibold">Step 1: Scan the QR Code</h3>
+        <p class="mb-4 text-sm text-slate-300">
           Scan the image below with your Google Authenticator or Microsoft Authenticator app.
         </p>
-        <div class="bg-white p-4 rounded inline-block mx-auto mb-4">
+        <div class="inline-block p-4 mx-auto mb-4 bg-white rounded">
           <div v-html="qrImage"></div>
         </div>
         <p class="text-xs text-slate-400">Secret: **{{ secretKey }}**</p>
 
-        <h3 class="text-xl font-semibold mt-6 mb-4">Step 2: Confirm the Code</h3>
+        <h3 class="mt-6 mb-4 text-xl font-semibold">Step 2: Confirm the Code</h3>
         <form @submit.prevent="confirmSetup">
           <input v-model="confirmationCode" placeholder="Enter 6-digit Code" type="text" inputmode="numeric"
             maxlength="6"
-            class="w-full p-3 text-lg text-center rounded bg-slate-700 text-white focus:ring-cyan-400 focus:ring-2"
+            class="w-full p-3 text-lg text-center text-white rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2"
             required autofocus />
           <button type="submit" :disabled="processing"
-            class="w-full mt-4 py-3 bg-gradient-to-r from-green-600 to-emerald-400 rounded font-semibold hover:from-green-500 hover:to-emerald-300 disabled:opacity-50">
+            class="w-full py-3 mt-4 font-semibold rounded bg-gradient-to-r from-green-600 to-emerald-400 hover:from-green-500 hover:to-emerald-300 disabled:opacity-50">
             {{ processing ? 'Verifying...' : 'Verify & Activate 2FA' }}
           </button>
         </form>
@@ -51,25 +51,8 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 import GuestLayout from "@/Layouts/GuestLayout.vue";
+import api from "@/api";
 
-// 
-const api = axios.create({
-  baseURL: '/api',
-  headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add the Sanctum Bearer token to requests
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('xavier_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-// ----------------------------------------------------
 
 // Data States
 const is2faEnabled = ref(false); // Assumed to be false until we check/set it

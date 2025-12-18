@@ -3,7 +3,7 @@
     <div class="max-w-6xl mx-auto">
 
       <!-- HEADER -->
-      <h1 class="text-2xl font-bold mb-6">Transactions</h1>
+      <h1 class="mb-6 text-2xl font-bold">Transactions</h1>
 
       <!-- FILTER BAR -->
       <div class="flex items-center gap-4 mb-6">
@@ -42,7 +42,7 @@
       <!-- TABLE -->
       <div class="bg-[#1C1F2E] rounded-xl border border-[#2A314A] overflow-hidden">
 
-        <table class="w-full text-left text-sm">
+        <table class="w-full text-sm text-left">
           <thead class="bg-[#151a27] text-gray-400 uppercase tracking-wider">
             <tr>
               <th class="px-4 py-3">User</th>
@@ -53,7 +53,7 @@
             </tr>
           </thead>
 
-          <tbody>
+          <tbody v-if="transactions && transactions.data.length">
             <tr v-for="tx in transactions.data" :key="tx.id" class="border-t border-[#2A314A]">
               <td class="px-4 py-3">{{ tx.user?.email }}</td>
               <td class="px-4 py-3 capitalize">{{ tx.type }}</td>
@@ -97,7 +97,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-import MainLayout from "@/Layouts/MainLayout.vue";
+import MainLayout from "@/layouts/MainLayout.vue";
 
 const filters = ref({
   q: "",
@@ -105,11 +105,15 @@ const filters = ref({
   status: "",
 });
 
-const transactions = ref({ data: [] });
+const transactions = ref({ 
+    data: [], 
+    prev_page_url: null, 
+    next_page_url: null 
+});
 
 const fetchTransactions = async (url = "/api/admin/transactions") => {
   const res = await axios.get(url, { params: filters.value });
-  transactions.value = res.data.data;
+  transactions.value = res.data;
 };
 
 const changePage = (url) => {
