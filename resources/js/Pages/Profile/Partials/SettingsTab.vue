@@ -1,7 +1,6 @@
 <template>
     <div class="p-8 text-white">
       <h1 class="text-2xl font-bold mb-4">Settings</h1>
-      <p>This is your Settings page. You can update your personal info here.</p>
         <UpdateProfileInformationForm />
         <UpdatePasswordForm />
      
@@ -13,9 +12,9 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from "vue-router";
-import UpdatePasswordForm from './Profile/Partials/UpdatePasswordForm.vue';
-import UpdateProfileInformationForm from './Profile/Partials/UpdateProfileInformationForm.vue';
-import DeleteUserForm from './Profile/Partials/DeleteUserForm.vue';
-const router = useRouter();
+import UpdatePasswordForm from "./UpdatePasswordForm.vue";
+import UpdateProfileInformationForm from "./UpdateProfileInformationForm.vue";
+import DeleteUserForm from "./DeleteUserForm.vue";
+
 
 </script>

@@ -3,39 +3,37 @@
 
     <h2 class="text-xl font-semibold mb-4">KYC Information</h2>
 
-    <form @submit.prevent="submitKyc" class="space-y-4">
+    <div v-if="kyc.status === 'pending'" class="bg-yellow-900/30 border border-yellow-700 text-yellow-400 p-4 rounded">
+      Your verification is currently pending review.
+    </div>
+    <div v-if="kyc.status === 'approved'" class="bg-green-900/30 border border-green-700 text-green-400 p-4 rounded">
+      ✓ Identity Verified (Level: {{ kyc.level }})
+    </div>
+    <div v-if="kyc.status === 'rejected'" class="bg-red-900/30 border border-red-700 text-red-400 p-4 rounded">
+      Verification Rejected: {{ kyc.rejection_reason }}
+    </div>
 
+    <div v-if="kyc.status === 'none' || kyc.status === 'rejected'" class="grid gap-4">
       <div>
-        <label class="text-sm text-gray-400">BVN</label>
-        <input v-model="form.bvn" class="input" />
-      </div>
-
-      <div>
-        <label class="text-sm text-gray-400">ID Type</label>
-        <select v-model="form.id_type" class="input">
+        <label class="block text-gray-400 text-sm mb-1">ID Type</label>
+        <select v-model="form.id_type" class="w-full bg-[#16213A] border border-gray-700 rounded p-2 text-white">
+          <option value="bvn">BVN</option>
           <option value="nin">NIN</option>
           <option value="passport">International Passport</option>
-          <option value="voters">Voter's Card</option>
         </select>
       </div>
-
       <div>
-        <label class="text-sm text-gray-400">ID Number</label>
-        <input v-model="form.id_number" class="input" />
+        <label class="block text-gray-400 text-sm mb-1">ID Number</label>
+        <input v-model="form.id_number" type="text"
+          class="w-full bg-[#16213A] border border-gray-700 rounded p-2 text-white">
       </div>
+      <button @click="submitKyc" class="bg-blue-600 text-white px-6 py-2 rounded">Submit for Review</button>
+    </div>
 
-      <div>
-        <label class="text-sm text-gray-400">Upload ID Document</label>
-        <input type="file" @change="handleFile" class="file-input" />
-      </div>
-
-      <button
-        type="submit"
-        class="bg-green-600 px-4 py-2 rounded text-white hover:bg-green-700"
-      >
-        Submit KYC
-      </button>
-    </form>
+    <div v-else class="grid gap-4 opacity-70">
+      <p><span class="text-gray-400">ID Type:</span> {{ kyc.id_type }}</p>
+      <p><span class="text-gray-400">ID Number:</span> ****{{ kyc.id_number?.slice(-4) }}</p>
+    </div>
   </div>
 </template>
 
@@ -60,15 +58,25 @@ const handleFile = (e) => {
 
 const submitKyc = async () => {
   const fd = new FormData();
-  Object.keys(form).forEach((key) => fd.append(key, form[key]));
 
-  await axios.post("/api/profile/kyc", fd, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  fd.append('id_type', form.id_type);
+  fd.append('id_value', form.id_number);
+  if (form.id_document) {
+    fd.append('id_front', form.id_document);
+  }
 
-  alert("KYC submitted");
+  try {
+    await axios.post("/api/user/kyc/submit", fd, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    alert("KYC submitted");
+    location.reload();
+  } catch (error) {
+    console.error("KYC Submission failed", error.response?.data);
+    alert("Submission failed.");
+  }
 };
 </script>

@@ -48,7 +48,7 @@ class User extends Authenticatable
     public function kyc()
     {
         //return $this->hasOne(Kyc::class);
-        return $this->hasOne(\App\Models\UserKyc::class, 'user_id');
+        return $this->hasOne(UserKyc::class, 'user_id');
     }
     public function orders()
     {
@@ -78,8 +78,16 @@ class User extends Authenticatable
     protected function google2faSecret(): Attribute
     {
         return new Attribute(
-            get: fn ($value) => $value ? Crypt::decryptString($value) : null,
-            set: fn ($value) => Crypt::encryptString($value),
+            get: fn($value) => $value ? Crypt::decryptString($value) : null,
+            set: fn($value) => Crypt::encryptString($value),
         );
+    }
+    public function linkedAccounts()
+    {
+        return $this->hasMany(LinkedAccount::class);
+    }
+    public function notificationPreferences()
+    {
+        return $this->hasOne(NotificationPreference::class);
     }
 }

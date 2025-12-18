@@ -35,8 +35,7 @@
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
 
             <div class="text-xs text-gray-500 mt-6 mb-1">ACCOUNT</div>
-            <SidebarLink to="/profile" :icon="User">Profile</SidebarLink>
-            <SidebarLink to="/settings" :icon="Settings">Settings</SidebarLink>
+            <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
           </div>
 
 

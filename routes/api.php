@@ -20,6 +20,11 @@ use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
     NewPasswordController
 };
+use App\Http\Controllers\Api\User\{
+    LinkedAccountController,
+    NotificationController,
+    SecurityController
+};
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -57,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile/kyc', [ProfileController::class, 'getKyc']);
     Route::post('/profile/kyc', [ProfileController::class, 'submitKyc']);
 
+
     /* Market */
     Route::get('/market/ngx', [MarketController::class, 'ngx']);
     Route::get('/market/global', [MarketController::class, 'global']);
@@ -91,5 +97,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /* Stats */
         Route::get('/stats', [AdminController::class, 'stats']);
+    });
+    Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
+        Route::get('/kyc/show', [KycController::class, 'show']);
+        Route::post('/kyc/submit', [KycController::class, 'submit']);
+
+        Route::get('/profile/show', [ProfileController::class, 'show']);
+        Route::put('/profile/update', [ProfileController::class, 'update']);
+
+        Route::put('/security/password', [SecurityController::class, 'changePassword']);
+        Route::post('/security/2fa/enable', [SecurityController::class, 'enable2FA']);
+        Route::post('/security/2fa/verify', [SecurityController::class, 'verify2FA']);
+
+        Route::get('/linked-accounts/index', [LinkedAccountController::class, 'index']);
+        Route::post('/linked-accounts/store', [LinkedAccountController::class, 'store']);
+
+        Route::get('/notifications/show', [NotificationController::class, 'show']);
+        Route::put('/notifications/update', [NotificationController::class, 'update']);
     });
 });
