@@ -2,20 +2,22 @@
 
 namespace App\Services\Portfolio;
 
-use App\Models\Trade;
 use App\Models\Portfolio;
+use App\Models\Trade;
 
 class PortfolioService
 {
-    public static function postTrade(Trade $trade)
+    public function postTrade(Trade $trade)
     {
         Portfolio::updateOrCreate(
             [
                 'user_id' => $trade->order->user_id,
                 'symbol' => $trade->order->symbol,
+                'market' => $trade->order->market,
             ],
             [
-                'quantity' => \DB::raw('quantity + ' . $trade->quantity),
+                'quantity' => \DB::raw('quantity + '.$trade->quantity),
+                'avg_price' => $trade->price,
             ]
         );
     }

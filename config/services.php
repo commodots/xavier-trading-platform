@@ -36,8 +36,19 @@ return [
     ],
 	
 	'ngx' => [
-    'mode' => env('NGX_MODE', 'dummy'), // live | test | dummy
-],
+		'mode' => env('NGX_MODE', 'test'), // live | test | dummy
+		'simulate_errors' => env('NGX_SIMULATE_ERRORS', false),
+	],
+	
+	'ngx' => [
+		'simulate_errors' => env('NGX_SIMULATE_ERRORS', false),
+	],
+
+	'cscs' => [
+		'simulate_errors' => env('CSCS_SIMULATE_ERRORS', false),
+	],
+
+
 
 
 ];

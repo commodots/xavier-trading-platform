@@ -98,17 +98,62 @@
         <div class="border-t border-[#1f3348]"></div>
 
         <!-- Order Timeline -->
-        <div>
-          <h3 class="text-lg font-semibold mb-3">Order Timeline</h3>
+		<div>
+		  <h3 class="text-lg font-semibold mb-3">Order Lifecycle</h3>
 
-          <div class="space-y-3">
-            <div class="flex items-center gap-3">
-              <span class="w-3 h-3 rounded-full bg-blue-400"></span>
-              <span class="text-sm">Order created</span>
-              <span class="text-gray-400 text-xs ml-auto">
-                {{ formatDate(order.created_at) }}
-              </span>
-            </div>
+		  <ul class="space-y-3 text-sm">
+
+			<li class="flex justify-between">
+			  <span>📤 Order Submitted</span>
+			  <span>{{ formatDate(order.created_at) }}</span>
+			</li>
+
+			<li
+			  v-if="order.filled_quantity > 0"
+			  class="flex justify-between text-blue-300"
+			>
+			  <span>🔄 Partially Matched</span>
+			  <span>{{ order.filled_quantity }} / {{ order.quantity }}</span>
+			</li>
+
+			<li
+			  v-if="order.status === 'filled'"
+			  class="flex justify-between text-green-400"
+			>
+			  <span>✅ Fully Matched</span>
+			  <span>Completed</span>
+			</li>
+
+			<li
+			  v-if="order.status === 'settled'"
+			  class="flex justify-between text-purple-400"
+			>
+			  <span>🏦 Settled (CSCS)</span>
+			  <span>Posted to Portfolio</span>
+			</li>
+
+			<li
+			  v-if="order.status === 'cancelled'"
+			  class="flex justify-between text-red-400"
+			>
+			  <span>❌ Cancelled</span>
+			</li>
+
+		  </ul>
+		</div>
+		<div class="border-t border-[#1f3348] pt-4">
+		  <h3 class="text-lg font-semibold mb-3">Settlement Timeline</h3>
+
+		  <ul class="space-y-3">
+			<li>📝 Order Submitted</li>
+			<li v-if="order.filled_quantity > 0">⚡ Matched</li>
+			<li v-if="settlement">🏦 CSCS Settled</li>
+			<li v-if="contractNote">📄 Contract Note Generated</li>
+		  </ul>
+		</div>
+
+
+
 
             <div class="flex items-center gap-3">
               <span

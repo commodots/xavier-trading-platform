@@ -2,10 +2,12 @@
 
 namespace App\Services\Audit;
 
+use Illuminate\Support\Facades\Log;
+
 class AuditLogger
 {
-    public static function log($event, $payload)
+    public static function log(string $event, array $data = []): void
     {
-        \Log::channel('audit')->info($event, $payload);
+        Log::channel('audit')->info($event, $data);
     }
 }
