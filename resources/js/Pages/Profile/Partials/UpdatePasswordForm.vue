@@ -10,7 +10,18 @@ import TextInput from '@/Components/TextInput.vue';
 const passwordInput = ref(null);
 const currentPasswordInput = ref(null);
 
-// --- STATE MANAGEMENT ---
+const token = localStorage.getItem("xavier_token");
+const api = axios.create({
+    baseURL: '/api',
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+    },
+});
+
+
+
 
 
 const form = reactive({
@@ -32,44 +43,39 @@ const updatePassword = async () => {
     Object.keys(errors).forEach(key => delete errors[key]);
 
     try {
-        // Laravel uses a PUT or PATCH request for updates. We'll use PATCH on the API.
-        // Assuming your backend route is POST /api/password (or PUT/PATCH /api/password)
-        await api.patch('/password', form);
-
-        // --- SUCCESS LOGIC (Based on Inertia's onSuccess) ---
         
-        // 1. Reset the form fields
+        await api.put('/user/password', form);
         form.current_password = '';
         form.password = '';
         form.password_confirmation = '';
 
-        // 2. Show success message
+        
         recentlySuccessful.value = true;
         setTimeout(() => recentlySuccessful.value = false, 3000);
 
     } catch (e) {
-        // --- ERROR LOGIC (Based on Inertia's onError) ---
+        
         
         if (e.response && e.response.status === 422) {
             const apiErrors = e.response.data.errors;
             Object.assign(errors, apiErrors); // Populate errors state
 
-            // 1. Handle validation errors and focus (Inertia's logic replicated)
+            
             if (apiErrors.password) {
                 form.password = '';
                 form.password_confirmation = '';
-                // Focus the new password field if it failed validation
+                
                 passwordInput.value.focus();
             }
             if (apiErrors.current_password) {
                 form.current_password = '';
-                // Focus the current password field if it failed validation
+                
                 currentPasswordInput.value.focus();
             }
             
         } else {
             console.error("Password update failed:", e);
-            // Handle other server errors (e.g., 500)
+            
             errors.general = ['An unexpected error occurred. Please try again.'];
         }
     } finally {

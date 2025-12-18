@@ -10,9 +10,14 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
-    public function me(Request $r) {
-        $user = Auth::user()->load('kyc');
-        return response()->json(['success'=>true,'data'=>$user]);
+    public function show(Request $request) {
+        $user = Auth::user()->load(['kyc', 'linkedAccounts']);
+        $user->name = $user->name ?: trim($user->first_name . ' ' . $user->last_name);
+
+        return response()->json([
+            'success' => true,
+            'data' => $user
+        ]);
     }
 
     public function update(Request $r) {

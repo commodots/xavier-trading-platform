@@ -59,10 +59,14 @@ const form = reactive({
 });
 
 const updateProfile = async () => {
-  await axios.post("/api/profile/update", form, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  alert("Profile updated");
+  try {
+    await axios.put("/api/user/profile/update", form, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    alert("Profile updated successfully");
+  } catch (error) {
+    console.error("Update failed", error);
+  }
 };
 </script>
 
