@@ -10,10 +10,10 @@
         <form @submit.prevent="updateProfile" class="mt-6 space-y-6">
             <div>
                 <InputLabel for="name" value="Name" />
-                <TextInput
+                <input
                     id="name"
                     type="text"
-                    class="mt-1 block w-full"
+                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm text-gray-500 focus:border-indigo-500 focus:ring-indigo-500"
                     v-model="form.name"
                     required
                     autofocus
@@ -23,10 +23,10 @@
 
             <div>
                 <InputLabel for="email" value="Email" />
-                <TextInput
+                <input
                     id="email"
                     type="email"
-                    class="mt-1 block w-full"
+                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm  text-gray-500 focus:border-indigo-500 focus:ring-indigo-500"
                     v-model="form.email"
                     required
                 />
@@ -35,27 +35,19 @@
 
             <div class="flex items-center gap-4">
                 <PrimaryButton :disabled="processing">Save Changes</PrimaryButton>
-
-                <Transition
-                    enter-active-class="transition ease-in-out"
-                    enter-from-class="opacity-0"
-                    leave-active-class="transition ease-in-out"
-                    leave-to-class="opacity-0"
-                >
-                    <p v-if="recentlySuccessful" class="text-sm text-green-400">Saved.</p>
-                </Transition>
+                <p v-if="recentlySuccessful" class="text-sm text-green-400">Saved.</p>
             </div>
         </form>
     </section>
 </template>
 
+
 <script setup>
 import { ref, reactive, onMounted } from 'vue'; 
-import axios from 'axios';
+import api from '@/lib/axios';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
 
 // 1. User State
 const user = ref({ 
@@ -71,25 +63,20 @@ const form = reactive({
 });
 
 // 3. UI State
-const errors = reactive({});
+const errors = ref({});
 const processing = ref(false);
 const recentlySuccessful = ref(false);
-
-const token = localStorage.getItem("xavier_token");
-const headers = { 
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/json'
-};
 
 
 onMounted(async () => {
     try {
-        const response = await axios.get('/api/user/profile/show', { headers });
+        const response = await api.get('/user/profile/show');
         const userData = response.data.data;
+        console.log(userData)
 
         user.value = userData; 
-        form.name = userData.name;
-        form.email = userData.email;
+        form.name = userData.name || '';
+        form.email = userData.email || '';
     } catch (e) {
         console.error("Failed to load profile data.", e);
     }
@@ -99,14 +86,12 @@ onMounted(async () => {
 async function updateProfile() {
     processing.value = true;
     recentlySuccessful.value = false;
-    // Clear previous errors
-    Object.keys(errors).forEach(key => delete errors[key]);
-
+ 
     try {
-        const response = await axios.put('/api/user/profile/update', {
+        const response = await api.put('/user/profile/update', {
             name: form.name,
             email: form.email,
-        }, { headers });
+        });
 
         user.value = response.data.data;
         recentlySuccessful.value = true;
@@ -114,10 +99,8 @@ async function updateProfile() {
 
     } catch (e) {
         if (e.response && e.response.status === 422) {
-            Object.assign(errors, e.response.data.errors);
-        } else {
-            console.error("Profile update failed:", e);
-        }
+           errors.value = e.response.data.errors;
+        } 
     } finally {
         processing.value = false;
     }

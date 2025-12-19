@@ -91,7 +91,7 @@ const form = reactive({
 
 const fetchAccounts = async () => {
   try {
-    const res = await axios.get('/api/user/linked-accounts/index', { headers });
+    const res = await axios.get('/user/linked-accounts/index', { headers });
     accounts.value = res.data.data;
   } catch (err) {
     console.error("Failed to load accounts", err);
@@ -101,7 +101,7 @@ const fetchAccounts = async () => {
 const addAccount = async () => {
   try {
     // Corrected to the 'store' route
-    await axios.post('/api/user/linked-accounts/store', form, { headers }); 
+    await axios.post('/user/linked-accounts/store', form, { headers }); 
     alert("Account linked successfully!");
     showAddForm.value = false;
     

@@ -20,12 +20,29 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function update(Request $r) {
-        $user = Auth::user();
-        $data = $r->only(['first_name','last_name','phone','email','dob']);
-        $user->update($data);
-        return response()->json(['success'=>true,'data'=>$user]);
-    }
+public function update(Request $r) {
+    $user = Auth::user();
+    
+    $r->validate([
+        'email' => 'required|email|unique:users,email,' . $user->id,
+        'name' => 'required|string|max:255',
+    ]);
+
+    $data = $r->only(['email', 'phone', 'address']);
+
+    $parts = explode(' ', $r->name, 2);
+    $data['first_name'] = $parts[0];
+    $data['last_name'] = $parts[1] ?? '';
+
+    $data['name'] = $r->name;
+    
+    $user->update($data);
+    
+    return response()->json([
+        'success' => true, 
+        'data' => $user->fresh()
+    ]);
+}
 
     public function submitKyc(Request $r) {
         $r->validate([

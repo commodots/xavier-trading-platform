@@ -48,7 +48,7 @@ class User extends Authenticatable
     public function kyc()
     {
         //return $this->hasOne(Kyc::class);
-        return $this->hasOne(UserKyc::class, 'user_id');
+        return $this->hasOne(KycProfile::class, 'user_id');
     }
     public function orders()
     {

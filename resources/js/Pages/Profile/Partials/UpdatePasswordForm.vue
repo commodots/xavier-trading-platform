@@ -106,7 +106,7 @@ const updatePassword = async () => {
                     ref="currentPasswordInput"
                     v-model="form.current_password"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full  text-gray-500 "
                     autocomplete="current-password"
                 />
 
@@ -124,7 +124,7 @@ const updatePassword = async () => {
                     ref="passwordInput"
                     v-model="form.password"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full  text-gray-500 "
                     autocomplete="new-password"
                 />
 
@@ -141,7 +141,7 @@ const updatePassword = async () => {
                     id="password_confirmation"
                     v-model="form.password_confirmation"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full  text-gray-500 "
                     autocomplete="new-password"
                 />
 

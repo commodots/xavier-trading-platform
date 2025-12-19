@@ -4,54 +4,36 @@
       <h1 class="text-2xl font-bold">Settings</h1>
 
       <!-- Tabs -->
-      <div class="border-b border-gray-700 flex space-x-6 text-sm">
-        <button
-          @click="activeTab = 'personal'"
-          :class="activeTab === 'personal'
-            ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-            : 'text-gray-400 pb-2'"
-        >
+      <div class="flex space-x-6 text-sm border-b border-gray-700">
+        <button @click="activeTab = 'personal'" :class="activeTab === 'personal'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
           Personal Details
         </button>
 
-        <button
-          @click="activeTab = 'kyc'"
-          :class="activeTab === 'kyc'
-            ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-            : 'text-gray-400 pb-2'"
-        >
+        <button @click="activeTab = 'kyc'" :class="activeTab === 'kyc'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
           KYC Verification
         </button>
-        <button
-          @click="activeTab = 'security'"
-          :class="activeTab === 'security'
-            ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-            : 'text-gray-400 pb-2'"
-        >
+        <button @click="activeTab = 'security'" :class="activeTab === 'security'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
           Security
         </button>
-        <button
-          @click="activeTab = 'accounts'"
-          :class="activeTab === 'accounts'
-            ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-            : 'text-gray-400 pb-2'"
-        >
+        <button @click="activeTab = 'accounts'" :class="activeTab === 'accounts'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
           Linked Accounts
         </button>
-        <button
-          @click="activeTab = 'notifications'"
-          :class="activeTab === 'notifications'
-            ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-            : 'text-gray-400 pb-2'"
-        >
+        <button @click="activeTab = 'notifications'" :class="activeTab === 'notifications'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
           Notifications
         </button>
-        <button
-          @click="activeTab = 'help'"
-          :class="activeTab === 'help'
-            ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-            : 'text-gray-400 pb-2'"
-        >
+        <button @click="activeTab = 'help'" :class="activeTab === 'help'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
           Help & Support
         </button>
       </div>
@@ -81,21 +63,32 @@ import axios from "axios";
 
 
 const activeTab = ref("personal");
-
+const loading = ref(true);
 const user = ref({});
 const kyc = ref({});
 
 onMounted(async () => {
   const token = localStorage.getItem("xavier_token");
 
-  const me = await axios.get("/api/user/profile/show", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  user.value = me.data.data || {};
+  try {
+    const me = await axios.get("/user/profile/show", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    user.value = me.data.data || {};
+  } catch (error) {
+    console.error("Failed to load user profile:", error);
+  }
 
-  const k = await axios.get("/api/user/kyc/show", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  kyc.value = k.data.data || {};
+  try {
+    const k = await axios.get("/user/kyc/show", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    kyc.value = k.data.data || {};
+  } catch (error) {
+    console.error("Failed to load KYC data:", error);
+  }
+
+  loading.value = false;
 });
+
 </script>

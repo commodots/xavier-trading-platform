@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Kyc;
+use App\Models\KycProfile;
 
 class KycController extends Controller
 {
@@ -17,7 +17,7 @@ class KycController extends Controller
     {
         $request->validate([
             'id_type' => 'required|string',
-            'id_value' => 'required|string',
+            'id_number' => 'required|string',
             'id_front' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'id_back' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
@@ -25,12 +25,13 @@ class KycController extends Controller
 
         $user = Auth::user();
 
-        $kyc = Kyc::updateOrCreate(
+        $kyc = KycProfile::updateOrCreate(
             ['user_id' => $user->id],
             [
                 'id_type' => $request->id_type,
-                'id_value' => $request->id_value,
+                'id_number' => $request->id_number,
                 'status' => 'pending',
+                'level' => 'basic'
             ]
         );
 
@@ -58,14 +59,14 @@ class KycController extends Controller
     /**
      * Get KYC info for authenticated user
      */
-    public function show()
-    {
-        $user = Auth::user();
-        $kyc = Kyc::where('user_id', $user->id)->first();
+    public function show() {
+    $user = Auth::user();
+    $kyc = KycProfile::where('user_id', $user->id)->first(); 
+    return response()->json(['success' => true, 'data' => $kyc]);
+    }
 
-        return response()->json([
-            'success' => true,
-            'data' => $kyc,
-        ]);
+    public function submit(Request $request)
+    {
+        return $this->update($request);
     }
 }

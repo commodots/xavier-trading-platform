@@ -26,9 +26,9 @@ class UserSettingsSeeder extends Seeder
       KycProfile::updateOrCreate(
         ['user_id' => $user->id],
         [
-          'level' => fake()->randomElement(['none', 'basic', 'full']),
+          'level' => fake()->randomElement(['NONE', 'BASIC', 'FULL']),
           'status' => $status, // Use the variable
-          'id_type' => fake()->randomElement(['nin', 'bvn', 'passport']),
+          'id_type' => fake()->randomElement(['NIN', 'BVN', 'passport']),
           'id_number' => fake()->numerify('###########'),
           'rejection_reason' => $reason,
         ]
@@ -41,7 +41,7 @@ class UserSettingsSeeder extends Seeder
           'user_id' => $user->id,
           'type' => $type,
           'provider' => $type === 'bank' ? fake()->company() . ' Bank' : 'Ethereum Network',
-          'account_name' => $user->first_name . ' ' . $user->surname,
+          'account_name' => $user->first_name . ' ' . $user->last_name,
           'account_number' => $type === 'bank' ? fake()->bankAccountNumber() : '0x' . Str::random(40),
           'is_verified' => fake()->boolean(),
         ]);
