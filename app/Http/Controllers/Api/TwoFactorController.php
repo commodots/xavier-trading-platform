@@ -5,33 +5,34 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use PragmaRX\Google2FA\Google2FA;
+use App\Models\User;
 
 class TwoFactorController extends Controller
 {
     protected $google2fa;
 
-    public function __construct()
-    {
-        $this->google2fa = new Google2FA();
-    }
-
-    // 💡 STEP 2: Enable 2FA Setup (Authenticated)
     public function enable2FA(Request $request)
     {
-        // Requires 'auth:sanctum' middleware
         $user = $request->user();
+        $google2fa = new \PragmaRX\Google2FA\Google2FA();
 
-        $secret = $this->google2fa->generateSecretKey();
+        $secret = $google2fa->generateSecretKey();
 
-        $qrImage = $this->google2fa->getQRCodeInline(
+        $user->google2fa_secret = $secret;
+        $user->save();
+
+        $qrCodeUrl = $google2fa->getQRCodeUrl(
             'Xavier Trading App',
             $user->email,
             $secret
         );
+$renderer = new \BaconQrCode\Renderer\Image\SvgImageBackEnd();
+    $writer = new \BaconQrCode\Writer(new \BaconQrCode\Renderer\ImageRenderer(
+        new \BaconQrCode\Renderer\RendererStyle\RendererStyle(200),
+        $renderer
+    ));
 
-        // Temporarily save the secret (auto-encrypted by User model)
-        $user->google2fa_secret = $secret;
-        $user->save();
+    $qrImage = $writer->writeString($qrCodeUrl);
 
         return response()->json([
             'success' => true,
@@ -40,7 +41,6 @@ class TwoFactorController extends Controller
         ]);
     }
 
-    // 💡 STEP 3: Confirm & Activate 2FA (Authenticated)
     public function confirm2FA(Request $request)
     {
         $request->validate(['code' => 'required|numeric|digits:6']);
@@ -53,23 +53,23 @@ class TwoFactorController extends Controller
             return response()->json(['success' => false, 'message' => 'Invalid token'], 422);
         }
 
-        $user->is_2fa_enabled = true;
+        $user->google2fa_enabled = true;
         $user->save();
 
         return response()->json(['success' => true, 'message' => '2FA Activated']);
     }
 
-    // 💡 STEP 5: 2FA Code Verification After Login Attempt (Public)
+
     public function verify2FA(Request $request)
     {
         $request->validate([
             'email' => 'required|email',
-            'token' => 'required|numeric|digits:6' // 'token' is the 6-digit TOTP code
+            'token' => 'required|numeric|digits:6'
         ]);
 
-        $user = User::where('email', $request->email)->first(); // Find user by email
+        $user = User::where('email', $request->email)->first();
 
-        if (!$user || !$user->is_2fa_enabled) {
+        if (!$user || !$user->google2fa_enabled) {
             return response()->json(['success' => false, 'message' => 'Unauthorized or 2FA not required'], 403);
         }
 
@@ -79,7 +79,7 @@ class TwoFactorController extends Controller
             return response()->json(['success' => false, 'message' => 'Invalid 2FA token'], 422);
         }
 
-        // Issue final login token (Sanctum)
+        
         $authToken = $user->createToken('auth')->plainTextToken;
 
         return response()->json([

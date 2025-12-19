@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class NotificationPreference extends Model
 {
     protected $fillable = [
-        'user_id', 'email', 'sms', 'push'
+        'user_id',
+         'email',
+          'sms',
+           'push'
     ];
 
   

@@ -50,12 +50,21 @@
       class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-8 py-2 rounded-lg font-medium transition">
       {{ loading ? 'Saving...' : 'Save Preferences' }}
     </button>
+
+    <p v-if="recentlySuccessful" class="text-green-500 text-sm font-medium">
+      Preferences updated successfully!
+    </p>
+
+    <p v-if="errorMessage" class="text-red-400 text-sm font-medium">
+      {{ errorMessage }}
+    </p>
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import api from '@/lib/axios';
+import api from '@/api';
 
 const prefs = ref({
   email: true,
@@ -63,11 +72,13 @@ const prefs = ref({
   push: true
 });
 const loading = ref(false);
+const recentlySuccessful = ref(false);
+const errorMessage = ref("");
 
 const fetchPrefs = async () => {
   try {
-    const res = await api.get('/api/user/notifications');
-    // Ensure we handle cases where the user might not have a preferences row yet
+    const res = await api.get('/user/notifications/show');
+
     if (res.data.data) {
       prefs.value = {
         email: !!res.data.data.email,
@@ -82,11 +93,24 @@ const fetchPrefs = async () => {
 
 const savePreferences = async () => {
   loading.value = true;
+  recentlySuccessful.value = false;
+  errorMessage.value = "";
+
   try {
-    await api.put('/api/user/notifications', prefs.value);
-    alert("Preferences updated!");
+    await api.put('/user/notifications/update', prefs.value);
+
+    recentlySuccessful.value = true;
+    setTimeout(() => {
+      recentlySuccessful.value = false;
+    }, 3000);
+
   } catch (err) {
-    alert("Failed to update preferences.");
+    console.error("Technical details:", err.response?.data);
+    errorMessage.value = "We couldn't save your preferences right now. Please check your connection or try again later.";
+    setTimeout(() => {
+      errorMessage.value = "";
+    }, 5000);
+    
   } finally {
     loading.value = false;
   }

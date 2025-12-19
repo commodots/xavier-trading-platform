@@ -5,10 +5,8 @@
         <h2 class="text-xl font-semibold text-white">Linked Accounts</h2>
         <p class="text-gray-400 text-sm">Manage your withdrawal destinations.</p>
       </div>
-      <button 
-        @click="showAddForm = !showAddForm"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
-      >
+      <button @click="showAddForm = !showAddForm"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition">
         {{ showAddForm ? 'Cancel' : '+ Add Account' }}
       </button>
     </div>
@@ -25,46 +23,56 @@
         </div>
         <div>
           <label class="block text-gray-400 text-xs mb-1">Provider (Bank Name / Network)</label>
-          <input v-model="form.provider" type="text" placeholder="e.g. Kuda Bank" class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
+          <input v-model="form.provider" type="text" placeholder="e.g. Kuda Bank"
+            class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
         </div>
         <div>
           <label class="block text-gray-400 text-xs mb-1">Account Number / Address</label>
-          <input v-model="form.account_number" type="text" class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
+          <input v-model="form.account_number" type="text"
+            class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
         </div>
         <div>
           <label class="block text-gray-400 text-xs mb-1">Account Name</label>
-          <input v-model="form.account_name" type="text" placeholder="Your Full Name" class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
+          <input v-model="form.account_name" type="text" placeholder="Your Full Name"
+            class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
         </div>
       </div>
-      <button @click="addAccount" class="bg-blue-600 text-white px-6 py-2 rounded-lg w-full md:w-auto">
-        Verify & Link Account
-      </button>
+      <div class="space-y-3">
+        <button @click="addAccount" :disabled="processing" 
+          class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-2 rounded-lg w-full md:w-auto transition flex items-center justify-center gap-2">
+          <span v-if="processing" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+          {{ processing ? 'Linking...' : 'Verify & Link Account' }}
+        </button>
+
+        <p v-if="recentlySuccessful" class="text-green-500 text-sm font-medium">
+          Account linked successfully!
+        </p>
+        <p v-if="errorMessage" class="text-red-400 text-sm font-medium">
+          {{ errorMessage }}
+        </p>
+      </div>
     </div>
 
     <div class="space-y-3">
       <div v-if="accounts.length === 0" class="text-center py-10 border border-dashed border-gray-700 rounded-xl">
         <p class="text-gray-500">No linked accounts found.</p>
       </div>
-      
-      <div 
-        v-for="account in accounts" 
-        :key="account.id"
-        class="flex items-center justify-between p-4 bg-[#16213A] border border-gray-700 rounded-lg"
-      >
+
+      <div v-for="account in accounts" :key="account.id"
+        class="flex items-center justify-between p-4 bg-[#16213A] border border-gray-700 rounded-lg">
+
         <div class="flex items-center space-x-4">
           <div class="p-2 bg-blue-900/20 rounded-lg text-blue-400">
-            <span v-if="account.type === 'bank'">🏦</span>
-            <span v-else>🪙</span>
+            <span v-if="account.type === 'bank'">&#x1F3E6;</span>
+            <span v-else>&#8383;</span>
           </div>
           <div>
             <h4 class="text-white font-medium">{{ account.provider }}</h4>
             <p class="text-gray-400 text-xs">{{ account.account_number }} ({{ account.account_name }})</p>
           </div>
         </div>
-        <span 
-          :class="account.is_verified ? 'text-green-400' : 'text-yellow-400'"
-          class="text-xs font-medium px-2 py-1 bg-black/20 rounded"
-        >
+        <span :class="account.is_verified ? 'text-green-400' : 'text-yellow-400'"
+          class="text-xs font-medium px-2 py-1 bg-black/20 rounded">
           {{ account.is_verified ? 'Verified' : 'Pending Verification' }}
         </span>
       </div>
@@ -73,13 +81,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
-import api from '@/lib/axios';
+import { ref, reactive } from 'vue';
+import api from '@/api';
 
-const accounts = ref([]);
- 
+const props = defineProps({
+  accounts: {
+    type: Array,
+    default: () => []
+  }
+});
+
+const emit = defineEmits(['refresh']);
+
 const showAddForm = ref(false);
-
+const processing = ref(false);
+const recentlySuccessful = ref(false);
+const errorMessage = ref("");
 
 const form = reactive({
   type: 'bank',
@@ -88,35 +105,48 @@ const form = reactive({
   account_name: ''
 });
 
-const fetchAccounts = async () => {
-  try {
-    const res = await api.get('/user/linked-accounts/index');
-    accounts.value = res.data.data;
-  } catch (err) {
-    console.error("Failed to load accounts", err);
-  }
+const toggleForm = () => {
+  showAddForm.value = !showAddForm.value;
+  errorMessage.value = "";
+  recentlySuccessful.value = false;
 };
 
 const addAccount = async () => {
-  try {
-   
-    await api.post('/user/linked-accounts/store', form); 
-    alert("Account linked successfully!");
-    showAddForm.value = false;
-    
-    
-    location.reload(); 
+  if (processing.value) return;
 
-    // Reset form
+  if (!form.provider || !form.account_number || !form.account_name) {
+    errorMessage.value = "Please fill in all fields before linking.";
+    return;
+  }
+
+  processing.value = true;
+  errorMessage.value = "";
+  recentlySuccessful.value = false;
+  try {
+
+    await api.post('/user/linked-accounts/store', form);
+
+    recentlySuccessful.value = true;
     form.provider = '';
     form.account_number = '';
     form.account_name = '';
+
+    emit('refresh');
+
+    setTimeout(() => {
+      showAddForm.value = false;
+      recentlySuccessful.value = false;
+    }, 4000);
+
   } catch (err) {
-    alert("Failed to link account. Please check your details.");
+    console.error("Link account error:", err);
+    errorMessage.value = "We couldn't link this account. Please verify the details and try again.";
+    
+    setTimeout(() => {
+        errorMessage.value = "";
+    }, 5000);
+  } finally {
+    processing.value = false;
   }
 };
-
-onMounted(() => {
-  fetchAccounts();
-});
 </script>

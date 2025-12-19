@@ -39,12 +39,21 @@
       </div>
 
       <div>
-        <PersonalTab v-if="activeTab === 'personal'" :user="user" />
-        <KycTab v-if="activeTab === 'kyc'" :kyc="kyc" />
-        <SettingsTab v-if="activeTab === 'security'" :user="user" />
-        <LinkedAccountsTab v-if="activeTab === 'accounts'" />
-        <NotificationsTab v-if="activeTab === 'notifications'" />
-        <SupportTab v-if="activeTab === 'help'" />
+        <template v-if="user.id">
+          <PersonalTab v-if="activeTab === 'personal'" :user="user" @refresh="fetchUserData" />
+          <KycTab v-if="activeTab === 'kyc'" :kyc="user.kyc || {}" />
+          <SettingsTab v-if="activeTab === 'security'" :user="user" @refresh="fetchUserData" />
+
+          <LinkedAccountsTab v-if="activeTab === 'accounts'" :accounts="user.linked_accounts || []"
+            @refresh="fetchUserData" />
+
+          <NotificationsTab v-if="activeTab === 'notifications'" :user="user" />
+          <SupportTab v-if="activeTab === 'help'" />
+        </template>
+
+        <div v-else class="text-white animate-pulse">
+          Loading settings...
+        </div>
       </div>
     </div>
   </MainLayout>
@@ -59,36 +68,23 @@ import SettingsTab from "./Partials/SettingsTab.vue";
 import LinkedAccountsTab from "./Partials/LinkedAccountsTab.vue";
 import NotificationsTab from "./Partials/NotificationsTab.vue";
 import SupportTab from "./Partials/SupportTab.vue";
-import axios from "axios";
+import api from "@/lib/axios";
 
 
 const activeTab = ref("personal");
-const loading = ref(true);
 const user = ref({});
-const kyc = ref({});
+const loading = ref(true);
 
-onMounted(async () => {
-  const token = localStorage.getItem("xavier_token");
-
+const fetchUserData = async () => {
   try {
-    const me = await axios.get("/user/profile/show", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    user.value = me.data.data || {};
+    const response = await api.get("/user/profile/show");
+    user.value = response.data.data;
   } catch (error) {
     console.error("Failed to load user profile:", error);
+  } finally {
+    loading.value = false;
   }
+};
 
-  try {
-    const k = await axios.get("/user/kyc/show", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    kyc.value = k.data.data || {};
-  } catch (error) {
-    console.error("Failed to load KYC data:", error);
-  }
-
-  loading.value = false;
-});
-
+onMounted(fetchUserData);
 </script>

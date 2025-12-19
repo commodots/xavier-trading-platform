@@ -3,7 +3,7 @@
 
     <!-- Avatar + Basic Data -->
     <div class="flex items-center space-x-4">
-      <img :src="user.avatar ?? '/images/avatar-placeholder.png'"
+      <img :src="user.avatar ?? '/images/user.png'"
         class="object-cover w-20 h-20 border border-gray-600 rounded-full" />
 
       <div>
@@ -39,7 +39,7 @@
 
 <script setup>
 import { reactive, watch, ref } from "vue";
-import api from "@/lib/axios";
+import api from "@/api";
 
 const props = defineProps({
   user: Object,

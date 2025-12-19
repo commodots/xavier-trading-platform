@@ -17,6 +17,7 @@
       <div>
         <label class="block mb-1 text-sm text-gray-400">ID Type</label>
         <select v-model="form.id_type" class="w-full bg-[#16213A] border border-gray-700 rounded p-2 text-white">
+          <option value="" disabled>Select ID Type</option>
           <option value="bvn">BVN</option>
           <option value="nin">NIN</option>
           <option value="passport">International Passport</option>
@@ -27,11 +28,12 @@
         <input v-model="form.id_number" type="text"
           class="w-full bg-[#16213A] border border-gray-700 rounded p-2 text-white">
       </div>
-      <button @click="submitKyc" class="px-6 py-2 text-white bg-blue-600 rounded">Submit for Review</button>
+      <button @click="submitKyc" class="px-6 py-2 text-white bg-blue-600 rounded">{{ processing ? 'Submitting...' :
+        'Submit for Review' }}</button>
     </div>
 
     <div v-else class="grid gap-4 opacity-70">
-      <p><span class="text-gray-400">ID Type:</span> {{ kyc.id_type }}</p>
+      <p><span class="text-gray-400">ID Type:</span> {{ kyc.id_type.toUpperCase() }}</p>
       <p><span class="text-gray-400">ID Number:</span> ****{{ kyc.id_number?.slice(-4) }}</p>
     </div>
   </div>
@@ -39,7 +41,7 @@
 
 <script setup>
 import { reactive, watch, ref } from "vue";
-import api from "@/lib/axios";
+import api from "@/api";
 
 const props = defineProps({ kyc: Object });
 const processing = ref(false);
@@ -54,16 +56,11 @@ const form = reactive({
 
 watch(() => props.kyc, (newKyc) => {
   if (newKyc) {
-    form.bvn = newKyc.bvn ?? "";
-    form.id_type = newKyc.id_type ?? "";
-    form.id_number = newKyc.id_number ?? "";
+    form.bvn = newKyc.bvn || "";
+    form.id_type = newKyc.id_type ? newKyc.id_type.toLowerCase() : "";
+    form.id_number = newKyc.id_number || "";
   }
-  else {
-    form.bvn = "";
-    form.id_type = "";
-    form.id_number = "";
-  }
-}, { immediate: true });
+}, { immediate: true, deep: true });
 
 
 const handleFile = (e) => {
@@ -88,11 +85,11 @@ const submitKyc = async () => {
       },
     });
     alert("KYC submitted");
-    location.reload();
+    emit('refresh');
   } catch (error) {
     console.error("KYC Submission failed", error.response?.data);
     alert("Submission failed.");
-  }finally {
+  } finally {
     processing.value = false;
   }
 };
