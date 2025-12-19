@@ -74,13 +74,12 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
-import axios from 'axios';
+import api from '@/lib/axios';
 
 const accounts = ref([]);
  
 const showAddForm = ref(false);
-const token = localStorage.getItem("xavier_token");
-const headers = { Authorization: `Bearer ${token}` };
+
 
 const form = reactive({
   type: 'bank',
@@ -91,7 +90,7 @@ const form = reactive({
 
 const fetchAccounts = async () => {
   try {
-    const res = await axios.get('/user/linked-accounts/index', { headers });
+    const res = await api.get('/user/linked-accounts/index');
     accounts.value = res.data.data;
   } catch (err) {
     console.error("Failed to load accounts", err);
@@ -100,13 +99,13 @@ const fetchAccounts = async () => {
 
 const addAccount = async () => {
   try {
-    // Corrected to the 'store' route
-    await axios.post('/user/linked-accounts/store', form, { headers }); 
+   
+    await api.post('/user/linked-accounts/store', form); 
     alert("Account linked successfully!");
     showAddForm.value = false;
     
-    // TODO: Emit an event to the parent to refresh the data instead of reloading
-    location.reload(); // Simple refresh for now
+    
+    location.reload(); 
 
     // Reset form
     form.provider = '';
