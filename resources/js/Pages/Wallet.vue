@@ -5,7 +5,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">💼 Wallet</h1>
-          <p class="text-gray-400 text-sm">Manage your NGN & USD balances</p>
+          <p class="text-sm text-gray-400">Manage your NGN & USD balances</p>
         </div>
 
         <div class="flex gap-3">
@@ -19,10 +19,10 @@
       </div>
 
       <!-- Wallet Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <!-- NGN -->
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-          <h2 class="text-gray-300 mb-1">NGN Wallet</h2>
+          <h2 class="mb-1 text-gray-300">NGN Wallet</h2>
           <div class="text-3xl font-bold text-white">₦{{ balances.balance_ngn.toLocaleString() }}</div>
 
           <div class="mt-4">
@@ -37,7 +37,7 @@
 
         <!-- USD -->
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-          <h2 class="text-gray-300 mb-1">USD Wallet</h2>
+          <h2 class="mb-1 text-gray-300">USD Wallet</h2>
           <div class="text-3xl font-bold text-white">${{ balances.balance_usd.toLocaleString() }}</div>
 
           <div class="mt-4">
@@ -53,9 +53,9 @@
 
       <!-- Recent Transactions -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h2 class="font-semibold text-lg mb-3">Recent Transactions</h2>
+        <h2 class="mb-3 text-lg font-semibold">Recent Transactions</h2>
 
-        <div v-if="transactions.length === 0" class="text-gray-500 text-center py-6">
+        <div v-if="transactions.length === 0" class="py-6 text-center text-gray-500">
           No recent transactions.
         </div>
 
@@ -63,10 +63,10 @@
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
-                <th class="text-left py-2 px-2">Date</th>
-                <th class="text-left px-2">Type</th>
-                <th class="text-left px-2">Currency</th>
-                <th class="text-right px-2">Amount</th>
+                <th class="px-2 py-2 text-left">Date</th>
+                <th class="px-2 text-left">Type</th>
+                <th class="px-2 text-left">Currency</th>
+                <th class="px-2 text-right">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -88,23 +88,23 @@
       <!-- Convert Modal -->
       <div
         v-if="openConvert"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       >
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative">
           <button
             @click="openConvert = false"
-            class="absolute top-3 right-3 text-gray-400 hover:text-white"
+            class="absolute text-gray-400 top-3 right-3 hover:text-white"
           >
             ✖
           </button>
 
-          <h2 class="text-xl font-semibold mb-4">Convert Currency</h2>
+          <h2 class="mb-4 text-xl font-semibold">Convert Currency</h2>
 
           <form @submit.prevent="convertCurrency">
             <label class="text-sm text-gray-400">From Currency</label>
             <select
               v-model="from"
-              class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 mt-1 mb-4"
+              class="w-full px-4 py-2 mt-1 mb-4 text-gray-500 bg-transparent border border-gray-600 rounded-lg"
             >
               <option value="NGN">NGN → USD</option>
               <option value="USD">USD → NGN</option>
@@ -114,7 +114,7 @@
             <input
               v-model.number="amount"
               type="number"
-              class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 mt-1"
+              class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg"
               placeholder="Enter amount"
               required
             />
@@ -126,7 +126,7 @@
             </button>
           </form>
 
-          <p v-if="message" class="mt-4 text-yellow-300 text-sm text-center">
+          <p v-if="message" class="mt-4 text-sm text-center text-yellow-300">
             {{ message }}
           </p>
         </div>
@@ -148,8 +148,8 @@ const balances = ref({
   balance_ngn: 0,
   balance_usd: 0,
 });
-const transactions = ref([]);
 
+const transactions = ref([]);
 const openConvert = ref(false);
 const message = ref("");
 const from = ref("NGN");
@@ -168,42 +168,54 @@ const chartOptions = {
 
 // Format Currency
 const formatAmount = (amt, currency) => {
-  return currency === "USD" ? `$${amt}` : `₦${amt.toLocaleString()}`;
-};
+  const value = Number(amt) || 0;
+return currency === "USD" ? `$${value.toLocaleString()}` : `₦${value.toLocaleString()}`;};
 
 onMounted(async () => {
-  const token = localStorage.getItem("xavier_token");
-
-  const res = await axios.get("/api/wallet/balances", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  balances.value = res.data.data;
-
-  // dummy transactions
-  transactions.value = [
-    { id: 1, date: "2025-11-01", type: "Convert", currency: "USD", amount: 50 },
-    { id: 2, date: "2025-10-29", type: "Deposit", currency: "NGN", amount: 200000 },
-  ];
+    // 1. Fetch Balances (Existing call)
+    try {
+        const balanceRes = await axios.get("/wallet/balances");
+        balances.value = balanceRes.data.data;
+    } catch (e) {
+        console.error("Failed to fetch balances:", e);
+    }
+    
+    // 2. Fetch Recent Transactions (NEW CALL)
+    try {
+        const transactionRes = await axios.get("/wallet/transactions");
+         // The API returns { transactions: [...] }
+        transactions.value = transactionRes.data.transactions;
+        
+    } catch (e) {
+        console.error("Failed to fetch transactions:", e);
+        // Fallback to empty array if call fails
+        transactions.value = [];
+    }
 });
 
 // Currency Conversion
 const convertCurrency = async () => {
+if (amount.value <= 0) {
+    message.value = "Please enter a valid amount";
+    return;
+  }
+  
   message.value = "Processing...";
 
-  const token = localStorage.getItem("xavier_token");
   try {
     const res = await axios.post(
-      "/api/wallet/convert",
-      { from: from.value, amount: amount.value },
-      { headers: { Authorization: `Bearer ${token}` } }
+      "/wallet/convert",
+      { from: from.value, amount: amount.value }
     );
 
-    if (res.data.success) {
-      balances.value = res.data.data;
+    const data = res.data;
+    console.log(data);
+
+    if (data.success) {
+      balances.value = data;
       message.value = "Conversion successful ✔";
     } else {
-      message.value = res.data.message;
+      message.value = data.message;
     }
   } catch (e) {
     message.value = "Server error";

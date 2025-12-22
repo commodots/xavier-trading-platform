@@ -2,12 +2,12 @@
   <MainLayout>
     <div class="space-y-6">
       <h1 class="text-2xl font-semibold">📊 Portfolio</h1>
-      <p class="text-gray-400 text-sm">Your asset allocation & performance overview.</p>
+      <p class="text-sm text-gray-400">Your asset allocation & performance overview.</p>
 
       <!-- Total Equity -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <div class="text-gray-400 text-sm">Total Portfolio Value</div>
-        <div class="text-4xl font-bold mt-2">₦{{ totalEquity.toLocaleString() }}</div>
+        <div class="text-sm text-gray-400">Total Portfolio Value</div>
+        <div class="mt-2 text-4xl font-bold">₦{{ totalEquity.toLocaleString() }}</div>
       </div>
 
       <!-- Chart -->
@@ -22,12 +22,12 @@
 
       <!-- Holdings -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Holdings</h2>
+        <h2 class="mb-4 text-lg font-semibold">Holdings</h2>
 
         <table class="w-full text-sm">
           <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
             <tr>
-              <th class="text-left py-2">Asset</th>
+              <th class="py-2 text-left">Asset</th>
               <th class="text-left">Qty</th>
               <th class="text-left">Avg Cost</th>
               <th class="text-left">Market Price</th>
@@ -67,6 +67,8 @@
 import MainLayout from "@/layouts/MainLayout.vue";
 import { ref, onMounted } from "vue";
 import VueApexCharts from "vue3-apexcharts";
+import axios from "axios";
+
 
 const apexchart = VueApexCharts;
 
@@ -82,20 +84,19 @@ const chartOptions = ref({
 
 // --- Fetch Data ---
 onMounted(async () => {
-  const token = localStorage.getItem("xavier_token");
 
-  const res = await axios.get("/api/dashboard", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const res = await axios.get("/portfolio");
 
-  totalEquity.value = res.data.total_equity;
-  holdings.value = res.data.holdings;
+  const data = res.data;
+
+  totalEquity.value = data.total_equity;
+  holdings.value = data.holdings;
 
   chartSeries.value = [
-    res.data.wallet_balance,
-    res.data.ngx_value,
-    res.data.global_stocks_value_usd,
-    res.data.crypto_value
+    data.wallet_balance,
+    data.ngx_value,
+    data.global_stocks_value_usd,
+    data.crypto_value
   ];
 });
 </script>

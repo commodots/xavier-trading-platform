@@ -14,7 +14,9 @@ use App\Http\Controllers\Api\{
     MarketController,
     WalletController,
     SystemSettingsController,
-    TwoFactorController
+    TwoFactorController,
+    AdminServiceController,
+    PortfolioController
 };
 use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
@@ -52,9 +54,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
     Route::post('/wallet/convert', [WalletController::class, 'convert']);
 
+    Route::get('/portfolio', [PortfolioController::class, 'summary']);
+    
+    Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
+
     // Authenticated Endpoints
     Route::get('/2fa/setup', [TwoFactorController::class, 'enable2FA']);
     Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm2FA']);
+    Route::post('/2fa/disable', [TwoFactorController::class, 'disable2FA']);
 
     /* Profile */
     Route::get('/profile/me', [ProfileController::class, 'me']);
@@ -97,6 +104,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /* Stats */
         Route::get('/stats', [AdminController::class, 'stats']);
+
+        /*Control Panel */
+        Route::get('/services', [AdminServiceController::class, 'index']);
+        Route::post('/services', [AdminServiceController::class, 'store']);
+        Route::post('/services/{id}/connection', [AdminServiceController::class, 'addConnection']);
+        Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
     });
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);

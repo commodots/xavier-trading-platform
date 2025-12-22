@@ -16,38 +16,40 @@
         </div>
 
         <!-- Sidebar Menu -->
-        <nav class="mt-4 px-4 space-y-1 text-sm">
+        <nav class="px-4 mt-4 space-y-1 text-sm">
 
           <!-- ==================== USER MENU ==================== -->
           <div v-if="!isAdmin">
 
-            <div class="text-xs text-gray-500 mt-4 mb-1">OVERVIEW</div>
+            <div class="mt-4 mb-1 text-xs text-gray-500">OVERVIEW</div>
             <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
             <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
             <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
 
-            <div class="text-xs text-gray-500 mt-6 mb-1">MARKETS</div>
+            <div class="mt-6 mb-1 text-xs text-gray-500">MARKETS</div>
             <SidebarLink to="/ngx" :icon="BarChart2">NGX Market</SidebarLink>
             <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
             <SidebarLink to="/crypto" :icon="Bitcoin">Crypto Market</SidebarLink>
 
-            <div class="text-xs text-gray-500 mt-6 mb-1">TRADING</div>
+            <div class="mt-6 mb-1 text-xs text-gray-500">TRADING</div>
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
 
-            <div class="text-xs text-gray-500 mt-6 mb-1">ACCOUNT</div>
+            <div class="mt-6 mb-1 text-xs text-gray-500">ACCOUNT</div>
             <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
+
           </div>
 
 
           <!-- ==================== ADMIN MENU ==================== -->
           <div v-if="isAdmin" class="mt-6">
-            <div class="text-xs text-gray-500 mb-1">ADMIN</div>
+            <div class="mb-1 text-xs text-gray-500">ADMIN</div>
 
             <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
             <SidebarLink to="/admin/users" :icon="Users">Users</SidebarLink>
             <SidebarLink to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
             <SidebarLink to="/admin/kyc" :icon="ShieldCheck">KYC Review</SidebarLink>
             <SidebarLink to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
+            <SidebarLink to="/admin/control-panel" :icon="MonitorCog">Control Panel</SidebarLink>
           </div>
 
           <!-- Logout -->
@@ -99,7 +101,8 @@ import {
   Users,
   ShieldCheck,
   ListOrdered,
-  Settings
+  Settings,
+  MonitorCog
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

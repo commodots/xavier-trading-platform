@@ -15,7 +15,7 @@ Route::get('/', function () {
 });
 Route::get('/{any}', function () {
     return view('app'); // or the name of your main Vue entry blade
-})->where('any', '.*');
+})->where('any', '^(?!api).*$');
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');

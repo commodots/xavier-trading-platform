@@ -29,6 +29,7 @@ import AdminUsers from "@/Pages/Admin/Users.vue";
 import AdminKYCs from "@/Pages/Admin/Kyc.vue";
 import AdminKycReview from "@/Pages/Admin/KycReview.vue";
 import AdminTransactions from "@/Pages/Admin/Transactions.vue";
+import Services from "@/Pages/Admin/Services.vue";
 
 const routes = [
 
@@ -78,7 +79,7 @@ const routes = [
     component: Settings,
     meta: { requiresAuth: true },
   },
-
+  
   /* ----------------------------------------------
      MARKETS
   ------------------------------------------------*/
@@ -174,6 +175,12 @@ const routes = [
     name: 'admin-orderbook',
     component: () => import('@/Pages/Admin/OrderBook.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: "/admin/control-panel",
+    name: "admin-sevices",
+    component: Services,
+    meta: { requiresAuth: true, adminOnly: true },
   },
 
 ];
