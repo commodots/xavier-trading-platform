@@ -7,7 +7,7 @@ import MainLayout from "@/layouts/MainLayout.vue";
 const apexchart = VueApexCharts;
 
 // state
-const loading = ref(true);
+const loading = ref(false);
 const data = ref(null);
 const error = ref(null);
 
@@ -43,13 +43,13 @@ const fallback = {
 };
 
 // computed display values
-const walletBalance = computed(() => (data.value?.wallet_balance ?? fallback.wallet_balance));
-const ngxValue = computed(() => (data.value?.ngx_value ?? fallback.ngx_value));
-const globalValueUSD = computed(() => (data.value?.global_stocks_value_usd ?? fallback.global_stocks_value_usd));
-const cryptoValue = computed(() => (data.value?.crypto_value ?? fallback.crypto_value));
+const walletBalance = computed(() => (data.value?.wallet_balance ?? 0));
+const ngxValue = computed(() => (data.value?.ngx_value ?? 0));
+const globalValueUSD = computed(() => (data.value?.global_stocks_value_usd ?? 0));
+const cryptoValue = computed(() => (data.value?.crypto_value ?? 0));
 
 // chart options
-const perfSeries = ref(fallback.series_performance);
+const perfSeries = ref([]);
 const perfOptions = ref({
   chart: { id: "performance", toolbar: { show: false }, animations: { enabled: true } },
   xaxis: { categories: fallback.performance_categories },
@@ -77,11 +77,18 @@ const donutSeries = computed(() => [
 
 // Fetch dashboard data
 async function fetchDashboard() {
+  data.value = null;
+  perfSeries.value = fallback.series_performance;; 
   loading.value = true;
+  error.value = null;
   try {
-    const resp = await axios.get("/portfolio", { withCredentials: true });
+    const token = localStorage.getItem("xavier_token");
+    const resp = await axios.get("/portfolio", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
     data.value = resp.data;
+    
     if (data.value.series_performance) {
       perfSeries.value = data.value.series_performance;
       perfOptions.value.xaxis.categories = data.value.performance_categories || perfOptions.value.xaxis.categories;
