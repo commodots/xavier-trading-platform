@@ -72,4 +72,9 @@ class AdminServiceController extends Controller
 
         return response()->json(['success' => true]);
     }
+    public function updateMode(Request $request, $id) {
+        $service = Service::findOrFail($id);
+        $service->update(['mode' => $request->mode]);
+        return response()->json(['message' => 'Mode updated']);
+    }
 }

@@ -31,11 +31,11 @@ class AdminController extends Controller
             ],
             'chart' => [
                 'users' => [
-                    'labels' => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+                    'labels' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
                     'data' => [5, 10, 15, 25, 40, 70, 100]
                 ],
                 'transactions' => [
-                    'labels' => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+                    'labels' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
                     'data' => [10000, 20000, 15000, 50000, 35000, 45000, 60000]
                 ]
             ]
@@ -49,30 +49,30 @@ class AdminController extends Controller
     |--------------------------------------------------------------------------
     */
     public function users(Request $request)
-	{
-		$query = User::select('id','first_name','last_name','email','phone','role','status','created_at');
+    {
+        $query = User::select('id', 'first_name', 'last_name', 'email', 'phone', 'role', 'status', 'created_at');
 
-		if ($request->q) {
-			$query->where(function($q) use ($request) {
-				$q->where('email', 'like', "%{$request->q}%")
-				  ->orWhere('first_name', 'like', "%{$request->q}%")
-				  ->orWhere('last_name', 'like', "%{$request->q}%");
-			});
-		}
+        if ($request->q) {
+            $query->where(function ($q) use ($request) {
+                $q->where('email', 'like', "%{$request->q}%")
+                    ->orWhere('first_name', 'like', "%{$request->q}%")
+                    ->orWhere('last_name', 'like', "%{$request->q}%");
+            });
+        }
 
-		$users = $query->paginate(20);
+        $users = $query->paginate(20);
 
-		return response()->json([
-			'success' => true,
-			'users' => $users->items(),   // <-- clean list of users
-			'pagination' => [
-				'total' => $users->total(),
-				'per_page' => $users->perPage(),
-				'current_page' => $users->currentPage(),
-				'last_page' => $users->lastPage(),
-			]
-		]);
-	}
+        return response()->json([
+            'success' => true,
+            'users' => $users->items(),   // <-- clean list of users
+            'pagination' => [
+                'total' => $users->total(),
+                'per_page' => $users->perPage(),
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+            ]
+        ]);
+    }
 
 
 
@@ -224,28 +224,34 @@ class AdminController extends Controller
             'success' => true,
             'total_users' => User::count(),
             'total_transactions' => Transaction::count(),
-            'pending_kyc' => UserKyc::where('status','pending')->count(),
+            'pending_kyc' => UserKyc::where('status', 'pending')->count(),
             'latest_transactions' => Transaction::latest()->take(5)->get(),
             'user_growth' => [100, 150, 200, 260, 340, 500, 650]
         ]);
     }
 
-	public function placeOrder(Request $request)
-	{
-		$order = Order::create([
-			'user_id' => auth()->id(),
-			'symbol' => $request->symbol,
-			'side' => $request->side,
-			'type' => $request->type,
-			'price' => $request->price,
-			'quantity' => $request->quantity,
-			'status' => 'open',
-			'source' => 'web',
-		]);
+    public function placeOrder(Request $request)
+    {
+        $order = Order::create([
+            'user_id' => auth()->id(),
+            'symbol' => $request->symbol,
+            'side' => $request->side,
+            'type' => $request->type,
+            'price' => $request->price,
+            'quantity' => $request->quantity,
+            'status' => 'open',
+            'source' => 'web',
+        ]);
 
-		ExecutionRouter::route($order);
+        ExecutionRouter::route($order);
 
-		return response()->json($order);
-	}
-
+        return response()->json($order);
+    }
+    public function platformEarnings()
+    {
+        return Transaction::select('type')
+            ->selectRaw('SUM(platform_fee) as total_earnings')
+            ->groupBy('type')
+            ->get();
+    }
 }

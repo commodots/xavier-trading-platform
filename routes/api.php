@@ -16,7 +16,9 @@ use App\Http\Controllers\Api\{
     SystemSettingsController,
     TwoFactorController,
     AdminServiceController,
-    PortfolioController
+    PortfolioController,
+    ServiceConfigController,
+    TransactionController
 };
 use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
@@ -26,6 +28,9 @@ use App\Http\Controllers\Api\User\{
     LinkedAccountController,
     NotificationController,
     SecurityController
+};
+use App\Http\Controllers\Admin\{
+    TransactionChargeController,
 };
 /*
 |--------------------------------------------------------------------------
@@ -55,7 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/wallet/convert', [WalletController::class, 'convert']);
 
     Route::get('/portfolio', [PortfolioController::class, 'summary']);
-    
+
     Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
 
     // Authenticated Endpoints
@@ -79,6 +84,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OmsController::class, 'placeOrder']);
     Route::get('/orders', [OmsController::class, 'listOrders']);
     Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
+
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::post('/deposit', [TransactionController::class, 'deposit']);
+    Route::post('/withdraw', [TransactionController::class, 'withdraw']);
 
     /* Admin Routes */
     Route::middleware('admin')->prefix('admin')->group(function () {
@@ -110,6 +119,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services', [AdminServiceController::class, 'store']);
         Route::post('/services/{id}/connection', [AdminServiceController::class, 'addConnection']);
         Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
+
+        Route::post('/charges', [TransactionChargeController::class, 'store']);
+        Route::get('/earnings', [TransactionChargeController::class, 'earnings']);
     });
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);
