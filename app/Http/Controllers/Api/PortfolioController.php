@@ -10,7 +10,7 @@ use App\Models\Wallet;
 
 class PortfolioController extends Controller
 {
-  public function summary(Request $request)
+    public function summary(Request $request)
     {
         $user = Auth::user();
 
@@ -29,10 +29,10 @@ class PortfolioController extends Controller
         // Safely get balances, defaulting to 0 if the wallet record doesn't exist
         $ngnBalance = $ngnWallet->balance ?? 0;
         $usdBalance = $usdWallet->balance ?? 0;
-        
+
         // --- 3. Calculate Total Equity (in NGN) ---
         $walletValueNgn = $ngnBalance + ($usdBalance * $FX_RATE);
-        
+
         $totalEquity = $walletValueNgn + $NGX_VALUE + ($GLOBAL_STOCKS_VALUE_USD * $FX_RATE) + $CRYPTO_VALUE_NGN;
 
         // --- 4. Prepare Holdings Data (Simulated for now) ---
@@ -64,14 +64,17 @@ class PortfolioController extends Controller
                 'market_price' => 10000000,
             ],
         ];
-
+        $transactions = \App\Models\Transaction::where('user_id', $user->id)
+            ->latest()
+            ->take(5)
+            ->get();
 
         // --- 5. Return JSON Response matching Vue's Expectation ---
         return response()->json([
             'success' => true,
             'total_equity' => (int) $totalEquity, // Must be the grand total
             'holdings' => $holdingsData, // The detailed table list
-
+            'transactions' => $transactions,
             // Data for the Pie Chart Series (must be in NGN terms for a total NGN equity chart)
             'wallet_balance' => (int) $walletValueNgn,
             'ngx_value' => (int) $NGX_VALUE,

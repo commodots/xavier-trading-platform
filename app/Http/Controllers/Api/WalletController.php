@@ -7,108 +7,100 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\Wallet;
-use App\Models\Transaction;
-
+use App\Models\Transaction; // Ensure this is the correct model name
 
 class WalletController extends Controller
 {
-    // Fetch balances
     public function balances()
     {
         $user = Auth::user();
         
-        // --- 1. Fetch Wallets from separate rows ---
-        // Get the specific NGN and USD wallet objects
-        $ngnWallet = $user->wallets()->where('currency', 'NGN')->first();
-        $usdWallet = $user->wallets()->where('currency', 'USD')->first();
+        // Fetch specific rows
+        $ngnWallet = $user->wallet()->where('currency', 'NGN')->first();
+        $usdWallet = $user->wallet()->where('currency', 'USD')->first();
 
-        // --- 2. Consolidate and Default (NULL-SAFE) ---
-        // Use the null-safe operator (?->) to prevent 500 errors if a wallet is missing.
-        $consolidatedWallet = [
-            'balance_ngn' => $ngnWallet?->balance ?? 0,
-            'balance_usd' => $usdWallet?->balance ?? 0,
-            'id' => $user->id, // Optional
-        ];
-
-        // --- 3. Return the consolidated object ---
         return response()->json([
             'success' => true,
-            'data' => $consolidatedWallet
+            'data' => [
+                'balance_ngn' => (float)($ngnWallet?->balance ?? 0),
+                'balance_usd' => (float)($usdWallet?->balance ?? 0),
+            ]
         ]);
     }
 
-    // Convert currency NGN ↔ USD
     public function convert(Request $request)
     {
         $request->validate([
             'from' => 'required|in:NGN,USD',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:0.01',
         ]);
 
         $user = Auth::user();
-        $wallet = $user->wallet;
+        $amount = $request->amount;
+        $from = $request->from;
+        $target = ($from === 'NGN') ? 'USD' : 'NGN';
 
-        // Fetch FX rate
+        // 1. Get both wallet rows
+        $fromWallet = $user->wallet()->where('currency', $from)->first();
+        $toWallet = $user->wallet()->where('currency', $target)->first();
+
+        if (!$fromWallet || $fromWallet->balance < $amount) {
+            return response()->json(['success' => false, 'message' => "Insufficient $from balance"], 400);
+        }
+
+        // 2. Fetch FX rate (Note: exchangerate.host often requires an API key now, check their docs) 
         $fx = Http::get("https://api.exchangerate.host/latest", [
             'base' => 'NGN',
             'symbols' => 'USD'
         ])->json();
 
-        $rate = $fx['rates']['USD'] ?? null;
+        $rate = $fx['rates']['USD'] ?? 0.00065; // Default fallback rate if API fails
 
-        if (!$rate) {
-            return response()->json(['success' => false, 'message' => 'FX service unavailable'], 503);
-        }
-
-        $amount = $request->amount;
-        $from = $request->from;
-
+        // 3. Perform Calculation
         if ($from === 'NGN') {
-            if ($wallet->balance_ngn < $amount) {
-                return response()->json(['success' => false, 'message' => 'Insufficient NGN balance']);
-            }
-
-            $usd = $amount * $rate;
-
-            $wallet->balance_ngn -= $amount;
-            $wallet->balance_usd += $usd;
+            $convertedAmount = $amount * $rate;
         } else {
-            if ($wallet->balance_usd < $amount) {
-                return response()->json(['success' => false, 'message' => 'Insufficient USD balance']);
-            }
-
-            $ngn = $amount / $rate;
-
-            $wallet->balance_usd -= $amount;
-            $wallet->balance_ngn += $ngn;
+            $convertedAmount = $amount / $rate;
         }
 
-        $wallet->save();
+        // 4. Update Database (Atomic Transactions would be better here)
+        $fromWallet->decrement('balance', $amount);
+        
+        // Ensure the target wallet exists, if not create it
+        if (!$toWallet) {
+            $toWallet = $user->wallet()->create(['currency' => $target, 'balance' => 0]);
+        }
+        $toWallet->increment('balance', $convertedAmount);
 
         return response()->json([
             'success' => true,
             'message' => 'Conversion completed.',
-            'data' => $wallet
+            'data' => [
+                'balance_ngn' => $user->wallet()->where('currency', 'NGN')->first()?->balance ?? 0,
+                'balance_usd' => $user->wallet()->where('currency', 'USD')->first()?->balance ?? 0,
+            ]
         ]);
     }
+
     public function recentTransactions(Request $request)
     {
-        // Fetch the last 10 transactions for the authenticated user, newest first
-        $transactions = $request->user()
-            ->transactions() // Assumes you have a 'transactions' relationship on your User model
+        $user = $request->user();
+        
+        // We use the Transaction model directly to avoid relationship errors
+        $transactions = Transaction::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
             
-        // Map the transactions to the format expected by the Vue component
-        $formattedTransactions = $transactions->map(function ($transaction) {
+        $formattedTransactions = $transactions->map(function ($t) {
             return [
-                'id' => $transaction->id,
-                // Format date to match your Vue template (e.g., "2025-11-01")
-                'date' => $transaction->created_at->format('Y-m-d'), 
-                'type' => ucfirst($transaction->type), // E.g., "Deposit"
-                'currency' => $transaction->asset, // Using 'asset' column for currency/asset symbol
-                'amount' => (float) $transaction->amount, // Cast to float for precision
+                'id' => $t->id,
+                'date' => $t->created_at->format('Y-m-d'), 
+                'type' => ucfirst($t->type), 
+                'currency' => $t->asset ?? $t->currency, 
+                'amount' => (float) $t->amount,
+                'status' => $t->status ?? 'Completed',
+                'ref' => $t->reference ?? $t->id
             ];
         });
 
@@ -117,5 +109,4 @@ class WalletController extends Controller
             'transactions' => $formattedTransactions
         ]);
     }
-
 }
