@@ -7,7 +7,6 @@ import Register from "@/Pages/Auth/Register.vue";
 import ForgotPassword from "@/Pages/Auth/ForgotPassword.vue";
 import ResetPassword from "@/Pages/Auth/ResetPassword.vue";
 import VerifyEmail from "@/Pages/Auth/VerifyEmail.vue";
-import TwoFactorSetup from "@/Pages/TwoFactorSetup.vue";
 
 
 // Main User Pages
@@ -42,7 +41,6 @@ const routes = [
   { path: "/forgot-password", name: "forgot-password", component: ForgotPassword },
   { path: "/reset-password", name: "reset-password", component: ResetPassword },
   { path: "/verify-email", name: "verify-email", component: VerifyEmail },
-  { path: "/two-factor-setup", name: "two-factor-setup", component: TwoFactorSetup },
   /* ----------------------------------------------
      USER AUTH PAGES
   ------------------------------------------------*/

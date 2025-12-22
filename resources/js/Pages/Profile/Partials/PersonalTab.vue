@@ -16,8 +16,13 @@
     <!-- Edit form -->
     <form @submit.prevent="updateProfile" class="space-y-4">
       <div>
-        <label class="text-sm text-gray-400">Full Name</label>
-        <input v-model="form.name" class="input" />
+        <label class="text-sm text-gray-400">First Name</label>
+        <input v-model="form.first_name" class="input" />
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-400">Last Name</label>
+        <input v-model="form.last_name" class="input" />
       </div>
 
       <div>
@@ -48,14 +53,16 @@ const props = defineProps({
 const processing = ref(false);
 
 const form = reactive({
-  name: "",
+  first_name: "",
+  last_name: "",
   phone: "",
   address: "",
 });
 
 watch(() => props.user, (newUser) => {
   if (newUser) {
-    form.name = newUser.name || (newUser.first_name ? `${newUser.first_name} ${newUser.last_name}` : "");
+    form.first_name = newUser.first_name ?? "";
+    form.last_name = newUser.last_name ?? ""; 
     form.phone = newUser.phone ?? "";
     form.address = newUser.address ?? "";
   }

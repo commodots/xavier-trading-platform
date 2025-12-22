@@ -1,7 +1,5 @@
 <template>
-  <GuestLayout>
-    
-      <h2 class="mb-6 text-3xl font-bold text-gray-600">Two-Factor Authentication Setup</h2>
+      <h2 class="mt-4 mb-6 text-3xl font-bold text-white">Two-Factor Authentication Setup</h2>
 
       <div v-if="message"
         :class="message.type === 'success' ? 'text-green-500' : ' text-red-500'"
@@ -44,7 +42,6 @@
           </button>
         </form>
       </div>
-  </GuestLayout>
 </template>
 
 <script setup>
