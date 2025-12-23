@@ -11,50 +11,8 @@ use App\Models\Wallet;
 class PortfolioController extends Controller
 {
     public function summary(Request $request)
-    {
-        // app/Http/Controllers/Api/TransactionController.php
-namespace App\Http\Controllers\Api;
-
-use App\Http\Controllers\Controller;
-use App\Models\Transaction;
-use Illuminate\Http\Request;
-
-class TransactionController extends Controller
-{
-    // C1. index() user transaction history [cite: 63]
-    public function index()
-    {
-        return response()->json(auth()->user()->transactions()->latest()->get());
-    }
-
-    // C1. deposit() [cite: 61]
-    public function deposit(Request $request)
-    {
-        // No wallet logic yet - just record rows [cite: 64]
-        $transaction = Transaction::create([
-            'user_id' => auth()->id(), [cite: 67]
-            'type' => 'deposit', [cite: 68]
-            'amount' => $request->amount, [cite: 69]
-            'currency' => $request->currency ?? 'NGN', [cite: 70]
-            'status' => 'completed' [cite: 71]
-        ]);
-        return response()->json($transaction);
-    }
-
-    // C1. withdraw() [cite: 62]
-    public function withdraw(Request $request)
-    {
-        $transaction = Transaction::create([
-            'user_id' => auth()->id(),
-            'type' => 'withdrawal',
-            'amount' => $request->amount,
-            'currency' => $request->currency ?? 'NGN',
-            'status' => 'pending'
-        ]);
-        return response()->json($transaction);
-    }
-}
-
+    { 
+        $user = Auth::user();
         // --- 1. Define Placeholder/Hardcoded Values ---
         // In a real app, these would come from the database (e.g., Holdings table) or a real-time price API.
         $FX_RATE = 1500; // Placeholder: 1 USD = 1500 NGN

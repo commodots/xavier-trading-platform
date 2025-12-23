@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\UserKyc;
+use App\Models\NewTransaction;
 
 class AdminController extends Controller
 {
@@ -164,11 +165,33 @@ class AdminController extends Controller
     */
     public function transactions(Request $request)
     {
-        $transactions = Transaction::latest()->paginate(20);
+        $query = NewTransaction::with('user');
+
+        
+        if ($request->filled('q')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('id', 'like', "%{$request->q}%")
+                    ->orWhereHas('user', function ($userQuery) use ($request) {
+                        $userQuery->where('email', 'like', "%{$request->q}%");
+                    });
+            });
+        }
+
+        
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $txns = $query->latest()->paginate(20);
 
         return response()->json([
             'success' => true,
-            'data' => $transactions
+            'data' => $txns
         ]);
     }
 
@@ -247,11 +270,63 @@ class AdminController extends Controller
 
         return response()->json($order);
     }
-    public function platformEarnings()
+    public function getEarnings()
     {
-        return Transaction::select('type')
-            ->selectRaw('SUM(platform_fee) as total_earnings')
+        $total = NewTransaction::where('status', 'completed')->sum('charge');
+
+        $today = NewTransaction::where('status', 'completed')
+            ->whereDate('created_at', today())
+            ->sum('charge');
+
+        $thisMonth = NewTransaction::where('status', 'completed')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('charge');
+
+        $byType = NewTransaction::select('type')
+            ->selectRaw('SUM(charge) as total_earnings')
+            ->where('status', 'completed')
             ->groupBy('type')
             ->get();
+
+        return response()->json([
+            'total_earnings' => (float) $total,
+            'today_earnings' => (float) $today,
+            'this_month_earnings' => (float)$thisMonth,
+            'by_type' => $byType,
+        ]);
+    }
+    public function exportTransactions(Request $request)
+    {
+        $query = Transaction::with('user');
+
+
+        if ($request->filled('type')) $query->where('type', $request->type);
+        if ($request->filled('status')) $query->where('status', $request->status);
+
+        $transactions = $query->latest()->get();
+
+        $callback = function () use ($transactions) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['ID', 'User', 'Type', 'Amount', 'Charge', 'Status', 'Date']);
+
+            foreach ($transactions as $tx) {
+                fputcsv($file, [
+                    $tx->id,
+                    $tx->user->email ?? 'N/A',
+                    $tx->type,
+                    $tx->amount,
+                    $tx->charge,
+                    $tx->status,
+                    $tx->created_at
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=transactions.csv",
+        ]);
     }
 }

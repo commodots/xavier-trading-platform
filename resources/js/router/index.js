@@ -29,7 +29,7 @@ import AdminUsers from "@/Pages/Admin/Users.vue";
 import AdminKYCs from "@/Pages/Admin/Kyc.vue";
 import AdminKycReview from "@/Pages/Admin/KycReview.vue";
 import AdminTransactions from "@/Pages/Admin/Transactions.vue";
-import Services from "@/Pages/Admin/Services.vue";
+import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 
 const routes = [
 
@@ -178,8 +178,8 @@ const routes = [
   },
   {
     path: "/admin/control-panel",
-    name: "admin-sevices",
-    component: Services,
+    name: "admin-control-panel",
+    component: ControlPanel,
     meta: { requiresAuth: true, adminOnly: true },
   },
 

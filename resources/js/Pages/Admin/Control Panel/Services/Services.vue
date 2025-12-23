@@ -1,8 +1,6 @@
 <template>
-  <MainLayout>
     <div class="p-6 space-y-6 text-white">
-      <h1 class="text-2xl font-bold">Service Management</h1>
-
+      
       <div v-for="s in services" :key="s.id" class="bg-[#111827] p-4 rounded border border-gray-700">
         <div class="flex items-center justify-between">
           <div>
@@ -23,13 +21,13 @@
         </div>
       </div>
     </div>
-  </MainLayout>
+
 </template>
 
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-import MainLayout from "@/Layouts/MainLayout.vue";
+
 
 const services = ref([]);
 

@@ -18,7 +18,8 @@ use App\Http\Controllers\Api\{
     AdminServiceController,
     PortfolioController,
     ServiceConfigController,
-    TransactionController
+    NewTransactionController,
+    TransactionTypeController
 };
 use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
@@ -85,9 +86,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders', [OmsController::class, 'listOrders']);
     Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
 
-    Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::post('/deposit', [TransactionController::class, 'deposit']);
-    Route::post('/withdraw', [TransactionController::class, 'withdraw']);
+    Route::get('/transactions', [NewTransactionController::class, 'index']);
+    Route::post('/deposit', [NewTransactionController::class, 'deposit']);
+    Route::post('/withdraw', [NewTransactionController::class, 'withdraw']);
 
     /* Admin Routes */
     Route::middleware('admin')->prefix('admin')->group(function () {
@@ -120,8 +121,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services/{id}/connection', [AdminServiceController::class, 'addConnection']);
         Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
 
-        Route::post('/charges', [TransactionChargeController::class, 'store']);
-        Route::get('/earnings', [TransactionChargeController::class, 'earnings']);
+        Route::apiResource('transaction-types', TransactionTypeController::class);
+
+        Route::get('/transaction-charges', [TransactionChargeController::class, 'index']);
+        Route::put('/transaction-charges/{id}', [TransactionChargeController::class, 'update']);
+        Route::post('/transaction-charges', [TransactionChargeController::class, 'store']);
+
+        Route::get('/transactions', [AdminController::class, 'transactions']);
+        Route::get('/earnings', [AdminController::class, 'getEarnings']);
+        Route::get('/transactions/export', [AdminController::class, 'exportTransactions']);
     });
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);
