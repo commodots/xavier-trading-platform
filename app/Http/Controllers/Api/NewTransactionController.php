@@ -12,7 +12,13 @@ class NewTransactionController extends Controller
 {
     public function index()
     {
-        return response()->json(auth()->user()->transactions()->latest()->get());
+        $transactions = NewTransaction::where('user_id', auth()->id())
+        ->orderBy('created_at', 'desc')
+        ->orderBy('id', 'desc')
+        ->limit(8)
+        ->get();
+
+    return response()->json($transactions);
     }
 
     public function deposit(Request $request)
@@ -28,7 +34,7 @@ class NewTransactionController extends Controller
             'amount' => $request->amount,
             'currency' => $currency,
             'status' => 'completed',
-            'net_amount' => $request->amount // Placeholder
+            'net_amount' => $request->amount 
         ]);
 
         // 2. Calculate fee and update the record

@@ -163,7 +163,7 @@ const formatDate = (dateStr) => {
   if (!dateStr) return "Just now";
   const date = new Date(dateStr);
   return isNaN(date.getTime()) ? dateStr : date.toLocaleDateString('en-NG', { 
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+   year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
   });
 };
 

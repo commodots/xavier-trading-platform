@@ -9,6 +9,7 @@ const apexchart = VueApexCharts;
 // state
 const loading = ref(false);
 const data = ref(null);
+const transactions = ref([]);
 const error = ref(null);
 
 // fallback demo data
@@ -75,6 +76,12 @@ const donutSeries = computed(() => [
   Number(cryptoValue.value)
 ]);
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-NG', { year: 'numeric',month: 'short', day: 'numeric' });
+};
+
 // Fetch dashboard data
 async function fetchDashboard() {
   data.value = null;
@@ -83,11 +90,13 @@ async function fetchDashboard() {
   error.value = null;
   try {
     const token = localStorage.getItem("xavier_token");
-    const resp = await axios.get("/portfolio", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const [portfolioResp, transResp] = await Promise.all([
+      axios.get("/portfolio", { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get("/transactions", { headers: { Authorization: `Bearer ${token}` } })
+    ]);
 
-    data.value = resp.data;
+    data.value = portfolioResp.data;
+    transactions.value = Array.isArray(transResp.data) ? transResp.data : transResp.data.transactions;
     
     if (data.value.series_performance) {
       perfSeries.value = data.value.series_performance;
@@ -203,14 +212,18 @@ onMounted(fetchDashboard);
           </div>
 
           <ul class="space-y-2 text-sm text-gray-300">
-            <li v-for="t in (data?.transactions || fallback.transactions)" :key="t.ref"
+            <li v-for="t in (transactions.length > 0 ? transactions : fallback.transactions)" :key="t.id || t.ref"
               class="flex items-center justify-between p-2 rounded hover:bg-[#122033]">
               <div>
-                <div class="font-medium">{{ t.type }} — {{ t.asset }}</div>
-                <div class="text-xs text-gray-400">{{ t.date }} • ref: {{ t.ref }}</div>
+                <div class="font-medium">{{ t.type }} — {{ t.currency }}</div>
+                <div class="text-xs text-gray-400">
+                {{ formatDate(t.created_at) }} • ref: {{ t.reference || t.id }}
+              </div>
               </div>
               <div class="text-right">
-                <div class="font-medium">₦{{ Number(t.amount).toLocaleString() }}</div>
+                <div class="font-medium" :class="t.type === 'deposit' ? 'text-green-400' : 'text-white'">
+                {{ t.type === 'withdrawal' ? '-' : '' }}₦{{ Number(t.amount).toLocaleString() }}
+              </div>
                 <div class="text-xs text-gray-400">{{ t.status }}</div>
               </div>
             </li>

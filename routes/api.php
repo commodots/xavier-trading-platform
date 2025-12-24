@@ -62,7 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/portfolio', [PortfolioController::class, 'summary']);
 
-    Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
+    //Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
 
     // Authenticated Endpoints
     Route::get('/2fa/setup', [TwoFactorController::class, 'enable2FA']);
