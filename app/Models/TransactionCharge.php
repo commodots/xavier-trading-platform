@@ -7,6 +7,13 @@ use App\Models\PlatformEarning;
 
 class TransactionCharge extends Model
 {
+    protected $fillable = [
+        'transaction_type', 
+        'charge_type', 
+        'value', 
+        'active'
+    ];
+    
     public static function calculate($type, $amount, $transaction = null)
     {
 

@@ -26,7 +26,11 @@ class TransactionChargeController extends Controller
     public function update(Request $request, $id)
     {
         $charge = TransactionCharge::findOrFail($id);
-        $charge->update($request->all());
-        return $charge;
+        $charge->update($request->except('id'));
+       return response()->json([
+        'success' => true,
+        'message' => 'Charge updated successfully',
+        $charge
+    ]);
     }
 }
