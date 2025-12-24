@@ -1,6 +1,6 @@
 <?php
 
-// database/seeders/TransactionSeeder.php
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -9,6 +9,7 @@ use App\Models\TransactionType;
 use App\Models\TransactionCharge;
 use App\Models\User;
 use Carbon\Carbon;
+use App\Services\TransactionService;
 
 class NewTransactionSeeder extends Seeder
 {
@@ -28,40 +29,21 @@ class NewTransactionSeeder extends Seeder
         }
 
 
-        TransactionCharge::updateOrCreate(
-            ['transaction_type' => 'deposit'],
-            ['flat_fee' => 0, 'percentage' => 0]
-        );
-        TransactionCharge::updateOrCreate(
-            ['transaction_type' => 'withdrawal'],
-            ['flat_fee' => 100, 'percentage' => 1.5]
-        );
-        TransactionCharge::updateOrCreate(
-            ['transaction_type' => 'buy_stock'],
-            ['flat_fee' => 50, 'percentage' => 1.0]
-        );
+        TransactionCharge::updateOrCreate(['transaction_type' => 'deposit'], ['charge_type' => 'percentage', 'value' => 1.0]);
+        TransactionCharge::updateOrCreate(['transaction_type' => 'withdrawal'], ['charge_type' => 'flat', 'value' => 100.0]);
+        TransactionCharge::updateOrCreate(['transaction_type' => 'buy_stock'], ['charge_type' => 'percentage', 'value' => 0.5]);
+        TransactionCharge::updateOrCreate(['transaction_type' => 'sell_stock'], ['charge_type' => 'percentage', 'value' => 0.5]);
 
 
-        $users = User::all();
-        foreach ($users as $user) {
-            for ($i = 0; $i < 10; $i++) {
-                $amount = rand(5000, 50000);
-                $type = collect(['deposit', 'buy_stock', 'withdrawal'])->random();
-
-
-                $charge = TransactionCharge::calculate($type, $amount);
-
-                NewTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => $type,
-                    'amount' => $amount,
-                    'currency' => 'NGN',
-                    'charge' => $charge,
-                    'net_amount' => ($type === 'deposit') ? ($amount - $charge) : ($amount + $charge),
-                    'status' => 'completed',
-                    'created_at' => Carbon::now()->subDays(rand(0, 30)),
-                ]);
-            }
-        }
+        User::all()->each(function ($user) {
+            $txn = NewTransaction::create([
+                'user_id' => $user->id,
+                'type' => 'deposit',
+                'amount' => 50000,
+                'status' => 'completed',
+            ]);
+            
+            TransactionService::applyFees($txn);
+        });
     }
 }

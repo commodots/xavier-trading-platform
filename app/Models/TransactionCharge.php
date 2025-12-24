@@ -3,22 +3,35 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PlatformEarning;
 
 class TransactionCharge extends Model
 {
-    public static function calculate($type, $amount)
+    public static function calculate($type, $amount, $transaction = null)
     {
-    
-        $charge = self::where('transaction_type', $type)->first();
 
-        if (!$charge) {
-            return 0;
+        $charge = self::where('transaction_type', $type)
+            ->where('active', true)
+            ->first();
+
+        $fee = 0;
+        if ($charge) {
+            $fee = $charge->charge_type === 'percentage'
+                ? ($amount * $charge->value / 100)
+                : $charge->value;
         }
 
-        // Formula: Flat Fee + (Amount * Percentage / 100)
-        $flatFee = $charge->flat_fee ?? 0;
-        $percentageFee = ($amount * (($charge->percentage_fee ?? 0) / 100));
 
-        return $flatFee + $percentageFee;
+        if (!is_null($transaction) && is_object($transaction)) {
+            $transaction->update(['charge' => $fee]);
+
+            PlatformEarning::create([
+                'transaction_id' => $transaction->id,
+                'amount' => $fee,
+                'source' => 'transaction_fee',
+            ]);
+        }
+
+        return $fee;
     }
 }

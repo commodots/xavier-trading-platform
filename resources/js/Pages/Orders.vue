@@ -99,7 +99,7 @@ onMounted(() => loadOrders());
 async function loadOrders() {
   try {
     const token = localStorage.getItem("xavier_token");
-    const res = await axios.get("/api/orders", {
+    const res = await axios.get("/orders", {
       headers: { Authorization: `Bearer ${token}` }
     });
 

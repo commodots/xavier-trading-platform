@@ -4,61 +4,83 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewTransaction;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use App\Models\TransactionCharge;
 
 class NewTransactionController extends Controller
 {
-
     public function index()
     {
-
         return response()->json(auth()->user()->transactions()->latest()->get());
     }
 
     public function deposit(Request $request)
     {
-        $charge = TransactionCharge::calculate('deposit', $request->amount);
+        $request->validate(['amount' => 'required|numeric|min:1']);
+        $user = auth()->user();
+        $currency = $request->currency ?? 'NGN';
 
+        // 1. Create transaction record
         $transaction = NewTransaction::create([
-            'user_id' => auth()->id(),
+            'user_id' => $user->id,
             'type' => 'deposit',
             'amount' => $request->amount,
-            'currency' => $request->currency ?? 'NGN',
-            'charge' => $charge,
-            'net_amount' => $request->amount - $charge,
-            'status' => 'completed'
+            'currency' => $currency,
+            'status' => 'completed',
+            'net_amount' => $request->amount // Placeholder
         ]);
-        return response()->json($transaction);
-    }
 
+        // 2. Calculate fee and update the record
+        $charge = TransactionCharge::calculate('deposit', $request->amount, $transaction);
+        $netAmount = $request->amount - $charge;
+        
+        $transaction->update(['net_amount' => $netAmount]);
+
+        // 3. IMPORTANT: Update the Wallet balance, not just the user balance
+        $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
+        if ($wallet) {
+            $wallet->increment('balance', $netAmount);
+        }
+
+        return response()->json([
+            'success' => true,
+            'details' => $transaction->fresh()
+        ]);
+    }
 
     public function withdraw(Request $request)
     {
         $request->validate(['amount' => 'required|numeric|min:1']);
         $user = auth()->user();
+        $currency = $request->currency ?? 'NGN';
 
-
-        $chargeAmount = TransactionCharge::calculate('withdrawal', $request->amount);
+        
+        $chargeAmount = TransactionCharge::calculate('withdrawal', $request->amount, null);
         $totalDeduction = $request->amount + $chargeAmount;
 
+        $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
 
-        if ($user->balance < $totalDeduction) {
-            return response()->json(['message' => 'Insufficient balance'], 400);
+        if (!$wallet || $wallet->balance < $totalDeduction) {
+            return response()->json(['message' => 'Insufficient wallet balance'], 400);
         }
-
-        $user->decrement('balance', $totalDeduction);
-
-        $txn = NewTransaction::create([
+          $txn = NewTransaction::create([
             'user_id'    => $user->id,
             'type'       => 'withdrawal',
             'amount'     => $request->amount,
-            'charge'     => $chargeAmount,
+            'currency'   => $currency,
             'net_amount' => $totalDeduction,
-            'status'     => 'pending',
+            'status'     => 'completed',
         ]);
 
-        return response()->json($txn);
+        
+        $wallet->decrement('balance', $totalDeduction);
+
+        TransactionCharge::calculate('withdrawal', $request->amount, $txn);
+
+        return response()->json([
+            'success' => true,
+            'details' => $txn->fresh()
+        ]);
     }
 }

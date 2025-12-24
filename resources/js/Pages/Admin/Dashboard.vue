@@ -148,7 +148,7 @@ async function fetchDashboardData() {
       }));
     }
   } catch (error) {
-    console.warn("API Error: Fallback data used for Task 6.2 requirements.");
+    console.warn("API Error: Fallback data");
   }
 }
 

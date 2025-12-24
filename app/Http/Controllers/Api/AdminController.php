@@ -9,6 +9,8 @@ use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\UserKyc;
 use App\Models\NewTransaction;
+use App\Models\PlatformEarning;
+use App\Models\TransactionCharge;
 
 class AdminController extends Controller
 {
@@ -25,6 +27,7 @@ class AdminController extends Controller
                 'total_users'        => User::count(),
                 'pending_kyc'        => UserKyc::where('status', 'pending')->count(),
                 'total_transactions' => Transaction::count(),
+                'total_fees' => PlatformEarning::sum('amount'),
                 'wallet_sums' => [
                     'ngn' => Wallet::where('currency', 'NGN')->sum('balance'),
                     'usd' => Wallet::where('currency', 'USD')->sum('balance'),
@@ -167,7 +170,7 @@ class AdminController extends Controller
     {
         $query = NewTransaction::with('user');
 
-        
+
         if ($request->filled('q')) {
             $query->where(function ($q) use ($request) {
                 $q->where('id', 'like', "%{$request->q}%")
@@ -177,12 +180,12 @@ class AdminController extends Controller
             });
         }
 
-        
+
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
 
-        
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -191,7 +194,8 @@ class AdminController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $txns
+            'data' => $txns,
+            'total_fees_earned' => PlatformEarning::sum('amount')
         ]);
     }
 
@@ -272,28 +276,12 @@ class AdminController extends Controller
     }
     public function getEarnings()
     {
-        $total = NewTransaction::where('status', 'completed')->sum('charge');
-
-        $today = NewTransaction::where('status', 'completed')
-            ->whereDate('created_at', today())
-            ->sum('charge');
-
-        $thisMonth = NewTransaction::where('status', 'completed')
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->sum('charge');
-
-        $byType = NewTransaction::select('type')
-            ->selectRaw('SUM(charge) as total_earnings')
-            ->where('status', 'completed')
-            ->groupBy('type')
-            ->get();
-
         return response()->json([
-            'total_earnings' => (float) $total,
-            'today_earnings' => (float) $today,
-            'this_month_earnings' => (float)$thisMonth,
-            'by_type' => $byType,
+            'today_earnings' => PlatformEarning::whereDate('created_at', today())->sum('amount'),
+            'this_month_earnings' => PlatformEarning::whereMonth('created_at', now()->month)->sum('amount'),
+            'by_type' => NewTransaction::select('type')
+                ->selectRaw('SUM(charge) as total_earnings')
+                ->groupBy('type')->get(),
         ]);
     }
     public function exportTransactions(Request $request)
@@ -328,5 +316,22 @@ class AdminController extends Controller
             "Content-type" => "text/csv",
             "Content-Disposition" => "attachment; filename=transactions.csv",
         ]);
+    }
+    public function getCharges()
+    {
+        return TransactionCharge::all();
+    }
+    public function updateCharge(Request $request, $id)
+    {
+        $request->validate([
+            'charge_type' => 'required|in:flat,percentage',
+            'value' => 'required|numeric',
+            'active' => 'required|boolean'
+        ]);
+
+        $charge = TransactionCharge::findOrFail($id);
+        $charge->update($request->all());
+        
+        return response()->json(['success' => true, 'message' => 'Charge updated']);
     }
 }
