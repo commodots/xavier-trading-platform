@@ -18,7 +18,7 @@
       </thead>
       <tbody>
         <tr v-for="type in transactionTypes" :key="type.id" class="border-t border-[#2A314A] hover:bg-[#252a3d] transition-colors">
-          <td class="px-4 py-3">{{ type.name }}</td>
+          <td class="px-4 py-3 capitalize">{{ type.name }}</td>
           <td class="px-4 py-3 text-gray-400 capitalize">{{ type.category }}</td>
           <td class="px-4 py-3">
             <span :class="type.active ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'" class="px-2 py-0.5 rounded text-xs font-medium">

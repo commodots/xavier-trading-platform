@@ -113,10 +113,21 @@ const filteredMenu = computed(() => {
 });
 
 // Logout function
-const logout = () => {
-  localStorage.removeItem("xavier_token");
-  localStorage.removeItem("user");
-  router.push("/login");
+const logout = async () => {
+  localStorage.clear(); 
+  sessionStorage.clear();
+
+    if (api.defaults.headers.common['Authorization']) {
+    delete api.defaults.headers.common['Authorization'];
+  }
+
+  try {
+    await api.post('/logout');
+  } catch (e) {
+    console.warn("Session already expired on server");
+  }
+
+  window.location.href = "/login";
 };
 </script>
 

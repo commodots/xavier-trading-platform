@@ -9,10 +9,13 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
-        if (!in_array(auth()->user()->role, ['admin', 'compliance'])) { 
-        abort(403, 'Unauthorized'); 
-    }
+        if (!auth()->check() || !in_array(auth()->user()->role, ['admin', 'compliance'])) {
+            return response()->json([
+                'message' => 'Access Denied: Admin privileges required.',
+                'role' => auth()->user()->role ?? 'guest'
+            ], 403);
+        }
 
-    return $next($request); 
+        return $next($request);
     }
 }

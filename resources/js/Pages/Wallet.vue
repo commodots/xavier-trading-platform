@@ -9,22 +9,16 @@
         </div>
 
         <div class="flex gap-3">
-          <button
-            @click="openTransaction('deposit')"
-            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition"
-          >
+          <button @click="openTransaction('deposit')"
+            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             + Deposit
           </button>
-          <button
-            @click="openTransaction('withdrawal')"
-            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition"
-          >
+          <button @click="openTransaction('withdrawal')"
+            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             - Withdraw
           </button>
-          <button
-            @click="openConvert = true"
-            class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] px-4 py-2 rounded-lg text-white font-semibold hover:opacity-90 transition"
-          >
+          <button @click="openConvert = true"
+            class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] px-4 py-2 rounded-lg text-white font-semibold hover:opacity-90 transition">
             ⇄ Convert Currency
           </button>
         </div>
@@ -71,7 +65,8 @@
                 <td class="px-2 capitalize">{{ t.type }}</td>
                 <td class="px-2 text-right">{{ formatAmount(t.amount, t.currency) }}</td>
                 <td class="px-2 text-right text-red-400">-{{ formatAmount(t.charge, t.currency) }}</td>
-                <td class="px-2 text-right font-bold text-green-400">{{ formatAmount(t.net_amount || t.amount, t.currency) }}</td>
+                <td class="px-2 text-right font-bold text-green-400">{{ formatAmount(t.net_amount || t.amount,
+                  t.currency) }}</td>
               </tr>
             </tbody>
           </table>
@@ -82,12 +77,14 @@
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
           <button @click="showModal = false" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
           <h2 class="mb-4 text-xl font-semibold capitalize">{{ txnType }} Funds</h2>
-          
+
           <form @submit.prevent="submitTransaction">
             <div class="space-y-4">
               <div>
                 <label class="text-sm text-gray-400">Amount ({{ form.currency }})</label>
-                <input v-model.number="form.amount" type="number" step="0.01" class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500" required />
+                <input v-model.number="form.amount" type="number" step="0.01"
+                  class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  required />
               </div>
 
               <div class="p-3 bg-black/20 rounded-lg border border-blue-500/20">
@@ -96,11 +93,13 @@
               </div>
             </div>
 
-            <button :disabled="loading" class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
+            <button :disabled="loading"
+              class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
               {{ loading ? 'Processing...' : 'Confirm ' + txnType }}
             </button>
           </form>
-          <p v-if="message" class="mt-4 text-sm text-center text-yellow-300">{{ message }}</p>
+          <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'"
+            class="mt-4 text-sm text-center font-medium">{{ message }}</p>
         </div>
       </div>
 
@@ -110,17 +109,30 @@
           <h2 class="mb-4 text-xl font-semibold">Convert Currency</h2>
           <form @submit.prevent="convertCurrency">
             <label class="text-sm text-gray-400">From Currency</label>
-            <select v-model="from" class="w-full px-4 py-2 mt-1 mb-4 text-white bg-[#151a27] border border-gray-600 rounded-lg">
+            <select v-model="from"
+              class="w-full px-4 py-2 mt-1 mb-4 text-white bg-[#151a27] border border-gray-600 rounded-lg">
               <option value="NGN">NGN → USD</option>
               <option value="USD">USD → NGN</option>
             </select>
             <label class="text-sm text-gray-400">Amount</label>
-            <input v-model.number="amount" type="number" class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg text-white" placeholder="Enter amount" required />
-            <button :disabled="loading" class="w-full mt-5 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg font-semibold disabled:opacity-50">
+            <input v-model.number="amount" type="number"
+              class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg text-white"
+              placeholder="Enter amount" required />
+
+            <div v-if="amount > 0" class="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-pulse">
+              <div class="text-[10px] text-blue-400 uppercase font-bold">Estimated Receipt</div>
+              <div class="text-lg font-bold text-white">
+                {{ from === 'NGN' ? '$' + (amount * 0.00065).toFixed(2) : '₦' + (amount / 0.00065).toLocaleString() }}
+              </div>
+              <div class="text-[9px] text-gray-500 italic mt-1">Rate: 1 NGN = 0.00065 USD</div>
+            </div>
+
+            <button :disabled="loading"
+              class="w-full mt-5 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg font-semibold disabled:opacity-50">
               {{ loading ? 'Converting...' : 'Convert Now' }}
             </button>
           </form>
-          <p v-if="message" class="mt-4 text-sm text-center text-yellow-300">{{ message }}</p>
+          <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'" class="mt-4 text-sm text-center font-medium">{{ message }}</p>
         </div>
       </div>
     </div>
@@ -143,7 +155,7 @@ const loading = ref(false);
 
 const openConvert = ref(false);
 const showModal = ref(false);
-const txnType = ref(""); 
+const txnType = ref("");
 const from = ref("NGN");
 const amount = ref(0);
 
@@ -162,8 +174,8 @@ const formatAmount = (amt, currency) => {
 const formatDate = (dateStr) => {
   if (!dateStr) return "Just now";
   const date = new Date(dateStr);
-  return isNaN(date.getTime()) ? dateStr : date.toLocaleDateString('en-NG', { 
-   year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+  return isNaN(date.getTime()) ? dateStr : date.toLocaleDateString('en-NG', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 };
 
@@ -176,13 +188,12 @@ const refreshData = async () => {
     ]);
     balances.value = balRes.data.data;
 
-console.log("Transaction Data:", txnRes.data);
 
     if (Array.isArray(txnRes.data)) {
-        transactions.value = txnRes.data;
-    } 
+      transactions.value = txnRes.data;
+    }
     else if (txnRes.data.transactions) {
-        transactions.value = txnRes.data.transactions;
+      transactions.value = txnRes.data.transactions;
     }
   } catch (e) {
     console.error("Fetch error", e);
@@ -198,13 +209,13 @@ const openTransaction = (type) => {
 
 const submitTransaction = async () => {
   if (form.value.amount <= 0) return;
-  
+
   loading.value = true;
   message.value = "Processing...";
-  
+
   // Mapping the UI type to the specific route
   const endpoint = txnType.value === 'deposit' ? '/deposit' : '/withdraw';
-  
+
   try {
     const res = await axios.post(endpoint, {
       amount: form.value.amount,
@@ -212,13 +223,13 @@ const submitTransaction = async () => {
     });
 
     message.value = "Successful!";
-    setTimeout(() => { 
-      showModal.value = false; 
-      refreshData(); 
+    setTimeout(() => {
+      showModal.value = false;
+      refreshData();
     }, 1500);
   } catch (e) {
-    console.error (e.response?.data?.message);
-    message.value = "Transaction failed";
+    console.error(e.response?.data?.message);
+    message.value = e.response?.data?.message || "Transaction failed";
   } finally {
     loading.value = false;
   }
@@ -226,14 +237,14 @@ const submitTransaction = async () => {
 
 const convertCurrency = async () => {
   if (amount.value <= 0) return;
-  
+
   loading.value = true;
   message.value = "Converting...";
-  
+
   try {
     const res = await axios.post("/wallet/convert", {
       from: from.value,
-      amount: amount.value 
+      amount: amount.value
     });
 
     message.value = "Converted successfully!";

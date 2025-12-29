@@ -14,7 +14,7 @@ class WalletController extends Controller
     public function balances()
     {
         $user = Auth::user();
-        
+
         // Fetch specific rows
         $ngnWallet = $user->wallet()->where('currency', 'NGN')->first();
         $usdWallet = $user->wallet()->where('currency', 'USD')->first();
@@ -65,7 +65,7 @@ class WalletController extends Controller
 
         // 4. Update Database (Atomic Transactions would be better here)
         $fromWallet->decrement('balance', $amount);
-        
+
         // Ensure the target wallet exists, if not create it
         if (!$toWallet) {
             $toWallet = $user->wallet()->create(['currency' => $target, 'balance' => 0]);
@@ -85,19 +85,19 @@ class WalletController extends Controller
     public function recentTransactions(Request $request)
     {
         $user = $request->user();
-        
+
         // We use the Transaction model directly to avoid relationship errors
         $transactions = Transaction::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-            
+
         $formattedTransactions = $transactions->map(function ($t) {
             return [
                 'id' => $t->id,
-                'date' => $t->created_at->format('Y-m-d'), 
-                'type' => ucfirst($t->type), 
-                'currency' => $t->asset ?? $t->currency, 
+                'date' => $t->created_at->format('Y-m-d'),
+                'type' => ucfirst($t->type),
+                'currency' => $t->asset ?? $t->currency,
                 'amount' => (float) $t->amount,
                 'status' => $t->status ?? 'Completed',
                 'ref' => $t->reference ?? $t->id
@@ -107,6 +107,28 @@ class WalletController extends Controller
         return response()->json([
             'success' => true,
             'transactions' => $formattedTransactions
+        ]);
+    }
+    public function preview(Request $request)
+    {
+        $amount = $request->query('amount', 0);
+        $from = $request->query('from', 'NGN');
+
+     
+        $rate = 0.00065;
+
+        if ($from === 'NGN') {
+            $preview = $amount * $rate;
+            $label = "USD";
+        } else {
+            $preview = $amount / $rate;
+            $label = "NGN";
+        }
+
+        return response()->json([
+            'converted' => round($preview, 2),
+            'currency' => $label,
+            'rate' => $rate
         ]);
     }
 }

@@ -62,17 +62,19 @@ class AdminServiceController extends Controller
 
     public function toggleService($id)
     {
-        DB::transaction(function () use ($id) {
-            // Deactivate all services
-            Service::query()->update(['is_active' => false]);
+        $service = Service::findOrFail($id);
+        // Switch between true and false
+        $service->is_active = !$service->is_active;
+        $service->save();
 
-            // Activate the specified service
-            Service::findOrFail($id)->update(['is_active' => true]);
-        });
-
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'is_active' => $service->is_active,
+            'message' => $service->name . ($service->is_active ? ' enabled' : ' disabled')
+        ]);
     }
-    public function updateMode(Request $request, $id) {
+    public function updateMode(Request $request, $id)
+    {
         $service = Service::findOrFail($id);
         $service->update(['mode' => $request->mode]);
         return response()->json(['message' => 'Mode updated']);

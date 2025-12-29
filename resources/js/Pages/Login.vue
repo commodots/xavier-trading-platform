@@ -1,59 +1,35 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
     <div class="w-full max-w-sm p-8 bg-slate-800 rounded-lg">
-      <img 
-        src="/images/xavier-logo.png" 
-        alt="Xavier Logo"
-        class="h-16 mx-auto mb-6"
-      />
+      <img src="/images/xavier-logo.png" alt="Xavier Logo" class="h-16 mx-auto mb-6" />
       <h2 class="text-2xl font-semibold mb-4 text-center">
         {{ step === 1 ? 'Login' : '2FA Verification' }}
       </h2>
-      
+
       <div v-if="error" class="bg-red-900/50 text-red-300 p-3 mb-4 rounded text-sm">
         {{ error }}
       </div>
 
       <form @submit.prevent="submitForm">
-        
+
         <div v-if="step === 1">
-          <input 
-            v-model="email" 
-            placeholder="Email" 
-            type="email" 
-            class="w-full p-2 rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2" 
-            required 
-          />
-          <input 
-            v-model="password" 
-            placeholder="Password" 
-            type="password" 
-            class="w-full p-2 rounded mt-3 bg-slate-700 focus:ring-cyan-400 focus:ring-2" 
-            required 
-          />
+          <input v-model="email" placeholder="Email" type="email"
+            class="w-full p-2 rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2" required />
+          <input v-model="password" placeholder="Password" type="password"
+            class="w-full p-2 rounded mt-3 bg-slate-700 focus:ring-cyan-400 focus:ring-2" required />
         </div>
 
         <div v-else-if="step === 2">
           <p class="text-sm text-slate-300 mb-3">
             Please enter the 6-digit code from your authenticator app for **{{ email }}**.
           </p>
-          <input 
-            v-model="twoFactorCode" 
-            placeholder="6-Digit Code" 
-            type="text" 
-            inputmode="numeric"
-            maxlength="6"
-            class="w-full p-3 text-2xl tracking-widest text-center rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2" 
-            required 
-            autofocus
-          />
+          <input v-model="twoFactorCode" placeholder="6-Digit Code" type="text" inputmode="numeric" maxlength="6"
+            class="w-full p-3 text-2xl tracking-widest text-center rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2"
+            required autofocus />
         </div>
 
-        <button 
-          type="submit" 
-          :disabled="processing"
-          class="w-full mt-4 py-2 font-semibold bg-gradient-to-r from-blue-700 to-cyan-400 rounded hover:from-blue-600 hover:to-cyan-300 disabled:opacity-50"
-        >
+        <button type="submit" :disabled="processing"
+          class="w-full mt-4 py-2 font-semibold bg-gradient-to-r from-blue-700 to-cyan-400 rounded hover:from-blue-600 hover:to-cyan-300 disabled:opacity-50">
           {{ buttonText }}
         </button>
       </form>
@@ -62,7 +38,7 @@
         Don’t have an account?
         <router-link to="/register" class="text-cyan-300 hover:underline">Register</router-link>
       </p>
-      
+
       <p v-if="step === 2" class="text-xs text-slate-500 mt-2 text-center">
         <button @click="resetForm" class="hover:text-cyan-400">Cancel / Go Back</button>
       </p>
@@ -84,8 +60,8 @@ const password = ref("");
 
 // 2FA State
 const twoFactorCode = ref("");
-const userId = ref(null); 
-const step = ref(1); 
+const userId = ref(null);
+const step = ref(1);
 
 // UI State
 const processing = ref(false);
@@ -110,11 +86,11 @@ const resetForm = () => {
 
 // Main function called by the form submit
 const submitForm = () => {
-    if (step.value === 1) {
-        loginUser();
-    } else if (step.value === 2) {
-        verify2FA();
-    }
+  if (step.value === 1) {
+    loginUser();
+  } else if (step.value === 2) {
+    verify2FA();
+  }
 };
 
 /**
@@ -125,11 +101,11 @@ async function loginUser() {
   error.value = null;
 
   try {
-    const response = await api.post("/login", { 
-      email: email.value, 
-      password: password.value 
+    const response = await api.post("/login", {
+      email: email.value,
+      password: password.value
     });
-    
+
     const data = response.data;
 
     if (data.success) {
@@ -139,7 +115,7 @@ async function loginUser() {
         step.value = 2;
         password.value = ''; // Clear password for security
         error.value = null;
-        
+
       } else if (data.token) {
         // 🛑 LOGIN SUCCESS: No 2FA required
         handleSuccessfulLogin(data.token, data.user);
@@ -181,9 +157,9 @@ async function verify2FA() {
       email: email.value, // We use the email from Step 1 to identify the user
       token: twoFactorCode.value // 'token' is the 6-digit TOTP code
     });
-    
+
     const data = response.data;
-    
+
     if (data.success && data.token) {
       // 🛑 FINAL SUCCESS: Token received after 2FA verification
       handleSuccessfulLogin(data.token, data.user);
@@ -207,9 +183,20 @@ async function verify2FA() {
 /**
  * Finalizes the login process
  */
-function handleSuccessfulLogin(token, user) {
+async function handleSuccessfulLogin(token, user) {
+  localStorage.clear(); 
+
   localStorage.setItem("xavier_token", token);
   localStorage.setItem("user", JSON.stringify(user));
-  router.push("/dashboard");
+
+  api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  if (user.role === 'admin' || user.role === 'compliance') {
+    router.push("/admin/dashboard");
+  } else {
+    router.push("/dashboard");
+  }
 }
 </script>

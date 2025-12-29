@@ -69,10 +69,10 @@
           </table>
 
           <div class="pt-6 mt-8 border-t border-gray-700">
-            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Earnings By Transaction Type</h3>
+            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction Type</h3>
             <div class="grid grid-cols-3 gap-4">
               <div v-for="item in earningsByType" :key="item.type" class="bg-[#151a27] p-3 rounded-lg border border-[#2A314A]">
-                <p class="text-[10px] text-gray-400 uppercase mb-1">{{ item.type }}</p>
+                <p class="text-[10px] text-gray-400 uppercase mb-1">{{ item.type.replace('_', ' ') }}</p>
                 <p class="text-sm font-bold text-white">₦{{ Number(item.total).toLocaleString() }}</p>
               </div>
             </div>
@@ -133,8 +133,11 @@ async function fetchDashboardData() {
       
       stats.value.monthEarnings = earningsRes.data.this_month_earnings ?? stats.value.monthEarnings;
       
-      if (earningsRes.data.breakdown?.length > 0) {
-        earningsByType.value = earningsRes.data.breakdown;
+      if (earningsRes.data.by_type) {
+        earningsByType.value = earningsRes.data.by_type.map(item => ({
+          type: item.type,
+          total: item.total_earnings
+        }));
       }
     }
 
