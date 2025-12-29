@@ -70,7 +70,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/api';
 
 const transactionTypes = ref([]);
 const showModal = ref(false);
@@ -79,7 +79,7 @@ const form = ref({ name: '', category: 'funding', active: true });
 
 const fetchTypes = async () => {
   try {
-    const res = await axios.get('/admin/transaction-types');
+    const res = await api.get('/admin/transaction-types');
     transactionTypes.value = res.data;
   } catch (error) {
     console.error("Error fetching types:", error);
@@ -88,7 +88,7 @@ const fetchTypes = async () => {
 
 const saveType = async () => {
   try {
-    await axios.post('/admin/transaction-types', form.value);
+    await api.post('/admin/transaction-types', form.value);
     showModal.value = false;
     form.value = { name: '', category: 'funding', active: true };
     fetchTypes();
@@ -100,7 +100,7 @@ const saveType = async () => {
 
 const toggleActive = async (type) => {
   try {
-    await axios.put(`admin/transaction-types/${type.id}`, { 
+    await api.put(`admin/transaction-types/${type.id}`, { 
       active: !type.active 
     });
     fetchTypes();

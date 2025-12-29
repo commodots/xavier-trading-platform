@@ -80,19 +80,19 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import MainLayout from "@/layouts/MainLayout.vue";
-import axios from "axios";
+import api from "@/api";
 
 const kycs = ref([]);
 
 onMounted(async () => {
-  let res = await axios.get("/admin/kycs");
+  let res = await api.get("/admin/kycs");
   kycs.value = res.data.data;
 });
 
 const review = async (id, decision) => {
   if (!confirm(`Are you sure you want to ${decision} this KYC?`)) return;
 
-  await axios.post(`/admin/kycs/${id}/review`, { status: decision });
+  await api.post(`/admin/kycs/${id}/review`, { status: decision });
   kycs.value = kycs.value.map((k) =>
     k.id === id ? { ...k, status: decision } : k
   );

@@ -141,7 +141,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import axios from "axios";
+import api from "@/api";
 import MainLayout from "@/layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 
@@ -181,10 +181,13 @@ const formatDate = (dateStr) => {
 
 // --- API Methods ---
 const refreshData = async () => {
+
+  balances.value = { balance_ngn: 0, balance_usd: 0 };
+
   try {
     const [balRes, txnRes] = await Promise.all([
-      axios.get("/wallet/balances"),
-      axios.get("/transactions")
+      api.get("/wallet/balances"),
+      api.get("/transactions")
     ]);
     balances.value = balRes.data.data;
 
@@ -217,7 +220,7 @@ const submitTransaction = async () => {
   const endpoint = txnType.value === 'deposit' ? '/deposit' : '/withdraw';
 
   try {
-    const res = await axios.post(endpoint, {
+    const res = await api.post(endpoint, {
       amount: form.value.amount,
       currency: form.value.currency
     });
@@ -242,7 +245,7 @@ const convertCurrency = async () => {
   message.value = "Converting...";
 
   try {
-    const res = await axios.post("/wallet/convert", {
+    const res = await api.post("/wallet/convert", {
       from: from.value,
       amount: amount.value
     });

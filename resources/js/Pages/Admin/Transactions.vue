@@ -108,8 +108,8 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import axios from "axios";
 import MainLayout from "@/Layouts/MainLayout.vue";
+import api from "@/api";
 
 const loading = ref(false);
 const filters = ref({
@@ -137,7 +137,7 @@ const fetchTransactions = async (url = null) => {
 
     const endpoint = url || 'admin/transactions';
 
-    const res = await axios.get(endpoint, {
+    const res = await api.get(endpoint, {
       params: url ? {} : filters.value
     });
 
@@ -152,7 +152,7 @@ const fetchTransactions = async (url = null) => {
 const exportTransactions = async () => {
   loading.value = true;
   try {
-    const res = await axios.get('admin/transactions/export', {
+    const res = await api.get('admin/transactions/export', {
       params: filters.value,
       responseType: 'blob'
     });

@@ -189,14 +189,11 @@ async function handleSuccessfulLogin(token, user) {
   localStorage.setItem("xavier_token", token);
   localStorage.setItem("user", JSON.stringify(user));
 
-  api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-  await new Promise(resolve => setTimeout(resolve, 100));
-
+  
   if (user.role === 'admin' || user.role === 'compliance') {
-    router.push("/admin/dashboard");
+    window.location.href = "/admin/dashboard";
   } else {
-    router.push("/dashboard");
+    window.location.href = "/dashboard";
   }
 }
 </script>

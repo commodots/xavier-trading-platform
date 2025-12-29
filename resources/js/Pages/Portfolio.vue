@@ -67,7 +67,8 @@
 import MainLayout from "@/layouts/MainLayout.vue";
 import { ref, onMounted } from "vue";
 import VueApexCharts from "vue3-apexcharts";
-import axios from "axios";
+import api from "@/api";
+
 
 
 const apexchart = VueApexCharts;
@@ -85,7 +86,7 @@ const chartOptions = ref({
 // --- Fetch Data ---
 onMounted(async () => {
 
-  const res = await axios.get("/portfolio");
+  const res = await api.get("/portfolio");
 
   const data = res.data;
 

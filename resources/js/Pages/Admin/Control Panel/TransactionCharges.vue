@@ -66,14 +66,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/api';
 
 const charges = ref([]);
 const showModal = ref(false);
 const form = ref({ id: null, transaction_type: '', charge_type: 'flat', value: 0, active: true });
 
 const fetchCharges = async () => {
-    const res = await axios.get('/admin/transaction-charges');
+    const res = await api.get('/admin/transaction-charges');
     charges.value = res.data;
 };
 
@@ -83,7 +83,7 @@ const openEdit = (c) => {
 };
 
 const submitUpdate = async () => {
-    await axios.put(`/admin/transaction-charges/${form.value.id}`, form.value);
+    await api.put(`/admin/transaction-charges/${form.value.id}`, form.value);
     showModal.value = false;
     fetchCharges();
 };

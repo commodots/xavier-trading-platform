@@ -86,7 +86,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import axios from "axios";
+import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import Chart from "chart.js/auto";
 import MetricCard from "@/Components/Admin/MetricCard.vue";
@@ -124,8 +124,8 @@ const recentTransactions = ref([
 async function fetchDashboardData() {
   try {
     const [earningsRes, txnRes] = await Promise.all([
-      axios.get('/admin/earnings'),
-      axios.get('/admin/transactions')
+      api.get('/admin/earnings'),
+      api.get('/admin/transactions')
     ]);
 
     if (earningsRes.data) {
