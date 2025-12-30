@@ -60,7 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
     Route::post('/wallet/convert', [WalletController::class, 'convert']);
 
-    Route::get('/portfolio', [PortfolioController::class, 'summary']);
+    Route::get('/portfolio', [PortfolioController::class, 'index']);
 
     //Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
 

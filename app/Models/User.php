@@ -90,4 +90,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(NotificationPreference::class);
     }
+    public function holdings()
+{
+    return $this->hasMany(Portfolio::class);
+}
 }

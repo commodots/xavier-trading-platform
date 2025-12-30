@@ -26,20 +26,20 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import axios from "axios";
+import api from "@/api";
 
 
 const services = ref([]);
 
 const load = async () => {
   // 🛑 Call the protected route defined in Step 4
-  const res = await axios.get("/admin/services");
+  const res = await api.get("/admin/services");
   services.value = res.data.services;
 };
 
 const activate = async (id) => {
   // 🛑 Call the toggleService endpoint
-  await axios.post(`/admin/services/${id}/activate`);
+  await api.post(`/admin/services/${id}/activate`);
 
   // Refresh the list to show the newly active service
   load();

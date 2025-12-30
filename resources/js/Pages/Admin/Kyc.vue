@@ -86,7 +86,7 @@ const kycs = ref([]);
 
 onMounted(async () => {
   let res = await api.get("/admin/kycs");
-  kycs.value = res.data.data;
+  kycs.value = res.data.data.data;
 });
 
 const review = async (id, decision) => {
