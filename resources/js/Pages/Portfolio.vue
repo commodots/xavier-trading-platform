@@ -18,6 +18,8 @@
             <span>⇄</span> Trade Assets
           </button>
         </div>
+        <TradeModal :show="showTradeModal" :tickers="tickers" :assetCategories="assetCategories"
+          @close="showTradeModal = false" />
         <apexchart height="300" type="pie" :options="chartOptions" :series="chartSeries" />
       </div>
 
@@ -39,105 +41,25 @@
               <td class="py-3 font-semibold">{{ h.symbol }}</td>
               <td>{{ h.quantity }}</td>
               <td>
-              ₦{{ h.currency === 'USD' ? (h.avg_price * 1500).toLocaleString() : h.avg_price.toLocaleString() }}
+                ₦{{ h.currency === 'USD' ? (h.avg_price * 1500).toLocaleString() : h.avg_price.toLocaleString() }}
               </td>
               <td>
                 {{ h.currency === 'USD' ? '$' : '₦' }}{{ Number(h.market_price).toLocaleString() }}
               </td>
-              <td
-                :class="(h.total_value_ngn - (h.avg_price_ngn * h.quantity)) >= 0 ? 'text-green-400' : 'text-red-400'">
-                ₦{{ (
-                  (h.currency === 'USD' ? (h.total_value * 1500) : h.total_value) -
-                  (h.currency === 'USD' ? (h.avg_price * 1500 * h.quantity) : (h.avg_price * h.quantity))
-                ).toLocaleString() }}
+              <td :class="h.total_value_ngn >= (h.avg_price_ngn * h.quantity) ? 'text-green-400' : 'text-red-400'">
+                ₦{{ (h.total_value_ngn - (h.avg_price_ngn * h.quantity)).toLocaleString() }}
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div v-if="showTradeModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
-          <button @click="closeTradeModal" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
-
-          <h2 class="mb-4 text-xl font-semibold">
-            {{ tradeStep === 1 ? 'Select Market' : tradeStep === 2 ? 'Select Ticker' : 'Trade ' + selectedTicker.symbol
-            }}
-          </h2>
-
-          <div v-if="tradeStep === 1" class="space-y-3">
-            <button v-for="cat in assetCategories" :key="cat.id" @click="selectCategory(cat)"
-              class="w-full text-left p-4 bg-[#0F1724] border border-[#1f3348] rounded-xl hover:border-blue-500 transition group">
-              <div class="font-bold text-white group-hover:text-blue-400">{{ cat.name }}</div>
-              <div class="text-xs text-gray-500">{{ cat.description }}</div>
-            </button>
-          </div>
-
-          <div v-if="tradeStep === 2" class="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-            <button v-for="ticker in filteredTickers" :key="ticker.symbol" @click="selectTicker(ticker)"
-              class="w-full flex justify-between items-center p-4 bg-[#0F1724] border border-[#1f3348] rounded-xl hover:border-blue-500 transition">
-              <div>
-                <div class="font-bold text-white">{{ ticker.symbol }}</div>
-                <div class="text-xs text-gray-500">{{ ticker.name }}</div>
-              </div>
-              <div class="text-right">
-                <div class="font-mono text-sm">{{ ticker.currency === 'NGN' ? '₦' : '$' }}{{
-                  ticker.price.toLocaleString() }}</div>
-              </div>
-            </button>
-            <button @click="tradeStep = 1" class="w-full py-2 text-xs text-gray-500">← Back</button>
-          </div>
-
-          <div v-if="tradeStep === 3" class="space-y-4">
-            <div class="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
-              <div class="text-[10px] text-blue-400 uppercase font-bold tracking-widest">Market Price ({{
-                selectedTicker.symbol }})</div>
-              <div class="text-3xl font-bold text-white">
-                {{ selectedTicker.currency === 'NGN' ? '₦' : '$' }}{{ selectedTicker.price.toLocaleString() }}
-              </div>
-            </div>
-
-            <div class="flex border border-[#2A314A] rounded-lg overflow-hidden p-1 bg-[#0F1724]">
-              <button @click="tradeAction = 'buy'"
-                :class="tradeAction === 'buy' ? 'bg-blue-600 text-white' : 'text-gray-400'"
-                class="flex-1 py-2 text-xs font-bold rounded-md transition-all">BUY</button>
-              <button @click="tradeAction = 'sell'"
-                :class="tradeAction === 'sell' ? 'bg-red-600 text-white' : 'text-gray-400'"
-                class="flex-1 py-2 text-xs font-bold rounded-md transition-all">SELL</button>
-            </div>
-
-            <div>
-              <label class="text-xs text-gray-400">Enter Quantity</label>
-              <input v-model.number="tradeAmount" type="number" step="0.0001"
-                class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="0.00" />
-            </div>
-
-            <div class="bg-[#0F1724] p-3 rounded-lg border border-[#1f3348] text-sm space-y-1">
-              <div class="flex justify-between">
-                <span class="text-gray-400">Total:</span>
-                <span class="font-bold text-white">{{ selectedTicker.currency === 'NGN' ? '₦' : '$' }}{{ (tradeAmount *
-                  selectedTicker.price).toLocaleString() }}</span>
-              </div>
-            </div>
-
-            <button @click="executeTrade" :disabled="isProcessing || tradeAmount <= 0"
-              class="w-full py-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#0047AB] to-[#00D4FF] hover:shadow-[0_0_20px_rgba(0,71,171,0.4)] transition-all disabled:opacity-50">
-              {{ isProcessing ? 'Processing Order...' : 'Confirm ' + tradeAction.toUpperCase() }}
-            </button>
-
-            <button @click="tradeStep = 2" class="w-full text-xs text-gray-500 hover:text-white transition">← Choose
-              different ticker</button>
-          </div>
-        </div>
       </div>
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
+import TradeModal from "@/Components/TradeModal.vue";
 import { ref, onMounted, computed } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 import api from "@/api";
@@ -149,24 +71,19 @@ const holdings = ref([]);
 const totalEquity = ref(0);
 const chartSeries = ref([]);
 const chartOptions = ref({
-  labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto"],
+  labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto (USD)"],
   legend: { position: "bottom", labels: { colors: "#fff" } },
   theme: { mode: "dark" }
 });
 
-// --- Trade Modal Logic ---
+
 const showTradeModal = ref(false);
-const tradeStep = ref(1);
-const tradeAction = ref('buy');
-const tradeAmount = ref(0);
-const isProcessing = ref(false);
-const selectedCategory = ref(null);
-const selectedTicker = ref(null);
+
 
 const assetCategories = [
   { id: 'local', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
   { id: 'foreign', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
-  { id: 'crypto', name: 'Cryptocurrency', description: 'Bitcoin & Digital Assets' }
+  { id: 'crypto', name: 'Cryptocurrency(USD)', description: 'Bitcoin & Digital Assets' }
 ];
 
 const tickers = {
@@ -187,54 +104,25 @@ const tickers = {
   ]
 };
 
-const filteredTickers = computed(() => {
-  return selectedCategory.value ? tickers[selectedCategory.value.id] : [];
-});
-
-const selectCategory = (cat) => {
-  selectedCategory.value = cat;
-  tradeStep.value = 2;
-};
-
-const selectTicker = (t) => {
-  selectedTicker.value = t;
-  tradeStep.value = 3;
-};
-
-const closeTradeModal = () => {
-  showTradeModal.value = false;
-  tradeStep.value = 1;
-  tradeAmount.value = 0;
-  selectedTicker.value = null;
-};
-
-const executeTrade = async () => {
-  isProcessing.value = true;
-  try {
-    setTimeout(() => {
-      alert(`Success: ${tradeAction.value.toUpperCase()} ${tradeAmount.value} ${selectedTicker.value.symbol}`);
-      closeTradeModal();
-    }, 1200);
-  } finally {
-    isProcessing.value = false;
-  }
-};
 
 onMounted(async () => {
   try {
     const res = await api.get("/portfolio");
     const data = res.data;
 
+    console.log(data);
+
     const wallet = Number(data.wallet_balance || 0);
     const ngx = Number(data.ngx_value || 0);
-    const crypto = Number(data.crypto_value || 0);
-    const globalNgn = Number(data.global_stocks_value_ngn || 0);
-    const total = parseFloat(data.total_equity || 0);
+    const crypto = Number(data.crypto_value_usd || 0);
+    const globalUsd = Number(data.global_stocks_value_usd || 0);
 
-    totalEquity.value = total > 0 ? total : (wallet + ngx + crypto + globalNgn);
+    totalEquity.value = Number(data.total_equity || 0);
+
     holdings.value = data.holdings || [];
 
-    chartSeries.value = [wallet, ngx, globalNgn, crypto];
+    chartSeries.value = [wallet, ngx, globalUsd, crypto];
+    console.log("Chart Series:", chartSeries.value);
 
   } catch (err) {
     console.error("Portfolio fetch error:", err);

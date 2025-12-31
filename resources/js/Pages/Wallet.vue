@@ -62,7 +62,12 @@
             <tbody>
               <tr v-for="t in transactions" :key="t.id" class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
                 <td class="px-2 py-3 text-gray-400">{{ formatDate(t.created_at) }}</td>
-                <td class="px-2 capitalize">{{ t.type }}</td>
+                <td class="px-2 capitalize">
+                  <div class="font-medium">{{ t.type }}</div>
+                  <div v-if="t.meta && t.meta.bank_name" class="text-[10px] text-gray-500 leading-tight">
+                    to {{ t.meta.bank_name }} ({{ t.meta.account_number }})
+                  </div>
+                </td>
                 <td class="px-2 text-right">{{ formatAmount(t.amount, t.currency) }}</td>
                 <td class="px-2 text-right text-red-400">-{{ formatAmount(t.charge, t.currency) }}</td>
                 <td class="px-2 text-right font-bold text-green-400">{{ formatAmount(t.net_amount || t.amount,
@@ -78,8 +83,39 @@
           <button @click="showModal = false" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
           <h2 class="mb-4 text-xl font-semibold capitalize">{{ txnType }} Funds</h2>
 
+          <p class="mb-4 text-sm text-gray-400">
+            Current {{ form.currency }} Balance:
+            <span class="text-white font-bold">
+              {{ form.currency === 'NGN' ? '₦' + Number(balances.balance_ngn).toLocaleString() : '$' +
+                Number(balances.balance_usd).toLocaleString() }}
+            </span>
+          </p>
+
           <form @submit.prevent="submitTransaction">
             <div class="space-y-4">
+              <div>
+                <label class="text-sm text-gray-400">Select Wallet</label>
+                <select v-model="form.currency"
+                  class="w-full px-4 py-2 mt-1 text-white bg-[#151a27] border border-gray-600 rounded-lg">
+                  <option value="NGN">NGN Wallet</option>
+                  <option value="USD">USD Wallet</option>
+                </select>
+              </div>
+
+              <div v-if="txnType === 'withdrawal'">
+                <label class="text-sm text-gray-400">Withdraw to Account</label>
+                <select v-model="selectedAccountId" required
+                  class="w-full px-4 py-2 mt-1 text-white bg-[#151a27] border border-gray-600 rounded-lg">
+                  <option value="" disabled>Select a verified account</option>
+                  <option v-for="acc in linkedAccounts" :key="acc.id" :value="acc.id">
+                    {{ acc.provider }} - {{ acc.account_number }} ({{ acc.is_verified ? 'Verified' : 'Pending' }})
+                  </option>
+                </select>
+                <p v-if="linkedAccounts.length === 0" class="mt-1 text-[10px] text-yellow-500">
+                  No verified linked accounts found. Please add one in settings.
+                </p>
+              </div>
+
               <div>
                 <label class="text-sm text-gray-400">Amount ({{ form.currency }})</label>
                 <input v-model.number="form.amount" type="number" step="0.01"
@@ -107,6 +143,15 @@
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
           <button @click="openConvert = false" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
           <h2 class="mb-4 text-xl font-semibold">Convert Currency</h2>
+
+          <p class="mb-4 text-sm text-gray-400">
+            Available to convert:
+            <span class="text-white font-bold">
+              {{ from === 'NGN' ? '₦' + Number(balances.balance_ngn).toLocaleString() : '$' +
+                Number(balances.balance_usd).toLocaleString() }}
+            </span>
+          </p>
+
           <form @submit.prevent="convertCurrency">
             <label class="text-sm text-gray-400">From Currency</label>
             <select v-model="from"
@@ -132,7 +177,8 @@
               {{ loading ? 'Converting...' : 'Convert Now' }}
             </button>
           </form>
-          <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'" class="mt-4 text-sm text-center font-medium">{{ message }}</p>
+          <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'"
+            class="mt-4 text-sm text-center font-medium">{{ message }}</p>
         </div>
       </div>
     </div>
@@ -142,7 +188,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import api from "@/api";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 
 const apexchart = VueApexCharts;
@@ -158,6 +204,9 @@ const showModal = ref(false);
 const txnType = ref("");
 const from = ref("NGN");
 const amount = ref(0);
+
+const linkedAccounts = ref([]);
+const selectedAccountId = ref("");
 
 const form = ref({
   amount: 0,
@@ -185,12 +234,15 @@ const refreshData = async () => {
   balances.value = { balance_ngn: 0, balance_usd: 0 };
 
   try {
-    const [balRes, txnRes] = await Promise.all([
+    const [balRes, txnRes, accRes] = await Promise.all([
       api.get("/wallet/balances"),
-      api.get("/transactions")
+      api.get("/transactions"),
+      api.get("/user/linked-accounts/index")
     ]);
+
     balances.value = balRes.data.data;
 
+    linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
 
     if (Array.isArray(txnRes.data)) {
       transactions.value = txnRes.data;
@@ -206,12 +258,18 @@ const refreshData = async () => {
 const openTransaction = (type) => {
   txnType.value = type;
   form.value = { amount: 0, currency: "NGN" };
+  selectedAccountId.value = "";
   message.value = "";
   showModal.value = true;
 };
 
 const submitTransaction = async () => {
   if (form.value.amount <= 0) return;
+
+  if (txnType.value === 'withdrawal' && !selectedAccountId.value) {
+    message.value = "Please select a destination account";
+    return;
+  }
 
   loading.value = true;
   message.value = "Processing...";
@@ -220,9 +278,10 @@ const submitTransaction = async () => {
   const endpoint = txnType.value === 'deposit' ? '/deposit' : '/withdraw';
 
   try {
-    const res = await api.post(endpoint, {
+    await api.post(endpoint, {
       amount: form.value.amount,
-      currency: form.value.currency
+      currency: form.value.currency,
+      linked_account_id: selectedAccountId.value
     });
 
     message.value = "Successful!";
@@ -245,7 +304,7 @@ const convertCurrency = async () => {
   message.value = "Converting...";
 
   try {
-    const res = await api.post("/wallet/convert", {
+    await api.post("/wallet/convert", {
       from: from.value,
       amount: amount.value
     });

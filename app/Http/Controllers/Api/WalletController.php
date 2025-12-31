@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use App\Models\Wallet;
-use App\Models\Transaction; // Ensure this is the correct model name
+use App\Models\NewTransaction; 
 
 class WalletController extends Controller
 {
@@ -63,7 +64,6 @@ class WalletController extends Controller
             $convertedAmount = $amount / $rate;
         }
 
-        // 4. Update Database (Atomic Transactions would be better here)
         $fromWallet->decrement('balance', $amount);
 
         // Ensure the target wallet exists, if not create it
@@ -87,7 +87,7 @@ class WalletController extends Controller
         $user = $request->user();
 
         // We use the Transaction model directly to avoid relationship errors
-        $transactions = Transaction::where('user_id', $user->id)
+        $transactions = NewTransaction::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

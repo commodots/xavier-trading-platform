@@ -8,16 +8,20 @@ class NotificationPreference extends Model
 {
     protected $fillable = [
         'user_id',
-         'email',
-          'sms',
-           'push'
+        'email',
+        'sms',
+        'push',
+        'monthly_statements',
+        'newsletters'
     ];
 
-  
+
     protected $casts = [
         'email' => 'boolean',
         'sms' => 'boolean',
         'push' => 'boolean',
+        'monthly_statements' => 'boolean',
+        'newsletters' => 'boolean',
     ];
 
     public function user()

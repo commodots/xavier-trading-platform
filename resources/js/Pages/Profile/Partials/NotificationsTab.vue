@@ -34,6 +34,32 @@
 
       <div class="flex items-center justify-between p-4 bg-[#16213A] border border-gray-700 rounded-lg">
         <div>
+          <h3 class="text-white font-medium">Monthly Statements</h3>
+          <p class="text-gray-400 text-xs">Receive a summary of your account monthly.</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="prefs.monthly_statements" class="sr-only peer">
+          <div
+            class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+          </div>
+        </label>
+      </div>
+
+      <div class="flex items-center justify-between p-4 bg-[#16213A] border border-gray-700 rounded-lg">
+        <div>
+          <h3 class="text-white font-medium">Newsletters</h3>
+          <p class="text-gray-400 text-xs">Stay updated with our latest features and news.</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="prefs.newsletters" class="sr-only peer">
+          <div
+            class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+          </div>
+        </label>
+      </div>
+
+      <div class="flex items-center justify-between p-4 bg-[#16213A] border border-gray-700 rounded-lg">
+        <div>
           <h3 class="text-white font-medium">Push Notifications</h3>
           <p class="text-gray-400 text-xs">Receive instant alerts in your browser or app.</p>
         </div>
@@ -67,10 +93,13 @@ import { ref, onMounted } from 'vue';
 import api from '@/api';
 
 const prefs = ref({
-  email: true,
+  email: false,
   sms: false,
-  push: true
+  push: false,
+  monthly_statements: false,
+  newsletters: false
 });
+
 const loading = ref(false);
 const recentlySuccessful = ref(false);
 const errorMessage = ref("");
@@ -83,7 +112,9 @@ const fetchPrefs = async () => {
       prefs.value = {
         email: !!res.data.data.email,
         sms: !!res.data.data.sms,
-        push: !!res.data.data.push
+        push: !!res.data.data.push,
+        monthly_statements: !!res.data.data.monthly_statements,
+        newsletters: !!res.data.data.newsletters
       };
     }
   } catch (err) {
@@ -110,7 +141,7 @@ const savePreferences = async () => {
     setTimeout(() => {
       errorMessage.value = "";
     }, 5000);
-    
+
   } finally {
     loading.value = false;
   }

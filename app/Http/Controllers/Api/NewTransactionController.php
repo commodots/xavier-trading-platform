@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
+use App\Models\LinkedAccount;
 use Illuminate\Http\Request;
 use App\Models\TransactionCharge;
 use App\Models\TransactionType;
+use Illuminate\Support\Facades\DB;
 
 class NewTransactionController extends Controller
 {
@@ -32,9 +34,13 @@ class NewTransactionController extends Controller
             ], 403);
         }
 
-        $request->validate(['amount' => 'required|numeric|min:1']);
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'currency' => 'required|in:NGN,USD'
+        ]);
+        
         $user = auth()->user();
-        $currency = $request->currency ?? 'NGN';
+        $currency = $request->currency;
 
         // 1. Create transaction record
         $transaction = NewTransaction::create([
@@ -52,11 +58,12 @@ class NewTransactionController extends Controller
 
         $transaction->update(['net_amount' => $netAmount]);
 
-        // 3. IMPORTANT: Update the Wallet balance, not just the user balance
-        $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
-        if ($wallet) {
-            $wallet->increment('balance', $netAmount);
-        }
+        // 3. Update the Wallet balance
+        $wallet = Wallet::firstOrCreate(
+            ['user_id' => $user->id, 'currency' => $currency],
+            ['balance' => 0]
+        );
+        $wallet->increment('balance', $netAmount);
 
         return response()->json([
             'success' => true,
@@ -74,36 +81,60 @@ class NewTransactionController extends Controller
             ], 403);
         }
 
-        $request->validate(['amount' => 'required|numeric|min:1']);
-        $user = auth()->user();
-        $currency = $request->currency ?? 'NGN';
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'currency' => 'required|in:NGN,USD',
+            'linked_account_id' => 'required|exists:linked_accounts,id'
+        ]);
 
+        $user = auth()->user();
+        $currency = $request->currency;
+
+        $account = LinkedAccount::where('user_id', $user->id)
+            ->where('id', $request->linked_account_id)
+            ->firstOrFail();
 
         $chargeAmount = TransactionCharge::calculate('withdrawal', $request->amount, null);
         $totalDeduction = $request->amount + $chargeAmount;
 
-        $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
+        try {
+            return DB::transaction(function () use ($user, $currency, $request, $totalDeduction, $account) {
+                $wallet = Wallet::where('user_id', $user->id)
+                    ->where('currency', $currency)
+                    ->lockForUpdate() 
+                    ->first();
 
-        if (!$wallet || $wallet->balance < $totalDeduction) {
-            return response()->json(['message' => 'Insufficient wallet balance'], 400);
+                if (!$wallet || $wallet->balance < $totalDeduction) {
+                    throw new \Exception("Insufficient $currency wallet balance");
+                }
+
+                $txn = NewTransaction::create([
+                    'user_id'    => $user->id,
+                    'type'       => 'withdrawal',
+                    'amount'     => $request->amount,
+                    'currency'   => $currency,
+                    'net_amount' => $totalDeduction,
+                    'status'     => 'completed',
+                    'meta'       => [
+                        'bank_name'      => $account->provider,
+                        'account_number' => $account->account_number,
+                        'account_name'   => $account->account_name
+                    ]
+                ]);
+
+                $wallet->decrement('balance', $totalDeduction);
+                TransactionCharge::calculate('withdrawal', $request->amount, $txn);
+
+                return response()->json([
+                    'success' => true,
+                    'details' => $txn->fresh()
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         }
-        $txn = NewTransaction::create([
-            'user_id'    => $user->id,
-            'type'       => 'withdrawal',
-            'amount'     => $request->amount,
-            'currency'   => $currency,
-            'net_amount' => $totalDeduction,
-            'status'     => 'completed',
-        ]);
-
-
-        $wallet->decrement('balance', $totalDeduction);
-
-        TransactionCharge::calculate('withdrawal', $request->amount, $txn);
-
-        return response()->json([
-            'success' => true,
-            'details' => $txn->fresh()
-        ]);
-    }
+    } 
 }

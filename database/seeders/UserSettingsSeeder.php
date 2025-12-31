@@ -54,6 +54,8 @@ class UserSettingsSeeder extends Seeder
           'email' => true,
           'sms' => fake()->boolean(),
           'push' => true,
+          'monthly_statements' => true,
+          'newsletters' => fake()->boolean(),
         ]
       );
     });

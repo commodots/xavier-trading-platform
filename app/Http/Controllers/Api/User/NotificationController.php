@@ -17,7 +17,13 @@ class NotificationController extends Controller
         $user = Auth::user();
         $prefs = NotificationPreference::firstOrCreate(
             ['user_id' => $user->id],
-            ['email' => true, 'sms' => true, 'push' => true] 
+            [
+                'email' => true,
+                'sms' => true,
+                'push' => true,
+                'monthly_statements' => true,
+                'newsletters' => false
+            ]
         );
 
         return response()->json([
@@ -35,12 +41,14 @@ class NotificationController extends Controller
             'email' => 'required|boolean',
             'sms' => 'required|boolean',
             'push' => 'required|boolean',
+            'monthly_statements' => 'required|boolean',
+            'newsletters' => 'required|boolean',
         ]);
 
         $user = Auth::user();
         $prefs = NotificationPreference::updateOrCreate(
             ['user_id' => $user->id],
-            $request->only(['email', 'sms', 'push'])
+            $request->only(['email', 'sms', 'push', 'monthly_statements', 'newsletters'])
         );
 
         return response()->json([

@@ -23,7 +23,6 @@ class PortfolioController extends Controller
             $totalQuantity = $items->sum('quantity');
 
             // Formula: Sum(qty * price) / Total Qty
-
             $totalCost = $items->sum(fn($i) => $i->quantity * $i->avg_price);
             $weightedAvgPrice = $totalQuantity > 0 ? ($totalCost / $totalQuantity) : 0;
 
@@ -42,8 +41,8 @@ class PortfolioController extends Controller
                 'avg_price' => $weightedAvgPrice,
                 'market_price' => $first->market_price,
                 'total_value' => $currentValueRaw,
-                'avg_price_ngn' => $weightedAvgPrice * $multiplier,
-                'total_value_ngn' => $currentValueRaw * $multiplier,
+                'avg_price_ngn' => (float) ($weightedAvgPrice * $multiplier),
+                'total_value_ngn' => (float) ($currentValueRaw * $multiplier),
             ];
         })->values();
 
@@ -54,11 +53,17 @@ class PortfolioController extends Controller
         $usdBalance = $usdWallet->balance ?? 0;
 
         // Calculate Category Values (Converting USD assets to NGN for the Chart)
-        $ngxValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'local')->sum('total_value_ngn');
-        $cryptoValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value_ngn');
+    
+        $globalValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value');
 
-        $globalValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value_ngn');
-        $globalValueNgn = $globalValueUsd * $FX_RATE;
+        $globalValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value_ngn');
+
+        $ngxValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'local')->sum('total_value_ngn');
+
+        $cryptoValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value_ngn');
+
+        $cryptoValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value');
+
         // Calculate Total Wallet Value in NGN
         $walletValueNgn = (float) ($ngnBalance + ($usdBalance * $FX_RATE));
 
@@ -67,10 +72,12 @@ class PortfolioController extends Controller
             'success' => true,
             'wallet_balance' => $walletValueNgn,
             'ngx_value' => $ngxValue,
+            'global_stocks_value_usd' => $globalValueUsd,
             'global_stocks_value_ngn' => $globalValueNgn,
-            'crypto_value' => $cryptoValue,
+            'crypto_value_ngn' => $cryptoValueNgn,
+            'crypto_value_usd' => $cryptoValueUsd,
             'holdings' => $groupedHoldings,
-            'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValue)
+            'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn)
         ]);
     }
 }
