@@ -26,6 +26,11 @@
       </div>
 
       <div>
+        <label class="text-sm text-gray-400">Email</label>
+        <input v-model="form.email" class="input" />
+      </div>
+
+      <div>
         <label class="text-sm text-gray-400">Phone Number</label>
         <input v-model="form.phone" class="input" />
       </div>
@@ -34,6 +39,19 @@
         <label class="text-sm text-gray-400">Address</label>
         <textarea v-model="form.address" class="input"></textarea>
       </div>
+      <div>
+        <label class="text-sm text-gray-400">Name of Next of Kin</label>
+        <input v-model="form.next_of_kin" class="input" />
+      </div>
+      <div>
+        <label class="text-sm text-gray-400">Phone Number of Next of Kin</label>
+        <input v-model="form.next_of_kin_phone" class="input" />
+      </div>
+      <div>
+        <label class="text-sm text-gray-400">Email of Next of Kin</label>
+        <input v-model="form.next_of_kin_email" class="input" />
+      </div>
+      
 
       <button type="submit" class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">
         Update Profile
@@ -55,16 +73,24 @@ const processing = ref(false);
 const form = reactive({
   first_name: "",
   last_name: "",
+  email: "",
   phone: "",
   address: "",
+  next_of_kin: "",
+  next_of_kin_phone: "",
+  next_of_kin_email: "",
 });
 
 watch(() => props.user, (newUser) => {
   if (newUser) {
     form.first_name = newUser.first_name ?? "";
     form.last_name = newUser.last_name ?? ""; 
+    form.email = newUser.email ?? "";
     form.phone = newUser.phone ?? "";
     form.address = newUser.address ?? "";
+    form.next_of_kin = newUser.next_of_kin ?? "";
+    form.next_of_kin_phone = newUser.next_of_kin_phone ?? "";
+    form.next_of_kin_email = newUser.next_of_kin_email ?? "";
   }
 }, { immediate: true, deep: true });
 

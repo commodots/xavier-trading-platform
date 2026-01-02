@@ -19,6 +19,8 @@ import GlobalMarket from "@/Pages/GlobalStocks.vue";
 import CryptoMarket from "@/Pages/CryptoMarket.vue";
 import Profile from "@/Pages/Profile/Index.vue";
 import Settings from "@/Pages/Settings.vue";
+import NewWalletIdea from "@/Pages/NewWalletIdea.vue";
+import Reports from "@/Pages/Reports.vue";
 
 // OMS
 import Orders from "@/Pages/Orders.vue";
@@ -60,6 +62,13 @@ const routes = [
   },
 
   {
+    path: "/new-wallet",
+    name: "new-wallet",
+    component: NewWalletIdea,
+    meta: { requiresAuth: true },
+  },
+
+  {
     path: "/transactions",
     name: "transactions",
     component: Transactions,
@@ -79,7 +88,12 @@ const routes = [
     component: Settings,
     meta: { requiresAuth: true },
   },
-  
+{
+    path: "/reports",
+    name: "reports",
+    component: Reports,
+    meta: { requiresAuth: true },
+  },
   /* ----------------------------------------------
      MARKETS
   ------------------------------------------------*/
@@ -111,9 +125,9 @@ const routes = [
     component: Profile,
     meta: { requiresAuth: true },
   },
-  
-  
- 
+
+
+
   /* ----------------------------------------------
      OMS
   ------------------------------------------------*/

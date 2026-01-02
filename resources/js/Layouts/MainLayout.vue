@@ -2,13 +2,11 @@
   <div class="min-h-screen flex bg-[#0B132B] text-white">
 
     <!-- Sidebar -->
-    <aside
-      :class="[
-        'bg-[#111827] w-64 border-r border-[#1F2A44] flex flex-col justify-between transition-all',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-64',
-        'md:translate-x-0 fixed md:static inset-y-0 left-0 z-50'
-      ]"
-    >
+    <aside :class="[
+      'bg-[#111827] w-64 border-r border-[#1F2A44] flex flex-col justify-between transition-all',
+      sidebarOpen ? 'translate-x-0' : '-translate-x-64',
+      'md:translate-x-0 fixed md:static inset-y-0 left-0 z-50'
+    ]">
       <div>
         <!-- Logo -->
         <div class="flex items-center justify-center py-6">
@@ -36,7 +34,7 @@
 
             <div class="mt-6 mb-1 text-xs text-gray-500">ACCOUNT</div>
             <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
-
+            <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
           </div>
 
 
@@ -53,10 +51,8 @@
           </div>
 
           <!-- Logout -->
-          <button
-            @click="logout"
-            class="flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg hover:bg-[#1C2541] text-red-400 mt-4"
-          >
+          <button @click="logout"
+            class="flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg hover:bg-[#1C2541] text-red-400 mt-4">
             <LogOut class="w-5 h-5" />
             Logout
           </button>
@@ -72,10 +68,7 @@
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 p-6 overflow-y-auto">
-      <button
-        class="md:hidden mb-4 bg-[#1C2541] p-2 rounded"
-        @click="sidebarOpen = !sidebarOpen"
-      >
+      <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded" @click="sidebarOpen = !sidebarOpen">
         ☰
       </button>
 
@@ -102,7 +95,8 @@ import {
   ShieldCheck,
   ListOrdered,
   Settings,
-  MonitorCog
+  MonitorCog,
+  FileSpreadsheet
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

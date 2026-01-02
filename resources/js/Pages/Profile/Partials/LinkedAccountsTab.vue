@@ -22,6 +22,13 @@
           </select>
         </div>
         <div>
+          <label class="block text-gray-400 text-xs mb-1">Currency</label>
+          <select v-model="form.currency" class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
+            <option value="NGN">Nigerian Naira (NGN)</option>
+            <option value="USD">US Dollar (USD)</option>
+          </select>
+        </div>
+        <div>
           <label class="block text-gray-400 text-xs mb-1">Provider (Bank Name / Network)</label>
           <input v-model="form.provider" type="text" placeholder="e.g. Kuda Bank"
             class="w-full bg-[#0F1724] border border-gray-700 rounded p-2 text-white">
@@ -67,7 +74,12 @@
             <span v-else>&#8383;</span>
           </div>
           <div>
-            <h4 class="text-white font-medium">{{ account.provider }}</h4>
+            <div class="flex items-center gap-2">
+              <h4 class="text-white font-medium">{{ account.provider }}</h4>
+              <span class="text-[10px] bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded border border-gray-600">
+                {{ account.currency }}
+              </span>
+            </div>
             <p class="text-gray-400 text-xs">{{ account.account_number }} ({{ account.account_name }})</p>
           </div>
         </div>
@@ -100,6 +112,7 @@ const errorMessage = ref("");
 
 const form = reactive({
   type: 'bank',
+  currency: 'NGN',
   provider: '',
   account_number: '',
   account_name: ''
@@ -130,6 +143,7 @@ const addAccount = async () => {
     form.provider = '';
     form.account_number = '';
     form.account_name = '';
+    form.currency = 'NGN';
 
     emit('refresh');
 

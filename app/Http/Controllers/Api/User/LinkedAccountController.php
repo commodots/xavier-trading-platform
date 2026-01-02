@@ -21,6 +21,7 @@ class LinkedAccountController extends Controller
     {
         $request->validate([
             'type' => 'required|in:bank,crypto_wallet',
+            'currency' => 'required|string|in:NGN,USD',
             'provider' => 'required|string',
             'account_name' => 'required|string',
             'account_number' => 'required|string',
@@ -29,6 +30,7 @@ class LinkedAccountController extends Controller
         $account = LinkedAccount::create([
             'user_id' => Auth::id(),
             'type' => $request->type,
+            'currency' => $request->currency,
             'provider' => $request->provider,
             'account_name' => $request->account_name,
             'account_number' => $request->account_number,

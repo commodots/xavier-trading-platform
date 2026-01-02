@@ -43,6 +43,7 @@ class UserSettingsSeeder extends Seeder
         LinkedAccount::create([
           'user_id' => $user->id,
           'type' => $type,
+          'currency' => $type === 'bank' ? 'NGN' : 'USD',
           'provider' => $type === 'bank' ? fake()->company() . ' Bank' : 'Ethereum Network',
           'account_name' => $user->first_name . ' ' . $user->last_name,
           'account_number' => $type === 'bank' ? fake()->bankAccountNumber() : '0x' . Str::random(40),

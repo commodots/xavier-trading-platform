@@ -50,7 +50,8 @@ import {
   PieChart,
   ShoppingCart,
   Menu,
-  MonitorCog
+  MonitorCog,
+  FileSpreadsheet
 } from "lucide-vue-next";
 
 // Props
@@ -82,6 +83,7 @@ const menu = [
   { label: "Transactions", to: "/transactions", icon: List },
   { label: "Trade / OMS", to: "/orders", icon: ShoppingCart },
   { label: "Settings", to: "/settings", icon: Settings },
+  { label: "Reports", to: "/reports", icon: FileSpreadsheet },
 
   // Admin only
   { label: "Admin Dashboard", to: "/admin", icon: PieChart, admin: true },

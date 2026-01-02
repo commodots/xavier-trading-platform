@@ -165,7 +165,10 @@ onMounted(fetchDashboard);
             class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg">
             ⇄ Trade
           </button>
-          <div class="text-right hidden sm:block">
+          <div 
+          @click="$router.push({ name: 'wallet' })"
+          class="text-right hidden sm:block col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
+          >
             <div class="text-xs text-gray-400">Total Wallet Balance</div>
             <div class="text-lg font-semibold">₦{{ walletBalance.toLocaleString() }}</div>
           </div>
@@ -181,15 +184,21 @@ onMounted(fetchDashboard);
           <div class="text-xs text-gray-400">Total Portfolio Value</div>
           <div class="text-2xl font-bold">₦{{ totalEquity.toLocaleString() }}</div>
         </div>
-        <div class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348]">
+        <div 
+         @click="$router.push({ name: 'ngx' })"
+        class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">NGX</div>
           <div class="text-xl font-semibold">₦{{ ngxValue.toLocaleString() }}</div>
         </div>
-        <div class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348]">
+        <div 
+        @click="$router.push({ name: 'global-stocks' })"
+        class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">US Stocks</div>
           <div class="text-xl font-semibold">${{ globalValueUSD.toLocaleString() }}</div>
         </div>
-        <div class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348]">
+        <div 
+        @click="$router.push({ name: 'crypto' })"
+        class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">Crypto</div>
           <div class="text-xl font-semibold">₦{{ cryptoValueNGN.toLocaleString() }}</div>
         </div>

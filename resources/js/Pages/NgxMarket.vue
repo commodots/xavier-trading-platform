@@ -49,6 +49,13 @@
                 />
               </td>
               <td class="text-center">
+                <button 
+                @click="openDetails(stock)"
+                class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
+                  Details
+                </button>
+              </td>
+<td class="text-center">
                 <button class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Trade
                 </button>
@@ -57,14 +64,28 @@
           </tbody>
         </table>
       </div>
+      <MarketDetailsModal 
+      :isOpen="isModalOpen" 
+      :item="selectedItem" 
+      :currencySymbol="'₦'"
+        @close="isModalOpen = false" />
     </div>
   </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed } from "vue";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
+import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
+
+const isModalOpen = ref(false);
+const selectedItem = ref(null);
+
+const openDetails = (item) => {
+  selectedItem.value = item;
+  isModalOpen.value = true;
+};
 
 const search = ref("");
 

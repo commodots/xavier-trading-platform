@@ -32,49 +32,64 @@
       </div>
 
       <div v-if="tradeStep === 3" class="space-y-4">
-        <div class="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
-          <div class="text-[10px] text-blue-400 uppercase font-bold tracking-widest">
-            Market Price(1 {{ selectedTicker.symbol }})
-          </div>
-          <div class="text-3xl font-bold text-white">
-            {{ selectedTicker.currency === 'NGN' ? '₦' : '$' }}{{ selectedTicker.price.toLocaleString() }}
-          </div>
-        </div>
+  
+  <div class="p-5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-center">
+    <div class="text-[10px] text-blue-400 uppercase font-bold tracking-widest mb-1">
+      You are {{ tradeAction === 'buy' ? 'Receiving' : 'Selling' }}
+    </div>
+    
+    <div class="text-3xl font-bold text-white mb-1">
+      {{ calculatedQuantity.toFixed(6) }} <span class="text-sm font-medium text-gray-400">{{ selectedTicker.symbol }}</span>
+    </div>
 
-        <div class="flex border border-[#2A314A] rounded-lg overflow-hidden p-1 bg-[#0F1724]">
-          <button @click="tradeAction = 'buy'" :class="tradeAction === 'buy' ? 'bg-blue-600 text-white' : 'text-gray-400'"
-            class="flex-1 py-2 text-xs font-bold rounded-md transition-all">BUY</button>
-          <button @click="tradeAction = 'sell'" :class="tradeAction === 'sell' ? 'bg-red-600 text-white' : 'text-gray-400'"
-            class="flex-1 py-2 text-xs font-bold rounded-md transition-all">SELL</button>
-        </div>
+    <div class="text-sm text-gray-300 font-medium">
+      Total {{ tradeAction === 'buy' ? 'Cost' : 'Value' }}: ₦{{ (nairaInput || 0).toLocaleString() }}
+    </div>
+    
+    <div class="text-[10px] text-gray-400 mt-3 border-t border-blue-500/20 pt-2 italic">
+      1 {{ selectedTicker.symbol }} = {{ selectedTicker.currency === 'NGN' ? '₦' : '$' }}{{ selectedTicker.price.toLocaleString() }}
+    </div>
+  </div>
 
-        <div>
-          <label class="text-xs text-gray-400">Amount in Naira (₦)</label>
-          <input v-model.number="nairaInput" type="number" 
-            class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="e.g. 50000" />
-        </div>
+  <div class="flex justify-between items-center px-1">
+    <span class="text-xs text-gray-500">Wallet Balance:</span>
+    <span class="text-xs font-bold" :class="nairaInput > userBalance && tradeAction === 'buy' ? 'text-red-400' : 'text-gray-300'">
+      ₦{{ userBalance.toLocaleString() }}
+    </span>
+  </div>
 
-        <div class="bg-[#0F1724] p-3 rounded-lg border border-[#1f3348] text-sm space-y-1">
-          <div class="flex justify-between">
-            <span class="text-gray-400">Est. Quantity:</span>
-            <span class="font-bold text-blue-400">{{ calculatedQuantity.toFixed(6) }} {{ selectedTicker.symbol }}</span>
-          </div>
-        </div>
+  <div class="flex border border-[#2A314A] rounded-lg overflow-hidden p-1 bg-[#0F1724]">
+    <button @click="tradeAction = 'buy'" :class="tradeAction === 'buy' ? 'bg-blue-600 text-white' : 'text-gray-400'"
+      class="flex-1 py-2 text-xs font-bold rounded-md transition-all">BUY</button>
+    <button @click="tradeAction = 'sell'" :class="tradeAction === 'sell' ? 'bg-red-600 text-white' : 'text-gray-400'"
+      class="flex-1 py-2 text-xs font-bold rounded-md transition-all">SELL</button>
+  </div>
 
-        <button @click="handleTrade" :disabled="isProcessing || nairaInput <= 0"
-          class="w-full py-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#0047AB] to-[#00D4FF] hover:shadow-[0_0_20px_rgba(0,71,171,0.4)] transition-all disabled:opacity-50">
-          {{ isProcessing ? 'Processing Order...' : 'Confirm ' + tradeAction.toUpperCase() }}
-        </button>
+  <div>
+    <label class="text-xs text-gray-400">Enter Amount in Naira (₦)</label>
+    <div class="relative">
+      <input v-model.number="nairaInput" type="number" 
+        class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 outline-none pr-12"
+        placeholder="0.00" />
+      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">NGN</span>
+    </div>
+  </div>
 
-        <button @click="tradeStep = 2" class="w-full text-xs text-gray-500 hover:text-white transition">← Choose different ticker</button>
-      </div>
+  <button @click="handleTrade" :disabled="isProcessing || nairaInput <= 0 || (tradeAction === 'buy' && nairaInput > userBalance)"
+    class="w-full py-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#0047AB] to-[#00D4FF] hover:shadow-[0_0_20px_rgba(0,71,171,0.4)] transition-all disabled:opacity-50">
+    <span v-if="tradeAction === 'buy' && nairaInput > userBalance">Insufficient Wallet Balance</span>
+    <span v-else>{{ isProcessing ? 'Processing Order...' : 'Confirm ' + tradeAction.toUpperCase() }}</span>
+  </button>
+
+  <button @click="tradeStep = 2" class="w-full text-xs text-gray-500 hover:text-white transition">← Choose different ticker</button>
+</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import api from '@/api';
 
 const props = defineProps({
   show: Boolean,
@@ -92,17 +107,30 @@ const selectedCategory = ref(null);
 const selectedTicker = ref(null);
 const USD_RATE = 1500; 
 
+const userBalance = ref(0); 
+
+const fetchBalance = async () => {
+  try {
+    const response = await api.get('/wallet/balances'); 
+    if (response.data.success) {
+      
+      userBalance.value = response.data.data.balance_ngn;
+    }
+  } catch (error) {
+    console.error("Failed to fetch balance", error);
+  }
+};
+
 const filteredTickers = computed(() => {
   return selectedCategory.value ? props.tickers[selectedCategory.value.id] : [];
 });
 
+
 const calculatedQuantity = computed(() => {
   if (!selectedTicker.value || nairaInput.value <= 0) return 0;
-  
   if (selectedTicker.value.currency === 'NGN') {
     return nairaInput.value / selectedTicker.value.price;
   } else {
-    // Convert Naira to USD first, then to Quantity
     const usdValue = nairaInput.value / USD_RATE;
     return usdValue / selectedTicker.value.price;
   }
@@ -121,12 +149,12 @@ const selectTicker = (t) => {
 const handleTrade = async () => {
   isProcessing.value = true;
   try {
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1200));
-    alert(`Success: ${tradeAction.value.toUpperCase()} ${calculatedQuantity.value.toFixed(4)} ${selectedTicker.value.symbol}`);
+    alert(`Success: ${tradeAction.value.toUpperCase()} executed for ₦${nairaInput.value.toLocaleString()}`);
     emit('close');
   } finally {
     isProcessing.value = false;
   }
 };
+onMounted(fetchBalance);
 </script>
