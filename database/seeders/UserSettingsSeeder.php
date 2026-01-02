@@ -17,6 +17,9 @@ class UserSettingsSeeder extends Seeder
 
       $user->update([
         'country' => fake()->country(),
+        'next_of_kin' => fake()->name(),
+        'next_of_kin_phone' => fake()->phoneNumber(),
+        'next_of_kin_email' => fake()->email(),
       ]);
 
       $status = fake()->randomElement(['pending', 'approved', 'rejected']);

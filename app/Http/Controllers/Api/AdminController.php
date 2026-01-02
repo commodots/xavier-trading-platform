@@ -11,6 +11,7 @@ use App\Models\UserKyc;
 use App\Models\NewTransaction;
 use App\Models\PlatformEarning;
 use App\Models\TransactionCharge;
+use App\Models\Order;
 
 class AdminController extends Controller
 {
@@ -259,13 +260,21 @@ class AdminController extends Controller
 
     public function placeOrder(Request $request)
     {
+        $request->validate([
+            'symbol' => 'required|string|max:20',
+            'side' => 'required|in:buy,sell',
+            'type' => 'required|string|max:30',
+            'price' => 'required|numeric|min:0',
+            'quantity' => 'required|numeric|min:0.00000001',
+        ]);
+
         $order = Order::create([
             'user_id' => auth()->id(),
             'symbol' => $request->symbol,
             'side' => $request->side,
             'type' => $request->type,
-            'price' => $request->price,
-            'quantity' => $request->quantity,
+            'price' => (float) $request->price,
+            'quantity' => (float) $request->quantity,
             'status' => 'open',
             'source' => 'web',
         ]);

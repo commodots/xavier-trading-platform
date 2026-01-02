@@ -24,6 +24,10 @@ class User extends Authenticatable
         'dob',
         'password',
         'email_verified_at',
+        'country',
+        'next_of_kin',
+        'next_of_kin_phone',
+        'next_of_kin_email'
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -31,6 +35,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'google2fa_secret',
     ];
 
     protected $casts = [

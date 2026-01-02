@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6">
     <div>
-      <h2 class="text-xl font-semibold text-white">Notification Preferences</h2>
-      <p class="text-gray-400 text-sm">Choose how you want to be notified about your account activity.</p>
+      <h2 class="text-xl font-semibold text-white text-center">Notification Preferences</h2>
+      <p class="text-gray-400 text-sm text-center">Choose how you want to be notified about your account activity.</p>
     </div>
 
-    <div class="space-y-4 max-w-md">
+    <div class="space-y-4 max-w-md m-auto">
       <div class="flex items-center justify-between p-4 bg-[#16213A] border border-gray-700 rounded-lg">
         <div>
           <h3 class="text-white font-medium">Email Notifications</h3>
@@ -72,11 +72,11 @@
       </div>
     </div>
 
-    <button @click="savePreferences" :disabled="loading"
-      class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-8 py-2 rounded-lg font-medium transition">
-      {{ loading ? 'Saving...' : 'Save Preferences' }}
-    </button>
-
+      <button @click="savePreferences" :disabled="loading"
+        class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-8 py-2 rounded-lg font-medium transition float-end">
+        {{ loading ? 'Saving...' : 'Save Preferences' }}
+      </button>
+   
     <p v-if="recentlySuccessful" class="text-green-500 text-sm font-medium">
       Preferences updated successfully!
     </p>

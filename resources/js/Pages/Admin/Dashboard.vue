@@ -4,9 +4,9 @@
       <h1 class="mb-6 text-2xl font-bold">Admin Dashboard</h1>
 
       <div class="grid grid-cols-1 gap-6 mb-8 md:grid-cols-4">
-        <MetricCard title="Total Users" :value="stats.totalUsers" icon="Users" />
-        <MetricCard title="KYC Pending" :value="stats.kycPending" icon="ShieldCheck" />
-        <MetricCard title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered" />
+        <MetricCard title="Total Users" :value="stats.totalUsers" icon="Users" @click="$router.push({ name: 'admin-users' })" class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+        <MetricCard title="KYC Pending" :value="stats.kycPending" icon="ShieldCheck" @click="$router.push({ name: 'admin-kyc' })" class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+        <MetricCard title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered" @click="$router.push({ name: 'admin-transactions' })" class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"/>
         
         <MetricCard 
           title="Today's Earnings" 
@@ -63,7 +63,7 @@
               <tr v-for="t in recentTransactions" :key="t.id" class="border-t border-gray-700">
                 <td class="py-2">{{ t.user }}</td>
                 <td>{{ t.type }}</td>
-                <td>₦{{ t.amount.toLocaleString() }}</td>
+                <td>{{ t.currency === 'USD' ? '$' : '₦' }}{{ Number(t.amount).toLocaleString() }}</td>
               </tr>
             </tbody>
           </table>
@@ -147,6 +147,7 @@ async function fetchDashboardData() {
         id: t.id,
         user: t.user?.name || `User #${t.user_id}`,
         type: t.type,
+        currency:t.currency,
         amount: Number(t.amount) 
       }));
     }

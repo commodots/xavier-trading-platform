@@ -9,17 +9,27 @@ class PortfolioService
 {
     public function post(Order $order): void
     {
-        Portfolio::updateOrCreate(
+        $portfolio = Portfolio::firstOrCreate(
             [
                 'user_id' => $order->user_id,
                 'symbol' => $order->symbol,
             ],
             [
-                'units' => $order->side === 'buy'
-                    ? DB::raw("units + {$order->filled_quantity}")
-                    : DB::raw("units - {$order->filled_quantity}")
+                'units' => 0,
             ]
         );
+
+        $qty = (int) $order->filled_quantity;
+
+        if ($qty === 0) {
+            return;
+        }
+
+        if ($order->side === 'buy') {
+            $portfolio->increment('units', $qty);
+        } else {
+            $portfolio->decrement('units', $qty);
+        }
     }
 	public function postTrade(Trade $trade): void
     {

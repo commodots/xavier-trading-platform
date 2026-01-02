@@ -76,7 +76,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "@/lib/axios";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 
 const apexchart = VueApexCharts;

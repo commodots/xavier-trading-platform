@@ -63,7 +63,7 @@
               class="border-t border-[#2A314A] hover:bg-[#252a3d] transition-colors">
               <td class="px-4 py-3">{{ tx.user?.email || 'N/A' }}</td>
               <td class="px-4 py-3 capitalize">{{ tx.type }}</td>
-              <td class="px-4 py-3">₦{{ tx.amount?.toLocaleString() }}</td>
+              <td class="px-4 py-3">{{ tx.currency === 'USD' ? '$' : '₦' }}{{ Number(tx.amount).toLocaleString() }}</td>
               <td class="px-4 py-3">
                 <span :class="statusColor(tx.status)" class="font-medium">
                   {{ tx.status }}
