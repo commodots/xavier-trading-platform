@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import axios from 'axios';
+import api from '@/api';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -14,7 +14,7 @@ const submit = async () => {
     status.value = null;
 
     try {
-        const res = await axios.post('/api/email/verification-notification');
+        const res = await api.post('/email/verification-notification');
 
         // Check for the status key returned by the controller
         if (res.data.status === 'verification-link-sent') {
@@ -36,7 +36,7 @@ const verificationLinkSent = computed(
 const logout = async () => {
     try {
         const token = localStorage.getItem('xavier_token');
-        await axios.post('/api/logout', {}, {
+        await api.post('/logout', {}, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

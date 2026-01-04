@@ -33,8 +33,8 @@
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
 
             <div class="mt-6 mb-1 text-xs text-gray-500">ACCOUNT</div>
-            <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
             <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
+            <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
           </div>
 
 
@@ -47,6 +47,7 @@
             <SidebarLink to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
             <SidebarLink to="/admin/kyc" :icon="ShieldCheck">KYC Review</SidebarLink>
             <SidebarLink to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
+             <SidebarLink to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
             <SidebarLink to="/admin/control-panel" :icon="MonitorCog">Control Panel</SidebarLink>
           </div>
 
@@ -96,7 +97,8 @@ import {
   ListOrdered,
   Settings,
   MonitorCog,
-  FileSpreadsheet
+  FileSpreadsheet,
+  SquareChartGantt
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

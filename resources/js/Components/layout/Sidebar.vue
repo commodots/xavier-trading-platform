@@ -51,7 +51,8 @@ import {
   ShoppingCart,
   Menu,
   MonitorCog,
-  FileSpreadsheet
+  FileSpreadsheet,
+  SquareChartGantt
 } from "lucide-vue-next";
 
 // Props
@@ -91,7 +92,8 @@ const menu = [
   { label: "Admin Transactions", to: "/admin/transactions", icon: List, admin: true },
   { label: "KYC Review", to: "/admin/kyc", icon: ShieldCheck, admin: true },
   { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, admin: true },
-  { label: "Services", to: "/admin/control-panel", icon: MonitorCog, admin: true },
+  { label: "Control Panel", to: "/admin/control-panel", icon: MonitorCog, admin: true },
+  { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, admin: true },
 ];
 
 // Only show admin items if user is admin

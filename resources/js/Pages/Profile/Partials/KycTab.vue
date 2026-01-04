@@ -1,96 +1,76 @@
 <template>
   <div class="bg-[#0f172a] p-6 rounded-lg border border-gray-700 space-y-4">
-
-    <h2 class="mb-4 text-xl font-semibold">KYC Information</h2>
-
-    <div v-if="kyc.status === 'pending'" class="p-4 text-yellow-400 border border-yellow-700 rounded bg-yellow-900/30">
-      Your verification is currently pending review.
-    </div>
-    <div v-if="kyc.status === 'approved'" class="p-4 text-green-400 border border-green-700 rounded bg-green-900/30">
-      ✓ Identity Verified (Level: {{ kyc.level }})
-    </div>
-    <div v-if="kyc.status === 'rejected'" class="p-4 text-red-400 border border-red-700 rounded bg-red-900/30">
-      Verification Rejected: {{ kyc.rejection_reason }}
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-semibold">KYC Information</h2>
+      <span v-if="kyc?.level" 
+        :class="kyc.level === 'full' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'"
+        class="text-[10px] uppercase px-2 py-1 rounded border border-current font-bold">
+        Tier: {{ kyc.level }}
+      </span>
     </div>
 
-    <div v-if="kyc.status === 'none' || kyc.status === 'rejected'" class="grid gap-4">
-      <div>
-        <label class="block mb-1 text-sm text-gray-400">ID Type</label>
-        <select v-model="form.id_type" class="w-full bg-[#16213A] border border-gray-700 rounded p-2 text-white">
-          <option value="" disabled>Select ID Type</option>
-          <option value="bvn">BVN</option>
-          <option value="nin">NIN</option>
-          <option value="passport">International Passport</option>
-        </select>
+    <div v-if="!kyc?.status || showUpgradeForm" class="animate-fadeIn">
+      <div v-if="showUpgradeForm" class="flex items-center justify-between p-3 mb-4 border border-blue-800 rounded bg-blue-900/20">
+        <p class="text-xs text-blue-300">Upgrade to Full Verification by providing your NIN.</p>
+        <button @click="showUpgradeForm = false" class="text-xs text-gray-400 hover:text-white">Cancel</button>
       </div>
-      <div>
-        <label class="block mb-1 text-sm text-gray-400">ID Number</label>
-        <input v-model="form.id_number" type="text"
-          class="w-full bg-[#16213A] border border-gray-700 rounded p-2 text-white">
-      </div>
-      <button @click="submitKyc" class="px-6 py-2 text-white bg-blue-600 rounded">{{ processing ? 'Submitting...' :
-        'Submit for Review' }}</button>
+      <KycForm @success="handleRefresh" :initial="kyc" />
     </div>
 
-    <div v-else class="grid gap-4 opacity-70">
-      <p><span class="text-gray-400">ID Type:</span> {{ kyc.id_type.toUpperCase() }}</p>
-      <p><span class="text-gray-400">ID Number:</span> ****{{ kyc.id_number?.slice(-4) }}</p>
+    <div v-else-if="kyc.status === 'pending'" class="p-6 text-center border border-yellow-700/50 rounded-xl bg-yellow-900/10">
+      <div class="mb-2 text-3xl">&#x231B;</div>
+      <h3 class="font-bold text-yellow-400">Verification Pending</h3>
+      <p class="mt-1 text-sm text-gray-400">Our team is currently reviewing your documents.</p>
+    </div>
+
+    <div v-else-if="kyc.status === 'approved'" class="space-y-4">
+      <div class="p-6 text-center border border-green-700/50 rounded-xl bg-green-900/10">
+        <div class="mb-2 text-3xl">&#9989;</div>
+        <h3 class="font-bold text-green-400">Identity Verified</h3>
+        <p class="mt-1 text-sm text-gray-400">Level: <span class="capitalize">{{ kyc.level }}</span></p>
+        
+        <button v-if="kyc.level === 'basic'" 
+          @click="showUpgradeForm = true"
+          class="px-4 py-2 mt-4 text-xs font-bold transition bg-blue-600 rounded hover:bg-blue-700">
+          Upgrade to Full Tier
+        </button>
+      </div>
+      
+      <div class="grid gap-3 pt-6 border-t border-gray-800">
+        <p class="flex justify-between text-sm">
+          <span class="text-gray-500">BVN:</span>
+          <span class="text-white">****{{ String(kyc.bvn || kyc.id_number).slice(-4) }}</span>
+        </p>
+        <p v-if="kyc.nin" class="flex justify-between text-sm">
+          <span class="text-gray-500">NIN:</span>
+          <span class="text-white">****{{ String(kyc.nin).slice(-4) }}</span>
+        </p>
+      </div>
+    </div>
+
+    <div v-else-if="kyc.status === 'rejected'" class="space-y-4">
+      <div class="p-4 text-red-400 border border-red-700 rounded bg-red-900/20">
+        <p class="font-bold">&#10060; Verification Rejected</p>
+        <p class="mt-1 text-sm">{{ kyc.rejection_reason || 'The documents provided were invalid.' }}</p>
+      </div>
+      <KycForm @success="handleRefresh" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, watch, ref } from "vue";
-import api from "@/api";
+import { ref, defineProps, defineEmits } from "vue";
+import KycForm from "@/Components/KycForm.vue"; 
 
-const props = defineProps({ kyc: Object });
-const processing = ref(false);
-
-
-const form = reactive({
-  bvn: props.kyc?.bvn ?? "",
-  id_type: props.kyc?.id_type ?? "",
-  id_number: props.kyc?.id_number ?? "",
-  id_document: null,
+const props = defineProps({
+  kyc: { type: Object, default: () => null }
 });
 
-watch(() => props.kyc, (newKyc) => {
-  if (newKyc) {
-    form.bvn = newKyc.bvn || "";
-    form.id_type = newKyc.id_type ? newKyc.id_type.toLowerCase() : "";
-    form.id_number = newKyc.id_number || "";
-  }
-}, { immediate: true, deep: true });
+const emit = defineEmits(['refresh']);
+const showUpgradeForm = ref(false);
 
-
-const handleFile = (e) => {
-  form.id_document = e.target.files[0];
-};
-
-const submitKyc = async () => {
-
-  processing.value = true;
-  const fd = new FormData();
-
-  fd.append('id_type', form.id_type);
-  fd.append('id_number', form.id_number);
-  if (form.id_document) {
-    fd.append('id_front', form.id_document);
-  }
-
-  try {
-    await api.post("/user/kyc/submit", fd, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    alert("KYC submitted");
-    emit('refresh');
-  } catch (error) {
-    console.error("KYC Submission failed", error.response?.data);
-    alert("Submission failed.");
-  } finally {
-    processing.value = false;
-  }
+const handleRefresh = () => {
+  showUpgradeForm.value = false;
+  emit('refresh'); 
 };
 </script>

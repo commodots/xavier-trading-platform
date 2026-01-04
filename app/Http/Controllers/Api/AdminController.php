@@ -12,6 +12,7 @@ use App\Models\NewTransaction;
 use App\Models\PlatformEarning;
 use App\Models\TransactionCharge;
 use App\Models\Order;
+use App\Models\ActivityLog;
 
 class AdminController extends Controller
 {
@@ -340,7 +341,77 @@ class AdminController extends Controller
 
         $charge = TransactionCharge::findOrFail($id);
         $charge->update($request->all());
-        
+
         return response()->json(['success' => true, 'message' => 'Charge updated']);
     }
+    public function getActivityLogs(Request $request)
+    {
+        $query = ActivityLog::with('user:id,name,email');
+
+        // Filter by Activity Type (e.g., Login, Logout, Profile Update)
+        if ($request->filled('type')) {
+            $query->where('activity', $request->type);
+        }
+
+        // Filter by Date Range
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        $logs = $query->latest()->paginate(20);
+
+        return response()->json([
+            'success' => true,
+            'data' => $logs
+        ]);
+    }
+    public function exportActivityLogs(Request $request)
+{
+    $query = ActivityLog::with('user:id,name,email');
+
+    
+    if ($request->filled('type')) {
+        $query->where('activity', $request->type);
+    }
+    if ($request->filled('start_date')) {
+        $query->whereDate('created_at', '>=', $request->start_date);
+    }
+    if ($request->filled('end_date')) {
+        $query->whereDate('created_at', '<=', $request->end_date);
+    }
+
+    $logs = $query->latest()->get();
+
+    $csvFileName = 'activity_logs_' . now()->format('Y_m_d_His') . '.csv';
+    $headers = [
+        "Content-type"        => "text/csv",
+        "Content-Disposition" => "attachment; filename=$csvFileName",
+        "Pragma"              => "no-cache",
+        "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+        "Expires"             => "0"
+    ];
+
+    $columns = ['User', 'Email', 'Activity', 'IP Address', 'Date'];
+
+    $callback = function() use($logs, $columns) {
+        $file = fopen('php://output', 'w');
+        fputcsv($file, $columns);
+
+        foreach ($logs as $log) {
+            fputcsv($file, [
+                $log->user->name ?? 'Unknown',
+                $log->user->email ?? 'N/A',
+                $log->activity,
+                $log->ip_address,
+                $log->created_at->format('Y-m-d H:i:s'),
+            ]);
+        }
+        fclose($file);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
 }

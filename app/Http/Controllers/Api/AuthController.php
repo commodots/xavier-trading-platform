@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Http\Resources\UserWithRelationsResource;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ActivityLog;
 
 class AuthController extends Controller
 {
@@ -25,9 +26,12 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (!Auth::attempt($credentials)) {
-            return response()->json(['success' => false, 'message' => 'Invalid credentials'], 401);
+            return response()->json(['success' => false, 'message' => 'Invalid credentials. Please check email or password.'], 401);
         }
         $user = Auth::user();
+
+        ActivityLog::log($user->id, 'Login');
+
         // 1. Check for 2FA requirement
             if ($user->google2fa_enabled) {
                 
@@ -71,7 +75,11 @@ class AuthController extends Controller
     // Logout (delete current access token)
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        
+        ActivityLog::log($user->id, 'Logout');
+
+        $user()->currentAccessToken()->delete();
 
         return response()->json(['success' => true, 'message' => 'Logged out']);
     }

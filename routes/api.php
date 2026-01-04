@@ -130,6 +130,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::get('/earnings', [AdminController::class, 'getEarnings']);
         Route::get('/transactions/export', [AdminController::class, 'exportTransactions']);
+
+        //Activity Log
+        Route::get('/activities', [AdminController::class, 'getActivityLogs']);
+        Route::get('/activities/export', [AdminController::class, 'exportActivityLogs']);
     });
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);

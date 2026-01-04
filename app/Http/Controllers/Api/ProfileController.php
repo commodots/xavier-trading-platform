@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -7,10 +8,12 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\UserKyc;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use App\Models\ActivityLog;
 
 class ProfileController extends Controller
 {
-    public function show(Request $request) {
+    public function show(Request $request)
+    {
         $user = Auth::user()->load(['kyc', 'linkedAccounts']);
         $user->name = $user->name ?: trim($user->first_name . ' ' . $user->last_name);
 
@@ -20,31 +23,35 @@ class ProfileController extends Controller
         ]);
     }
 
-public function update(Request $r) {
-    $user = Auth::user();
-    
-    $r->validate([
-        'email' => 'required|email|unique:users,email,' . $user->id,
-        'name' => 'required|string|max:255',
-    ]);
+    public function update(Request $r)
+    {
+        $user = Auth::user();
 
-    $data = $r->only(['email', 'phone', 'address']);
+        $r->validate([
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'name' => 'required|string|max:255',
+        ]);
 
-    $parts = explode(' ', $r->name, 2);
-    $data['first_name'] = $parts[0];
-    $data['last_name'] = $parts[1] ?? '';
+        $data = $r->only(['email', 'phone', 'address']);
 
-    $data['name'] = $r->name;
-    
-    $user->update($data);
-    
-    return response()->json([
-        'success' => true, 
-        'data' => $user->fresh()
-    ]);
-}
+        $parts = explode(' ', $r->name, 2);
+        $data['first_name'] = $parts[0];
+        $data['last_name'] = $parts[1] ?? '';
 
-    public function submitKyc(Request $r) {
+        $data['name'] = $r->name;
+
+        $user->update($data);
+
+        ActivityLog::log(Auth::id(), 'Profile Update');
+
+        return response()->json([
+            'success' => true,
+            'data' => $user->fresh()
+        ]);
+    }
+
+    public function submitKyc(Request $r)
+    {
         $r->validate([
             'id_type' => 'required|string',
             'id_value' => 'required|string',
@@ -65,20 +72,21 @@ public function update(Request $r) {
         );
 
         if ($r->hasFile('photo')) {
-            $kyc->photo_path = $r->file('photo')->store('kyc/photos','public');
+            $kyc->photo_path = $r->file('photo')->store('kyc/photos', 'public');
         }
         if ($r->hasFile('document')) {
-            $kyc->document_path = $r->file('document')->store('kyc/docs','public');
+            $kyc->document_path = $r->file('document')->store('kyc/docs', 'public');
         }
         $kyc->save();
 
         // optionally trigger async verification job here
-        return response()->json(['success'=>true,'message'=>'KYC submitted','data'=>$kyc]);
+        return response()->json(['success' => true, 'message' => 'KYC submitted', 'data' => $kyc]);
     }
 
-    public function getKyc(Request $r) {
+    public function getKyc(Request $r)
+    {
         $user = Auth::user();
-        $kyc = UserKyc::where('user_id',$user->id)->first();
-        return response()->json(['success'=>true,'data'=>$kyc]);
+        $kyc = UserKyc::where('user_id', $user->id)->first();
+        return response()->json(['success' => true, 'data' => $kyc]);
     }
 }

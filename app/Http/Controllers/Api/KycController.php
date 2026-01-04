@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use App\Models\KycProfile;
+use App\Models\ActivityLog;
 
 class KycController extends Controller
 {
@@ -16,42 +17,48 @@ class KycController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'id_type' => 'required|string',
-            'id_number' => 'required|string',
-            'id_front' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'id_back' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'bvn' => 'required_without:nin|nullable|string|size:11',
+            'nin' => 'nullable|string|size:11',
+            'photo' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         $user = Auth::user();
 
+// If they have both, it's 'full'. If only BVN, it's 'basic'.
+        $level = ($request->bvn && $request->nin) ? 'full' : 'basic';
+
+        $idType = $request->nin ? 'nin' : 'bvn';
+        $idNumber = $request->nin ?? $request->bvn;
+
         $kyc = KycProfile::updateOrCreate(
             ['user_id' => $user->id],
             [
-                'id_type' => $request->id_type,
-                'id_number' => $request->id_number,
+                'id_type'   => $idType,
+            'id_number' => $idNumber,
+                'bvn' => $request->bvn, 
+                'nin' => $request->nin,
                 'status' => 'pending',
-                'level' => 'basic'
+                'level'     => $level,
             ]
         );
 
         $paths = [];
 
-        if ($request->hasFile('id_front')) {
-            $paths['id_front'] = $request->file('id_front')->store('kyc/id_fronts', 'public');
+        if ($request->hasFile('photo')) {
+            $paths['id_front'] = $request->file('photo')->store('kyc/id_fronts', 'public');
         }
-        if ($request->hasFile('id_back')) {
-            $paths['id_back'] = $request->file('id_back')->store('kyc/id_backs', 'public');
+        if ($request->hasFile('document')) {
+            $paths['proof'] = $request->file('document')->store('kyc/proofs', 'public');
         }
-        if ($request->hasFile('proof')) {
-            $paths['proof'] = $request->file('proof')->store('kyc/proofs', 'public');
+        if (!empty($paths)) {
+            $kyc->update($paths);
         }
 
-        $kyc->update($paths);
 
         return response()->json([
             'success' => true,
-            'message' => 'KYC information submitted successfully! Pending verification.',
+            'message' => "KYC submitted successfully as $level verification!",
             'data' => $kyc,
         ]);
     }
@@ -67,6 +74,7 @@ class KycController extends Controller
 
     public function submit(Request $request)
     {
+        ActivityLog::log(Auth::id(), 'KYC Submission', ['level' => $level]);
         return $this->update($request);
     }
 }
