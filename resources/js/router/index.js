@@ -226,9 +226,25 @@ router.beforeEach((to, from, next) => {
     return next("/login");
   }
 
-  // Admin only
-  if (to.meta.adminOnly && user.role !== "admin") {
-    return next("/dashboard");
+  
+  if (to.meta.adminOnly) {
+    const staffRoles = ['admin','super-admin','staff','compliance','manager','support','accounts'];
+
+    let hasStaff = false;
+    if (user && typeof user.role === 'string' && staffRoles.includes(user.role)) {
+      hasStaff = true;
+    }
+
+    if (!hasStaff && Array.isArray(user.roles)) {
+      hasStaff = user.roles.some(r => {
+       
+        if (typeof r === 'string') return staffRoles.includes(r);
+        if (r && r.name) return staffRoles.includes(r.name);
+        return false;
+      });
+    }
+
+    if (!hasStaff) return next('/dashboard');
   }
 
   next();

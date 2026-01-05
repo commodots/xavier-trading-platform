@@ -12,14 +12,18 @@
         <div class="flex items-center justify-center py-6">
           <img src="/images/xavier-logo.png" alt="Logo" class="h-[60px] object-contain" />
         </div>
+<!-- Sidebar Menu -->
+        <div v-if="currentView === 'staff' || hasStaffAccess || onAdminRoute" class="px-4 mb-4">
+              <button @click="toggleAccountMode"
+            class="w-full py-2 px-3 text-[10px] font-bold tracking-widest rounded-lg border border-[#00D4FF] text-[#00D4FF] hover:bg-[#00D4FF] hover:text-black transition-all duration-300">
+            SWITCH TO {{ currentView === 'user' ? 'STAFF MODE' : 'USER MODE' }}
+          </button>
+        </div>
 
-        <!-- Sidebar Menu -->
         <nav class="px-4 mt-4 space-y-1 text-sm">
 
-          <!-- ==================== USER MENU ==================== -->
-          <div v-if="!isAdmin">
-
-            <div class="mt-4 mb-1 text-xs text-gray-500">OVERVIEW</div>
+          <div v-if="currentView === 'user'">
+             <div class="mt-4 mb-1 text-xs text-gray-500">OVERVIEW</div>
             <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
             <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
             <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
@@ -37,9 +41,7 @@
             <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
           </div>
 
-
-          <!-- ==================== ADMIN MENU ==================== -->
-          <div v-if="isAdmin" class="mt-6">
+          <div v-if="currentView === 'staff' && hasStaffAccess" class="mt-6">
             <div class="mb-1 text-xs text-gray-500">ADMIN</div>
 
             <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
@@ -72,7 +74,6 @@
       <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded" @click="sidebarOpen = !sidebarOpen">
         ☰
       </button>
-
       <slot />
     </main>
 
@@ -80,31 +81,20 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useRoute } from 'vue-router';
 import { useRouter } from "vue-router";
 import {
-  Home,
-  Wallet,
-  PieChart,
-  BarChart2,
-  Globe,
-  Bitcoin,
-  ShoppingCart,
-  User,
-  LogOut,
-  Users,
-  ShieldCheck,
-  ListOrdered,
-  Settings,
-  MonitorCog,
-  FileSpreadsheet,
-  SquareChartGantt
+  Home, Wallet, PieChart, BarChart2, Globe, Bitcoin, 
+  ShoppingCart, LogOut, Users, ShieldCheck, 
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
 
 const router = useRouter();
 const sidebarOpen = ref(false);
+const year = new Date().getFullYear();
 
 // ---- SAFE USER PARSE ----
 let user = {};
@@ -115,13 +105,45 @@ try {
   user = {};
 }
 
-const isAdmin = user.role === "admin";
+// Logic: Check if user has ANY staff/admin roles
+const hasStaffAccess = computed(() => {
+    const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
+    const hasRoleInString = user && typeof user.role === 'string' && staffRoles.includes(user.role);
 
-const year = new Date().getFullYear();
+    let hasRoleInArray = false;
+    if (user && Array.isArray(user.roles)) {
+      hasRoleInArray = user.roles.some(r => {
+        if (!r) return false;
+        if (typeof r === 'string') return staffRoles.includes(r);
+        if (r.name) return staffRoles.includes(r.name);
+        return false;
+      });
+    }
+
+    return hasRoleInArray || hasRoleInString;
+});
+
+const route = useRoute();
+const onAdminRoute = computed(() => route.path && route.path.startsWith('/admin'));
+// Initialize current view: prefer stored active_view, otherwise staff users default to 'staff'
+const currentView = ref(localStorage.getItem("active_view") || (hasStaffAccess.value ? 'staff' : 'user'));
+
+const toggleAccountMode = () => {
+    currentView.value = currentView.value === 'user' ? 'staff' : 'user';
+    localStorage.setItem("active_view", currentView.value);
+    
+    // Redirect to relevant dashboard after toggle
+    if (currentView.value === 'staff') {
+        router.push("/admin");
+    } else {
+        router.push("/dashboard");
+    }
+};
 
 const logout = () => {
   localStorage.removeItem("xavier_token");
   localStorage.removeItem("user");
+  localStorage.removeItem("active_view");
   router.push("/login");
 };
 </script>

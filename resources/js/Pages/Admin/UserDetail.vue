@@ -58,6 +58,17 @@
                 Phone: {{ user.phone || "N/A" }}
               </div>
 
+              <div class="flex items-center gap-2 mt-2">
+                <template v-if="Array.isArray(user.roles) && user.roles.length">
+                  <span v-for="r in user.roles.map(x => typeof x === 'string' ? x : x.name)" :key="r" class="px-2 py-1 text-xs bg-purple-700 rounded">
+                    {{ r }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="px-2 py-1 text-xs bg-gray-700 rounded">{{ user.role || 'user' }}</span>
+                </template>
+              </div>
+
               <div class="mt-2 text-xs text-gray-400">
                 Joined: {{ formatDate(user.created_at) }}
               </div>
@@ -285,8 +296,10 @@ const resetPassword = () => alert("Reset password coming soon");
 
 const openRoleModal = () => (showRoleModal.value = true);
 
-const onRoleUpdated = (role) => {
-  user.value.role = role;
+const onRoleUpdated = (roles) => {
+  
+  user.value.roles = Array.isArray(roles) ? roles : [roles];
+  user.value.role = user.value.roles.includes('admin') ? 'admin' : user.value.roles[0];
   showRoleModal.value = false;
 };
 

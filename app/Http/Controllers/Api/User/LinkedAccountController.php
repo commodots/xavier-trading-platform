@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\LinkedAccount;
+use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 
 class LinkedAccountController extends Controller
@@ -37,6 +38,20 @@ class LinkedAccountController extends Controller
             'is_verified' => false, // Default for new accounts
         ]);
 
+        
+        try {
+            $accountType = $request->type === 'bank' ? 'Bank Account' : 'Crypto Wallet';
+            
+            ActivityLog::create([
+                'user_id'    => Auth::id(),
+                'activity'   => 'Linked Account Added',
+                'details'    => "Added a new {$accountType} ({$request->provider}) ending in ..." . substr($request->account_number, -4),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+            
+        }
         return response()->json(['success' => true, 'data' => $account]);
     }
 }

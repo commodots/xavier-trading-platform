@@ -55,7 +55,8 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'role' => $user->role, // <<< REQUIRED
+                    'role' => $user->role, 
+                    'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
                     'wallet' => $user->wallet ?? null,
                     'kyc' => $user->kyc ?? null,
                 ]

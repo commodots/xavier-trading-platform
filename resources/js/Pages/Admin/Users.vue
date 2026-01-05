@@ -161,9 +161,11 @@
               <td>{{ u.email }}</td>
 
               <td>
-                <span class="px-2 py-1 text-xs capitalize bg-purple-700 rounded">
-                  {{ u.role }}
-                </span>
+                <div class="flex flex-wrap gap-2">
+                  <span v-for="r in ((Array.isArray(u.roles) && u.roles.length) ? u.roles.map(x => typeof x === 'string' ? x : x.name) : [u.role])" :key="r" class="px-2 py-1 text-xs capitalize bg-purple-700 rounded">
+                    {{ r }}
+                  </span>
+                </div>
               </td>
 
               <td>
@@ -219,7 +221,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import axios from "@/lib/axios";
+import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 
 const router = useRouter();
@@ -233,11 +235,16 @@ const search = ref("");
 const activeTab = ref("clients");
 
 // STAFF ROLES
-const staffRoles = ["admin", "accounts", "compliance", "support"];
+const staffRoles = ["admin", "accounts", "compliance", "support", "manager"];
+
+const hasStaffRole = (u) => {
+  const uRoles = Array.isArray(u.roles) && u.roles.length ? u.roles.map(r => (typeof r === 'string' ? r : r.name || '')) : (u.role ? [u.role] : []);
+  return uRoles.some(r => staffRoles.includes(r));
+};
 
 // FILTERED LISTS
-const staff = computed(() => users.value.filter((u) => staffRoles.includes(u.role)));
-const clients = computed(() => users.value.filter((u) => !staffRoles.includes(u.role)));
+const staff = computed(() => users.value.filter((u) => hasStaffRole(u)));
+const clients = computed(() => users.value.filter((u) => !hasStaffRole(u)));
 
 // PAGINATION — CLIENTS
 const clientPage = ref(1);
@@ -277,7 +284,7 @@ const fetchUsers = async () => {
   loading.value = true;
 
   try {
-    const res = await axios.get("/admin/users", {
+    const res = await api.get("/admin/users", {
       params: { q: search.value },
     });
 

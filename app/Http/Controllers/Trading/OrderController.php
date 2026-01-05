@@ -10,6 +10,7 @@ use App\Services\ContractNotes\ContractNoteService;
 use App\Services\Portfolio\PortfolioService;
 use App\Services\MatchingEngine\MatchingEngine;
 use App\Services\Audit\AuditLogger;
+use App\Models\ActivityLog;
 
 class OrderController extends Controller
 {
@@ -30,6 +31,18 @@ class OrderController extends Controller
     $validated['status'] = 'open';
 
 		$order = Order::create($validated);
+
+		
+		try {
+            $action = strtoupper($order->type);
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Order Placed',
+                'details'    => "Placed a {$action} order for {$order->units} units of {$order->symbol} ({$order->company}) at {$order->currency} {$order->amount}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {}
 
 		app(MatchingEngine::class)->process($order);
 

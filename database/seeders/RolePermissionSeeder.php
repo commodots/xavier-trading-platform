@@ -10,9 +10,15 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = ['admin', 'user', 'accounts', 'compliance'];
+        $roles = ['admin', 'user', 'accounts', 'compliance', 'manager', 'support'];
 
         foreach ($roles as $role) {
+            Role::firstOrCreate([
+                'name' => $role,
+                'guard_name' => 'api'
+            ]);
+
+           
             Role::firstOrCreate([
                 'name' => $role,
                 'guard_name' => 'web'

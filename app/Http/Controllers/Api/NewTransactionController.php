@@ -8,6 +8,7 @@ use App\Models\Wallet;
 use App\Models\LinkedAccount;
 use Illuminate\Http\Request;
 use App\Models\TransactionCharge;
+use App\Models\ActivityLog;
 use App\Models\TransactionType;
 use Illuminate\Support\Facades\DB;
 
@@ -38,7 +39,7 @@ class NewTransactionController extends Controller
             'amount' => 'required|numeric|min:1',
             'currency' => 'required|in:NGN,USD'
         ]);
-        
+
         $user = auth()->user();
         $currency = $request->currency;
 
@@ -64,6 +65,18 @@ class NewTransactionController extends Controller
             ['balance' => 0]
         );
         $wallet->increment('balance', $netAmount);
+
+
+        try {
+            ActivityLog::create([
+                'user_id'    => $user->id,
+                'activity'   => 'Deposit',
+                'details'    => "Deposited {$request->amount} {$currency}. Net added to wallet: {$netAmount} after fees.",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
@@ -101,7 +114,7 @@ class NewTransactionController extends Controller
             return DB::transaction(function () use ($user, $currency, $request, $totalDeduction, $account) {
                 $wallet = Wallet::where('user_id', $user->id)
                     ->where('currency', $currency)
-                    ->lockForUpdate() 
+                    ->lockForUpdate()
                     ->first();
 
                 if (!$wallet || $wallet->balance < $totalDeduction) {
@@ -125,6 +138,18 @@ class NewTransactionController extends Controller
                 $wallet->decrement('balance', $totalDeduction);
                 TransactionCharge::calculate('withdrawal', $request->amount, $txn);
 
+
+                try {
+                    ActivityLog::create([
+                        'user_id'    => $user->id,
+                        'activity'   => 'Withdrawal',
+                        'details'    => "Withdrew {$request->amount} {$currency} to {$account->provider} ({$account->account_number}). Total deduction: {$totalDeduction}.",
+                        'ip_address' => request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                    ]);
+                } catch (\Throwable $e) {
+                }
+
                 return response()->json([
                     'success' => true,
                     'details' => $txn->fresh()
@@ -136,5 +161,5 @@ class NewTransactionController extends Controller
                 'message' => $e->getMessage()
             ], 400);
         }
-    } 
+    }
 }

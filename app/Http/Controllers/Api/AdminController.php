@@ -56,7 +56,7 @@ class AdminController extends Controller
     */
     public function users(Request $request)
     {
-        $query = User::select('id', 'first_name', 'last_name', 'email', 'phone', 'role', 'status', 'created_at');
+        $query = User::with('roles')->select('id', 'first_name', 'last_name', 'email', 'phone', 'role', 'status', 'created_at');
 
         if ($request->q) {
             $query->where(function ($q) use ($request) {
@@ -66,11 +66,25 @@ class AdminController extends Controller
             });
         }
 
-        $users = $query->paginate(20);
+        $users = $query->paginate(30);
+
+        $items = collect($users->items())->map(function ($u) {
+            return [
+                'id' => $u->id,
+                'first_name' => $u->first_name,
+                'last_name' => $u->last_name,
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'role' => $u->role,
+                'roles' => $u->getRoleNames(),
+                'status' => $u->status,
+                'created_at' => $u->created_at,
+            ];
+        })->all();
 
         return response()->json([
             'success' => true,
-            'users' => $users->items(),   // <-- clean list of users
+            'users' => $items,
             'pagination' => [
                 'total' => $users->total(),
                 'per_page' => $users->perPage(),
@@ -89,7 +103,7 @@ class AdminController extends Controller
     */
     public function userDetail($id)
     {
-        $user = User::with('kyc')->findOrFail($id);
+        $user = User::with(['kyc', 'roles'])->findOrFail($id);
 
         $walletNGN = Wallet::where('user_id', $id)->where('currency', 'NGN')->value('balance') ?? 0;
         $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')->value('balance') ?? 0;
@@ -108,6 +122,7 @@ class AdminController extends Controller
                 'email'      => $user->email,
                 'phone'      => $user->phone,
                 'role'       => $user->role,
+                'roles'      => $user->getRoleNames(),
                 'status'     => $user->status,
                 'created_at' => $user->created_at,
                 'kyc'        => $user->kyc
@@ -130,8 +145,22 @@ class AdminController extends Controller
     {
         $user = User::findOrFail($id);
 
+        $oldStatus = $user->status;
+
         $user->status = $user->status === 'active' ? 'disabled' : 'active';
         $user->save();
+
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Toggle Status',
+                'details'    => "Changed status for {$user->email} from [{$oldStatus}] to [{$user->status}]",
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
@@ -147,18 +176,51 @@ class AdminController extends Controller
     */
     public function updateUserRole(Request $request, $id)
     {
-        $request->validate([
-            'role' => 'required|in:admin,user,accounts,custom'
+        $validated = $request->validate([
+            'roles' => 'sometimes|array',
+            'roles.*' => 'string|exists:roles,name',
+            'role' => 'sometimes|string|exists:roles,name'
         ]);
-
         $user = User::findOrFail($id);
-        $user->role = $request->role;
+        $admin = auth()->user();
+
+        $newRoles = $validated['roles'] ?? (isset($validated['role']) ? [$validated['role']] : []);
+
+        if (empty($newRoles)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please provide `role` or `roles` to update.'
+            ], 422);
+        }
+
+        if (!in_array('user', $newRoles)) {
+            $newRoles[] = 'user';
+        }
+
+        $oldRoles = $user->getRoleNames()->implode(', ');
+
+
+        $user->syncRoles($newRoles);
+
+
+        $user->role = in_array('admin', $newRoles) ? 'admin' : ($newRoles[0] ?? $user->role);
         $user->save();
+
+        $roleString = implode(', ', $newRoles);
+
+        ActivityLog::create([
+            'user_id'    => $admin->id,
+            'activity'   => 'Role Update',
+            'details' => "Updated roles for {$user->email}. Changed from [{$oldRoles}] to [{$roleString}]",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Role updated successfully',
-            'role' => $user->role
+            'message' => 'Role(s) updated successfully',
+            'roles' => $user->getRoleNames(),
+            'role' => in_array('admin', $newRoles) ? 'admin' : $newRoles[0]
         ]);
     }
 
@@ -230,8 +292,20 @@ class AdminController extends Controller
         ]);
 
         $kyc = UserKyc::findOrFail($id);
+        $oldStatus = $kyc->status;
         $kyc->status = $request->status;
         $kyc->save();
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'KYC Review',
+                'details'    => "Reviewed KYC for {$kyc->user->email}. Status updated from [{$oldStatus}] to [{$request->status}]",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
@@ -322,6 +396,15 @@ class AdminController extends Controller
             fclose($file);
         };
 
+        // Log export action
+        try {
+            ActivityLog::log(auth()->id(), 'Export Transactions', [
+                'filters' => $request->only(['type', 'status'])
+            ]);
+        } catch (\Throwable $e) {
+            // ignore logging errors
+        }
+
         return response()->stream($callback, 200, [
             "Content-type" => "text/csv",
             "Content-Disposition" => "attachment; filename=transactions.csv",
@@ -340,13 +423,39 @@ class AdminController extends Controller
         ]);
 
         $charge = TransactionCharge::findOrFail($id);
+        $oldVal = "{$charge->value} ({$charge->charge_type})";
+
         $charge->update($request->all());
+        $newVal = "{$charge->value} ({$charge->charge_type})";
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Charge Update',
+                'details'    => "Updated {$charge->transaction_type} fee. Changed from {$oldVal} to {$newVal}. Active: " . ($charge->active ? 'Yes' : 'No'),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         return response()->json(['success' => true, 'message' => 'Charge updated']);
     }
     public function getActivityLogs(Request $request)
     {
         $query = ActivityLog::with('user:id,name,email');
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($query) use ($q) {
+                $query->where('activity', 'like', "%{$q}%")
+                    ->orWhere('details', 'like', "%{$q}%")
+                    ->orWhereHas('user', function ($u) use ($q) {
+                        $u->where('name', 'like', "%{$q}%")
+                            ->orWhere('email', 'like', "%{$q}%");
+                    });
+            });
+        }
 
         // Filter by Activity Type (e.g., Login, Logout, Profile Update)
         if ($request->filled('type')) {
@@ -369,49 +478,58 @@ class AdminController extends Controller
         ]);
     }
     public function exportActivityLogs(Request $request)
-{
-    $query = ActivityLog::with('user:id,name,email');
+    {
+        $query = ActivityLog::with('user:id,name,email');
 
-    
-    if ($request->filled('type')) {
-        $query->where('activity', $request->type);
-    }
-    if ($request->filled('start_date')) {
-        $query->whereDate('created_at', '>=', $request->start_date);
-    }
-    if ($request->filled('end_date')) {
-        $query->whereDate('created_at', '<=', $request->end_date);
-    }
 
-    $logs = $query->latest()->get();
-
-    $csvFileName = 'activity_logs_' . now()->format('Y_m_d_His') . '.csv';
-    $headers = [
-        "Content-type"        => "text/csv",
-        "Content-Disposition" => "attachment; filename=$csvFileName",
-        "Pragma"              => "no-cache",
-        "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-        "Expires"             => "0"
-    ];
-
-    $columns = ['User', 'Email', 'Activity', 'IP Address', 'Date'];
-
-    $callback = function() use($logs, $columns) {
-        $file = fopen('php://output', 'w');
-        fputcsv($file, $columns);
-
-        foreach ($logs as $log) {
-            fputcsv($file, [
-                $log->user->name ?? 'Unknown',
-                $log->user->email ?? 'N/A',
-                $log->activity,
-                $log->ip_address,
-                $log->created_at->format('Y-m-d H:i:s'),
-            ]);
+        if ($request->filled('type')) {
+            $query->where('activity', $request->type);
         }
-        fclose($file);
-    };
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
 
-    return response()->stream($callback, 200, $headers);
-}
+        $logs = $query->latest()->get();
+
+        $csvFileName = 'activity_logs_' . now()->format('Y_m_d_His') . '.csv';
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$csvFileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['User', 'Email', 'Activity', 'IP Address', 'Date'];
+
+        // Log export of activity logs
+        try {
+            ActivityLog::log(auth()->id(), 'Export Activity Logs', [
+                'filters' => $request->only(['type', 'start_date', 'end_date'])
+            ]);
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        $callback = function () use ($logs, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->user->name ?? 'Unknown',
+                    $log->user->email ?? 'N/A',
+                    $log->activity,
+                    $log->ip_address,
+                    $log->created_at->format('Y-m-d H:i:s'),
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }

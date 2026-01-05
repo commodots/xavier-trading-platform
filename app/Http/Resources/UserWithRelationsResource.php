@@ -17,6 +17,7 @@ class UserWithRelationsResource extends JsonResource
             'dob'        => $this->dob,
             'wallet'     => new WalletResource($this->whenLoaded('wallet')),
             'kyc'        => new KycResource($this->whenLoaded('kyc')),
+            'roles'      => method_exists($this, 'getRoleNames') ? $this->getRoleNames() : [],
             'created_at' => $this->created_at,
             'token'      => $this->when(isset($this->token), $this->token),
         ];

@@ -103,4 +103,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(ActivityLog::class);
     }
+    public function isStaff()
+    {
+        return $this->hasAnyRole(['admin', 'accounts', 'manager', 'compliance', 'support']);
+    }
 }

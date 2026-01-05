@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Service;
 use App\Models\ServiceConnection;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
@@ -25,12 +26,22 @@ class AdminServiceController extends Controller
         ]);
 
         $service = Service::create($request->only('name', 'type'));
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Service Created',
+                'details'    => "Created a new system service: {$service->name} (Type: {$service->type})",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+
         return response()->json($service, 201);
     }
 
     public function addConnection(Request $request, $serviceId)
     {
-        // Validation for connection details
         $request->validate([
             'mode' => 'required|in:live,testing,dummy',
             'base_url' => 'required|url|max:255',
@@ -39,7 +50,7 @@ class AdminServiceController extends Controller
             'credentials' => 'nullable|array',
         ]);
 
-        Service::findOrFail($serviceId);
+        $service = Service::findOrFail($serviceId);
 
         DB::transaction(function () use ($request, $serviceId) {
             // Deactivate all connections for the specific service and mode
@@ -57,15 +68,35 @@ class AdminServiceController extends Controller
                 'is_active' => true,
             ]);
         });
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Service Connection Update',
+                'details'    => "Updated connection settings for {$service->name}. Mode: {$request->mode}, URL: {$request->base_url}. (Credentials updated)",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
         return response()->json(['success' => true], 201);
     }
 
     public function toggleService($id)
     {
         $service = Service::findOrFail($id);
-        // Switch between true and false
+        $old = $service->is_active;
         $service->is_active = !$service->is_active;
         $service->save();
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Toggle Service',
+                'details'    => "Changed {$service->name} status from " . ($old ? 'Active' : 'Inactive') . " to " . ($service->is_active ? 'Active' : 'Inactive'),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success' => true,
@@ -76,7 +107,19 @@ class AdminServiceController extends Controller
     public function updateMode(Request $request, $id)
     {
         $service = Service::findOrFail($id);
+        $oldMode = $service->mode;
         $service->update(['mode' => $request->mode]);
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Service Mode Update',
+                'details'    => "Switched {$service->name} environment mode from [{$oldMode}] to [{$request->mode}]",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {}
+        
         return response()->json(['message' => 'Mode updated']);
     }
 }
