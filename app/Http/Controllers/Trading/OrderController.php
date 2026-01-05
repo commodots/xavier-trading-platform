@@ -5,12 +5,27 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Models\Order;
 
 class OrderController extends Controller
 {
 	public function store(Request $request)
 	{
-		$order = Order::create($request->validated());
+		$validated = $request->validate([
+        'symbol'       => 'required|string',
+        'company'      => 'required|string',
+        'units'        => 'required|numeric|min:0',
+        'amount'       => 'required|numeric|min:0',
+        'type'         => 'required|in:buy,sell',
+        'market'       => 'required|string',
+        'market_price' => 'required|numeric',
+        'currency'     => 'required|string',
+    ]);
+
+		$validated['user_id'] = auth()->id();
+    $validated['status'] = 'open';
+
+		$order = Order::create($validated);
 
 		app(MatchingEngine::class)->process($order);
 

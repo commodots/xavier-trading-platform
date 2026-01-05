@@ -1,139 +1,237 @@
 <template>
   <MainLayout>
     <div class="space-y-8">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 class="text-2xl font-semibold">📑 My Orders</h1>
-          <p class="text-gray-400 text-sm">View and manage all your investment orders.</p>
+          <p class="text-sm text-gray-400">View and manage all your investment orders.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button 
+            @click="showTradeModal = true"
+            class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-500 shadow-blue-900/20"
+          >
+            <span class="text-lg">+</span> New Trade
+          </button>
+          <div class="relative">
+            <select 
+              v-model="filterMarket" 
+              class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500"
+            >
+              <option value="">All Markets</option>
+              <option value="CRYPTO">Crypto</option>
+              <option value="NGX">Local Stocks (NGX)</option>
+              <option value="GLOBAL">Global Stocks</option>
+            </select>
+          </div>
+          
+          <div class="relative">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Search Symbol (e.g. BTC)..." 
+              class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Orders List -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold">Order History</h2>
+          <span class="text-xs text-gray-500">{{ filteredOrders.length }} orders found</span>
         </div>
 
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
-                <th class="text-left py-2 px-2">Date</th>
-                <th class="text-left px-2">Asset</th>
-                <th class="text-left px-2">Symbol</th>
-                <th class="text-left px-2">Units</th>
-                <th class="text-left px-2">Amount</th>
-                <th class="text-left px-2">Type</th>
-                <th class="text-left px-2">Status</th>
-                <th class="text-right px-2">Action</th>
+                <th class="px-2 py-3 text-left">Date</th>
+                <th class="px-2 text-left">Market</th>
+                <th class="px-2 text-left">Asset</th>
+                <th class="px-2 text-left">Units</th>
+                <th class="px-2 text-left">Amount</th>
+                <th class="px-2 text-left">Status</th>
+                <th class="px-2 text-right">Action</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody class="divide-y divide-[#1f3348]">
               <tr
-                v-for="o in orders"
+                v-for="o in filteredOrders"
                 :key="o.id"
-                class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
+                class="hover:bg-[#16213A] transition group"
               >
-                <td class="px-2 py-3">{{ formatDate(o.created_at) }}</td>
-                <td class="px-2">{{ o.company }}</td>
-                <td class="px-2 font-semibold uppercase">{{ o.symbol }}</td>
-                <td class="px-2">{{ o.units }}</td>
-                <td class="px-2">₦{{ Number(o.amount).toLocaleString() }}</td>
-                <td class="px-2 capitalize text-blue-400">
-                  {{ o.type || "buy" }}
+                <td class="px-2 py-4 text-gray-300 whitespace-nowrap">
+                  {{ formatDate(o.created_at) }}
+                </td>
+                <td class="px-2">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400">
+                    {{ o.market }}
+                  </span>
+                </td>
+                <td class="px-2">
+                  <div class="font-semibold text-white uppercase">{{ o.symbol }}</div>
+                  <div class="text-[11px] text-gray-500 truncate max-w-[120px]">{{ o.company }}</div>
+                </td>
+                <td class="px-2 text-gray-300">{{ Number(o.units).toFixed(4) }}</td>
+                <td class="px-2 font-medium text-white">
+                  {{ o.currency === 'USD' ? '$' : '₦' }}{{ Number(o.amount).toLocaleString() }}
                 </td>
 
                 <td class="px-2">
                   <span
-                    class="px-3 py-1 text-xs rounded-lg"
-                    :class="{
-                      'bg-yellow-500/20 text-yellow-300': o.status === 'pending_market',
-                      'bg-blue-500/20 text-blue-300': o.status === 'filled',
-                      'bg-red-500/20 text-red-300': o.status === 'cancelled'
-                    }"
+                    class="px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap"
+                    :class="statusClass(o.status)"
                   >
                     {{ beautifyStatus(o.status) }}
                   </span>
                 </td>
 
                 <td class="px-2 text-right">
+                  <div class="flex items-end gap-2">
+                    <router-link 
+                    :to="`/orders/${o.id}`" 
+                    class="text-[11px] text-blue-400 hover:text-blue-300 font-medium underline underline-offset-4"
+                  >
+                    Details
+                  </router-link>
                   <button
-                    v-if="o.status === 'pending_market'"
-                    @click="cancel(o.id)"
-                    class="bg-red-500/20 hover:bg-red-500/40 px-3 py-1 rounded-lg text-red-300 text-xs"
+                    v-if="['open', 'partially_filled', 'pending_market'].includes(o.status)"
+                    @click="cancelOrder(o.id)"
+                    class="bg-red-500/10 hover:bg-red-500/20 px-3 py-1 rounded-lg text-red-400 text-[10px] font-bold transition border border-red-500/20 uppercase tracking-wider"
                   >
                     Cancel
                   </button>
+                  </div>
                 </td>
               </tr>
 
-              <!-- Empty State -->
-              <tr v-if="orders.length === 0">
-                <td colspan="8" class="text-center py-6 text-gray-500">
-                  No orders found yet.
+              <tr v-if="filteredOrders.length === 0">
+                <td colspan="7" class="py-12 text-center text-gray-500">
+                  No orders match your search criteria.
                 </td>
               </tr>
             </tbody>
-
           </table>
         </div>
-
       </div>
     </div>
+    <TradeModal 
+      :show="showTradeModal" 
+      :tickers="tickersData" 
+      :assetCategories="categoriesData"
+      @close="showTradeModal = false"
+      @trade-success="handleTradeSuccess"
+    />
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import axios from "axios";
-import MainLayout from "@/layouts/MainLayout.vue";
+import { ref, computed, onMounted } from "vue";
+import api from "@/api"; 
+import MainLayout from "@/Layouts/MainLayout.vue";
+import TradeModal from "@/Components/TradeModal.vue";
 
 const orders = ref([]);
+const searchQuery = ref("");
+const filterMarket = ref("");
+
+const showTradeModal = ref(false);
+
+const categoriesData = ref([
+  { id: 'stocks', name: 'Global Stocks', description: 'Trade Apple, Tesla, etc.' },
+  { id: 'crypto', name: 'Cryptocurrency', description: 'Trade BTC, ETH, SOL' },
+  { id: 'ngx', name: 'Local Stocks', description: 'Nigerian Exchange' }
+]);
+
+const tickersData = ref({
+  stocks: [
+    { symbol: 'AAPL', name: 'Apple Inc.', price: 180, currency: 'USD' },
+    { symbol: 'TSLA', name: 'Tesla', price: 240, currency: 'USD' }
+  ],
+  crypto: [
+    { symbol: 'BTC', name: 'Bitcoin', price: 65000, currency: 'USD' },
+    { symbol: 'ETH', name: 'Ethereum', price: 3500, currency: 'USD' }
+  ],
+  ngx: [
+    { symbol: 'DANGCEM', name: 'Dangote Cement', price: 450, currency: 'NGN' },
+    { symbol: 'MTNN', name: 'MTN Nigeria', price: 280, currency: 'NGN' }
+  ]
+});
+
+const handleTradeSuccess = () => {
+  showTradeModal.value = false;
+  loadOrders(); 
+};
 
 onMounted(() => loadOrders());
 
 async function loadOrders() {
   try {
     const token = localStorage.getItem("xavier_token");
-    const res = await axios.get("/orders", {
+    const res = await api.get("/orders", {
       headers: { Authorization: `Bearer ${token}` }
     });
-
-    if (res.data.success || Array.isArray(res.data)) {
-      orders.value = res.data.data || res.data || [];
-    }
+    orders.value = res.data.data?.data || res.data.data || res.data || [];
   } catch (e) {
     console.error("Failed to load orders", e);
   }
 }
 
+// Search and Filter Logic
+const filteredOrders = computed(() => {
+  return orders.value.filter(o => {
+    const matchesSearch = o.symbol.toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchesMarket = filterMarket.value === "" || o.market === filterMarket.value;
+    return matchesSearch && matchesMarket;
+  });
+});
+
 function beautifyStatus(s) {
-  if (s === "pending_market") return "Pending (Market)";
-  if (s === "filled") return "Filled";
-  if (s === "cancelled") return "Cancelled";
-  return s;
+  const statusMap = {
+    'open': 'Pending',
+    'pending_market': 'Pending (Market)',
+    'partially_filled': 'Partially Completed',
+    'filled': 'Completed',
+    'canceled': 'Cancelled',
+    'cancelled': 'Cancelled',
+    'failed': 'Failed'
+  };
+  return statusMap[s] || s;
+}
+
+function statusClass(s) {
+  if (['open', 'pending_market'].includes(s)) return 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
+  if (s === 'partially_filled') return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+  if (s === 'filled') return 'bg-green-500/10 text-green-400 border border-green-500/20';
+  if (['canceled', 'cancelled', 'failed'].includes(s)) return 'bg-red-500/10 text-red-400 border border-red-500/20';
+  return 'bg-gray-500/10 text-gray-400';
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+  });
 }
 
-async function cancel(id) {
+async function cancelOrder(id) {
+  if (!confirm("Are you sure you want to cancel this order?")) return;
+  
   try {
     const token = localStorage.getItem("xavier_token");
-    const res = await axios.post(`/api/orders/${id}/cancel`, {}, {
+    const res = await api.post(`/orders/${id}/cancel`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    if (res.data.success) loadOrders();
+    if (res.data.success) {
+      alert("Order cancelled successfully");
+      loadOrders();
+    }
   } catch (e) {
-    console.error("Cancel failed", e);
+    alert(e.response?.data?.message || "Failed to cancel order.");
   }
 }
 </script>

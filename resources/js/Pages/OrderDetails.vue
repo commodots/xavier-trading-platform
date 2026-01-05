@@ -5,7 +5,7 @@
       <!-- Back button -->
       <button
         @click="$router.back()"
-        class="text-gray-300 hover:text-white flex items-center gap-2"
+        class="flex items-center gap-2 text-gray-300 hover:text-white"
       >
         ← Back
       </button>
@@ -13,16 +13,16 @@
       <!-- Title -->
       <div>
         <h1 class="text-2xl font-semibold">📘 Order Details</h1>
-        <p class="text-gray-400 text-sm">Full breakdown of your investment order.</p>
+        <p class="text-sm text-gray-400">Full breakdown of your investment order.</p>
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="text-center py-10 text-gray-400">
+      <div v-if="loading" class="py-10 text-center text-gray-400">
         Loading order details...
       </div>
 
       <!-- Error -->
-      <div v-if="error" class="text-red-400 py-10 text-center">
+      <div v-if="error" class="py-10 text-center text-red-400">
         {{ error }}
       </div>
 
@@ -32,13 +32,13 @@
         class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-6"
       >
         <!-- Header Row -->
-        <div class="flex justify-between items-start">
+        <div class="flex items-start justify-between">
           <div>
             <h2 class="text-xl font-semibold">{{ order.company }}</h2>
             <p class="text-gray-400">{{ order.symbol }}</p>
 
             <span
-              class="text-xs px-3 py-1 rounded-lg inline-block mt-2"
+              class="inline-block px-3 py-1 mt-2 text-xs rounded-lg"
               :class="statusClass(order.status)"
             >
               {{ beautifyStatus(order.status) }}
@@ -49,44 +49,44 @@
           <button
             v-if="order.status === 'pending_market'"
             @click="cancelOrder"
-            class="bg-red-500/20 hover:bg-red-500/40 px-4 py-2 text-red-300 rounded-lg text-sm"
+            class="px-4 py-2 text-sm text-red-300 rounded-lg bg-red-500/20 hover:bg-red-500/40"
           >
             Cancel Order
           </button>
         </div>
 
         <!-- Order Info Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 
           <div class="space-y-2">
-            <p class="text-gray-400 text-sm">Order Type</p>
+            <p class="text-sm text-gray-400">Order Type</p>
             <p class="font-semibold capitalize">{{ order.type }}</p>
           </div>
 
           <div class="space-y-2">
-            <p class="text-gray-400 text-sm">Order Date</p>
+            <p class="text-sm text-gray-400">Order Date</p>
             <p class="font-semibold">{{ formatDate(order.created_at) }}</p>
           </div>
 
           <div class="space-y-2">
-            <p class="text-gray-400 text-sm">Units</p>
+            <p class="text-sm text-gray-400">Units</p>
             <p class="font-semibold">{{ order.units }}</p>
           </div>
 
           <div class="space-y-2">
-            <p class="text-gray-400 text-sm">Order Amount</p>
+            <p class="text-sm text-gray-400">Order Amount</p>
             <p class="font-semibold">₦{{ Number(order.amount).toLocaleString() }}</p>
           </div>
 
           <div class="space-y-2">
-            <p class="text-gray-400 text-sm">Market Price</p>
+            <p class="text-sm text-gray-400">Market Price</p>
             <p class="font-semibold">
               ₦{{ Number(order.market_price).toLocaleString() }}
             </p>
           </div>
 
           <div class="space-y-2">
-            <p class="text-gray-400 text-sm">Value</p>
+            <p class="text-sm text-gray-400">Value</p>
             <p class="font-semibold">
               ₦{{ (order.market_price * order.units).toLocaleString() }}
             </p>
@@ -99,7 +99,7 @@
 
         <!-- Order Timeline -->
 		<div>
-		  <h3 class="text-lg font-semibold mb-3">Order Lifecycle</h3>
+		  <h3 class="mb-3 text-lg font-semibold">Order Lifecycle</h3>
 
 		  <ul class="space-y-3 text-sm">
 
@@ -142,7 +142,7 @@
 		  </ul>
 		</div>
 		<div class="border-t border-[#1f3348] pt-4">
-		  <h3 class="text-lg font-semibold mb-3">Settlement Timeline</h3>
+		  <h3 class="mb-3 text-lg font-semibold">Settlement Timeline</h3>
 
 		  <ul class="space-y-3">
 			<li>📝 Order Submitted</li>
@@ -169,7 +169,7 @@
               v-if="order.status === 'filled'"
               class="flex items-center gap-3"
             >
-              <span class="w-3 h-3 rounded-full bg-green-400"></span>
+              <span class="w-3 h-3 bg-green-400 rounded-full"></span>
               <span class="text-sm">Order Filled</span>
             </div>
 
@@ -177,7 +177,7 @@
               v-if="order.status === 'cancelled'"
               class="flex items-center gap-3"
             >
-              <span class="w-3 h-3 rounded-full bg-red-400"></span>
+              <span class="w-3 h-3 bg-red-400 rounded-full"></span>
               <span class="text-sm">Order Cancelled</span>
             </div>
           </div>
@@ -188,7 +188,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
+import { useRoute, useRouter } from "vue-router";
 
 const order = ref(null);
 const loading = ref(true);
@@ -205,7 +206,7 @@ onMounted(async () => {
 async function loadOrder() {
   try {
     const token = localStorage.getItem("xavier_token");
-    const res = await axios.get(`/api/orders`, {
+    const res = await axios.get(`/orders`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -229,7 +230,7 @@ async function cancelOrder() {
   try {
     const token = localStorage.getItem("xavier_token");
     await axios.post(
-      `/api/orders/${id}/cancel`,
+      `/orders/${id}/cancel`,
       {},
       { headers: { Authorization: `Bearer ${token}` } }
     );
