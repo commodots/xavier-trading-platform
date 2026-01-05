@@ -1,16 +1,10 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
-      <!-- Header -->
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">💼 Wallet</h1>
           <p class="text-sm text-gray-400">Manage your NGN & USD balances</p>
-
-          <p 
-          @click="$router.push({ name: 'new-wallet' })"
-          class="cursor-pointer">
-          New Wallet Design Idea</p>
         </div>
 
         <div class="flex gap-3">
@@ -29,23 +23,27 @@
         </div>
       </div>
 
-      <!-- Wallet Cards -->
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <!-- NGN -->
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-          <h2 class="mb-1 text-gray-300">NGN Wallet</h2>
-          <div class="text-3xl font-bold text-white">₦{{ Number(balances.balance_ngn).toLocaleString() }}</div>
-          <div class="mt-4">
-            <apexchart type="area" height="120" :options="chartOptions" :series="sparkNgn" />
+      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-8 overflow-hidden">
+        <div class="flex items-center gap-12 mb-6 border-b border-[#1f3348] pb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 bg-white rounded-full"></div>
+            <div>
+              <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">NGN Wallet</h2>
+              <div class="text-xl font-bold text-white">₦{{ Number(balances.balance_ngn).toLocaleString() }}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 border-l border-[#1f3348] pl-12">
+            <div class="w-2 h-2 rounded-full bg-[#00D4FF]"></div>
+            <div>
+              <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
+              <div class="text-xl font-bold text-[#00D4FF]">${{ Number(balances.balance_usd).toLocaleString() }}</div>
+            </div>
           </div>
         </div>
 
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-          <h2 class="mb-1 text-gray-300">USD Wallet</h2>
-          <div class="text-3xl font-bold text-white">${{ Number(balances.balance_usd).toLocaleString() }}</div>
-          <div class="mt-4">
-            <apexchart type="area" height="120" :options="chartOptions" :series="sparkUsd" />
-          </div>
+        <div class="h-[180px] -mx-4">
+          <apexchart type="line" height="100%" :options="combinedOptions" :series="combinedSeries" />
         </div>
       </div>
 
@@ -75,7 +73,7 @@
                 </td>
                 <td class="px-2 text-right">{{ formatAmount(t.amount, t.currency) }}</td>
                 <td class="px-2 text-right text-red-400">-{{ formatAmount(t.charge, t.currency) }}</td>
-                <td class="px-2 text-right font-bold text-green-400">{{ formatAmount(t.net_amount || t.amount,
+                <td class="px-2 font-bold text-right text-green-400">{{ formatAmount(t.net_amount || t.amount,
                   t.currency) }}</td>
               </tr>
             </tbody>
@@ -90,7 +88,7 @@
 
           <p class="mb-4 text-sm text-gray-400">
             Current {{ form.currency }} Balance:
-            <span class="text-white font-bold">
+            <span class="font-bold text-white">
               {{ form.currency === 'NGN' ? '₦' + Number(balances.balance_ngn).toLocaleString() : '$' +
                 Number(balances.balance_usd).toLocaleString() }}
             </span>
@@ -108,27 +106,27 @@
               </div>
 
               <div v-if="txnType === 'withdrawal'">
-                <label class="text-sm text-gray-400">Withdraw to {{ form.currency }} Account</label>
+                <label class="text-sm text-gray-400">Withdraw to Account</label>
                 <select v-model="selectedAccountId" required
                   class="w-full px-4 py-2 mt-1 text-white bg-[#151a27] border border-gray-600 rounded-lg">
-                  <option value="" disabled>Select a verified {{ form.currency }} account</option>
-                  <option v-for="acc in filteredAccounts" :key="acc.id" :value="acc.id">
-                    {{ acc.provider }} - {{ acc.account_number }}
+                  <option value="" disabled>Select a verified account</option>
+                  <option v-for="acc in linkedAccounts" :key="acc.id" :value="acc.id">
+                    {{ acc.provider }} - {{ acc.account_number }} ({{ acc.is_verified ? 'Verified' : 'Pending' }})
                   </option>
                 </select>
-                <p v-if="filteredAccounts.length === 0" class="mt-1 text-[10px] text-yellow-500">
-                  No verified {{ form.currency }} accounts found. Please add one in settings.
+                <p v-if="linkedAccounts.length === 0" class="mt-1 text-[10px] text-yellow-500">
+                  No verified linked accounts found. Please add one in settings.
                 </p>
               </div>
 
               <div>
                 <label class="text-sm text-gray-400">Amount ({{ form.currency }})</label>
                 <input v-model.number="form.amount" type="number" step="0.01"
-                  class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
                   required />
               </div>
 
-              <div class="p-3 bg-black/20 rounded-lg border border-blue-500/20">
+              <div class="p-3 border rounded-lg bg-black/20 border-blue-500/20">
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest">Fee Information</p>
                 <p class="text-xs text-blue-300">Standard platform fees will be applied to this {{ txnType }}.</p>
               </div>
@@ -140,7 +138,7 @@
             </button>
           </form>
           <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'"
-            class="mt-4 text-sm text-center font-medium">{{ message }}</p>
+            class="mt-4 text-sm font-medium text-center">{{ message }}</p>
         </div>
       </div>
 
@@ -151,7 +149,7 @@
 
           <p class="mb-4 text-sm text-gray-400">
             Available to convert:
-            <span class="text-white font-bold">
+            <span class="font-bold text-white">
               {{ from === 'NGN' ? '₦' + Number(balances.balance_ngn).toLocaleString() : '$' +
                 Number(balances.balance_usd).toLocaleString() }}
             </span>
@@ -166,10 +164,10 @@
             </select>
             <label class="text-sm text-gray-400">Amount</label>
             <input v-model.number="amount" type="number"
-              class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg text-white"
+              class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg"
               placeholder="Enter amount" required />
 
-            <div v-if="amount > 0" class="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-pulse">
+            <div v-if="amount > 0" class="p-3 mt-4 border rounded-lg bg-blue-500/10 border-blue-500/30 animate-pulse">
               <div class="text-[10px] text-blue-400 uppercase font-bold">Estimated Receipt</div>
               <div class="text-lg font-bold text-white">
                 {{ from === 'NGN' ? '$' + (amount * 0.00065).toFixed(2) : '₦' + (amount / 0.00065).toLocaleString() }}
@@ -183,7 +181,7 @@
             </button>
           </form>
           <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'"
-            class="mt-4 text-sm text-center font-medium">{{ message }}</p>
+            class="mt-4 text-sm font-medium text-center">{{ message }}</p>
         </div>
       </div>
     </div>
@@ -218,6 +216,8 @@ const form = ref({
   currency: "NGN"
 });
 
+
+
 // --- Formatting Helpers ---
 const formatAmount = (amt, currency) => {
   if (amt === null || amt === undefined) return '---';
@@ -233,15 +233,9 @@ const formatDate = (dateStr) => {
   });
 };
 
-const filteredAccounts = computed(() => {
-  return linkedAccounts.value.filter(acc => acc.currency === form.value.currency);
-});
-
 // --- API Methods ---
 const refreshData = async () => {
-
   balances.value = { balance_ngn: 0, balance_usd: 0 };
-
   try {
     const [balRes, txnRes, accRes] = await Promise.all([
       api.get("/wallet/balances"),
@@ -250,7 +244,6 @@ const refreshData = async () => {
     ]);
 
     balances.value = balRes.data.data;
-
     linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
 
     if (Array.isArray(txnRes.data)) {
@@ -274,7 +267,6 @@ const openTransaction = (type) => {
 
 const submitTransaction = async () => {
   if (form.value.amount <= 0) return;
-
   if (txnType.value === 'withdrawal' && !selectedAccountId.value) {
     message.value = "Please select a destination account";
     return;
@@ -282,8 +274,6 @@ const submitTransaction = async () => {
 
   loading.value = true;
   message.value = "Processing...";
-
-  // Mapping the UI type to the specific route
   const endpoint = txnType.value === 'deposit' ? '/deposit' : '/withdraw';
 
   try {
@@ -299,7 +289,6 @@ const submitTransaction = async () => {
       refreshData();
     }, 1500);
   } catch (e) {
-    console.error(e.response?.data?.message);
     message.value = e.response?.data?.message || "Transaction failed";
   } finally {
     loading.value = false;
@@ -308,7 +297,6 @@ const submitTransaction = async () => {
 
 const convertCurrency = async () => {
   if (amount.value <= 0) return;
-
   loading.value = true;
   message.value = "Converting...";
 
@@ -330,14 +318,55 @@ const convertCurrency = async () => {
   }
 };
 
-// Chart Data
-const sparkNgn = ref([{ name: "NGN", data: [20000, 50000, 120000, 90000, 150000] }]);
-const sparkUsd = ref([{ name: "USD", data: [10, 40, 50, 30, 80] }]);
-const chartOptions = {
-  chart: { sparkline: { enabled: true } },
-  stroke: { curve: "smooth", width: 2 },
-  fill: { opacity: 0.2 },
-  colors: ["#00D4FF"],
+const FX_CONVERSION_RATE = 1538;
+
+const combinedSeries = computed(() => [
+  { 
+    name: "NGN", 
+    // Plotting actual Naira values
+    data: [95000, 110000, 140000, 130000, 160000, balances.value.balance_ngn] 
+  },
+  { 
+    name: "USD (Valued in NGN)", 
+    // Plotting converted USD values so the chart scale is accurate
+    data: [
+      400 * FX_CONVERSION_RATE, 
+      550 * FX_CONVERSION_RATE, 
+      480 * FX_CONVERSION_RATE, 
+      600 * FX_CONVERSION_RATE, 
+      1000 * FX_CONVERSION_RATE, 
+      balances.value.balance_usd * FX_CONVERSION_RATE
+    ] 
+  }
+]);
+
+const combinedOptions = {
+  chart: {
+    type: 'line',
+    toolbar: { show: false },
+    animations: { enabled: true }
+  },
+  grid: {
+    show: true,
+    borderColor: '#1f3348',
+    strokeDashArray: 4,
+    padding: { top: 10, right: 20, bottom: 0, left: 20 }
+  },
+  stroke: { curve: "smooth", width: 3 },
+  markers: { size: 0 },
+  colors: ["#FFFFFF", "#00D4FF"],
+  xaxis: {
+    labels: { show: false },
+    axisBorder: { show: false },
+    axisTicks: { show: false }
+  },
+  yaxis: {
+   show: false,
+  },
+  tooltip: { 
+    theme: 'dark',
+  },
+  legend: { show: false }
 };
 
 onMounted(refreshData);

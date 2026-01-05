@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto pt-20">
+  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 pt-20 overflow-y-auto bg-black/80 backdrop-blur-sm">
     <div class="bg-[#0F1724] border border-[#1f3348] w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl">
       <div class="p-6 border-b border-[#1f3348] flex justify-between items-start">
         <div>
@@ -17,35 +17,40 @@
             </span>
           </div>
         </div>
-        <button @click="$emit('close')" class="text-gray-500 hover:text-white transition text-2xl">&times;</button>
+        <button @click="$emit('close')" class="text-2xl text-gray-500 transition hover:text-white">&times;</button>
       </div>
 
       <div class="p-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-2 gap-4 mb-8 md:grid-cols-4">
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-gray-500 text-xs uppercase">Market Cap</p>
-            <p class="text-gray-200 font-semibold">{{ item.marketcap ? currencySymbol + item.marketcap.toLocaleString() : 'N/A' }}</p>
+            <p class="text-xs text-gray-500 uppercase">Market Cap</p>
+            <p class="font-semibold text-gray-200">{{ item.marketcap ? currencySymbol + item.marketcap.toLocaleString() : 'N/A' }}</p>
           </div>
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-gray-500 text-xs uppercase">Volume (24h)</p>
-            <p class="text-gray-200 font-semibold">{{ item.volume ? item.volume.toLocaleString() : 'N/A' }}</p>
+            <p class="text-xs text-gray-500 uppercase">Volume (24h)</p>
+            <p class="font-semibold text-gray-200">{{ item.volume ? item.volume.toLocaleString() : 'N/A' }}</p>
           </div>
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-gray-500 text-xs uppercase">All Time High</p>
-            <p class="text-gray-200 font-semibold">{{ currencySymbol }}{{ (item.price * 1.2).toLocaleString() }}</p>
+            <p class="text-xs text-gray-500 uppercase">All Time High</p>
+            <p class="font-semibold text-gray-200">{{ currencySymbol }}{{ (item.price * 1.2).toLocaleString() }}</p>
           </div>
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-gray-500 text-xs uppercase">All Time Low</p>
-            <p class="text-gray-200 font-semibold">{{ currencySymbol }}{{ (item.price * 0.7).toLocaleString() }}</p>
+            <p class="text-xs text-gray-500 uppercase">All Time Low</p>
+            <p class="font-semibold text-gray-200">{{ currencySymbol }}{{ (item.price * 0.7).toLocaleString() }}</p>
           </div>
         </div>
 
         <div class="bg-[#16213A]/50 p-4 rounded-xl border border-[#1f3348]">
-          <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-medium text-gray-300">Market Performance</h3>
             <div class="flex gap-2">
-              <button v-for="t in ['1D', '1W', '1M', '1Y']" :key="t" 
-                class="text-[10px] px-2 py-1 rounded bg-[#0F1724] border border-[#1f3348] text-gray-400 hover:text-[#00D4FF] hover:border-[#00D4FF] transition">
+              <button 
+                v-for="t in ['1D', '1W', '1M', '1Y']" 
+                :key="t" 
+                @click="changeTimeRange(t)"
+                :class="selectedTime === t ? 'bg-[#00D4FF] text-black border-[#00D4FF]' : 'bg-[#0F1724] border-[#1f3348] text-gray-400'"
+                class="text-[10px] px-2 py-1 rounded border hover:text-[#00D4FF] hover:border-[#00D4FF] transition"
+              >
                 {{ t }}
               </button>
             </div>
@@ -63,7 +68,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import VueApexCharts from "vue3-apexcharts";
 
 const props = defineProps({
@@ -72,7 +77,14 @@ const props = defineProps({
   currencySymbol: String
 });
 
-defineEmits(['close']);
+const emit = defineEmits(['close', 'timeRangeChange']);
+
+const selectedTime = ref('1M');
+
+const changeTimeRange = (range) => {
+  selectedTime.value = range;
+  emit('timeRangeChange', { symbol: props.item.symbol, range: range });
+};
 
 // Placeholder for historical data 
 const series = computed(() => [{

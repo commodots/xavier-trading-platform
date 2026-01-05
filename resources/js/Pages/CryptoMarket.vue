@@ -7,6 +7,9 @@
           class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-0 outline-none" />
       </div>
 
+      <HoldingPerformanceChart title="Crypto" currencySymbol="₦" :seriesData="portfolioData" :totalValue="totalValue"
+        :percentageChange="changePercent" :loading="isGraphLoading" @rangeChange="fetchPortfolioPerformance" />
+
       <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="text-gray-400 border-b border-[#1f3348]">
@@ -59,13 +62,39 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
+import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
+import api from "@/api";
 
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
+
+const portfolioData = ref([]);
+const totalValue = ref(0);
+const changePercent = ref(0);
+const isGraphLoading = ref(false);
+
+const fetchPortfolioPerformance = async (range = '1W') => {
+  isGraphLoading.value = true;
+  try {
+    const response = await api.get(`/portfolio/history`, {
+      params: { category: 'crypto', range }
+    });
+
+    portfolioData.value = response.data.series;
+    totalValue.value = response.data.total;
+    changePercent.value = response.data.change;
+  } catch (e) {
+    console.error('Failed to fetch crypto history', e);
+  } finally {
+    isGraphLoading.value = false;
+  }
+};
+
+onMounted(() => fetchPortfolioPerformance());
 
 const openDetails = (item) => {
   selectedItem.value = item;

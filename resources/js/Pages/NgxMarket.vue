@@ -1,21 +1,20 @@
 <template>
   <MainLayout>
     <div>
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">📈 NGX Market</h1>
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search stocks..."
-          class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-0 outline-none"
-        />
+        <input v-model="search" type="text" placeholder="Search stocks..."
+          class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-0 outline-none" />
       </div>
+
+      <HoldingPerformanceChart title="NGX" currencySymbol="₦" :seriesData="portfolioData" :totalValue="totalValue"
+        :percentageChange="changePercent" :loading="isGraphLoading" @rangeChange="fetchPortfolioPerformance" />
 
       <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="text-gray-400 border-b border-[#1f3348]">
             <tr>
-              <th class="py-3 px-4 text-left">Symbol</th>
+              <th class="px-4 py-3 text-left">Symbol</th>
               <th class="text-left">Company</th>
               <th class="text-right">Price (₦)</th>
               <th class="text-right">24h Change</th>
@@ -25,37 +24,25 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="stock in filteredStocks"
-              :key="stock.symbol"
-              class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
-            >
-              <td class="py-3 px-4 font-medium">{{ stock.symbol }}</td>
+            <tr v-for="stock in filteredStocks" :key="stock.symbol"
+              class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
+              <td class="px-4 py-3 font-medium">{{ stock.symbol }}</td>
               <td>{{ stock.name }}</td>
               <td class="text-right">{{ stock.price.toLocaleString() }}</td>
-              <td
-                class="text-right"
-                :class="stock.change >= 0 ? 'text-green-400' : 'text-red-400'"
-              >
+              <td class="text-right" :class="stock.change >= 0 ? 'text-green-400' : 'text-red-400'">
                 {{ stock.change }}%
               </td>
               <td class="text-right">{{ stock.volume.toLocaleString() }}</td>
-              <td class="text-right w-32">
-                <apexchart
-                  type="line"
-                  height="40"
-                  :options="sparkOptions"
-                  :series="[{ data: stock.spark }]"
-                />
+              <td class="w-32 text-right">
+                <apexchart type="line" height="40" :options="sparkOptions" :series="[{ data: stock.spark }]" />
               </td>
               <td class="text-center">
-                <button 
-                @click="openDetails(stock)"
-                class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
+                <button @click="openDetails(stock)"
+                  class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Details
                 </button>
               </td>
-<td class="text-center">
+              <td class="text-center">
                 <button class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Trade
                 </button>
@@ -64,23 +51,51 @@
           </tbody>
         </table>
       </div>
-      <MarketDetailsModal 
-      :isOpen="isModalOpen" 
-      :item="selectedItem" 
-      :currencySymbol="'₦'"
+      <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" :currencySymbol="'₦'"
         @close="isModalOpen = false" />
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
+import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
+import api from "@/api";
 
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
+
+const portfolioData = ref([]);
+const totalValue = ref(0);
+const changePercent = ref(0);
+const isGraphLoading = ref(false);
+
+const fetchPortfolioPerformance = async (range = '1W') => {
+  isGraphLoading.value = true;
+  try {
+   
+    const response = await api.get(`/portfolio/history`, {
+      params: {
+        category: 'local', // Change per page: 'local', 'foreign', 'crypto'
+        range: range
+      }
+    });
+
+  
+    portfolioData.value = response.data.series;
+    totalValue.value = response.data.total;
+    changePercent.value = response.data.change;
+  } catch (e) {
+    console.error("Failed to fetch history", e);
+  } finally {
+    isGraphLoading.value = false;
+  }
+};
+
+onMounted(() => fetchPortfolioPerformance());
 
 const openDetails = (item) => {
   selectedItem.value = item;
