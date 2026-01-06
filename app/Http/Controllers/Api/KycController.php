@@ -17,63 +17,53 @@ class KycController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'bvn' => 'required_without:nin|nullable|string|size:11',
-            'nin' => 'nullable|string|size:11',
-            'photo' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
-            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'id_type' => 'required|in:bvn,nin,tin,passport,dl,id_card',
+            'id_number' => 'required|string',
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB
+            'proof_of_address' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         $user = Auth::user();
 
-// If they have both, it's 'full'. If only BVN, it's 'basic'.
-        $level = ($request->bvn && $request->nin) ? 'full' : 'basic';
+        $updateData = [
+            'user_id' => $user->id,
+            'id_type' => $request->id_type,
+            'id_number' => $request->id_number,
+            'status' => 'pending'
+        ];
 
-        $idType = $request->nin ? 'nin' : 'bvn';
-        $idNumber = $request->nin ?? $request->bvn;
-
-        $kyc = KycProfile::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'id_type'   => $idType,
-            'id_number' => $idNumber,
-                'bvn' => $request->bvn, 
-                'nin' => $request->nin,
-                'status' => 'pending',
-                'level'     => $level,
-            ]
-        );
-
-        $paths = [];
-
-        if ($request->hasFile('photo')) {
-            $paths['id_front'] = $request->file('photo')->store('kyc/id_fronts', 'public');
-        }
         if ($request->hasFile('document')) {
-            $paths['proof'] = $request->file('document')->store('kyc/proofs', 'public');
-        }
-        if (!empty($paths)) {
-            $kyc->update($paths);
+            $column = match ($request->id_type) {
+                'passport' => 'intl_passport',
+                'dl' => 'drivers_license',
+                'id_card' => 'national_id',
+                default => 'id_number'
+            };
+            $updateData[$column] = $request->file('document')->store('kyc/docs', 'public');
         }
 
+        if ($request->hasFile('proof_of_address')) {
+            $updateData['proof_of_address'] = $request->file('proof_of_address')->store('kyc/address', 'public');
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => "KYC submitted successfully as $level verification!",
-            'data' => $kyc,
-        ]);
+        $kyc = KycProfile::updateOrCreate(['user_id' => $user->id], $updateData);
+
+        return response()->json(['success' => true, 'message' => 'Documents submitted for review.', 'data' => $kyc]);
     }
 
     /**
      * Get KYC info for authenticated user
      */
-    public function show() {
-    $user = Auth::user();
-    $kyc = KycProfile::where('user_id', $user->id)->first(); 
-    return response()->json(['success' => true, 'data' => $kyc]);
+    public function show()
+    {
+        $user = Auth::user();
+        $kyc = KycProfile::where('user_id', $user->id)->first();
+        return response()->json(['success' => true, 'data' => $kyc]);
     }
 
     public function submit(Request $request)
     {
+        $level = $request->input('level', null);
         ActivityLog::log(Auth::id(), 'KYC Submission', ['level' => $level]);
         return $this->update($request);
     }

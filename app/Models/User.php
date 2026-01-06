@@ -5,12 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory; // ✅ correct import
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Crypt;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
     use HasRoles;
@@ -27,7 +28,8 @@ class User extends Authenticatable
         'country',
         'next_of_kin',
         'next_of_kin_phone',
-        'next_of_kin_email'
+        'next_of_kin_email',
+        'kyc_status'
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -42,6 +44,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'dob' => 'date',
     ];
+
+    // kyc_status is available via fillable above
 
     // ✅ Relationship: One User has one Wallet
     public function wallet()
@@ -106,5 +110,27 @@ class User extends Authenticatable
     public function isStaff()
     {
         return $this->hasAnyRole(['admin', 'accounts', 'manager', 'compliance', 'support']);
+    }
+
+    /**
+     * Check if the user's email has been verified.
+     */
+    public function hasVerifiedEmail(): bool
+    {
+        return !is_null($this->email_verified_at);
+    }
+
+    /**
+     * Mark the user's email as verified.
+     */
+    public function markEmailAsVerified(): bool
+    {
+        if ($this->hasVerifiedEmail()) {
+            return false;
+        }
+
+        $this->forceFill(['email_verified_at' => $this->freshTimestamp()])->save();
+
+        return true;
     }
 }

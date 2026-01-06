@@ -18,6 +18,8 @@ class PlatformEarning extends Model
     protected $fillable = [
         'transaction_id',
         'amount',
+        'currency',
+        'amount_ngn',
         'source'
     ];
 
@@ -29,4 +31,9 @@ class PlatformEarning extends Model
     {
         return $this->belongsTo(NewTransaction::class, 'transaction_id');
     }
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'amount_ngn' => 'decimal:2'
+    ];
 }

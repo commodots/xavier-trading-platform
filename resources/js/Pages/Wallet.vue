@@ -189,7 +189,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
@@ -234,6 +234,16 @@ const formatDate = (dateStr) => {
 };
 
 // --- API Methods ---
+const fetchLinkedAccountsFor = async (currency) => {
+  try {
+    const accRes = await api.get(`/user/linked-accounts/index?currency=${currency}`);
+    linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
+  } catch (e) {
+    console.error('Failed to fetch linked accounts for', currency, e);
+    linkedAccounts.value = [];
+  }
+};
+
 const refreshData = async () => {
   balances.value = { balance_ngn: 0, balance_usd: 0 };
   try {
@@ -244,6 +254,7 @@ const refreshData = async () => {
     ]);
 
     balances.value = balRes.data.data;
+    // general list (no currency filter) for settings and other screens
     linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
 
     if (Array.isArray(txnRes.data)) {
@@ -263,6 +274,9 @@ const openTransaction = (type) => {
   selectedAccountId.value = "";
   message.value = "";
   showModal.value = true;
+  if (type === 'withdrawal') {
+    fetchLinkedAccountsFor(form.value.currency);
+  }
 };
 
 const submitTransaction = async () => {
@@ -370,4 +384,10 @@ const combinedOptions = {
 };
 
 onMounted(refreshData);
+// refresh linked accounts when wallet currency toggles while withdrawing
+watch(() => form.value.currency, (val) => {
+  if (txnType.value === 'withdrawal') {
+    fetchLinkedAccountsFor(val);
+  }
+});
 </script>

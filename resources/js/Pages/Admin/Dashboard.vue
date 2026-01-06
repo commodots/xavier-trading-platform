@@ -13,6 +13,8 @@
           :value="'₦' + stats.todayEarnings.toLocaleString()" 
           icon="PieChart"
           :subtitle="`This Month's Earnings: ₦` + stats.monthEarnings.toLocaleString()"
+          @click="$router.push({ name: 'admin-control-panel', query: { tab: 'platform-earnings' } })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
         />
       </div>
 

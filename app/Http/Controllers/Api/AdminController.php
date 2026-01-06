@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
@@ -13,6 +14,9 @@ use App\Models\PlatformEarning;
 use App\Models\TransactionCharge;
 use App\Models\Order;
 use App\Models\ActivityLog;
+use App\Models\KycProfile;
+use App\Models\KycSetting;
+
 
 class AdminController extends Controller
 {
@@ -271,7 +275,7 @@ class AdminController extends Controller
     */
     public function kycs(Request $request)
     {
-        $kycs = UserKyc::with('user')->latest()->paginate(20);
+        $kycs = KycProfile::with('user')->latest()->paginate(20);
 
         return response()->json([
             'success' => true,
@@ -288,19 +292,41 @@ class AdminController extends Controller
     public function reviewKyc(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:pending,verified,rejected'
+            'status' => 'required|in:pending,verified,rejected',
+            'tier' => 'sometimes|integer|min:0|max:3',
+            'rejection_reason' => 'required_if:status,rejected',
+            'daily_limit' => 'required|numeric|min:0'
         ]);
 
-        $kyc = UserKyc::findOrFail($id);
-        $oldStatus = $kyc->status;
-        $kyc->status = $request->status;
-        $kyc->save();
+        $kyc = KycProfile::where('user_id', $id)->firstOrFail();
 
+       
+        $targetTier = $request->input('tier');
+        if ($request->status === 'verified' && !$targetTier) {
+            $targetTier = $this->computeTierFromDocuments($kyc);
+        }
+
+        $kyc->update([
+            'status' => $request->status,
+            'tier' => $targetTier ?? 0,
+            'daily_limit' => $request->daily_limit,
+            'level' => match ((int)($targetTier ?? 0)) {
+                1 => 'basic',
+                2 => 'mid',
+                3 => 'full',
+                default => 'none'
+            }
+        ]);
+        
+        try {
+            $kyc->user->update(['kyc_status' => $request->status]);
+        } catch (\Throwable $e) {
+        }
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
                 'activity'   => 'KYC Review',
-                'details'    => "Reviewed KYC for {$kyc->user->email}. Status updated from [{$oldStatus}] to [{$request->status}]",
+                'details'    => "Reviewed KYC for {$kyc->user->email}. Upgraded {$kyc->user->email} to Tier {$request->tier} with limit {$request->daily_limit}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
@@ -314,6 +340,147 @@ class AdminController extends Controller
         ]);
     }
 
+    /**
+     * Determine best tier for a given KYC profile by checking required_documents in kyc_settings
+     */
+    protected function computeTierFromDocuments($kyc)
+    {
+        $settings = \DB::table('kyc_settings')->orderByDesc('tier')->get();
+        foreach ($settings as $s) {
+            $req = json_decode($s->required_documents ?? '[]', true) ?: [];
+            if (empty($req)) continue;
+
+            $hasAll = true;
+            foreach ($req as $doc) {
+                // map document keys to kyc columns
+                $col = match ($doc) {
+                    'bvn' => 'bvn',
+                    'nin' => 'nin',
+                    'tin' => 'tin',
+                    'intl_passport' => 'intl_passport',
+                    'national_id' => 'national_id',
+                    'drivers_license' => 'drivers_license',
+                    'proof_of_address' => 'proof_of_address',
+                    default => $doc
+                };
+
+                if (empty($kyc->{$col})) {
+                    $hasAll = false;
+                    break;
+                }
+            }
+
+            if ($hasAll) {
+                return (int)$s->tier;
+            }
+        }
+
+        return 0;
+    }
+
+    public function getKycSettings()
+    {
+        $settings = KycSetting::orderBy('tier')->get();
+        return response()->json(['success' => true, 'data' => $settings]);
+    }
+
+    public function getStaffPermissions()
+    {
+        // List all roles except 'admin' and 'user' and current permission mappings
+        $roles = \Spatie\Permission\Models\Role::whereNotIn('name', ['admin', 'user'])->pluck('name');
+        $mappings = [];
+        foreach ($roles as $r) {
+            $sp = \App\Models\StaffPermission::forRole($r);
+            $mappings[] = [
+                'role' => $r,
+                'permissions' => $sp ? $sp->permissions : []
+            ];
+        }
+
+        return response()->json(['success' => true, 'data' => $mappings]);
+    }
+
+    public function updateStaffPermissions(Request $request)
+    {
+        $request->validate([
+            'role' => 'required|string',
+            'permissions' => 'required|array'
+        ]);
+
+        // ensure only admin can change permissions
+        if (!auth()->user()->hasRole('admin')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        \App\Models\StaffPermission::updateOrCreate([
+            'role' => $request->role
+        ], [
+            'permissions' => $request->permissions
+        ]);
+
+        try {
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'activity' => 'Staff Permission Update',
+                'details' => 'Updated staff role permissions for ' . $request->role,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+        } catch (\Throwable $e) {}
+
+        return response()->json(['success' => true, 'message' => 'Permissions updated']);
+    }
+
+    /**
+     * Return a single KYC profile for review by admins.
+     */
+    public function getKyc($id)
+    {
+        $kyc = KycProfile::with('user')->where('user_id', $id)->firstOrFail();
+
+
+        // Provide friendly fields expected by the frontend if they exist
+        return response()->json([
+            ...$kyc->toArray(),
+            'id_card' => $kyc->id_card_front ? asset('storage/' . $kyc->id_card_front) : asset('storage/' . $kyc->id_card),
+            'selfie'  => $kyc->selfie ? asset('storage/' . $kyc->selfie) : null,
+        ]);
+    }
+    public function updateKycSettings(Request $request)
+    {
+        if (!auth()->user()->hasRole('admin') && !\App\Services\StaffPermissionService::roleHasCapability(auth()->user(), 'manage_kyc_settings')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+        $request->validate([
+            'settings' => 'required|array',
+            'settings.*.tier' => 'required|integer',
+            'settings.*.daily_limit' => 'required|numeric',
+            'settings.*.required_documents' => 'sometimes|array'
+        ]);
+
+        foreach ($request->settings as $set) {
+            $setting = KycSetting::updateOrCreate(
+                ['tier' => $set['tier']],
+                [
+                    'tier_name' => $set['tier_name'] ?? 'Tier ' . $set['tier'],
+                    'daily_limit' => $set['daily_limit'],
+                    'required_documents' => $set['required_documents'] ?? []
+                ]
+            );
+        }
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Update KYC Settings',
+                'details'    => 'Admin updated global tier limits and document requirements.',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+
+        return response()->json(['success' => true, 'message' => 'Tier limits updated']);
+    }
 
 
     /*
@@ -361,11 +528,57 @@ class AdminController extends Controller
     public function getEarnings()
     {
         return response()->json([
-            'today_earnings' => PlatformEarning::whereDate('created_at', today())->sum('amount'),
-            'this_month_earnings' => PlatformEarning::whereMonth('created_at', now()->month)->sum('amount'),
+            'today_earnings' => PlatformEarning::whereDate('created_at', today())->sum('amount_ngn'),
+            'this_month_earnings' => PlatformEarning::whereMonth('created_at', now()->month)->sum('amount_ngn'),
             'by_type' => NewTransaction::select('type')
                 ->selectRaw('SUM(charge) as total_earnings')
                 ->groupBy('type')->get(),
+        ]);
+    }
+
+    /**
+     * Earnings report with pagination, filtering and timeseries data
+     */
+    public function getEarningsReport(Request $request)
+    {
+        $query = PlatformEarning::with('transaction.user');
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where('source', 'like', "%{$q}%")
+                ->orWhereHas('transaction.user', function ($u) use ($q) {
+                    $u->where('email', 'like', "%{$q}%");
+                });
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        $earnings = $query->latest()->paginate($request->input('per_page', 20));
+        // timeseries for chart: daily totals in range
+
+        $totalNgValue = $query->sum('amount_ngn');
+
+        $start = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : now()->subDays(14);
+        $end = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : now();
+
+        $series = PlatformEarning::selectRaw("DATE(created_at) as day, SUM(amount_ngn) as total")
+            ->whereDate('created_at', '>=', $start)
+            ->whereDate('created_at', '<=', $end)
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get();
+
+
+        return response()->json([
+            'success' => true,
+            'data' => $earnings,
+            'timeseries' => $series,
+            'total_ngn' => number_format($totalNgValue, 2)
         ]);
     }
     public function exportTransactions(Request $request)
@@ -412,10 +625,17 @@ class AdminController extends Controller
     }
     public function getCharges()
     {
+        if (!auth()->user()->hasRole('admin') && !\App\Services\StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
         return TransactionCharge::all();
     }
     public function updateCharge(Request $request, $id)
     {
+        if (!auth()->user()->hasRole('admin') && !\App\Services\StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
         $request->validate([
             'charge_type' => 'required|in:flat,percentage',
             'value' => 'required|numeric',

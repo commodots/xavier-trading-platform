@@ -8,12 +8,17 @@ use App\Models\KycProfile;
 use App\Models\LinkedAccount;
 use App\Models\NotificationPreference;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class UserSettingsSeeder extends Seeder
 {
   public function run(): void
   {
-    User::all()->each(function ($user) {
+    $kycSettings = DB::table('kyc_settings')->get()->keyBy('tier');
+
+    $docs = ['drivers_license', 'intl_passport', 'national_id'];
+
+    User::all()->each(function ($user) use ($kycSettings, $docs) {
 
       $user->update([
         'country' => fake()->country(),
@@ -23,19 +28,43 @@ class UserSettingsSeeder extends Seeder
       ]);
 
       $status = fake()->randomElement(['pending', 'approved', 'rejected']);
+      $tier = fake()->numberBetween(1, 3);
 
-      $reason = ($status === 'rejected') ? 'Document image was blurry.' : null;
+      $limit = $kycSettings->has($tier) ? $kycSettings[$tier]->daily_limit : 50000;
+      $levelName = $kycSettings->has($tier) ? strtolower($kycSettings[$tier]->tier_name) : 'basic';
 
-      KycProfile::updateOrCreate(
-        ['user_id' => $user->id],
-        [
-          'level' => fake()->randomElement(['NONE', 'BASIC', 'FULL']),
-          'status' => $status, // Use the variable
-          'id_type' => fake()->randomElement(['NIN', 'BVN', 'passport']),
-          'id_number' => fake()->numerify('###########'),
-          'rejection_reason' => $reason,
-        ]
-      );
+      $reason = ($status === 'rejected') ? 'Document image was blurry or expired..' : null;
+
+      $choice = $docs[array_rand($docs)];
+
+      $kycData = [
+        'tier' => $tier,
+        'level' => (string) $levelName,
+        'status' => $status,
+        'daily_limit' => ($status === 'approved') ? $limit : 0,
+
+        'id_type' => $choice, // Use the random choice
+        'id_number' => strtoupper(substr($choice, 0, 3)) . $user->id . rand(1000, 9999),
+
+        'bvn' => fake()->numerify('###########'),
+        'nin' => fake()->numerify('###########'),
+        'tin' => fake()->numerify('##########'),
+        'rejection_reason' => $reason,
+      ];
+
+      $kycData[$choice] = "kyc/docs/{$choice}_{$user->id}.jpg";
+
+      // If it's an ID card, add the back as well
+      if ($choice === 'id_card_front') {
+        $kycData['id_card_back'] = "kyc/docs/id_card_back_{$user->id}.jpg";
+      }
+
+      // add a sample proof of address in some cases (from first seeder)
+      if (rand(0, 1)) {
+        $kycData['proof_of_address'] = "kyc/address/poa_{$user->id}.pdf";
+      }
+
+      KycProfile::updateOrCreate(['user_id' => $user->id], $kycData);
 
 
       $types = ['bank', 'crypto_wallet'];

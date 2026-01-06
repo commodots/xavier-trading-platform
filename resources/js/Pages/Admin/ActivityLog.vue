@@ -22,11 +22,13 @@
             <select v-model="filters.type" @change="fetchLogs(1)"
               class="px-3 py-2 text-sm text-white bg-gray-800 border border-gray-700 rounded outline-none focus:border-blue-500">
               <option value="">All Types</option>
-              <option value="Login">Login</option>
-              <option value="Logout">Logout</option>
+              <option value="Registration">Registration</option>
+<option value="Login">Login</option>
+<option value="Logout">Logout</option>
+<option value="Failed Login">Failed Login Attempts</option>
               <option value="Profile Update">Profile Update</option>
               <option value="Deposit">Deposit</option>
-  <option value="Withdrawal">Withdrawal</option>
+              <option value="Withdrawal">Withdrawal</option>
               <option value="Role Update">Role Update</option>
               <option value="Toggle Status">Toggle Status</option>
               <option value="KYC Submission">KYC Submission</option>
@@ -197,8 +199,10 @@ const resetFilters = () => {
 
 const getStatusClass = (activity) => {
   switch (activity) {
+    case 'Registration': return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
     case 'Login': return 'bg-green-500/10 text-green-400 border border-green-500/20';
-    case 'Logout': return 'bg-red-500/10 text-red-400 border border-red-500/20';
+    case 'Logout': return 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+    case 'Failed Login': return 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
     case 'KYC Submission': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
     case 'KYC Review': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
     case 'Role Update': return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
@@ -215,7 +219,7 @@ const getStatusClass = (activity) => {
     case 'Linked Account Added': return 'bg-violet-500/10 text-violet-400 border border-violet-500/20';
     default: return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
   }
-  
+
 };
 
 const formatDate = (dateString) => {

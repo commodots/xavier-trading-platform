@@ -8,15 +8,24 @@ use App\Models\ActivityLog;
 use App\Models\NewTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\StaffPermissionService;
 
 class TransactionChargeController extends Controller
 {
     public function index()
     {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
         return response()->json(TransactionCharge::all());
     }
     public function store(Request $request)
     {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
         $request->validate([
             'transaction_type' => 'required|string',
             'charge_type' => 'required|in:flat,percentage',
@@ -26,6 +35,9 @@ class TransactionChargeController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
         $charge = TransactionCharge::findOrFail($id);
 
         $oldValue = $charge->value;

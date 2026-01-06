@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\UserKyc;
+use App\Models\SystemSetting;
+use App\Models\KycSetting;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\ActivityLog;
@@ -16,6 +18,19 @@ class ProfileController extends Controller
     {
         $user = Auth::user()->load(['kyc', 'linkedAccounts']);
         $user->name = $user->name ?: trim($user->first_name . ' ' . $user->last_name);
+
+        // attach system base currency and tier-based daily_limit to the kyc payload so frontend can format limits
+        $settings = SystemSetting::first();
+        $baseCurrency = $settings->base_currency ?? 'NGN';
+        if ($user->kyc) {
+            // determine tier (default to 1)
+            $tier = (int) ($user->kyc->tier ?? 1);
+            $kycSetting = KycSetting::getByTier($tier);
+            if ($kycSetting) {
+                $user->kyc->daily_limit = $kycSetting->daily_limit;
+            }
+            $user->kyc->currency = $user->kyc->currency ?? $baseCurrency;
+        }
 
         return response()->json([
             'success' => true,

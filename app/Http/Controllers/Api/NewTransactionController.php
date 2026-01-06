@@ -48,7 +48,7 @@ class NewTransactionController extends Controller
             'user_id' => $user->id,
             'type' => 'deposit',
             'amount' => $request->amount,
-            'currency' => $currency,
+            'currency' => $request->currency,
             'status' => 'completed',
             'net_amount' => $request->amount
         ]);
@@ -65,7 +65,6 @@ class NewTransactionController extends Controller
             ['balance' => 0]
         );
         $wallet->increment('balance', $netAmount);
-
 
         try {
             ActivityLog::create([
@@ -88,10 +87,7 @@ class NewTransactionController extends Controller
     {
         $status = TransactionType::where('name', 'withdrawal')->first();
         if ($status && !$status->active) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Withdrawals are temporarily disabled.'
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'Withdrawals are temporarily disabled.'], 403);
         }
 
         $request->validate([
@@ -101,65 +97,89 @@ class NewTransactionController extends Controller
         ]);
 
         $user = auth()->user();
-        $currency = $request->currency;
+        $kyc = $user->kyc;
 
-        $account = LinkedAccount::where('user_id', $user->id)
-            ->where('id', $request->linked_account_id)
-            ->firstOrFail();
+        // 1. Basic KYC Guard
+        if (!$kyc || $kyc->status !== 'verified' || $kyc->tier < 1) {
+            return response()->json(['success' => false, 'message' => 'Verified KYC is required for withdrawals.'], 403);
+        }
 
+        // 2. Fetch global limit for this tier
+        $tierSettings = \App\Models\KycSetting::where('tier', $kyc->tier)->first();
+        $dailyLimit = $tierSettings ? $tierSettings->daily_limit : 0;
+
+        // 3. Calculate today's usage (summing amounts)
+        $todayWithdrawn = NewTransaction::where('user_id', $user->id)
+            ->where('type', 'withdrawal')
+            ->whereIn('status', ['completed', 'pending'])
+            ->whereDate('created_at', now())
+            ->sum('amount');
+
+        if (($todayWithdrawn + $request->amount) > $dailyLimit) {
+            $remaining = max(0, $dailyLimit - $todayWithdrawn);
+            return response()->json([
+                'success' => false,
+                'message' => "Daily limit exceeded for " . ($tierSettings->tier_name ?? "Tier $kyc->tier") . ". Remaining: " . number_format($remaining, 2)
+            ], 403);
+        }
+
+        // 4. Ensure linked account belongs to user and currency rules
+        $account = LinkedAccount::where('user_id', $user->id)->where('id', $request->linked_account_id)->firstOrFail();
+
+        // Banks must match the withdrawal currency; crypto wallets are universal
+        if ($account->type === 'bank' && ($account->currency ?? '') !== $request->currency) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected bank account currency does not match withdrawal currency.'
+            ], 422);
+        }
         $chargeAmount = TransactionCharge::calculate('withdrawal', $request->amount, null);
         $totalDeduction = $request->amount + $chargeAmount;
 
         try {
-            return DB::transaction(function () use ($user, $currency, $request, $totalDeduction, $account) {
+            return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount) {
                 $wallet = Wallet::where('user_id', $user->id)
-                    ->where('currency', $currency)
+                    ->where('currency', $request->currency)
                     ->lockForUpdate()
                     ->first();
 
                 if (!$wallet || $wallet->balance < $totalDeduction) {
-                    throw new \Exception("Insufficient $currency wallet balance");
+                    throw new \Exception("Insufficient {$request->currency} balance");
                 }
 
                 $txn = NewTransaction::create([
-                    'user_id'    => $user->id,
-                    'type'       => 'withdrawal',
-                    'amount'     => $request->amount,
-                    'currency'   => $currency,
+                    'user_id' => $user->id,
+                    'type' => 'withdrawal',
+                    'amount' => $request->amount,
+                    'currency' => $request->currency,
+                    'charge' => $chargeAmount,
                     'net_amount' => $totalDeduction,
-                    'status'     => 'completed',
-                    'meta'       => [
-                        'bank_name'      => $account->provider,
-                        'account_number' => $account->account_number,
-                        'account_name'   => $account->account_name
+                    'status' => 'pending',
+                    'meta' => [
+                        'bank' => $account->provider,
+                        'acc_no' => $account->account_number,
+                        'acc_name' => $account->account_name
                     ]
                 ]);
 
                 $wallet->decrement('balance', $totalDeduction);
-                TransactionCharge::calculate('withdrawal', $request->amount, $txn);
 
-
+                // Log the activity
                 try {
                     ActivityLog::create([
                         'user_id'    => $user->id,
                         'activity'   => 'Withdrawal',
-                        'details'    => "Withdrew {$request->amount} {$currency} to {$account->provider} ({$account->account_number}). Total deduction: {$totalDeduction}.",
+                        'details'    => "Withdrew {$request->amount} {$request->currency} to {$account->provider}. Total deduction: {$totalDeduction}.",
                         'ip_address' => request()->ip(),
                         'user_agent' => request()->userAgent(),
                     ]);
                 } catch (\Throwable $e) {
                 }
 
-                return response()->json([
-                    'success' => true,
-                    'details' => $txn->fresh()
-                ]);
+                return response()->json(['success' => true, 'details' => $txn->fresh()]);
             });
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
     }
 }

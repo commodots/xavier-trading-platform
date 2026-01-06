@@ -107,7 +107,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /* KYC */
         Route::get('/kycs', [AdminController::class, 'kycs']);
+        Route::get('/kyc/{id}', [AdminController::class, 'getKyc']);
         Route::post('/kycs/{id}/review', [AdminController::class, 'reviewKyc']);
+        Route::get('/kyc-settings', [AdminController::class, 'getKycSettings']);
+        Route::post('/kyc-settings', [AdminController::class, 'updateKycSettings']);
 
         /* Settings */
         Route::get('/settings', [SystemSettingsController::class, 'get']);
@@ -122,6 +125,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services/{id}/connection', [AdminServiceController::class, 'addConnection']);
         Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
 
+        // Staff permissions management
+        Route::get('/staff-permissions', [\App\Http\Controllers\Api\AdminController::class, 'getStaffPermissions']);
+        Route::post('/staff-permissions', [\App\Http\Controllers\Api\AdminController::class, 'updateStaffPermissions']);
+
         Route::apiResource('transaction-types', TransactionTypeController::class);
 
         Route::get('/transaction-charges', [TransactionChargeController::class, 'index']);
@@ -130,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::get('/earnings', [AdminController::class, 'getEarnings']);
+        Route::get('/earnings/report', [AdminController::class, 'getEarningsReport']);
         Route::get('/transactions/export', [AdminController::class, 'exportTransactions']);
 
         //Activity Log

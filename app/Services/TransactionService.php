@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\TransactionCharge;
 use App\Models\PlatformEarning;
 use App\Models\NewTransaction;
+use App\Models\SystemSetting;
 
 class TransactionService {
     public static function applyFees(NewTransaction $transaction) {
@@ -29,9 +30,16 @@ class TransactionService {
         $transaction->save();
 
         // Save to Platform Earnings 
+        $currency = $transaction->currency ?? 'NGN';
+        $settings = SystemSetting::first();
+        $rate = $settings->usd_to_ngn ?? 1000;
+        $amountNg = $currency === 'NGN' ? $fee : ($currency === 'USD' ? ($fee * $rate) : $fee);
+
         PlatformEarning::create([
             'transaction_id' => $transaction->id,
             'amount' => $fee,
+            'currency' => $currency,
+            'amount_ngn' => $amountNg,
             'source' => $transaction->type
         ]);
 

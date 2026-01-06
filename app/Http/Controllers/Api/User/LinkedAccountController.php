@@ -13,7 +13,24 @@ class LinkedAccountController extends Controller
     // Fetch all accounts for the user
     public function index()
     {
-        $accounts = LinkedAccount::where('user_id', Auth::id())->get();
+        $currency = request()->query('currency');
+
+        $accounts = LinkedAccount::where('user_id', Auth::id())
+            ->where(function($q) use ($currency) {
+                // always include crypto wallets
+                $q->where('type', 'crypto_wallet');
+
+                // include banks only if they match the requested currency (or include all if no currency provided)
+                if ($currency) {
+                    $q->orWhere(function($q2) use ($currency) {
+                        $q2->where('type', 'bank')->where('currency', $currency);
+                    });
+                } else {
+                    $q->orWhere('type', 'bank');
+                }
+            })
+            ->get();
+
         return response()->json(['success' => true, 'data' => $accounts]);
     }
 

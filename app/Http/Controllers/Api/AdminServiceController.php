@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use App\Services\StaffPermissionService;
 
 class AdminServiceController extends Controller
 {
@@ -20,6 +21,9 @@ class AdminServiceController extends Controller
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
         $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:50|unique:services,type|regex:/^[a-z0-9_]+$/',
@@ -42,6 +46,9 @@ class AdminServiceController extends Controller
 
     public function addConnection(Request $request, $serviceId)
     {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
         $request->validate([
             'mode' => 'required|in:live,testing,dummy',
             'base_url' => 'required|url|max:255',
@@ -83,11 +90,18 @@ class AdminServiceController extends Controller
 
     public function toggleService($id)
     {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
         $service = Service::findOrFail($id);
         $old = $service->is_active;
         $service->is_active = !$service->is_active;
         $service->save();
 
+        // If we just activated this service, deactivate all others (global toggle)
+        if ($service->is_active) {
+            Service::where('id', '!=', $service->id)->update(['is_active' => false]);
+        }
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),

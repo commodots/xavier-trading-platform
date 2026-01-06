@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\UserKyc;
+use App\Models\KycProfile;
 use App\Models\Wallet;
 use App\Services\QoreidService;
 use Exception;
 use App\Http\Resources\UserResource;
+use App\Models\ActivityLog;
 
 class OnboardingController extends Controller
 {
@@ -72,18 +74,21 @@ class OnboardingController extends Controller
 
                 if (!empty($verification['success'])) {
                     $kycData = $verification['data'] ?? [];
-                    
-                    // Save verified KYC data
-                    UserKyc::create([
+
+                    // Save verified KYC profile
+                    KycProfile::create([
                         'user_id' => $user->id,
-                        'provider' => $verification['provider'] ?? 'QoreID',
-                        'id_type' => $validated['id_type'],
-                        'id_value' => $validated['id_value'],
-                        'data' => json_encode($kycData),
-                        'verified_at' => now(),
+                        'level' => $kycData['level'] ?? 'basic',
+                        'tier' => $kycData['tier'] ?? 1,
+                        'daily_limit' => $kycData['daily_limit'] ?? 0,
+                        'status' => 'verified',
+                        'bvn' => $kycData['bvn'] ?? null,
+                        'nin' => $kycData['nin'] ?? null,
+                        'intl_passport' => $kycData['intl_passport'] ?? null,
+                        'proof_of_address' => $kycData['proof_of_address'] ?? null,
                     ]);
 
-                    // 🖼️ Save photo from KYC data
+                    // Save photo from KYC data if provided
                     if (!empty($kycData['photo'])) {
                         $photo = $kycData['photo'];
                         if (str_starts_with($photo, 'data:image') || str_starts_with($photo, 'iVBOR')) {
@@ -94,24 +99,39 @@ class OnboardingController extends Controller
                     }
                 } else {
                     // KYC verification failed, but allow user to continue
-                    // Create a record with pending status
-                    UserKyc::create([
+                    // Create an empty KYC profile with pending status
+                    KycProfile::create([
                         'user_id' => $user->id,
-                        'provider' => 'manual',
-                        'id_type' => $validated['id_type'],
-                        'id_value' => $validated['id_value'],
-                        'data' => null,
+                        'level' => 'none',
+                        'tier' => 1,
+                        'daily_limit' => 0,
+                        'status' => 'pending',
                     ]);
                 }
             } else {
-                // No KYC data provided, create empty record
-                UserKyc::create([
+                // No KYC data provided, create empty KYC profile
+                KycProfile::create([
                     'user_id' => $user->id,
-                    'provider' => 'manual',
+                    'level' => 'none',
+                    'tier' => 1,
+                    'daily_limit' => 0,
+                    'status' => 'pending',
                 ]);
             }
 
             DB::commit();
+
+            try {
+                ActivityLog::create([
+                    'user_id'    => $user->id,
+                    'activity'   => 'Registration',
+                    'details'    => "New user registered: {$user->email}. Wallet generated and initial KYC processed.",
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            } catch (\Throwable $e) {
+                
+            }
 
             // Generate authentication token
             $token = $user->createToken('xavier_token')->plainTextToken;
