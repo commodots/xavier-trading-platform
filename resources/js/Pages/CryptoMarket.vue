@@ -20,7 +20,7 @@
               <th class="text-right">24h Change</th>
               <th class="text-right">Market Cap</th>
               <th class="text-right">Trend</th>
-              <th class="text-center">Action</th>
+              <th class="text-center" colspan="2">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -36,15 +36,17 @@
               <td class="text-right w-32">
                 <apexchart type="line" height="40" :options="sparkOptions" :series="[{ data: coin.spark }]" />
               </td>
-              <td class="text-center">
+              <td class="text-center px-1">
                 <button 
                 @click="openDetails(coin)"
                   class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Details
                 </button>
               </td>
-              <td class="text-center">
-                <button class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
+              <td class="text-center px-1">
+                <button 
+                @click="openTrade(coin)"
+                  class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Trade
                 </button>
               </td>
@@ -52,11 +54,21 @@
           </tbody>
         </table>
       </div>
+
       <MarketDetailsModal 
       :isOpen="isModalOpen" 
       :item="selectedItem" 
       :currencySymbol="'₦'"
         @close="isModalOpen = false" />
+
+      <TradeModal 
+        :show="showTradeModal" 
+        :tickers="tradeTickers" 
+        :assetCategories="assetCategories"
+        :initialTicker="selectedTradeCoin"
+        @close="showTradeModal = false"
+        @trade-success="fetchPortfolioPerformance" 
+      />
     </div>
   </MainLayout>
 </template>
@@ -67,10 +79,29 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
+import TradeModal from "@/Components/TradeModal.vue";
 import api from "@/api";
 
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
+
+// Trade Modal State
+const showTradeModal = ref(false);
+const selectedTradeCoin = ref(null);
+const assetCategories = [
+  { id: 'CRYPTO', name: 'Cryptocurrency (USD)', description: 'Bitcoin & Digital Assets' }
+];
+
+const openDetails = (item) => {
+  selectedItem.value = item;
+  isModalOpen.value = true;
+};
+
+const openTrade = (coin) => {
+ 
+  selectedTradeCoin.value = { ...coin, currency: 'NGN' }; 
+  showTradeModal.value = true;
+};
 
 const portfolioData = ref([]);
 const totalValue = ref(0);
@@ -96,11 +127,6 @@ const fetchPortfolioPerformance = async (range = '1W') => {
 
 onMounted(() => fetchPortfolioPerformance());
 
-const openDetails = (item) => {
-  selectedItem.value = item;
-  isModalOpen.value = true;
-};
-
 const search = ref("");
 const coins = ref([
   { symbol: "BTC", name: "Bitcoin", price: 24761904, change: 2.4, marketcap: 900000000000, spark: [24000000, 24300000, 24500000, 24650000, 24761904] },
@@ -108,6 +134,10 @@ const coins = ref([
   { symbol: "BNB", name: "Binance Coin", price: 435000, change: 0.8, marketcap: 67000000000, spark: [430000, 432000, 433000, 434500, 435000] },
   { symbol: "SOL", name: "Solana", price: 155000, change: 3.1, marketcap: 68000000000, spark: [150000, 152000, 153000, 154000, 155000] },
 ]);
+
+const tradeTickers = computed(() => ({
+  CRYPTO: coins.value.map(c => ({ ...c, currency: 'NGN' }))
+}));
 
 const filteredCoins = computed(() =>
   coins.value.filter(c =>

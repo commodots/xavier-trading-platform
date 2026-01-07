@@ -20,7 +20,7 @@
               <th class="text-right">24h Change</th>
               <th class="text-right">Volume</th>
               <th class="text-right">Trend</th>
-              <th class="text-center">Action</th>
+              <th class="text-center" colspan="2">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -36,14 +36,15 @@
               <td class="w-32 text-right">
                 <apexchart type="line" height="40" :options="sparkOptions" :series="[{ data: stock.spark }]" />
               </td>
-              <td class="text-center">
+              <td class="text-center px-1">
                 <button @click="openDetails(stock)"
                   class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Details
                 </button>
               </td>
-              <td class="text-center">
-                <button class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
+              <td class="text-center px-1">
+                <button @click="openTrade(stock)"
+                  class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Trade
                 </button>
               </td>
@@ -51,8 +52,18 @@
           </tbody>
         </table>
       </div>
+      
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" :currencySymbol="'₦'"
         @close="isModalOpen = false" />
+
+      <TradeModal 
+        :show="showTradeModal" 
+        :tickers="tradeTickers" 
+        :assetCategories="assetCategories"
+        :initialTicker="selectedTradeStock"
+        @close="showTradeModal = false"
+        @trade-success="fetchPortfolioPerformance" 
+      />
     </div>
   </MainLayout>
 </template>
@@ -63,10 +74,17 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
+import TradeModal from "@/Components/TradeModal.vue";
 import api from "@/api";
 
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
+
+const showTradeModal = ref(false);
+const selectedTradeStock = ref(null);
+const assetCategories = [
+  { id: 'NGX', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' }
+];
 
 const portfolioData = ref([]);
 const totalValue = ref(0);
@@ -76,15 +94,9 @@ const isGraphLoading = ref(false);
 const fetchPortfolioPerformance = async (range = '1W') => {
   isGraphLoading.value = true;
   try {
-   
     const response = await api.get(`/portfolio/history`, {
-      params: {
-        category: 'local', // Change per page: 'local', 'foreign', 'crypto'
-        range: range
-      }
+      params: { category: 'local', range: range }
     });
-
-  
     portfolioData.value = response.data.series;
     totalValue.value = response.data.total;
     changePercent.value = response.data.change;
@@ -102,14 +114,22 @@ const openDetails = (item) => {
   isModalOpen.value = true;
 };
 
-const search = ref("");
+const openTrade = (stock) => {
+  selectedTradeStock.value = { ...stock, currency: 'NGN' };
+  showTradeModal.value = true;
+};
 
+const search = ref("");
 const stocks = ref([
   { symbol: "ZENITH", name: "Zenith Bank", price: 51.2, change: 1.5, volume: 1240000, spark: [49, 49.5, 50, 51, 51.2] },
   { symbol: "GTCO", name: "GT Holdings", price: 45.8, change: -0.8, volume: 870000, spark: [47, 46.8, 46, 45.9, 45.8] },
   { symbol: "MTNN", name: "MTN Nigeria", price: 235, change: 2.2, volume: 215000, spark: [228, 230, 232, 233, 235] },
   { symbol: "NB", name: "Nigerian Breweries", price: 72, change: 0.5, volume: 154000, spark: [70, 70.5, 71, 71.5, 72] },
 ]);
+
+const tradeTickers = computed(() => ({
+  NGX: stocks.value.map(s => ({ ...s, currency: 'NGN' }))
+}));
 
 const filteredStocks = computed(() =>
   stocks.value.filter(s =>

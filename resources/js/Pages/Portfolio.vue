@@ -81,23 +81,23 @@ const showTradeModal = ref(false);
 
 
 const assetCategories = [
-  { id: 'local', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
-  { id: 'foreign', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
-  { id: 'crypto', name: 'Cryptocurrency(USD)', description: 'Bitcoin & Digital Assets' }
+  { id: 'NGX', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
+  { id: 'GLOBAL', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
+  { id: 'CRYPTO', name: 'Cryptocurrency(USD)', description: 'Bitcoin & Digital Assets' }
 ];
 
 const tickers = {
-  local: [
+  NGX: [
     { symbol: 'MTNN', name: 'MTN Nigeria', price: 245.50, currency: 'NGN' },
     { symbol: 'DANGCEM', name: 'Dangote Cement', price: 320.00, currency: 'NGN' },
     { symbol: 'ZENITH', name: 'Zenith Bank', price: 35.20, currency: 'NGN' }
   ],
-  foreign: [
+  GLOBAL: [
     { symbol: 'TSLA', name: 'Tesla Inc.', price: 175.40, currency: 'USD' },
     { symbol: 'AAPL', name: 'Apple Inc.', price: 189.10, currency: 'USD' },
     { symbol: 'NVDA', name: 'Nvidia Corp.', price: 820.50, currency: 'USD' }
   ],
-  crypto: [
+  CRYPTO: [
     { symbol: 'BTC', name: 'Bitcoin', price: 64250.00, currency: 'USD' },
     { symbol: 'ETH', name: 'Ethereum', price: 3450.00, currency: 'USD' },
     { symbol: 'SOL', name: 'Solana', price: 145.00, currency: 'USD' }
@@ -109,8 +109,6 @@ onMounted(async () => {
   try {
     const res = await api.get("/portfolio");
     const data = res.data;
-
-    console.log(data);
 
     const wallet = Number(data.wallet_balance || 0);
     const ngx = Number(data.ngx_value || 0);

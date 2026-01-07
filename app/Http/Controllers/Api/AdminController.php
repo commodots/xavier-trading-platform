@@ -16,7 +16,7 @@ use App\Models\Order;
 use App\Models\ActivityLog;
 use App\Models\KycProfile;
 use App\Models\KycSetting;
-
+use App\Models\StaffPermission;
 
 class AdminController extends Controller
 {
@@ -300,7 +300,7 @@ class AdminController extends Controller
 
         $kyc = KycProfile::where('user_id', $id)->firstOrFail();
 
-       
+
         $targetTier = $request->input('tier');
         if ($request->status === 'verified' && !$targetTier) {
             $targetTier = $this->computeTierFromDocuments($kyc);
@@ -317,7 +317,7 @@ class AdminController extends Controller
                 default => 'none'
             }
         ]);
-        
+
         try {
             $kyc->user->update(['kyc_status' => $request->status]);
         } catch (\Throwable $e) {
@@ -390,7 +390,7 @@ class AdminController extends Controller
         $roles = \Spatie\Permission\Models\Role::whereNotIn('name', ['admin', 'user'])->pluck('name');
         $mappings = [];
         foreach ($roles as $r) {
-            $sp = \App\Models\StaffPermission::forRole($r);
+            $sp = StaffPermission::forRole($r);
             $mappings[] = [
                 'role' => $r,
                 'permissions' => $sp ? $sp->permissions : []
@@ -408,11 +408,14 @@ class AdminController extends Controller
         ]);
 
         // ensure only admin can change permissions
-        if (!auth()->user()->hasRole('admin')) {
-            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        $user = auth()->user();
+        $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
+
+        if (!$isAdmin) {
+            return response()->json(['success' => false, 'message' => 'Forbidden: Only admins can manage staff access.'], 403);
         }
 
-        \App\Models\StaffPermission::updateOrCreate([
+        StaffPermission::updateOrCreate([
             'role' => $request->role
         ], [
             'permissions' => $request->permissions
@@ -426,7 +429,8 @@ class AdminController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent()
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json(['success' => true, 'message' => 'Permissions updated']);
     }
@@ -448,7 +452,11 @@ class AdminController extends Controller
     }
     public function updateKycSettings(Request $request)
     {
-        if (!auth()->user()->hasRole('admin') && !\App\Services\StaffPermissionService::roleHasCapability(auth()->user(), 'manage_kyc_settings')) {
+        $user = auth()->user();
+
+        $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
+
+        if (!$isAdmin && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_kyc_settings')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $request->validate([
@@ -459,7 +467,7 @@ class AdminController extends Controller
         ]);
 
         foreach ($request->settings as $set) {
-            $setting = KycSetting::updateOrCreate(
+            KycSetting::updateOrCreate(
                 ['tier' => $set['tier']],
                 [
                     'tier_name' => $set['tier_name'] ?? 'Tier ' . $set['tier'],
@@ -482,6 +490,37 @@ class AdminController extends Controller
         return response()->json(['success' => true, 'message' => 'Tier limits updated']);
     }
 
+
+    public function destroyKycSetting($tier)
+    {
+        $user = auth()->user();
+        $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
+
+        if (!$isAdmin && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_kyc_settings')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        $setting = KycSetting::where('tier', $tier)->first();
+
+        if (!$setting) {
+            return response()->json(['success' => false, 'message' => 'Tier not found'], 404);
+        }
+
+        $setting->delete();
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Delete KYC Tier',
+                'details'    => "Admin deleted KYC Tier {$tier}.",
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+
+        return response()->json(['success' => true, 'message' => "Tier {$tier} deleted successfully"]);
+    }
 
     /*
     |--------------------------------------------------------------------------

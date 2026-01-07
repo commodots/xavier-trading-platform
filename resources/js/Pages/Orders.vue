@@ -8,31 +8,23 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <button 
-            @click="showTradeModal = true"
-            class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-500 shadow-blue-900/20"
-          >
+          <button @click="showTradeModal = true"
+            class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-500 shadow-blue-900/20">
             <span class="text-lg">+</span> New Trade
           </button>
           <div class="relative">
-            <select 
-              v-model="filterMarket" 
-              class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500"
-            >
+            <select v-model="filterMarket"
+              class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500">
               <option value="">All Markets</option>
               <option value="CRYPTO">Crypto</option>
               <option value="NGX">Local Stocks (NGX)</option>
               <option value="GLOBAL">Global Stocks</option>
             </select>
           </div>
-          
+
           <div class="relative">
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              placeholder="Search Symbol (e.g. BTC)..." 
-              class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500"
-            />
+            <input v-model="searchQuery" type="text" placeholder="Search Symbol (e.g. BTC)..."
+              class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500" />
           </div>
         </div>
       </div>
@@ -58,11 +50,7 @@
             </thead>
 
             <tbody class="divide-y divide-[#1f3348]">
-              <tr
-                v-for="o in filteredOrders"
-                :key="o.id"
-                class="hover:bg-[#16213A] transition group"
-              >
+              <tr v-for="o in filteredOrders" :key="o.id" class="hover:bg-[#16213A] transition group">
                 <td class="px-2 py-4 text-gray-300 whitespace-nowrap">
                   {{ formatDate(o.created_at) }}
                 </td>
@@ -75,35 +63,30 @@
                   <div class="font-semibold text-white uppercase">{{ o.symbol }}</div>
                   <div class="text-[11px] text-gray-500 truncate max-w-[120px]">{{ o.company }}</div>
                 </td>
-                <td class="px-2 text-gray-300">{{ Number(o.units).toFixed(4) }}</td>
+                <td class="px-2 text-gray-300">{{ Number(o.units).toFixed(8) }}</td>
                 <td class="px-2 font-medium text-white">
-                  {{ o.currency === 'USD' ? '$' : '₦' }}{{ Number(o.amount).toLocaleString() }}
+                  {{ o.currency === 'USD' ? '$' : '₦' }}{{ Number(o.amount).toLocaleString(undefined,
+                    {minimumFractionDigits: 2}) }}
                 </td>
 
                 <td class="px-2">
-                  <span
-                    class="px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap"
-                    :class="statusClass(o.status)"
-                  >
+                  <span class="px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap"
+                    :class="statusClass(o.status)">
                     {{ beautifyStatus(o.status) }}
                   </span>
                 </td>
 
                 <td class="px-2 text-right">
-                  <div class="flex items-end gap-2">
-                    <router-link 
-                    :to="`/orders/${o.id}`" 
-                    class="text-[11px] text-blue-400 hover:text-blue-300 font-medium underline underline-offset-4"
-                  >
-                    Details
-                  </router-link>
-                  <button
-                    v-if="['open', 'partially_filled', 'pending_market'].includes(o.status)"
-                    @click="cancelOrder(o.id)"
-                    class="bg-red-500/10 hover:bg-red-500/20 px-3 py-1 rounded-lg text-red-400 text-[10px] font-bold transition border border-red-500/20 uppercase tracking-wider"
-                  >
-                    Cancel
-                  </button>
+                  <div class="flex items-center justify-end gap-2">
+                    <router-link :to="`/orders/${o.id}`"
+                      class="text-[11px] text-blue-400 hover:text-blue-300 font-medium underline underline-offset-4">
+                      Details
+                    </router-link>
+                    <button v-if="['open', 'partially_filled', 'pending_market'].includes(o.status)"
+                      @click="cancelOrder(o.id)"
+                      class="bg-red-500/10 hover:bg-red-500/20 px-3 py-1 rounded-lg text-red-400 text-[10px] font-bold transition border border-red-500/20 uppercase tracking-wider">
+                      Cancel
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -118,27 +101,50 @@
         </div>
       </div>
     </div>
-    <TradeModal 
-      :show="showTradeModal" 
-      :tickers="tickersData" 
-      :assetCategories="categoriesData"
-      @close="showTradeModal = false"
-      @trade-success="handleTradeSuccess"
-    />
+
+    <div v-if="orderToCancel"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div class="bg-[#0F1724] border border-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <div class="mb-4 text-center">
+          <div
+            class="inline-flex items-center justify-center w-12 h-12 mb-4 text-xl font-bold text-red-500 rounded-full bg-red-500/10">
+            !</div>
+          <h3 class="text-lg font-bold text-white">Cancel Order?</h3>
+          <p class="mt-2 text-sm text-gray-400">Are you sure you want to cancel this order? This action cannot be
+            undone.</p>
+        </div>
+        <div class="flex gap-3">
+          <button @click="orderToCancel = null"
+            class="flex-1 px-4 py-2 text-sm font-semibold text-gray-300 transition bg-gray-800 rounded-lg hover:bg-gray-700">
+            No, Keep
+          </button>
+          <button @click="confirmCancel" :disabled="isCancelling"
+            class="flex-1 px-4 py-2 text-sm font-semibold text-white transition bg-red-600 rounded-lg hover:bg-red-500 disabled:opacity-50">
+            {{ isCancelling ? 'Cancelling...' : 'Yes, Cancel' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <TradeModal :show="showTradeModal" :tickers="tickersData" :assetCategories="categoriesData"
+      @close="showTradeModal = false" @trade-success="handleTradeSuccess" />
   </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import api from "@/api"; 
+import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
 
 const orders = ref([]);
 const searchQuery = ref("");
 const filterMarket = ref("");
-
 const showTradeModal = ref(false);
+
+// Cancel Modal State
+const orderToCancel = ref(null);
+const isCancelling = ref(false);
 
 const categoriesData = ref([
   { id: 'stocks', name: 'Global Stocks', description: 'Trade Apple, Tesla, etc.' },
@@ -163,7 +169,7 @@ const tickersData = ref({
 
 const handleTradeSuccess = () => {
   showTradeModal.value = false;
-  loadOrders(); 
+  loadOrders();
 };
 
 onMounted(() => loadOrders());
@@ -180,7 +186,6 @@ async function loadOrders() {
   }
 }
 
-// Search and Filter Logic
 const filteredOrders = computed(() => {
   return orders.value.filter(o => {
     const matchesSearch = o.symbol.toLowerCase().includes(searchQuery.value.toLowerCase());
@@ -195,8 +200,7 @@ function beautifyStatus(s) {
     'pending_market': 'Pending (Market)',
     'partially_filled': 'Partially Completed',
     'filled': 'Completed',
-    'canceled': 'Cancelled',
-    'cancelled': 'Cancelled',
+    'canceled': 'Canceled',
     'failed': 'Failed'
   };
   return statusMap[s] || s;
@@ -217,21 +221,29 @@ function formatDate(dateStr) {
   });
 }
 
-async function cancelOrder(id) {
-  if (!confirm("Are you sure you want to cancel this order?")) return;
-  
+
+function cancelOrder(id) {
+  orderToCancel.value = id;
+}
+
+async function confirmCancel() {
+  if (!orderToCancel.value) return;
+
+  isCancelling.value = true;
   try {
     const token = localStorage.getItem("xavier_token");
-    const res = await api.post(`/orders/${id}/cancel`, {}, {
+    const res = await api.post(`/orders/${orderToCancel.value}/cancel`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
     if (res.data.success) {
-      alert("Order cancelled successfully");
       loadOrders();
     }
   } catch (e) {
-    alert(e.response?.data?.message || "Failed to cancel order.");
+    console.error("Cancel failed", e.response?.data?.message);
+  } finally {
+    isCancelling.value = false;
+    orderToCancel.value = null;
   }
 }
 </script>

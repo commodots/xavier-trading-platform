@@ -111,6 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/kycs/{id}/review', [AdminController::class, 'reviewKyc']);
         Route::get('/kyc-settings', [AdminController::class, 'getKycSettings']);
         Route::post('/kyc-settings', [AdminController::class, 'updateKycSettings']);
+        Route::delete('/admin/kyc-settings/{tier}', [AdminController::class, 'destroyKycSetting']);
 
         /* Settings */
         Route::get('/settings', [SystemSettingsController::class, 'get']);
@@ -126,8 +127,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
 
         // Staff permissions management
-        Route::get('/staff-permissions', [\App\Http\Controllers\Api\AdminController::class, 'getStaffPermissions']);
-        Route::post('/staff-permissions', [\App\Http\Controllers\Api\AdminController::class, 'updateStaffPermissions']);
+        Route::get('/staff-permissions', [AdminController::class, 'getStaffPermissions']);
+        Route::post('/staff-permissions', [AdminController::class, 'updateStaffPermissions']);
 
         Route::apiResource('transaction-types', TransactionTypeController::class);
 

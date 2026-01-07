@@ -23,9 +23,9 @@
               class="px-3 py-2 text-sm text-white bg-gray-800 border border-gray-700 rounded outline-none focus:border-blue-500">
               <option value="">All Types</option>
               <option value="Registration">Registration</option>
-<option value="Login">Login</option>
-<option value="Logout">Logout</option>
-<option value="Failed Login">Failed Login Attempts</option>
+              <option value="Login">Login</option>
+              <option value="Logout">Logout</option>
+              <option value="Failed Login">Failed Login Attempts</option>
               <option value="Profile Update">Profile Update</option>
               <option value="Deposit">Deposit</option>
               <option value="Withdrawal">Withdrawal</option>
@@ -99,10 +99,30 @@
               </td>
             </tr>
             <tr v-if="logsData.data?.length === 0">
-              <td colspan="4" class="py-10 italic text-center text-gray-600">No activities found matching criteria</td>
+              <td colspan="5" class="py-10 italic text-center text-gray-600">No activities found matching criteria</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div v-if="logsData.last_page > 1" class="flex items-center justify-between pt-4 border-t border-gray-800">
+        <div class="text-xs text-gray-500">
+          Page {{ logsData.current_page }} of {{ logsData.last_page }}
+        </div>
+        <div class="flex gap-2">
+          <button 
+            @click="fetchLogs(logsData.current_page - 1)" 
+            :disabled="logsData.current_page === 1"
+            class="px-4 py-2 text-xs font-bold text-gray-300 transition bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            Previous
+          </button>
+          <button 
+            @click="fetchLogs(logsData.current_page + 1)" 
+            :disabled="logsData.current_page === logsData.last_page"
+            class="px-4 py-2 text-xs font-bold text-gray-300 transition bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            Next
+          </button>
+        </div>
       </div>
 
     </div>
@@ -160,7 +180,7 @@ import { ref, reactive, onMounted } from 'vue';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
 
-const logsData = ref({ data: [], total: 0 });
+const logsData = ref({ data: [], total: 0, current_page: 1, last_page: 1 });
 const selectedLog = ref(null);
 const filters = reactive({
   q: '',
@@ -219,7 +239,6 @@ const getStatusClass = (activity) => {
     case 'Linked Account Added': return 'bg-violet-500/10 text-violet-400 border border-violet-500/20';
     default: return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
   }
-
 };
 
 const formatDate = (dateString) => {
@@ -243,10 +262,7 @@ onMounted(() => fetchLogs(1));
 
 const formatDetails = (details) => {
   if (!details) return 'No details available';
-
-
   if (typeof details === 'string') {
-
     if (details.startsWith('{') || details.startsWith('[')) {
       try {
         const parsed = JSON.parse(details);
@@ -257,8 +273,6 @@ const formatDetails = (details) => {
     }
     return details;
   }
-
-
   try {
     return JSON.stringify(details, null, 2);
   } catch (e) {

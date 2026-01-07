@@ -24,7 +24,7 @@
               <th class="text-right">24h Change</th>
               <th class="text-right">Volume</th>
               <th class="text-right">Trend</th>
-              <th class="text-center">Action</th>
+              <th class="text-center" colspan="2">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -48,15 +48,17 @@
                   :series="[{ data: stock.spark }]"
                 />
               </td>
-              <td class="text-center">
+              <td class="text-center px-1">
                 <button 
                 @click="openDetails(stock)"
                 class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Details
                 </button>
               </td>
-              <td class="text-center">
-                <button class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
+              <td class="text-center px-1">
+                <button 
+                @click="openTrade(stock)"
+                class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
                   Trade
                 </button>
               </td>
@@ -64,11 +66,21 @@
           </tbody>
         </table>
       </div>
+
       <MarketDetailsModal 
       :isOpen="isModalOpen" 
       :item="selectedItem" 
       currency-symbol="$"
         @close="isModalOpen = false" />
+
+      <TradeModal 
+        :show="showTradeModal" 
+        :tickers="tradeTickers" 
+        :assetCategories="assetCategories"
+        :initialTicker="selectedTradeStock"
+        @close="showTradeModal = false"
+        @trade-success="fetchPortfolioPerformance" 
+      />
     </div>
   </MainLayout>
 </template>
@@ -79,14 +91,28 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
+import TradeModal from "@/Components/TradeModal.vue";
 import api from "@/api";
 
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
 
+// Trade Modal State
+const showTradeModal = ref(false);
+const selectedTradeStock = ref(null);
+const assetCategories = [
+  { id: 'GLOBAL', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' }
+];
+
 const openDetails = (item) => {
   selectedItem.value = item;
   isModalOpen.value = true;
+};
+
+const openTrade = (stock) => {
+  // Pass stock with USD currency to trigger correct modal logic
+  selectedTradeStock.value = { ...stock, currency: 'USD' };
+  showTradeModal.value = true;
 };
 
 const portfolioData = ref([]);
@@ -120,6 +146,11 @@ const stocks = ref([
   { symbol: "MSFT", name: "Microsoft Corp", price: 420.5, change: 2.1, volume: 68200000, spark: [412, 414, 417, 419, 420.5] },
   { symbol: "GOOG", name: "Alphabet Inc", price: 160.3, change: 0.5, volume: 57200000, spark: [158, 158.5, 159, 160, 160.3] },
 ]);
+
+// Map stocks to ticker format required by TradeModal
+const tradeTickers = computed(() => ({
+  GLOBAL: stocks.value.map(s => ({ ...s, currency: 'USD' }))
+}));
 
 const filteredStocks = computed(() =>
   stocks.value.filter(s =>

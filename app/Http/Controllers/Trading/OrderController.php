@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -17,32 +18,33 @@ class OrderController extends Controller
 	public function store(Request $request)
 	{
 		$validated = $request->validate([
-        'symbol'       => 'required|string',
-        'company'      => 'required|string',
-        'units'        => 'required|numeric|min:0',
-        'amount'       => 'required|numeric|min:0',
-        'type'         => 'required|in:buy,sell',
-        'market'       => 'required|string',
-        'market_price' => 'required|numeric',
-        'currency'     => 'required|string',
-    ]);
+			'symbol'       => 'required|string',
+			'company'      => 'required|string',
+			'units'        => 'required|numeric|min:0',
+			'amount'       => 'required|numeric|min:0',
+			'type'         => 'required|in:buy,sell',
+			'market'       => 'required|string',
+			'market_price' => 'required|numeric',
+			'currency'     => 'required|string',
+		]);
 
 		$validated['user_id'] = auth()->id();
-    $validated['status'] = 'open';
+		$validated['status'] = 'open';
 
 		$order = Order::create($validated);
 
-		
+
 		try {
-            $action = strtoupper($order->type);
-            ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Order Placed',
-                'details'    => "Placed a {$action} order for {$order->units} units of {$order->symbol} ({$order->company}) at {$order->currency} {$order->amount}",
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-        } catch (\Throwable $e) {}
+			$action = strtoupper($order->type);
+			ActivityLog::create([
+				'user_id'    => auth()->id(),
+				'activity'   => 'Order Placed',
+				'details'    => "Placed a {$action} order for {$order->units} units of {$order->symbol} ({$order->company}) at {$order->currency} {$order->amount}",
+				'ip_address' => $request->ip(),
+				'user_agent' => $request->userAgent(),
+			]);
+		} catch (\Throwable $e) {
+		}
 
 		app(MatchingEngine::class)->process($order);
 

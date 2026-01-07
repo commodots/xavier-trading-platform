@@ -18,23 +18,23 @@ const showTradeModal = ref(false);
 
 // Asset Data
 const assetCategories = [
-  { id: 'local', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
-  { id: 'foreign', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
-  { id: 'crypto', name: 'Cryptocurrency (USD)', description: 'Bitcoin & Digital Assets' }
+  { id: 'NGX', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
+  { id: 'GLOBAL', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
+  { id: 'CRYPTO', name: 'Cryptocurrency (USD)', description: 'Bitcoin & Digital Assets' }
 ];
 
 const tickers = {
-  local: [
+  NGX: [
     { symbol: 'MTNN', name: 'MTN Nigeria', price: 245.50, currency: 'NGN' },
     { symbol: 'DANGCEM', name: 'Dangote Cement', price: 320.00, currency: 'NGN' },
     { symbol: 'ZENITH', name: 'Zenith Bank', price: 35.20, currency: 'NGN' }
   ],
-  foreign: [
+  GLOBAL: [
     { symbol: 'TSLA', name: 'Tesla Inc.', price: 175.40, currency: 'USD' },
     { symbol: 'AAPL', name: 'Apple Inc.', price: 189.10, currency: 'USD' },
     { symbol: 'NVDA', name: 'Nvidia Corp.', price: 820.50, currency: 'USD' }
   ],
-  crypto: [
+  CRYPTO: [
     { symbol: 'BTC', name: 'Bitcoin', price: 64250.00, currency: 'USD' },
     { symbol: 'ETH', name: 'Ethereum', price: 3450.00, currency: 'USD' },
     { symbol: 'SOL', name: 'Solana', price: 145.00, currency: 'USD' }
@@ -92,6 +92,7 @@ const perfOptions = ref({
   theme: { mode: "dark" },
   colors: ["#00D4FF", "#0047AB"],
   legend: { position: "top" },
+  yaxis: { labels: { formatter: (val) => "₦" + Number(val).toLocaleString() } }
 });
 
 const donutOptions = ref({
@@ -110,10 +111,25 @@ const formatDate = (dateStr) => {
   return date.toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+/**
+ * Generates a fake 7-day trend based on current value 
+ * so the chart always shows a line.
+ */
+function generateTrend(currentValue) {
+  const points = [];
+  let lastVal = currentValue;
+  // Create 7 points ending at the current value
+  for (let i = 0; i < 7; i++) {
+    points.unshift(lastVal);
+    // Simulate a slight random change (between -1% and +1%) for previous days
+    const variance = 1 + (Math.random() * 0.02 - 0.01);
+    lastVal = lastVal / variance;
+  }
+  return points;
+}
+
 // Fetch dashboard data
 async function fetchDashboard() {
-  data.value = null;
-  perfSeries.value = fallback.series_performance;;
   loading.value = true;
   error.value = null;
   try {
@@ -126,24 +142,43 @@ async function fetchDashboard() {
     data.value = portfolioResp.data;
     transactions.value = Array.isArray(transResp.data) ? transResp.data : transResp.data.transactions;
 
-    donutSeries.value = [
-      Number(data.value.wallet_balance),
-      Number(data.value.ngx_value),
-      Number(data.value.global_stocks_value_usd),
-      Number(data.value.crypto_value_usd)
-    ];
-
-    if (data.value.series_performance) {
-      perfSeries.value = [...data.value.series_performance];
-      perfOptions.value.xaxis.categories = data.value.performance_categories || perfOptions.value.xaxis.categories;
-    }
+    
     if (data.value.portfolio_distribution) {
       donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
       donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
+    } else {
+      donutSeries.value = [
+        Number(data.value.wallet_balance),
+        Number(data.value.ngx_value),
+        Number(data.value.global_stocks_value_usd),
+        Number(data.value.crypto_value_usd)
+      ];
     }
+
+    if (data.value.series_performance && data.value.series_performance.length > 0) {
+      perfSeries.value = data.value.series_performance.map(s => ({
+        name: s.name,
+        data: s.data.map(val => Number(val))
+      }));
+    } else {
+      // GENERATE LINES: Use current values to create a trend line backwards
+      perfSeries.value = [
+        { 
+          name: "Total Equity", 
+          data: generateTrend(Number(data.value.total_equity)) 
+        },
+        { 
+          name: "Wallet", 
+          data: generateTrend(Number(data.value.wallet_balance)) 
+        }
+      ];
+    }
+
   } catch (e) {
     data.value = fallback;
     error.value = "Live dashboard unavailable — showing demo data.";
+    perfSeries.value = fallback.series_performance;
+    donutSeries.value = fallback.portfolio_distribution.map(p => p.value);
   } finally {
     loading.value = false;
   }
@@ -165,40 +200,36 @@ onMounted(fetchDashboard);
             class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg">
             ⇄ Trade
           </button>
-          <div 
-          @click="$router.push({ name: 'wallet' })"
-          class="text-right hidden sm:block col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
-          >
+          <div @click="$router.push({ name: 'wallet' })"
+            class="text-right hidden sm:block col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
             <div class="text-xs text-gray-400">Total Wallet Balance</div>
             <div class="text-lg font-semibold">₦{{ walletBalance.toLocaleString() }}</div>
           </div>
           <TradeModal :show="showTradeModal" :tickers="tickers" :assetCategories="assetCategories"
-            @close="showTradeModal = false" />
+            @close="showTradeModal = false"
+            @trade-success="fetchDashboard"
+             />
         </div>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-5">
-        <div 
-        @click="$router.push({ name: 'portfolio' })"
-        class="col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+        <div @click="$router.push({ name: 'portfolio' })"
+          class="col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">Total Portfolio Value</div>
           <div class="text-2xl font-bold">₦{{ totalEquity.toLocaleString() }}</div>
         </div>
-        <div 
-         @click="$router.push({ name: 'ngx' })"
-        class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+        <div @click="$router.push({ name: 'ngx' })"
+          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">NGX</div>
           <div class="text-xl font-semibold">₦{{ ngxValue.toLocaleString() }}</div>
         </div>
-        <div 
-        @click="$router.push({ name: 'global-stocks' })"
-        class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+        <div @click="$router.push({ name: 'global-stocks' })"
+          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">US Stocks</div>
           <div class="text-xl font-semibold">${{ globalValueUSD.toLocaleString() }}</div>
         </div>
-        <div 
-        @click="$router.push({ name: 'crypto' })"
-        class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+        <div @click="$router.push({ name: 'crypto' })"
+          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">Crypto</div>
           <div class="text-xl font-semibold">₦{{ cryptoValueNGN.toLocaleString() }}</div>
         </div>
@@ -206,7 +237,7 @@ onMounted(fetchDashboard);
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2 bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
-          <div class="font-semibold mb-3">Performance</div>
+          <div class="mb-3 font-semibold">Performance</div>
           <apexchart type="line" height="260" :options="perfOptions" :series="perfSeries" />
         </div>
         <div class="bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
@@ -215,7 +246,6 @@ onMounted(fetchDashboard);
         </div>
       </div>
 
-      <!-- Holdings & Transactions -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div class="bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
           <div class="flex items-center justify-between mb-3">
