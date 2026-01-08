@@ -2,27 +2,30 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Service;
 
 class ServiceSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
+    public function run()
     {
         $services = [
-            ['name' => 'NGX Trading Engine', 'type' => 'ngx'],
-            ['name' => 'Crypto Exchange', 'type' => 'crypto'],
-            ['name' => 'FX Provider', 'type' => 'fx'],
-            ['name' => 'Payment Gateway', 'type' => 'payment'],
-            ['name' => 'CSCS Settlement', 'type' => 'settlement'],
+            ['name' => 'NGX Trading Engine', 'type' => 'ngx_trading'],
+            ['name' => 'CSCS Settlement', 'type' => 'cscs_settlement'],
+            ['name' => 'Payments Gateway', 'type' => 'payments'],
+            ['name' => 'KYC Provider', 'type' => 'kyc'],
+            ['name' => 'Notifications', 'type' => 'notifications'],
+            ['name' => 'Market Data Feed', 'type' => 'market_data'],
         ];
 
         foreach ($services as $service) {
-            Service::firstOrCreate(['type' => $service['type']], $service);
+            Service::firstOrCreate(
+                ['type' => $service['type']],
+                [
+                    'name' => $service['name'],
+                    'is_active' => false
+                ]
+            );
         }
     }
 }

@@ -1,0 +1,49 @@
+Example API Response (Chart-Ready)
+{
+  "success": true,
+  "data": {
+    "symbol": "AAPL",
+    "range": "7d",
+    "data": [
+      { "date": "2025-01-01", "open": 170, "close": 175, "high": 180, "low": 168 },
+      { "date": "2025-01-02", "open": 175, "close": 178, "high": 182, "low": 173 }
+    ]
+  }
+}
+
+Example call (Vue)
+axios.get(`/markets/stocks/AAPL/history`, {
+  params: { range: '30d' }
+})
+
+3️⃣ Frontend: How UI Uses This
+Example call (Vue)
+axios.get(`/markets/stocks/AAPL/history`, {
+  params: { range: '30d' }
+})
+
+What frontend does:
+ Map date → X-axis
+ Use close → line chart
+ Optional: candlestick chart using OHLC
+
+4️⃣ Admin UI: Where This Appears
+Admin → Markets → Stocks → AAPL
+
+Tabs:
+ - Overview
+ - Chart ← THIS
+ - Trades
+ - Holders
+
+***********************
+GET /markets/stocks/{symbol}/history
+Returns
+{
+  "data": {
+    "data": [
+      { "date": "2024-01-01", "open": 180, "high": 185, "low": 178, "close": 183 }
+    ]
+  }
+}
+

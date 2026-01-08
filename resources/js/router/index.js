@@ -86,6 +86,12 @@ const routes = [
      MARKETS
   ------------------------------------------------*/
   {
+	  path: "/market/ngx/:symbol",
+	  name: "ngx-stock",
+	  component: () => import("@/Pages/Market/Stock.vue"),
+	  meta: { requiresAuth: true },
+	},
+	{
     path: "/ngx",
     name: "ngx",
     component: NgxMarket,

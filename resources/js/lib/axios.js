@@ -8,7 +8,7 @@ const API_URL = "http://localhost:8000/api";
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: false,     // Required for Sanctum cookies
+  withCredentials: true,     // Required for Sanctum cookies
   timeout: 15000,
 });
 

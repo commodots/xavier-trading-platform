@@ -183,9 +183,7 @@
           </div>
         </div>
 
-      </div>
 
-    </div>
   </MainLayout>
 </template>
 

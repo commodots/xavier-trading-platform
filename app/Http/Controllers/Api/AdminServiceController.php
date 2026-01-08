@@ -7,26 +7,63 @@ use App\Models\ServiceConnection;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use App\Models\ServiceConfig;
 
 class AdminServiceController extends Controller
 {
     public function index()
-    {
-        return response()->json([
-            'services' => Service::with('connections')->get()
-        ]);
-    }
+	{
+		$configs = ServiceConfig::orderBy('service')->get()->map(fn ($c) => [
+			'id' => $c->id,
+			'name' => strtoupper($c->service),
+			'type' => $c->type,
+			'enabled' => $c->is_active,
+			'created_at' => $c->created_at,
+		]);
 
+		return response()->json([
+			'success' => true,
+			'data' => $configs
+		]);
+	}
     public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|string|max:50|unique:services,type|regex:/^[a-z0-9_]+$/',
-        ]);
+	{
+		$data = $request->validate([
+			'service' => 'required|string',
+			'type' => 'required|in:ngx,crypto,stocks,fx,cscs,payment',
+			'mode' => 'required|in:live,test,dummy',
+			'base_url' => 'nullable|string',
+			'headers' => 'nullable|array',
+			'params' => 'nullable|array',
+			'credentials' => 'nullable|array',
+			'is_active' => 'boolean',
+		]);
 
-        $service = Service::create($request->only('name', 'type'));
-        return response()->json($service, 201);
-    }
+		$config = ServiceConfig::create($data);
+
+		return response()->json($config, 201);
+	}
+
+	public function update(Request $request, ServiceConfig $service)
+	{
+		$data = $request->validate([
+			'service'     => 'required|string',
+			'type'        => 'required|string',
+			'mode'        => 'required|in:dummy,test,live',
+			'base_url'    => 'nullable|string',
+			'headers'     => 'nullable|array',
+			'params'      => 'nullable|array',
+			'credentials' => 'nullable|array',
+			'is_active'   => 'boolean',
+		]);
+
+		$service->update($data);
+
+		return response()->json([
+			'success' => true,
+			'data' => $service
+		]);
+	}
 
     public function addConnection(Request $request, $serviceId)
     {
