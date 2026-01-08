@@ -76,12 +76,16 @@ const trades = ref([]);
 
 // helper: generate simulated book rows (price, amount, cumulative)
 function genSide(basePrice, side) {
-  let rows = [];
-  for (let i = 0; i < 15; i++) {
-    const offset = Number((Math.random() * (i * 0.1)).toFixed(2));
-    const price = side === 'bid' 
-      ? Number((basePrice - offset).toFixed(2)) 
-      : Number((basePrice + offset).toFixed(2));
+  const rows = [];
+  for (let i = 0; i < 10; i++) {
+    const offset = (Math.random() * (i + 1) * 0.5).toFixed(2);
+    const base = Number(basePrice) || 0;
+const off = Number(offset) || 0;
+
+const price =
+  side === 'bid'
+    ? Number((base - off).toFixed(2))
+    : Number((base + off).toFixed(2));
     const amount = Number((Math.random() * 200 + 1).toFixed(4));
     rows.push({ price, amount });
   }

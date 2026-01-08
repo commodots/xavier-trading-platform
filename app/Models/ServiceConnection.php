@@ -11,6 +11,7 @@ class ServiceConnection extends Model
     
     protected $fillable = [
         'service_id', 
+		'name',
         'mode', 
         'base_url', 
         'headers', 
@@ -24,4 +25,12 @@ class ServiceConnection extends Model
         'parameters' => 'array', 
         'credentials' => 'array', 
     ];
+	public function service()
+	{
+		return $this->belongsTo(Service::class);
+	}
+	public function configs()
+	{
+		return $this->hasMany(ServiceConfig::class);
+	}
 }

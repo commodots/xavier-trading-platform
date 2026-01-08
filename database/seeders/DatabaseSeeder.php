@@ -17,7 +17,9 @@ class DatabaseSeeder extends Seeder
 			UserSeeder::class,
 			WalletSeeder::class,
 			KycSeeder::class,
-			TransactionSeeder::class,
+			TransactionSeeder::class,ServiceSeeder::class,
+			ServiceConnectionSeeder::class,
+			ServiceConfigSeeder::class,
 		]);
 	}
 

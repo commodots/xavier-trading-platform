@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\User\{
 use App\Http\Controllers\Admin\{
     TransactionChargeController,
 };
+use App\Http\Controllers\Api\Market\StockMarketController;
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -51,8 +52,22 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
 | Protected Routes
 |--------------------------------------------------------------------------
 */
+Route::middleware('auth:sanctum')->get(
+    '/market/candles',
+    [MarketDataController::class, 'candles']
+);
 Route::middleware('auth:sanctum')->group(function () {
-
+	
+	Route::get(
+        '/markets/stocks/{symbol}/history',
+        [StockMarketController::class, 'history']
+    );
+	
+	Route::get('/markets/stocks/{symbol}/history', [
+        \App\Http\Controllers\MarketDataController::class,
+        'stockHistory'
+    ]);
+	
     Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
@@ -123,6 +138,7 @@ Route::middleware('auth:sanctum')->group(function () {
         /*Control Panel */
         Route::get('/services', [AdminServiceController::class, 'index']);
         Route::post('/services', [AdminServiceController::class, 'store']);
+		Route::put('/services/{service}', [AdminServiceController::class, 'update']);
         Route::post('/services/{id}/connection', [AdminServiceController::class, 'addConnection']);
         Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
 

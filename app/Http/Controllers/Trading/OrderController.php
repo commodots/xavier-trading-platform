@@ -58,6 +58,7 @@ class OrderController extends Controller
 
 		return response()->json($order->fresh());
 	}
+	
 	public function show(Order $order)
 	{
 		$order->load([
