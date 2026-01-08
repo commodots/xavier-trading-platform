@@ -25,7 +25,7 @@ class CscsSettlementService
                     'symbol'  => $trade->order->symbol,
                 ],
                 [
-                    'quantity'  => DB::raw('quantity + ' . $trade->quantity),
+                    'quantity'  => DB::raw('quantity + ?', [$trade->quantity]),
                     'avg_price' => $trade->price,
                 ]
             );

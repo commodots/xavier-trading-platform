@@ -16,7 +16,7 @@ class PortfolioService
                 'market' => $trade->order->market,
             ],
             [
-                'quantity' => \DB::raw('quantity + '.$trade->quantity),
+                'quantity' => \DB::raw('quantity + ?', [$trade->quantity]),
                 'avg_price' => $trade->price,
             ]
         );
