@@ -19,7 +19,8 @@ use App\Http\Controllers\Api\{
     PortfolioController,
     ServiceConfigController,
     NewTransactionController,
-    TransactionTypeController
+    TransactionTypeController,
+    MarketDataController,
 };
 use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
@@ -105,6 +106,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [NewTransactionController::class, 'index']);
     Route::post('/deposit', [NewTransactionController::class, 'deposit']);
     Route::post('/withdraw', [NewTransactionController::class, 'withdraw']);
+
+    /* Reports */
+    Route::post('/reports/generate', [ProfileController::class, 'generateReport']);
 
     /* Admin Routes */
     Route::middleware('admin')->prefix('admin')->group(function () {

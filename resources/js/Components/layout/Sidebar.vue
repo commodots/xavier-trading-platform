@@ -94,6 +94,7 @@ const menu = [
   { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, admin: true },
   { label: "Control Panel", to: "/admin/control-panel", icon: MonitorCog, admin: true },
   { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, admin: true },
+  { label: "Reports", to: "/admin/reports", icon: FileSpreadsheet },
 ];
 
 // Only show admin items if user is admin

@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import axios from '@/lib/axios'
-import MainLayout from '@/Layouts/MainLayout.vue'
 
 /* ================= STATE ================= */
 const services = ref([])
@@ -149,7 +148,6 @@ onMounted(fetchServices)
 </script>
 
 <template>
-  <MainLayout>
     <div class="p-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Service Management</h1>
@@ -205,10 +203,10 @@ onMounted(fetchServices)
     <!-- MODAL -->
     <div
       v-if="showModal"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-blue/50 flex items-center justify-center z-50"
       @click.self="closeModal"
     >
-      <div class="bg-white w-full max-w-xl rounded p-6 relative">
+      <div class="bg-[#0F1724] border-[#1f3348] border w-full max-w-xl rounded-2xl p-6 relative">
         <button
           class="absolute top-3 right-3 text-gray-500 hover:text-black"
           @click="closeModal"
@@ -265,35 +263,12 @@ onMounted(fetchServices)
 
 </template>
 
-<script setup>
-import { ref, onMounted } from "vue";
-import api from "@/api";
-
-
-const services = ref([]);
-
-const load = async () => {
-  // 🛑 Call the protected route defined in Step 4
-  const res = await api.get("/admin/services");
-  services.value = res.data.services;
-};
-
-const activate = async (id) => {
-  // 🛑 Call the toggleService endpoint
-  await api.post(`/admin/services/${id}/activate`);
-
-  // Refresh the list to show the newly active service
-  load();
-};
-
-onMounted(load); 
-</script>
 <style scoped>
 .input {
   width: 100%;
   border: 1px solid #d1d5db;
   padding: 0.5rem;
   border-radius: 0.375rem;
-  background-color:#000000; 
+  color: gray;
 }
 </style>

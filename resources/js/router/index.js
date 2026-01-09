@@ -32,6 +32,7 @@ import AdminKycReview from "@/Pages/Admin/KycReview.vue";
 import AdminTransactions from "@/Pages/Admin/Transactions.vue";
 import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
+import AdminReports from "@/Pages/Admin/Reports.vue";
 
 const routes = [
 
@@ -199,6 +200,12 @@ const routes = [
     path: "/admin/activity-log",
     name: "admin-activity-log",
     component: AdminActivityLog,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/reports",
+    name: "admin-reports",
+    component: AdminReports,
     meta: { requiresAuth: true, adminOnly: true },
   },
 

@@ -14,81 +14,72 @@ use App\Models\ServiceConfig;
 class AdminServiceController extends Controller
 {
     public function index()
-	{
-		$configs = ServiceConfig::orderBy('service')->get()->map(fn ($c) => [
-			'id' => $c->id,
-			'name' => strtoupper($c->service),
-			'type' => $c->type,
-			'enabled' => $c->is_active,
-			'created_at' => $c->created_at,
-		]);
+    {
+        $configs = ServiceConfig::orderBy('service')->get()->map(fn($c) => [
+            'id' => $c->id,
+            'name' => strtoupper($c->service),
+            'type' => $c->type,
+            'enabled' => $c->is_active,
+            'created_at' => $c->created_at,
+        ]);
 
-		return response()->json([
-			'success' => true,
-			'data' => $configs
-		]);
-	}
+        return response()->json([
+            'success' => true,
+            'data' => $configs
+        ]);
+    }
     public function store(Request $request)
     {
         if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|string|max:50|unique:services,type|regex:/^[a-z0-9_]+$/',
+        $data = $request->validate([
+            'service' => 'required|string',
+            'type' => 'required|in:ngx,crypto,stocks,fx,cscs,payment',
+            'mode' => 'required|in:live,test,dummy',
+            'base_url' => 'nullable|string',
+            'headers' => 'nullable|array',
+            'params' => 'nullable|array',
+            'credentials' => 'nullable|array',
+            'is_active' => 'boolean',
         ]);
 
-        $service = Service::create($request->only('name', 'type'));
+        $config = ServiceConfig::create($data);
+
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
                 'activity'   => 'Service Created',
-                'details'    => "Created a new system service: {$service->name} (Type: {$service->type})",
+                'details'    => "Created a new system service: {$config->service} (Type: {$config->type})",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
         } catch (\Throwable $e) {
         }
 
-        return response()->json($service, 201);
+        return response()->json($config, 201);
     }
-	{
-		$data = $request->validate([
-			'service' => 'required|string',
-			'type' => 'required|in:ngx,crypto,stocks,fx,cscs,payment',
-			'mode' => 'required|in:live,test,dummy',
-			'base_url' => 'nullable|string',
-			'headers' => 'nullable|array',
-			'params' => 'nullable|array',
-			'credentials' => 'nullable|array',
-			'is_active' => 'boolean',
-		]);
 
-		$config = ServiceConfig::create($data);
+    public function update(Request $request, ServiceConfig $service)
+    {
+        $data = $request->validate([
+            'service'     => 'required|string',
+            'type'        => 'required|string',
+            'mode'        => 'required|in:dummy,test,live',
+            'base_url'    => 'nullable|string',
+            'headers'     => 'nullable|array',
+            'params'      => 'nullable|array',
+            'credentials' => 'nullable|array',
+            'is_active'   => 'boolean',
+        ]);
 
-		return response()->json($config, 201);
-	}
+        $service->update($data);
 
-	public function update(Request $request, ServiceConfig $service)
-	{
-		$data = $request->validate([
-			'service'     => 'required|string',
-			'type'        => 'required|string',
-			'mode'        => 'required|in:dummy,test,live',
-			'base_url'    => 'nullable|string',
-			'headers'     => 'nullable|array',
-			'params'      => 'nullable|array',
-			'credentials' => 'nullable|array',
-			'is_active'   => 'boolean',
-		]);
-
-		$service->update($data);
-
-		return response()->json([
-			'success' => true,
-			'data' => $service
-		]);
-	}
+        return response()->json([
+            'success' => true,
+            'data' => $service
+        ]);
+    }
 
     public function addConnection(Request $request, $serviceId)
     {
@@ -156,7 +147,8 @@ class AdminServiceController extends Controller
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
@@ -178,8 +170,9 @@ class AdminServiceController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
-        
+        } catch (\Throwable $e) {
+        }
+
         return response()->json(['message' => 'Mode updated']);
     }
 }

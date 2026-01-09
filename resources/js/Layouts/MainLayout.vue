@@ -1,5 +1,8 @@
 <template>
-  <div class="min-h-screen flex bg-[#0B132B] text-white relative">
+  <div :class="[
+    'min-h-screen flex text-white relative', 
+    currentView === 'user' ? 'bg-[#0B132B]' : 'bg-[#313753]'
+  ]">
 
     <div 
       v-if="sidebarOpen" 
@@ -8,7 +11,8 @@
     ></div>
 
     <aside :class="[
-      'bg-[#111827] w-64 border-r border-[#1F2A44] flex flex-col justify-between transition-all duration-300',
+      'w-64 border-r flex flex-col justify-between transition-all duration-300',
+      currentView === 'user' ? 'bg-[#111827] border-[#1F2A44]' : 'bg-[#162874] border-[#2D3494]',
       sidebarOpen ? 'translate-x-0' : '-translate-x-64',
       'md:translate-x-0 fixed md:static inset-y-0 left-0 z-50'
     ]">
@@ -45,14 +49,21 @@
             <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
           </div>
 
-          <div v-if="currentView === 'staff'" class="mt-6">
-            <div class="mb-1 text-xs text-gray-500">ADMIN MANAGEMENT</div>
+          <div v-if="currentView === 'staff'">
+            <div class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Admin Management</div>
             <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
-            <SidebarLink to="/admin/users" :icon="Users">Users</SidebarLink>
-            <SidebarLink to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
-            <SidebarLink to="/admin/kyc" :icon="ShieldCheck">KYC Review</SidebarLink>
-            <SidebarLink to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
             <SidebarLink to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
+            <SidebarLink to="/admin/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
+
+            <div class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations</div>
+            <SidebarLink to="/admin/users" :icon="Users">User Management</SidebarLink>
+            <SidebarLink to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
+            <SidebarLink to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
+
+            <div class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance</div>
+            <SidebarLink to="/admin/kyc" :icon="ShieldCheck">KYC Review</SidebarLink>
+            
+            <div class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">System Settings</div>
             <SidebarLink to="/admin/control-panel" :icon="MonitorCog">Control Panel</SidebarLink>
           </div>
 
@@ -125,7 +136,6 @@ const hasStaffAccess = computed(() => {
         return staffRoles.includes(roleName);
       });
     }
-
     return hasRoleInArray || hasRoleInString;
 });
 
