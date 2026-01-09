@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
 			TransactionSeeder::class,ServiceSeeder::class,
 			ServiceConnectionSeeder::class,
 			ServiceConfigSeeder::class,
+			StaffPermissionSeeder::class,
 		]);
 	}
 

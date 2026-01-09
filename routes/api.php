@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\{
     NewTransactionController,
     TransactionTypeController,
     MarketDataController,
+    DummyNgxController,
+    DummyCscsController,
 };
 use App\Http\Controllers\Auth\{
     PasswordResetLinkController,
@@ -48,6 +50,19 @@ Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
 Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
+
+Route::prefix('dummy')->group(function () {
+    Route::prefix('ngx')->group(function () {
+        Route::get('market/{symbol}', [DummyNgxController::class, 'marketData']);
+        Route::post('orders', [DummyNgxController::class, 'placeOrder']);
+        Route::get('orders/{order_id}', [DummyNgxController::class, 'orderStatus']);
+    });
+    Route::prefix('cscs')->group(function () {
+        Route::post('settle', [DummyCscsController::class, 'settle']);
+        Route::get('settlement/{trade_id}', [DummyCscsController::class, 'settlementStatus']);
+    });
+});
+
 /*
 |--------------------------------------------------------------------------
 | Protected Routes
@@ -142,9 +157,12 @@ Route::middleware('auth:sanctum')->group(function () {
         /*Control Panel */
         Route::get('/services', [AdminServiceController::class, 'index']);
         Route::post('/services', [AdminServiceController::class, 'store']);
-		Route::put('/services/{service}', [AdminServiceController::class, 'update']);
-        Route::post('/services/{id}/connection', [AdminServiceController::class, 'addConnection']);
-        Route::post('/services/{id}/activate', [AdminServiceController::class, 'toggleService']);
+        Route::patch('/services/{id}/toggle', [AdminServiceController::class, 'toggleService']);
+        Route::get('/services/{id}/connections', [AdminServiceController::class, 'getConnections']);
+        Route::post('/services/{id}/connections', [AdminServiceController::class, 'addConnection']);
+        Route::put('/service-connections/{id}', [AdminServiceController::class, 'updateConnection']);
+        Route::get('/services/{id}/config', [AdminServiceController::class, 'getConfig']);
+        Route::put('/services/{id}/config', [AdminServiceController::class, 'updateConfig']);
 
         // Staff permissions management
         Route::get('/staff-permissions', [AdminController::class, 'getStaffPermissions']);

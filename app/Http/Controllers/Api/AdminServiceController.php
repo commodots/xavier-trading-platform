@@ -15,17 +15,19 @@ class AdminServiceController extends Controller
 {
     public function index()
     {
-        $configs = ServiceConfig::orderBy('service')->get()->map(fn($c) => [
-            'id' => $c->id,
-            'name' => strtoupper($c->service),
-            'type' => $c->type,
-            'enabled' => $c->is_active,
-            'created_at' => $c->created_at,
-        ]);
+        $services = Service::all()->map(function ($service) {
+            return [
+                'id' => $service->id,
+                'name' => $service->name,
+                'type' => $service->type,
+                'is_active' => $service->is_active,
+                'created_at' => $service->created_at,
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $configs
+            'services' => $services
         ]);
     }
     public function store(Request $request)
@@ -34,30 +36,25 @@ class AdminServiceController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $data = $request->validate([
-            'service' => 'required|string',
-            'type' => 'required|in:ngx,crypto,stocks,fx,cscs,payment',
-            'mode' => 'required|in:live,test,dummy',
-            'base_url' => 'nullable|string',
-            'headers' => 'nullable|array',
-            'params' => 'nullable|array',
-            'credentials' => 'nullable|array',
+            'name' => 'required|string',
+            'type' => 'required|in:ngx,crypto,stocks,fx,cscs,payment|unique:services,type',
             'is_active' => 'boolean',
         ]);
 
-        $config = ServiceConfig::create($data);
+        $service = Service::create($data);
 
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
                 'activity'   => 'Service Created',
-                'details'    => "Created a new system service: {$config->service} (Type: {$config->type})",
+                'details'    => "Created a new system service: {$service->name} (Type: {$service->type})",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
         } catch (\Throwable $e) {
         }
 
-        return response()->json($config, 201);
+        return response()->json($service, 201);
     }
 
     public function update(Request $request, ServiceConfig $service)
@@ -127,18 +124,10 @@ class AdminServiceController extends Controller
 
     public function toggleService($id)
     {
-        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
-            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-        }
         $service = Service::findOrFail($id);
         $old = $service->is_active;
         $service->is_active = !$service->is_active;
         $service->save();
-
-        // If we just activated this service, deactivate all others (global toggle)
-        if ($service->is_active) {
-            Service::where('id', '!=', $service->id)->update(['is_active' => false]);
-        }
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
@@ -174,5 +163,82 @@ class AdminServiceController extends Controller
         }
 
         return response()->json(['message' => 'Mode updated']);
+    }
+
+    public function getConnections($serviceId)
+    {
+        $service = Service::findOrFail($serviceId);
+        $connections = ServiceConnection::where('service_id', $serviceId)->get();
+
+        return response()->json([
+            'success' => true,
+            'connections' => $connections
+        ]);
+    }
+
+    public function updateConnection(Request $request, $connectionId)
+    {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+        $connection = ServiceConnection::findOrFail($connectionId);
+        $data = $request->validate([
+            'mode' => 'required|in:live,testing,dummy',
+            'base_url' => 'required|url',
+            'headers' => 'nullable|array',
+            'parameters' => 'nullable|array',
+            'credentials' => 'nullable|array',
+            'is_active' => 'boolean',
+        ]);
+
+        $connection->update($data);
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Service Connection Updated',
+                'details'    => "Updated connection for {$connection->service->name}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+
+        return response()->json([
+            'success' => true,
+            'connection' => $connection
+        ]);
+    }
+
+    public function getConfig($serviceId)
+    {
+        $service = Service::findOrFail($serviceId);
+        $config = ServiceConfig::where('service', strtoupper($service->type))->first();
+
+        return response()->json([
+            'success' => true,
+            'config' => $config
+        ]);
+    }
+
+    public function updateConfig(Request $request, $serviceId)
+    {
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+        $service = Service::findOrFail($serviceId);
+        $config = ServiceConfig::where('service', strtoupper($service->type))->firstOrFail();
+
+        $data = $request->validate([
+            'params' => 'nullable|array',
+            'is_active' => 'boolean',
+        ]);
+
+        $config->update($data);
+
+        return response()->json([
+            'success' => true,
+            'config' => $config
+        ]);
     }
 }

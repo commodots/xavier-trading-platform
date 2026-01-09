@@ -10,12 +10,12 @@ class ServiceSeeder extends Seeder
     public function run()
     {
         $services = [
-            ['name' => 'NGX Trading Engine', 'type' => 'ngx_trading'],
-            ['name' => 'CSCS Settlement', 'type' => 'cscs_settlement'],
-            ['name' => 'Payments Gateway', 'type' => 'payments'],
-            ['name' => 'KYC Provider', 'type' => 'kyc'],
-            ['name' => 'Notifications', 'type' => 'notifications'],
-            ['name' => 'Market Data Feed', 'type' => 'market_data'],
+            ['name' => 'NGX FIX Gateway', 'type' => 'ngx', 'is_active' => true],
+            ['name' => 'CSCS Settlement Engine', 'type' => 'cscs', 'is_active' => true],
+            ['name' => 'Payments Gateway', 'type' => 'payments', 'is_active' => false],
+            ['name' => 'KYC Provider', 'type' => 'kyc', 'is_active' => false],
+            ['name' => 'Notifications', 'type' => 'notifications', 'is_active' => false],
+            ['name' => 'Market Data Feed', 'type' => 'market_data', 'is_active' => false],
         ];
 
         foreach ($services as $service) {
@@ -23,7 +23,7 @@ class ServiceSeeder extends Seeder
                 ['type' => $service['type']],
                 [
                     'name' => $service['name'],
-                    'is_active' => false
+                    'is_active' => $service['is_active'] ?? false
                 ]
             );
         }

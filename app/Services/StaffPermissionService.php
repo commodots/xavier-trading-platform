@@ -43,7 +43,7 @@ class StaffPermissionService
         if (!$sp) return false;
 
         $perms = $sp->permissions ?? [];
-        
+
         // Return true only if the capability exists and is truthy
         return isset($perms[$capability]) && ($perms[$capability] === true || $perms[$capability] === 'true' || $perms[$capability] === 1 || $perms[$capability] === "1");
     }
