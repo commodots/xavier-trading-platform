@@ -11,6 +11,7 @@ use App\Models\KycSetting;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Models\ActivityLog;
+use App\Services\StaffPermissionService;
 
 class ProfileController extends Controller
 {
@@ -30,6 +31,21 @@ class ProfileController extends Controller
                 $user->kyc->daily_limit = $kycSetting->daily_limit;
             }
             $user->kyc->currency = $user->kyc->currency ?? $baseCurrency;
+        }
+
+        // Get the primary role (prefer non-admin roles for staff)
+        $roleNames = $user->getRoleNames();
+        $primaryRole = $roleNames->reject(fn($r) => $r === 'admin')->first() ?? $roleNames->first() ?? $user->role ?? 'user';
+        $user->role = $primaryRole;
+
+        // Attach staff permissions if not admin
+        $isAdmin = $user->hasRole('admin');
+        if (!$isAdmin) {
+            $permissions = [];
+            foreach (StaffPermissionService::CAPABILITIES as $cap) {
+                $permissions[$cap] = StaffPermissionService::roleHasCapability($user, $cap);
+            }
+            $user->permissions = $permissions;
         }
 
         return response()->json([

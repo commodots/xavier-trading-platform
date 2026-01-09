@@ -1,7 +1,8 @@
 <template>
   <aside :class="[
-    'h-screen bg-[#0B132B] text-gray-300 border-r border-[#1F2A44] flex flex-col transition-all duration-300 z-40',
-    collapsed ? 'w-20' : 'w-64'
+    'h-screen text-gray-300 border-r border-[#1F2A44] flex flex-col transition-all duration-300 z-40',
+    collapsed ? 'w-20' : 'w-64',
+    sidebarBg
   ]">
     <!-- LOGO + TOGGLE -->
     <div class="flex items-center justify-between p-4 border-b border-[#1F2A44]">
@@ -31,8 +32,9 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import api from '@/api';
 
 import SidebarLink from "@/Components/SidebarLink.vue";
 
@@ -69,12 +71,48 @@ const props = defineProps({
 const router = useRouter();
 
 // Load user from localStorage
-let user = {};
+const user = ref({});
 try {
-  user = JSON.parse(localStorage.getItem("user") || "{}");
+  user.value = JSON.parse(localStorage.getItem("user") || "{}");
 } catch {
-  user = {};
+  user.value = {};
 }
+
+const isAdmin = computed(() => user.value.role === "admin");
+const isStaff = computed(() => !isAdmin.value && hasAnyPermissions());
+
+const sidebarBg = computed(() => {
+  if (isAdmin.value) return 'bg-[#0B132B]'; // Darker blue for admin
+  if (isStaff.value) return 'bg-[#1F2A44]'; // Lighter blue for staff
+  return 'bg-[#0B132B]'; // Default for others
+});
+const userPermissions = ref({});
+
+const hasAnyPermissions = () => {
+  return userPermissions.value && Object.values(userPermissions.value).some(p => !!p);
+};
+
+const fetchPermissions = async () => {
+  if (user.role === "admin") return;
+  try {
+    const profileRes = await api.get('/user/profile/show');
+    const currentUser = profileRes.data.data;
+    userPermissions.value = currentUser.permissions || {};
+    // Update localStorage
+    let storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    storedUser.permissions = userPermissions.value;
+    localStorage.setItem("user", JSON.stringify(storedUser));
+  } catch (e) {
+    console.error('Failed to fetch permissions', e);
+  }
+};
+
+// Fetch on mount if not admin
+onMounted(() => {
+  if (user.value?.role !== "admin") {
+    fetchPermissions();
+  }
+});
 
 // Menu structure
 const menu = [
@@ -86,21 +124,20 @@ const menu = [
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Reports", to: "/reports", icon: FileSpreadsheet },
 
-  // Admin only
-  { label: "Admin Dashboard", to: "/admin", icon: PieChart, admin: true },
-  { label: "Admin Users", to: "/admin/users", icon: Users, admin: true },
-  { label: "Admin Transactions", to: "/admin/transactions", icon: List, admin: true },
-  { label: "KYC Review", to: "/admin/kyc", icon: ShieldCheck, admin: true },
-  { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, admin: true },
-  { label: "Control Panel", to: "/admin/control-panel", icon: MonitorCog, admin: true },
-  { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, admin: true },
-  { label: "Reports", to: "/admin/reports", icon: FileSpreadsheet },
+  // Admin/staff
+  { label: "Admin Dashboard", to: "/admin", icon: PieChart, access: () => isAdmin.value },
+  { label: "Admin Users", to: "/admin/users", icon: Users, access: () => isAdmin.value },
+  { label: "Admin Transactions", to: "/admin/transactions", icon: List, access: () => isAdmin.value || !!userPermissions.value.manage_transaction_charges },
+  { label: "KYC Review", to: "/admin/kyc", icon: ShieldCheck, access: () => isAdmin.value || !!userPermissions.value.manage_kyc_settings },
+  { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, access: () => isAdmin.value },
+  { label: "Control Panel", to: "/admin/control-panel", icon: MonitorCog, access: () => isAdmin.value || hasAnyPermissions() },
+  { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, access: () => isAdmin.value },
+  { label: "Reports", to: "/admin/reports", icon: FileSpreadsheet, access: () => isAdmin.value },
 ];
 
-// Only show admin items if user is admin
+// Filter menu based on access functions
 const filteredMenu = computed(() => {
-  if (user.role === "admin") return menu;
-  return menu.filter((m) => !m.admin);
+  return menu.filter((m) => !m.access || m.access());
 });
 
 // Logout function

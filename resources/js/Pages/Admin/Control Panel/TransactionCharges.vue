@@ -4,11 +4,7 @@
       <h2 class="text-xl font-bold">Fees & Charges Configuration</h2>
     </div>
 
-    <div v-if="permissionError"
-      class="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-500 text-sm flex justify-between items-center">
-      <span>{{ permissionError }}</span>
-      <button @click="permissionError = null" class="font-bold">&times;</button>
-    </div>
+
 
     <table class="w-full text-sm text-left">
       <thead class="bg-[#151a27] text-gray-400 uppercase">
@@ -72,22 +68,7 @@
       </div>
     </div>
 
-    <div v-if="showDeniedModal"
-      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md">
-      <div class="bg-[#1C1F2E] p-8 rounded-xl border border-orange-500/30 w-full max-w-sm text-center shadow-2xl">
-        <div class="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span class="text-3xl">⚠️</span>
-        </div>
-        <h3 class="text-xl font-bold text-white mb-2">Access Restricted</h3>
-        <p class="text-gray-400 text-sm mb-6">
-          {{ deniedMessage }}
-        </p>
-        <button @click="$router.push('/admin')"
-          class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors font-semibold">
-          Understood
-        </button>
-      </div>
-    </div>
+
   </div>
 </template>
 
@@ -99,10 +80,7 @@ const router = useRouter();
 
 const charges = ref([]);
 const showModal = ref(false);
-const showDeniedModal = ref(false);
-const loading = ref(false);
-const permissionError = ref(null);
-const deniedMessage = ref(""); 
+const loading = ref(false); 
 
 const form = ref({ id: null, transaction_type: '', charge_type: 'flat', value: 0, active: true });
 
@@ -111,12 +89,7 @@ const fetchCharges = async () => {
     const res = await api.get('/admin/transaction-charges');
     charges.value = res.data;
   } catch (e) {
-    if (e.response && e.response.status === 403) {
-      deniedMessage.value = e.response.data.message || "Access Restricted";
-      showDeniedModal.value = true;
-    } else {
-      console.error("Fetch failed", e);
-    }
+    console.error("Fetch failed", e);
   }
 };
 
@@ -127,28 +100,13 @@ const openEdit = (c) => {
 
 const submitUpdate = async () => {
   loading.value = true;
-  permissionError.value = null;
 
   try {
     await api.put(`/admin/transaction-charges/${form.value.id}`, form.value);
     showModal.value = false;
     fetchCharges();
   } catch (e) {
-    if (e.response && e.response.status === 403) {
-      // If the message contains 'user', we can give a hint to switch accounts
-      const msg = e.response.data.message;
-
-      if (msg.toLowerCase().includes("'user'")) {
-        deniedMessage.value = "Your current session is identified as a 'User'. Please ensure you have correctly switched to your Staff Profile to edit charges.";
-      } else {
-        deniedMessage.value = msg;
-      }
-
-      showModal.value = false;
-      showDeniedModal.value = true;
-    } else {
-      permissionError.value = e.response?.data?.message || "An error occurred while saving.";
-    }
+    console.error("Update failed", e);
   } finally {
     loading.value = false;
   }

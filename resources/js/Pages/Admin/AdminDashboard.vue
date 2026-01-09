@@ -7,22 +7,22 @@
       <!-- STAT CARDS -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-        <div class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
+        <div v-if="isAdmin" class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
           <p class="text-gray-400 text-sm">Total Users</p>
           <h2 class="text-3xl font-bold text-white mt-2">{{ stats.users_count }}</h2>
         </div>
 
-        <div class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
+        <div v-if="isAdmin || userPermissions.manage_kyc_settings" class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
           <p class="text-gray-400 text-sm">Pending KYCs</p>
           <h2 class="text-3xl font-bold text-yellow-400 mt-2">{{ stats.pending_kyc }}</h2>
         </div>
 
-        <div class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
+        <div v-if="isAdmin || userPermissions.manage_transaction_charges" class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
           <p class="text-gray-400 text-sm">Total Transactions</p>
           <h2 class="text-3xl font-bold text-blue-400 mt-2">{{ stats.total_transactions }}</h2>
         </div>
 
-        <div class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
+        <div v-if="isAdmin" class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
           <p class="text-gray-400 text-sm">Pending Orders</p>
           <h2 class="text-3xl font-bold text-red-400 mt-2">{{ stats.pending_orders }}</h2>
         </div>
@@ -30,7 +30,7 @@
       </div>
 
       <!-- WALLET BALANCES -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div v-if="isAdmin || userPermissions.manage_platform_earnings" class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="p-6 bg-[#111827] rounded-xl border border-[#1F2A44]">
           <p class="text-gray-400 text-sm">Total NGN Wallet Value</p>
           <h2 class="text-3xl font-bold text-white">₦{{ format(stats.wallets?.ngn) }}</h2>
@@ -46,7 +46,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- User Registrations -->
-        <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
+        <div v-if="isAdmin" class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
           <h3 class="text-white text-lg font-semibold mb-3">User Registrations (7 days)</h3>
           <apexchart
             type="line"
@@ -57,7 +57,7 @@
         </div>
 
         <!-- Transaction Volume -->
-        <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
+        <div v-if="isAdmin || userPermissions.manage_transaction_charges" class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
           <h3 class="text-white text-lg font-semibold mb-3">Transactions Volume (7 days)</h3>
           <apexchart
             type="bar"
@@ -74,12 +74,35 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "@/lib/axios";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 
 const apexchart = VueApexCharts;
+
+// Load user
+const user = ref({});
+try {
+  user.value = JSON.parse(localStorage.getItem("user") || "{}");
+} catch {
+  user.value = {};
+}
+
+const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
+const userPermissions = ref({});
+
+const fetchPermissions = async () => {
+  if (user.value.role === "admin") return;
+  try {
+    const profileRes = await axios.get('/user/profile/show');
+    const currentUser = profileRes.data.data;
+    userPermissions.value = currentUser.permissions || {};
+    user.value.permissions = userPermissions.value;
+  } catch (e) {
+    console.error('Failed to fetch permissions', e);
+  }
+};
 
 // STATE
 const stats = ref({});
@@ -99,6 +122,7 @@ const txChartOptions = ref({
 
 // LOAD STATS
 onMounted(async () => {
+  await fetchPermissions();
   const res = await axios.get("/admin/dashboard");
 
   stats.value = res.data;
@@ -125,3 +149,4 @@ const format = (n) =>
   color: #fff !important;
 }
 </style>
+
