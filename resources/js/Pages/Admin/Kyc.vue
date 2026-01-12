@@ -3,6 +3,16 @@
     <div class="space-y-6">
       <h1 class="text-xl font-bold text-white">KYC Review</h1>
 
+      <div class="mb-4">
+        <label class="text-white mr-2">Filter by Status:</label>
+        <select v-model="statusFilter" class="bg-[#1F2A44] text-white p-2 rounded border border-[#1F2A44]">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="verified">Verified</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
       <div class="bg-[#111827] rounded-xl p-6 border border-[#1F2A44]">
         <table class="w-full text-sm">
           <thead>
@@ -17,7 +27,7 @@
 
           <tbody>
             <tr
-              v-for="k in kycs"
+              v-for="k in filteredKycs"
               :key="k.id"
               class="border-b border-[#1F2A44] hover:bg-[#1C2541] transition"
             >
@@ -50,7 +60,7 @@
                 <div class="flex gap-2">
                   <button
                     class="px-3 py-1 bg-green-600/20 text-green-400 rounded text-xs hover:bg-green-600/40 transition"
-                    @click="openConfirmModal(k, 'approved')"
+                    @click="openConfirmModal(k, 'verified')"
                     v-if="k.status === 'pending'"
                   >
                     Approve
@@ -93,7 +103,7 @@
               @click="confirmReview" 
               :class="[
                 'px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-2',
-                currentDecision === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
+                currentDecision === 'verified' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
               ]"
               :disabled="submitting"
             >
@@ -109,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import api from "@/api";
 
@@ -118,11 +128,20 @@ const showModal = ref(false);
 const submitting = ref(false);
 const selectedKyc = ref(null);
 const currentDecision = ref("");
+const statusFilter = ref("");
 
 onMounted(async () => {
-  let res = await api.get("/admin/kycs");
+  let res = await api.get("/admin/kycs", { params: { per_page: 10000 } });
   // Assuming the pagination structure is data.data.data
-  kycs.value = res.data.data.data;
+  kycs.value = res.data.data.data || [];
+});
+
+const filteredKycs = computed(() => {
+  if (!statusFilter.value) return kycs.value;
+  if (statusFilter.value === 'verified') {
+    return kycs.value.filter(k => k.status === 'verified' || k.status === 'approved');
+  }
+  return kycs.value.filter(k => k.status === statusFilter.value);
 });
 
 /**
