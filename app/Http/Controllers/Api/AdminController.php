@@ -30,11 +30,11 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'stats' => [
-                'total_users'        => User::count(),
-                'pending_kyc'        => UserKyc::where('status', 'pending')->count(),
-                'total_transactions' => Transaction::count(),
-                'total_fees' => PlatformEarning::sum('amount'),
-                'wallet_sums' => [
+                'users_count'        => User::count(),
+                'pending_kyc'        => KycProfile::where('status', 'pending')->count(),
+                'total_transactions' => NewTransaction::count(),
+                'pending_orders'     => Order::where('status', 'pending')->count(),
+                'wallets' => [
                     'ngn' => Wallet::where('currency', 'NGN')->sum('balance'),
                     'usd' => Wallet::where('currency', 'USD')->sum('balance'),
                 ]
@@ -60,7 +60,7 @@ class AdminController extends Controller
     */
     public function users(Request $request)
     {
-        $query = User::with('roles')->select('id', 'first_name', 'last_name', 'email', 'phone', 'role', 'status', 'created_at');
+        $query = User::with('roles')->select('id', 'first_name', 'last_name', 'email', 'phone', 'role', 'status', 'kyc_status', 'created_at');
 
         if ($request->q) {
             $query->where(function ($q) use ($request) {
@@ -70,7 +70,7 @@ class AdminController extends Controller
             });
         }
 
-        $users = $query->paginate(30);
+        $users = $query->latest()->paginate(30);
 
         $items = collect($users->items())->map(function ($u) {
             return [
@@ -82,6 +82,7 @@ class AdminController extends Controller
                 'role' => $u->role,
                 'roles' => $u->getRoleNames(),
                 'status' => $u->status,
+                'kyc_status' => $u->kyc_status,
                 'created_at' => $u->created_at,
             ];
         })->all();
@@ -275,7 +276,7 @@ class AdminController extends Controller
     */
     public function kycs(Request $request)
     {
-        $kycs = KycProfile::with('user')->latest()->paginate(20);
+        $kycs = KycProfile::with('user')->latest()->paginate($request->input('per_page', 20));
 
         return response()->json([
             'success' => true,
@@ -318,10 +319,9 @@ class AdminController extends Controller
             }
         ]);
 
-        try {
-            $kyc->user->update(['kyc_status' => $request->status]);
-        } catch (\Throwable $e) {
-        }
+        $user = $kyc->user;
+        $user->kyc_status = $request->status;
+        $user->save();
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
@@ -532,9 +532,9 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'total_users' => User::count(),
-            'total_transactions' => Transaction::count(),
-            'pending_kyc' => UserKyc::where('status', 'pending')->count(),
-            'latest_transactions' => Transaction::latest()->take(5)->get(),
+            'total_transactions' => NewTransaction::count(),
+            'pending_kyc' => KycProfile::where('status', 'pending')->count(),
+            'latest_transactions' => NewTransaction::latest()->take(5)->get(),
             'user_growth' => [100, 150, 200, 260, 340, 500, 650]
         ]);
     }

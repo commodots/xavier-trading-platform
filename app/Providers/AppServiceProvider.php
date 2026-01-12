@@ -9,6 +9,8 @@ use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Contracts\MarketDataProvider;
 use App\Services\Stocks\Mock\MockDriveWealthService;
 use App\Services\Stocks\Mock\MockPolygonService;
+use App\Models\KycProfile;
+use App\Observers\KycProfileObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,5 +36,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+        KycProfile::observe(KycProfileObserver::class);
     }
 }

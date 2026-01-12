@@ -27,7 +27,7 @@ class UserSettingsSeeder extends Seeder
         'next_of_kin_email' => fake()->email(),
       ]);
 
-      $status = fake()->randomElement(['pending', 'approved', 'rejected']);
+      $status = fake()->randomElement(['pending', 'verified', 'rejected']);
       $tier = fake()->numberBetween(1, 3);
 
       $limit = $kycSettings->has($tier) ? $kycSettings[$tier]->daily_limit : 50000;
@@ -41,7 +41,7 @@ class UserSettingsSeeder extends Seeder
         'tier' => $tier,
         'level' => (string) $levelName,
         'status' => $status,
-        'daily_limit' => ($status === 'approved') ? $limit : 0,
+        'daily_limit' => ($status === 'verified') ? $limit : 0,
 
         'id_type' => $choice, // Use the random choice
         'id_number' => strtoupper(substr($choice, 0, 3)) . $user->id . rand(1000, 9999),

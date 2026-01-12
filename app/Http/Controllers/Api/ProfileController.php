@@ -110,6 +110,9 @@ class ProfileController extends Controller
         }
         $kyc->save();
 
+        // Update user kyc_status to pending when submitting
+        $user->update(['kyc_status' => 'pending']);
+
         // optionally trigger async verification job here
         return response()->json(['success' => true, 'message' => 'KYC submitted', 'data' => $kyc]);
     }

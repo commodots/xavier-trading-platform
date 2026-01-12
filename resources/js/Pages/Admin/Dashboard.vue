@@ -4,30 +4,38 @@
       <h1 class="mb-6 text-2xl font-bold">Admin Dashboard</h1>
 
       <div class="grid grid-cols-1 gap-6 mb-8 md:grid-cols-4">
-        <MetricCard title="Total Users" :value="stats.totalUsers" icon="Users" @click="$router.push({ name: 'admin-users' })" class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
-        <MetricCard title="KYC Pending" :value="stats.kycPending" icon="ShieldCheck" @click="$router.push({ name: 'admin-kyc' })" class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
-        <MetricCard title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered" @click="$router.push({ name: 'admin-transactions' })" class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"/>
-        
-        <MetricCard 
-          title="Today's Earnings" 
-          :value="'₦' + stats.todayEarnings.toLocaleString()" 
-          icon="PieChart"
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager')" title="Total Users" :value="stats.totalUsers"
+          icon="Users" @click="$router.push({ name: 'admin-users' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="isAdmin || user.roles?.includes('support') || user.roles?.includes('compliance')"
+          title="KYC Pending" :value="stats.kycPending" icon="ShieldCheck" @click="$router.push({ name: 'admin-kyc' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+          
+        <MetricCard v-if="isAdmin || user.roles?.includes('accounts') || user.roles?.includes('support')"
+          title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered"
+          @click="$router.push({ name: 'admin-transactions' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+          title="Today's Earnings" :value="'₦' + stats.todayEarnings.toLocaleString()" icon="PieChart"
           :subtitle="`This Month's Earnings: ₦` + stats.monthEarnings.toLocaleString()"
           @click="$router.push({ name: 'admin-control-panel', query: { tab: 'platform-earnings' } })"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
-        />
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
       </div>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="isAdmin || user.roles?.includes('manager')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">User Growth</h2>
           <canvas ref="userGrowthChart"></canvas>
         </div>
-        <div class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="isAdmin || user.roles?.includes('accounts') || user.roles?.includes('support')"
+          class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Monthly Transaction Volume</h2>
           <canvas ref="txnChart"></canvas>
         </div>
-        <div class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+          class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Portfolio Distribution</h2>
           <canvas ref="pieChart"></canvas>
         </div>
@@ -35,11 +43,15 @@
 
       <div class="grid grid-cols-1 gap-6 mt-10 lg:grid-cols-2">
 
-        <div class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="isAdmin || user.roles?.includes('manager')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Recent Users</h2>
           <table class="w-full text-sm text-left">
             <thead class="text-gray-400">
-              <tr><th class="py-2">Name</th><th>Email</th><th>Status</th></tr>
+              <tr>
+                <th class="py-2">Name</th>
+                <th>Email</th>
+                <th>Status</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="u in recentUsers" :key="u.id" class="border-t border-gray-700">
@@ -55,11 +67,16 @@
           </table>
         </div>
 
-        <div class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="isAdmin || user.roles?.includes('accounts') || user.roles?.includes('support')"
+          class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Latest Transactions</h2>
           <table class="w-full text-sm text-left">
             <thead class="text-gray-400">
-              <tr><th class="py-2">User</th><th>Type</th><th>Amount</th></tr>
+              <tr>
+                <th class="py-2">User</th>
+                <th>Type</th>
+                <th>Amount</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="t in recentTransactions" :key="t.id" class="border-t border-gray-700">
@@ -71,9 +88,11 @@
           </table>
 
           <div class="pt-6 mt-8 border-t border-gray-700">
-            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction Type</h3>
+            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction
+              Type</h3>
             <div class="grid grid-cols-3 gap-4">
-              <div v-for="item in earningsByType" :key="item.type" class="bg-[#151a27] p-3 rounded-lg border border-[#2A314A]">
+              <div v-for="item in earningsByType" :key="item.type"
+                class="bg-[#151a27] p-3 rounded-lg border border-[#2A314A]">
                 <p class="text-[10px] text-gray-400 uppercase mb-1">{{ item.type.replace('_', ' ') }}</p>
                 <p class="text-sm font-bold text-white">₦{{ Number(item.total).toLocaleString() }}</p>
               </div>
@@ -87,12 +106,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import Chart from "chart.js/auto";
 import MetricCard from "@/Components/Admin/MetricCard.vue";
 
+// Load user
+const user = ref({});
+try {
+  user.value = JSON.parse(localStorage.getItem("user") || "{}");
+} catch {
+  user.value = {};
+}
+
+const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
 
 const userGrowthChart = ref(null);
 const txnChart = ref(null);
@@ -100,17 +128,17 @@ const pieChart = ref(null);
 
 
 const stats = ref({
-  totalUsers: 12485,
-  kycPending: 342,
-  totalTransactions: 98214,
-  todayEarnings: 472000,
-  monthEarnings: 15400000,
+  totalUsers: 0,
+  kycPending: 0,
+  totalTransactions: 0,
+  todayEarnings: 0,
+  monthEarnings: 0,
 });
 
 const earningsByType = ref([
-  { type: 'Deposit', total: 5200000 },
-  { type: 'Withdrawal', total: 2100000 },
-  { type: 'Trade', total: 8100000 }
+  { type: 'Deposit', total: 0 },
+  { type: 'Withdrawal', total: 0 },
+  { type: 'Trade', total: 0 }
 ]);
 
 const recentUsers = ref([
@@ -125,16 +153,24 @@ const recentTransactions = ref([
 
 async function fetchDashboardData() {
   try {
-    const [earningsRes, txnRes] = await Promise.all([
+    const [earningsRes, txnRes, usersRes, dashboardRes] = await Promise.all([
       api.get('/admin/earnings'),
-      api.get('/admin/transactions')
+      api.get('/admin/transactions'),
+      api.get('/admin/kycs', { params: { per_page: 10 } }),
+      api.get('/admin/dashboard')
     ]);
 
+    if (dashboardRes.data.success) {
+      const dData = dashboardRes.data.stats;
+      stats.value.totalUsers = dData.users_count;
+      stats.value.kycPending = dData.pending_kyc;
+      stats.value.totalTransactions = dData.total_transactions;
+    }
     if (earningsRes.data) {
       stats.value.todayEarnings = earningsRes.data.today_earnings ?? stats.value.todayEarnings;
-      
+
       stats.value.monthEarnings = earningsRes.data.this_month_earnings ?? stats.value.monthEarnings;
-      
+
       if (earningsRes.data.by_type) {
         earningsByType.value = earningsRes.data.by_type.map(item => ({
           type: item.type,
@@ -149,18 +185,29 @@ async function fetchDashboardData() {
         id: t.id,
         user: t.user?.name || `User #${t.user_id}`,
         type: t.type,
-        currency:t.currency,
-        amount: Number(t.amount) 
+        currency: t.currency,
+        amount: Number(t.amount)
       }));
     }
-  } catch (error) {
+
+    const kycList = usersRes.data.data?.data || [];
+    recentUsers.value = kycList
+      .filter(u => u.user)
+      .map(u => ({
+        id: u.user_id,
+        name: `${u.user.first_name} ${u.user.last_name}`,
+        email: u.user.email,
+        kyc: u.status || 'none'
+      }));
+  }
+  catch (error) {
     console.warn("API Error: Fallback data");
   }
 }
 
 onMounted(async () => {
   await fetchDashboardData();
-  
+
 
   if (userGrowthChart.value) {
     new Chart(userGrowthChart.value, {
@@ -172,7 +219,7 @@ onMounted(async () => {
     });
   }
 
-  
+
   if (txnChart.value) {
     new Chart(txnChart.value, {
       type: "bar",
@@ -183,7 +230,7 @@ onMounted(async () => {
     });
   }
 
- 
+
   if (pieChart.value) {
     new Chart(pieChart.value, {
       type: "doughnut",
