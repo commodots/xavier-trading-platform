@@ -55,8 +55,8 @@
             <SidebarLink v-if="isAdmin" to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
 
-            <div v-if="isAdmin || can('manage_transaction_charges')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations</div>
-            <SidebarLink v-if="isAdmin" to="/admin/users" :icon="Users">User Management</SidebarLink>
+            <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations</div>
+            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/users" :icon="Users">User Management</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
 

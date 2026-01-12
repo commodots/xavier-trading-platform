@@ -3,8 +3,8 @@
     <div>
       <h1 class="mb-6 text-2xl font-bold">Admin Dashboard</h1>
 
-      <div class="grid grid-cols-1 gap-6 mb-8 md:grid-cols-4">
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager')" title="Total Users" :value="stats.totalUsers"
+      <div :class="gridClasses">
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('compliance')" title="Total Users" :value="stats.totalUsers"
           icon="Users" @click="$router.push({ name: 'admin-users' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
@@ -24,8 +24,8 @@
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
       </div>
 
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div v-if="isAdmin || user.roles?.includes('manager')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+      <div :class="chartGridClasses">
+        <div v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('compliance')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">User Growth</h2>
           <canvas ref="userGrowthChart"></canvas>
         </div>
@@ -41,9 +41,9 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 mt-10 lg:grid-cols-2">
+      <div :class="bottomGridClasses">
 
-        <div v-if="isAdmin || user.roles?.includes('manager')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('compliance')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Recent Users</h2>
           <table class="w-full text-sm text-left">
             <thead class="text-gray-400">
@@ -121,6 +121,54 @@ try {
 }
 
 const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
+
+const visibleMetricCards = computed(() => {
+  let count = 0;
+  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance')) count++;
+  if (isAdmin.value || user.value.roles?.includes('support') || user.value.roles?.includes('compliance')) count++;
+  if (isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support')) count++;
+  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts')) count++;
+  return count;
+});
+
+const gridClasses = computed(() => {
+  let classes = 'grid grid-cols-1 gap-6 mb-8 ';
+  if (visibleMetricCards.value >= 4) classes += 'md:grid-cols-4';
+  else if (visibleMetricCards.value === 3) classes += 'md:grid-cols-3';
+  else if (visibleMetricCards.value === 2) classes += 'md:grid-cols-2';
+  else classes += 'md:grid-cols-1';
+  return classes;
+});
+
+const visibleCharts = computed(() => {
+  let count = 0;
+  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance')) count++;
+  if (isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support')) count++;
+  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts')) count++;
+  return count;
+});
+
+const chartGridClasses = computed(() => {
+  let classes = 'grid grid-cols-1 gap-6 ';
+  if (visibleCharts.value === 3) classes += 'lg:grid-cols-3';
+  else if (visibleCharts.value === 2) classes += 'lg:grid-cols-2';
+  else classes += 'lg:grid-cols-1';
+  return classes;
+});
+
+const visibleBottomSections = computed(() => {
+  let count = 0;
+  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance')) count++;
+  if (isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support')) count++;
+  return count;
+});
+
+const bottomGridClasses = computed(() => {
+  let classes = 'grid grid-cols-1 gap-6 mt-10 ';
+  if (visibleBottomSections.value === 2) classes += 'lg:grid-cols-2';
+  else classes += 'lg:grid-cols-1';
+  return classes;
+});
 
 const userGrowthChart = ref(null);
 const txnChart = ref(null);

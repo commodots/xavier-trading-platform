@@ -28,7 +28,7 @@
           Clients
         </button>
 
-        <button
+        <button v-if="isAdmin" 
           class="px-4 py-2 rounded-t-lg"
           :class="activeTab === 'staff'
             ? 'bg-blue-600 text-white'
@@ -224,6 +224,15 @@ import { useRouter } from "vue-router";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 
+const user = ref({});
+try {
+  user.value = JSON.parse(localStorage.getItem("user") || "{}");
+} catch {
+  user.value = {};
+}
+
+const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
+
 const router = useRouter();
 
 // GLOBAL STATE
@@ -242,9 +251,14 @@ const hasStaffRole = (u) => {
   return uRoles.some(r => staffRoles.includes(r));
 };
 
+const hasUserRole = (u) => {
+  const uRoles = Array.isArray(u.roles) && u.roles.length ? u.roles.map(r => (typeof r === 'string' ? r : r.name || '')) : (u.role ? [u.role] : []);
+  return uRoles.includes('user');
+};
+
 // FILTERED LISTS
 const staff = computed(() => users.value.filter((u) => hasStaffRole(u)));
-const clients = computed(() => users.value.filter((u) => !hasStaffRole(u)));
+const clients = computed(() => users.value.filter(hasUserRole));
 
 // PAGINATION — CLIENTS
 const clientPage = ref(1);

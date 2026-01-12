@@ -14,7 +14,7 @@
             ← Back
           </button>
 
-          <button
+          <button v-if="isAdmin" 
             @click="openRoleModal"
             class="px-3 py-2 text-sm text-white bg-blue-600 rounded"
             :disabled="loading"
@@ -39,7 +39,7 @@
       <div v-if="!loading && !error">
 
         <!-- USER CARD -->
-        <div class="bg-[#0F172A] p-6 rounded-xl border border-[#1F2A44] grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-[#0F172A] p-6 rounded-xl border border-[#1F2A44] grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
 
           <!-- Left -->
           <div class="flex items-start col-span-2 gap-4">
@@ -48,43 +48,43 @@
             </div>
 
             <div>
-              <div class="text-xl font-semibold">{{ fullName }}</div>
+              <div class="text-xl font-semibold capitalize">{{ fullName }}</div>
 
               <div class="text-sm text-gray-300">
-                {{ user.email || "No email" }}
+               Email: {{ viewedUser.email || "No email" }}
               </div>
 
               <div class="text-sm text-gray-300">
-                Phone: {{ user.phone || "N/A" }}
+                Phone: {{ viewedUser.phone || "N/A" }}
               </div>
 
               <div class="flex items-center gap-2 mt-2">
-                <template v-if="Array.isArray(user.roles) && user.roles.length">
-                  <span v-for="r in user.roles.map(x => typeof x === 'string' ? x : x.name)" :key="r" class="px-2 py-1 text-xs bg-purple-700 rounded">
+                <template v-if="Array.isArray(viewedUser.roles) && viewedUser.roles.length">
+                  <span v-for="r in viewedUser.roles.map(x => typeof x === 'string' ? x : x.name)" :key="r" class="px-2 py-1 text-xs bg-purple-700 rounded capitalize">
                     {{ r }}
                   </span>
                 </template>
                 <template v-else>
-                  <span class="px-2 py-1 text-xs bg-gray-700 rounded">{{ user.role || 'user' }}</span>
+                  <span class="px-2 py-1 text-xs bg-gray-700 rounded capitalize">{{ viewedUser.role || 'user' }}</span>
                 </template>
               </div>
 
               <div class="mt-2 text-xs text-gray-400">
-                Joined: {{ formatDate(user.created_at) }}
+                Joined: {{ formatDate(viewedUser.created_at) }}
               </div>
             </div>
           </div>
 
           <!-- Actions -->
-          <div class="flex flex-col gap-3">
+          <div v-if="isAdmin"  class="flex flex-col gap-3">
 
             <button
               @click="toggleStatus"
               :disabled="togglingStatus"
-              :class="user.status === 'active' ? 'bg-red-600' : 'bg-green-600'"
+              :class="viewedUser.status === 'active' ? 'bg-red-600' : 'bg-green-600'"
               class="px-4 py-2 text-white rounded"
             >
-              {{ togglingStatus ? "Updating..." : (user.status === "active" ? "Disable Account" : "Enable Account") }}
+              {{ togglingStatus ? "Updating..." : (viewedUser.status === "active" ? "Disable Account" : "Enable Account") }}
             </button>
 
             <button @click="resetPassword" class="px-4 py-2 text-white bg-gray-700 rounded">
@@ -209,7 +209,7 @@
       <!-- ROLE MODAL -->
       <RoleModal
         v-if="showRoleModal"
-        :user="user"
+        :user="viewedUser"
         @close="showRoleModal = false"
         @role-updated="onRoleUpdated"
       />
@@ -224,6 +224,17 @@ import axios from "@/lib/axios";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import RoleModal from "@/Components/admin/RoleModal.vue";
 
+const user = ref({});
+try {
+  user.value = JSON.parse(localStorage.getItem("user") || "{}");
+} catch {
+  user.value = {};
+}
+
+const viewedUser = ref({});
+
+const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
+
 // ROUTING
 const route = useRoute();
 const router = useRouter();
@@ -231,7 +242,6 @@ const router = useRouter();
 // STATE
 const loading = ref(true);
 const error = ref("");
-const user = ref({});
 const wallet = ref({ ngn: 0, usd: 0 });
 const kyc = ref(null);
 const transactions = ref([]);
@@ -240,15 +250,15 @@ const togglingStatus = ref(false);
 
 // COMPUTED
 const fullName = computed(() => {
-  const f = user.value.first_name || "";
-  const l = user.value.last_name || "";
+  const f = viewedUser.value.first_name || "";
+  const l = viewedUser.value.last_name || "";
   const name = `${f} ${l}`.trim();
-  return name || user.value.email || "Unnamed user";
+  return name || viewedUser.value.email || "Unnamed user";
 });
 
 const initials = computed(() => {
-  const f = user.value.first_name?.[0] || "";
-  const l = user.value.last_name?.[0] || "";
+  const f = viewedUser.value.first_name?.[0] || "";
+  const l = viewedUser.value.last_name?.[0] || "";
   return (f + l).toUpperCase() || "U";
 });
 
@@ -264,7 +274,7 @@ const loadData = async () => {
     const id = route.params.id;
     const res = await axios.get(`/admin/users/${id}`);
 
-    user.value = res.data.user;
+    viewedUser.value = res.data.user;
     wallet.value = res.data.wallet;
     transactions.value = res.data.transactions || [];
     kyc.value = res.data.user.kyc || null;
@@ -284,8 +294,8 @@ onMounted(loadData);
 const toggleStatus = async () => {
   togglingStatus.value = true;
   try {
-    const res = await axios.post(`/admin/users/${user.value.id}/toggle-status`);
-    user.value.status = res.data.status;
+    const res = await axios.post(`/admin/users/${viewedUser.value.id}/toggle-status`);
+    viewedUser.value.status = res.data.status;
   } catch (e) {
     alert("Unable to update status.");
   }
@@ -297,12 +307,12 @@ const resetPassword = () => alert("Reset password coming soon");
 const openRoleModal = () => (showRoleModal.value = true);
 
 const onRoleUpdated = (roles) => {
-  
-  user.value.roles = Array.isArray(roles) ? roles : [roles];
-  user.value.role = user.value.roles.includes('admin') ? 'admin' : user.value.roles[0];
+
+  viewedUser.value.roles = Array.isArray(roles) ? roles : [roles];
+  viewedUser.value.role = viewedUser.value.roles.includes('admin') ? 'admin' : viewedUser.value.roles[0];
   showRoleModal.value = false;
 };
 
 const goBack = () => router.push("/admin/users");
-const goKycReview = () => router.push(`/admin/kyc-review/${user.value.id}`);
+const goKycReview = () => router.push(`/admin/kyc-review/${viewedUser.value.id}`);
 </script>

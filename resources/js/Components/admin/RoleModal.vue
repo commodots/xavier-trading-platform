@@ -23,8 +23,8 @@
 
         <div class="flex justify-end gap-3 mt-4">
           <button @click="$emit('close')" class="px-3 py-2 text-sm bg-transparent border border-gray-600 rounded">Cancel</button>
-          <button @click="save" :disabled="saving" class="px-4 py-2 rounded bg-[#00D4FF] text-black font-semibold">
-            {{ saving ? 'Saving...' : 'Save Role' }}
+          <button @click="save" :disabled="saving || saved" class="px-4 py-2 rounded bg-[#00D4FF] text-black font-semibold">
+            {{ saved ? 'Saved' : saving ? 'Saving...' : 'Save Role' }}
           </button>
         </div>
       </div>
@@ -46,6 +46,7 @@ const selected = ref((props.user && props.user.roles && props.user.roles.length)
   : [props.user?.role || 'user']
 );
 const saving = ref(false);
+const saved = ref(false);
 const note = ref('Admins can access the admin dashboard and user management.');
 
 const localUser = ref(props.user || {});
@@ -85,8 +86,11 @@ const save = async () => {
     const res = await api.post(`/admin/users/${localUser.value.id}/role`, { roles: selected.value });
 
     if (res.data && res.data.success) {
+      saved.value = true;
       emit('role-updated', res.data.roles || selected.value);
-      emit('close');
+      setTimeout(() => {
+        emit('close');
+      }, 3000);
     } else {
       alert(res.data.message || 'Failed to update role');
     }
