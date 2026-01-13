@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
@@ -94,9 +94,20 @@ const isGraphLoading = ref(false);
 const fetchPortfolioPerformance = async (range = '1W') => {
   isGraphLoading.value = true;
   try {
-    const response = await api.get(`/portfolio/history`, {
-      params: { category: 'local', range: range }
-    });
+    const params = { category: 'local' };
+
+    // Handle different range types
+    if (typeof range === 'object' && range.start && range.end) {
+      // Custom date range
+      params.start = range.start;
+      params.end = range.end;
+      params.range = 'CUSTOM';
+    } else {
+      // Standard range
+      params.range = range;
+    }
+
+    const response = await api.get(`/portfolio/history`, { params });
     portfolioData.value = response.data.series;
     totalValue.value = response.data.total;
     changePercent.value = response.data.change;
@@ -107,7 +118,10 @@ const fetchPortfolioPerformance = async (range = '1W') => {
   }
 };
 
-onMounted(() => fetchPortfolioPerformance());
+onMounted(() => {
+  fetchPortfolioPerformance();
+  updateMarketPrices();
+});
 
 const openDetails = (item) => {
   selectedItem.value = item;
@@ -127,6 +141,36 @@ const stocks = ref([
   { symbol: "NB", name: "Nigerian Breweries", price: 72, change: 0.5, volume: 154000, spark: [70, 70.5, 71, 71.5, 72] },
 ]);
 
+const updateMarketPrices = async () => {
+  let pricesUpdated = false;
+  for (let stock of stocks.value) {
+    try {
+      const res = await api.get(`/dummy/ngx/market/${stock.symbol}`);
+      // Mapping dummy controller response to our table
+      const oldPrice = stock.price;
+      stock.price = res.data.bid;
+      stock.volume = res.data.volume;
+      stock.change = ((res.data.bid - 150) / 150 * 100).toFixed(2); // Mock change calculation
+
+      // Update sparkline
+      stock.spark.push(res.data.bid);
+      if (stock.spark.length > 10) stock.spark.shift();
+
+      // Track if prices changed
+      if (oldPrice !== stock.price) {
+        pricesUpdated = true;
+      }
+    } catch (e) {
+      console.warn(`Could not fetch dummy data for ${stock.symbol}`);
+    }
+  }
+
+  // Refresh portfolio performance chart if prices were updated
+  if (pricesUpdated) {
+    await fetchPortfolioPerformance();
+  }
+};
+
 const tradeTickers = computed(() => ({
   NGX: stocks.value.map(s => ({ ...s, currency: 'NGN' }))
 }));
@@ -145,6 +189,12 @@ const sparkOptions = {
   tooltip: { enabled: false },
   grid: { show: false },
 };
+
+const interval = setInterval(updateMarketPrices, 5000);
+  
+  // Cleanup on unmount
+  onUnmounted(() => clearInterval(interval));
+
 </script>
 
 <script>

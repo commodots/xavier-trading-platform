@@ -39,7 +39,7 @@ class MatchingEngine
         });
     }
 
-    protected function match(Order $incoming, OrderBook $book): void
+    public function match(Order $incoming, OrderBook $book): void
     {
         $matches = $incoming->side === 'buy'
             ? $book->sellOrders
@@ -67,7 +67,7 @@ class MatchingEngine
                 'quantity' => $qty,
             ]);
 			
-			app(\App\Services\ContractNoteService::class)->generate($trade);
+			app(\App\Services\ContractNote\ContractNoteService::class)->generate($trade);
 
 			app(CSCSSettlementSimulator::class)->settleTrade($trade);
 

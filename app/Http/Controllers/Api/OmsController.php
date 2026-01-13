@@ -8,9 +8,11 @@ use App\Models\Order;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\ActivityLog;
 use App\Models\NewTransaction;
 use App\Models\Portfolio;
+use App\Services\Execution\NgxDummyAdapter;
 
 class OmsController extends Controller
 {
@@ -100,6 +102,17 @@ class OmsController extends Controller
                 'symbol' => $order->symbol,
                 'side' => $request->side
             ]);
+
+            // Send order to NGX dummy service for execution
+            if ($request->market === "NGX") {
+                try {
+                    $ngxAdapter = new NgxDummyAdapter();
+                    $ngxAdapter->send($order);
+                } catch (\Exception $e) {
+                    // Log error but don't fail the order placement
+                    Log::error('NGX Dummy Adapter Error: ' . $e->getMessage());
+                }
+            }
 
             return response()->json([
                 "success" => true,

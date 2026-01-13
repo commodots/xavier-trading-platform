@@ -1,6 +1,7 @@
 <template>
   <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div v-if="!showFeedback" class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
+    <div v-if="!showFeedback"
+      class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
       <button @click="$emit('close')" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
 
       <h2 class="mb-4 text-xl font-semibold">
@@ -44,7 +45,8 @@
             You are {{ tradeAction === 'buy' ? 'Receiving' : 'Selling' }}
           </div>
           <div class="mb-1 text-3xl font-bold text-white">
-            {{ Number(unitInput).toFixed(6) }} <span class="text-sm font-medium text-gray-400">{{ selectedTicker?.symbol }}</span>
+            {{ Number(unitInput).toFixed(6) }} <span class="text-sm font-medium text-gray-400">{{ selectedTicker?.symbol
+              }}</span>
           </div>
           <div class="text-sm font-medium text-gray-300">
             Total {{ tradeAction === 'buy' ? 'Cost' : 'Value' }}: ₦{{ (nairaInput || 0).toLocaleString() }}
@@ -84,7 +86,8 @@
             <input v-model.number="unitInput" type="number" @input="syncFromUnits"
               class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white outline-none pr-12"
               placeholder="0.000000" />
-            <span class="absolute text-xs font-bold text-gray-500 -translate-y-1/2 right-4 top-1/2 uppercase">{{ selectedTicker?.symbol }}</span>
+            <span class="absolute text-xs font-bold text-gray-500 -translate-y-1/2 right-4 top-1/2 uppercase">{{
+              selectedTicker?.symbol }}</span>
           </div>
         </div>
 
@@ -96,22 +99,23 @@
           <span v-else>{{ isProcessing ? 'Processing Order...' : 'Confirm ' + tradeAction.toUpperCase() }}</span>
         </button>
 
-        <button @click="tradeStep = 2" class="w-full text-xs text-gray-500 transition hover:text-white">← Choose different ticker</button>
+        <button @click="tradeStep = 2" class="w-full text-xs text-gray-500 transition hover:text-white">← Choose
+          different ticker</button>
       </div>
     </div>
 
     <div v-else class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-sm text-center border border-[#2A314A]">
-        <div class="mb-4 text-5xl">
-            {{ feedbackType === 'success' ? '✅' : '❌' }}
-        </div>
-        <h3 class="mb-2 text-xl font-bold text-white">
-            {{ feedbackType === 'success' ? 'Order Successful' : 'Order Failed' }}
-        </h3>
-        <p class="mb-6 text-sm text-gray-400">{{ feedbackMessage }}</p>
-        <button @click="closeFeedback" 
-            class="w-full py-3 font-bold text-white rounded-lg bg-gray-700 hover:bg-gray-600 transition">
-            Close
-        </button>
+      <div class="mb-4 text-5xl">
+        {{ feedbackType === 'success' ? '✅' : '❌' }}
+      </div>
+      <h3 class="mb-2 text-xl font-bold text-white">
+        {{ feedbackType === 'success' ? 'Order Successful' : 'Order Failed' }}
+      </h3>
+      <p class="mb-6 text-sm text-gray-400">{{ feedbackMessage }}</p>
+      <button @click="closeFeedback"
+        class="w-full py-3 font-bold text-white rounded-lg bg-gray-700 hover:bg-gray-600 transition">
+        Close
+      </button>
     </div>
   </div>
 </template>
@@ -124,7 +128,7 @@ const props = defineProps({
   show: Boolean,
   tickers: Object,
   assetCategories: Array,
-  initialTicker: Object 
+  initialTicker: Object
 });
 
 const emit = defineEmits(['close', 'trade-success']);
@@ -220,46 +224,47 @@ const selectTicker = (t) => {
 };
 
 const closeFeedback = () => {
-    if (feedbackType.value === 'success') {
-        emit('trade-success');
-        emit('close');
-        tradeStep.value = 1;
-        nairaInput.value = 0;
-        unitInput.value = 0;
-    }
-    showFeedback.value = false;
+  if (feedbackType.value === 'success') {
+    emit('trade-success');
+    emit('close');
+    tradeStep.value = 1;
+    nairaInput.value = 0;
+    unitInput.value = 0;
+  }
+  showFeedback.value = false;
 };
 
 const handleTrade = async () => {
   isProcessing.value = true;
   try {
-    const token = localStorage.getItem("xavier_token");
     const payload = {
       symbol: selectedTicker.value.symbol,
-      company: selectedTicker.value.name,
-      units: unitInput.value,
-      quantity: unitInput.value, 
-      amount: nairaInput.value,
-      side: tradeAction.value,
+      side: tradeAction.value, // 'buy' or 'sell'
       type: 'market',
-      market: selectedCategory.value.id.toUpperCase(), 
-      market_price: selectedTicker.value.price,
-      currency: selectedTicker.value.currency || 'NGN',
-      status: 'open'
+      quantity: unitInput.value,
+      price: selectedTicker.value.price,
+      amount: nairaInput.value,
+      market: selectedCategory.value.id.toUpperCase(),
+      company:selectedTicker.value.symbol,
+      market_price:selectedTicker.value.price,
     };
 
-    const res = await api.post('/orders', payload, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
+    const res = await api.post('/orders', payload);
+
     if (res.status === 200 || res.status === 201) {
+      // Trigger dummy settlement status check after successful order
+      await api.post('/dummy/cscs/settle', {
+        trade_id: 'T' + res.data.data.id ,
+        amount: nairaInput.value,
+        cycle: 'T' + Date.now(),
+      });
       feedbackType.value = 'success';
-      feedbackMessage.value = `Successfully placed ${tradeAction.value.toUpperCase()} order for ${Number(unitInput.value).toFixed(8)} ${selectedTicker.value.symbol}.`;
+      feedbackMessage.value = `Order ${tradeAction.value.toUpperCase()} for ${selectedTicker.value.symbol} accepted by NGX Gateway.`;
       showFeedback.value = true;
     }
   } catch (e) {
     feedbackType.value = 'error';
-    feedbackMessage.value = e.response?.data?.message || "The transaction could not be completed.";
+    feedbackMessage.value = "Gateway Timeout: Dummy NGX service unreachable.";
     showFeedback.value = true;
   } finally {
     isProcessing.value = false;

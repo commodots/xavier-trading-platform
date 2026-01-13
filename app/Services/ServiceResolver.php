@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Service;
 use Exception;
+use App\Services\Adapters\CscsAdapter;
 
 class ServiceResolver
 {
@@ -17,9 +18,10 @@ class ServiceResolver
         }
 
         return match ($type) {
-            'ngx' => new NgxAdapter($service), 
-            'payment' => new PaymentAdapter($service), 
-            default => throw new Exception("Service type '{$type}' not configured"), 
+            'ngx' => new NgxAdapter($service),
+            'cscs' => new CscsAdapter($service),
+            'payment' => new PaymentAdapter($service),
+            default => throw new Exception("Service type '{$type}' not configured"),
         };
     }
 }

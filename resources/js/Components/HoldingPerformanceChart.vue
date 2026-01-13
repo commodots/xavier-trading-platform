@@ -38,16 +38,13 @@
     </div>
 
     <div class="h-[180px] -mx-4 relative">
-      <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-[#0F1724]/50 z-10">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00D4FF]"></div>
-      </div>
       <apexchart type="line" height="100%" :options="chartOptions" :series="series" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 
 const apexchart = VueApexCharts;
@@ -65,18 +62,50 @@ const props = defineProps({
 const selectedRange = ref('1W');
 const startDate = ref("");
 const endDate = ref("");
+const liveSeriesData = ref([]);
+const progressionInterval = ref(null);
+
+const startProgression = () => {
+  stopProgression(); // Clear any existing interval
+
+  progressionInterval.value = setInterval(() => {
+    // Add new data points to each series to show progression
+    liveSeriesData.value = liveSeriesData.value.map(series => ({
+      ...series,
+      data: [...series.data, {
+        x: Date.now(),
+        y: series.data[series.data.length - 1]?.y * (1 + (Math.random() - 0.5) * 0.02) // Small random change
+      }]
+    }));
+
+    // Keep only last 50 data points to prevent memory issues
+    liveSeriesData.value = liveSeriesData.value.map(series => ({
+      ...series,
+      data: series.data.slice(-50)
+    }));
+  }, 10000); // Add new point every 10 seconds
+};
+
+const stopProgression = () => {
+  if (progressionInterval.value) {
+    clearInterval(progressionInterval.value);
+    progressionInterval.value = null;
+  }
+};
 
 const changeRange = (range) => {
   selectedRange.value = range;
   // Clear custom dates when a preset is selected
   startDate.value = "";
   endDate.value = "";
+  stopProgression();
   emit('rangeChange', range);
 };
 
 const applyCustomRange = () => {
   if (startDate.value && endDate.value) {
     selectedRange.value = 'CUSTOM';
+    stopProgression();
     emit('rangeChange', {
       start: startDate.value,
       end: endDate.value

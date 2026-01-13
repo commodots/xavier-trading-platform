@@ -10,7 +10,7 @@ class NgxDummyAdapter
     public function send(Order $order)
     {
         // Immediate matching locally
-        app(MatchingEngine::class)->match($order);
+        app(MatchingEngine::class)->process($order);
 		if (config('app.simulate_errors')) {
 			throw new \Exception('NGX gateway timeout');
 		}
