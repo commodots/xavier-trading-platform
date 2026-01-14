@@ -23,11 +23,6 @@
             <div class="font-bold text-white">{{ ticker.symbol }}</div>
             <div class="text-xs text-gray-500">{{ ticker.name }}</div>
           </div>
-          <div class="text-right">
-            <div class="font-mono text-sm">
-              {{ ticker.currency === 'NGN' ? '₦' : '$' }}{{ ticker.price.toLocaleString() }}
-            </div>
-          </div>
         </button>
         <button @click="tradeStep = 1" class="w-full py-2 text-xs text-gray-500">← Back</button>
       </div>
@@ -86,7 +81,7 @@
             <input v-model.number="unitInput" type="number" @input="syncFromUnits"
               class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white outline-none pr-12"
               placeholder="0.000000" />
-            <span class="absolute text-xs font-bold text-gray-500 -translate-y-1/2 right-4 top-1/2 uppercase">{{
+            <span class="absolute text-xs font-bold text-gray-500 uppercase -translate-y-1/2 right-4 top-1/2">{{
               selectedTicker?.symbol }}</span>
           </div>
         </div>
@@ -113,7 +108,7 @@
       </h3>
       <p class="mb-6 text-sm text-gray-400">{{ feedbackMessage }}</p>
       <button @click="closeFeedback"
-        class="w-full py-3 font-bold text-white rounded-lg bg-gray-700 hover:bg-gray-600 transition">
+        class="w-full py-3 font-bold text-white transition bg-gray-700 rounded-lg hover:bg-gray-600">
         Close
       </button>
     </div>
@@ -141,6 +136,7 @@ const isProcessing = ref(false);
 const selectedCategory = ref(null);
 const selectedTicker = ref(null);
 const USD_RATE = 1500;
+const localTickers = ref({});
 
 const showFeedback = ref(false);
 const feedbackMessage = ref('');
@@ -158,10 +154,25 @@ watch(() => props.show, (newVal) => {
     tradeStep.value = 3;
     nairaInput.value = 0;
     unitInput.value = 0;
+    if (selectedCategory.value.id === 'NGX') {
+      fetchNgxPrices();
+    }
   } else if (newVal) {
     tradeStep.value = 1;
   }
 });
+
+const fetchNgxPrices = async () => {
+  if (!localTickers.value.NGX) return;
+  for (let ticker of localTickers.value.NGX) {
+    try {
+      const res = await api.get(`/dummy/ngx/market/${ticker.symbol}`);
+      ticker.price = res.data.bid;
+    } catch (e) {
+      console.warn(`Failed to fetch price for ${ticker.symbol}`, e);
+    }
+  }
+};
 
 const fetchBalance = async () => {
   try {
@@ -208,12 +219,15 @@ const currentAssetHolding = computed(() => {
 });
 
 const filteredTickers = computed(() => {
-  return selectedCategory.value ? props.tickers[selectedCategory.value.id] : [];
+  return selectedCategory.value ? localTickers.value[selectedCategory.value.id] : [];
 });
 
 const selectCategory = (cat) => {
   selectedCategory.value = cat;
   tradeStep.value = 2;
+  if (cat.id === 'NGX') {
+    fetchNgxPrices();
+  }
 };
 
 const selectTicker = (t) => {
@@ -271,5 +285,8 @@ const handleTrade = async () => {
   }
 };
 
-onMounted(fetchBalance);
+onMounted(() => {
+  localTickers.value = JSON.parse(JSON.stringify(props.tickers));
+  fetchBalance();
+});
 </script>

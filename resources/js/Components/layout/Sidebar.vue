@@ -54,7 +54,8 @@ import {
   Menu,
   MonitorCog,
   FileSpreadsheet,
-  SquareChartGantt
+  SquareChartGantt,
+  FileText
 } from "lucide-vue-next";
 
 // Props
@@ -133,6 +134,7 @@ const menu = [
   { label: "Control Panel", to: "/admin/control-panel", icon: MonitorCog, access: () => isAdmin.value || hasAnyPermissions() },
   { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, access: () => isAdmin.value },
   { label: "Reports", to: "/admin/reports", icon: FileSpreadsheet, access: () => isAdmin.value },
+  { label: "Orders", to: "/admin/orders", icon: FileText, access: () => isAdmin.value },
 ];
 
 // Filter menu based on access functions

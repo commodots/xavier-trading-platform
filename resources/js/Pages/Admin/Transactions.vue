@@ -12,7 +12,10 @@
           <option value="">All Types</option>
           <option value="deposit">Deposit</option>
           <option value="withdrawal">Withdrawal</option>
-          <option value="trade">Trade</option>
+          <option value="buy_crypto">Buy Crypto</option>
+          <option value="sell_crypto">Sell Crypto</option>
+          <option value="buy_stock">Buy Stock</option>
+          <option value="sell_stock">Sell Stock</option>
         </select>
 
         <select v-model="filters.status" @change="fetchTransactions()"

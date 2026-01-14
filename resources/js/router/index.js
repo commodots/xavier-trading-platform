@@ -30,6 +30,7 @@ import AdminUsers from "@/Pages/Admin/Users.vue";
 import AdminKYCs from "@/Pages/Admin/Kyc.vue";
 import AdminKycReview from "@/Pages/Admin/KycReview.vue";
 import AdminTransactions from "@/Pages/Admin/Transactions.vue";
+import AdminOrders from "@/Pages/Admin/Orders.vue";
 import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
 import AdminReports from "@/Pages/Admin/Reports.vue";
@@ -182,6 +183,12 @@ const routes = [
     path: "/admin/transactions",
     name: "admin-transactions",
     component: AdminTransactions,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/orders",
+    name: "admin-orders",
+    component: AdminOrders,
     meta: { requiresAuth: true, adminOnly: true },
   },
   {

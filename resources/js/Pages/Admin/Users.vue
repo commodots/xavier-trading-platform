@@ -67,7 +67,7 @@
               :key="u.id"
               class="border-b border-gray-800 hover:bg-[#1E293B] transition"
             >
-              <td class="flex items-center gap-3 py-3">
+              <td class="flex items-center gap-3 py-3 capitalize ">
                 <div class="flex items-center justify-center w-8 h-8 text-xs font-bold bg-gray-600 rounded-full">
                   {{ initials(u) }}
                 </div>

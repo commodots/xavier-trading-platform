@@ -4,16 +4,16 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold">🧾 Order Book Monitor</h1>
-          <p class="text-gray-400 text-sm">Live bid/ask lists and market depth. Uses simulated data until backend is connected.</p>
+          <p class="text-sm text-gray-400">Live bid/ask lists and market depth. Uses simulated data until backend is connected.</p>
         </div>
 
         <div class="flex items-center gap-4">
-          <img src="/mnt/data/register_screen.png" alt="snapshot" class="h-10 object-contain rounded" />
+          <img src="/mnt/data/register_screen.png" alt="snapshot" class="object-contain h-10 rounded" />
           <button @click="refresh" class="px-3 py-2 rounded bg-[#00D4FF] text-black font-semibold">Refresh</button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
           <div class="flex items-center justify-between mb-3">
             <div class="font-semibold">Order Book</div>
@@ -22,42 +22,54 @@
 
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <div class="text-xs text-gray-400 mb-2">Bids (buy)</div>
+              <div class="mb-2 text-xs text-gray-400">Bids (buy)</div>
               <order-book-table :rows="bids" side="bid" />
             </div>
             <div>
-              <div class="text-xs text-gray-400 mb-2">Asks (sell)</div>
+              <div class="mb-2 text-xs text-gray-400">Asks (sell)</div>
               <order-book-table :rows="asks" side="ask" />
             </div>
           </div>
         </div>
 
         <div class="lg:col-span-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
-          <div class="font-semibold mb-3">Market Depth</div>
+          <div class="mb-3 font-semibold">Market Depth</div>
           <order-depth-chart :bids="bids" :asks="asks" />
         </div>
 
         <div class="lg:col-span-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
           <div class="flex items-center justify-between mb-3">
-            <div class="font-semibold">Recent Trades</div>
-            <div class="text-xs text-gray-400">Last {{ trades.length }}</div>
+            <div class="font-semibold">Recent Orders</div>
+            <div class="flex items-center gap-2">
+              <div class="text-xs text-gray-400">Last {{ orders.length }}</div>
+              <router-link to="/admin/orders" class="text-xs text-blue-400 hover:underline">View All</router-link>
+            </div>
           </div>
 
           <div class="text-sm">
             <ul class="space-y-2">
-              <li v-for="t in trades" :key="t.id" class="flex justify-between items-center p-2 rounded hover:bg-[#122033]">
-                <div>
-                  <div class="font-medium">{{ t.side.toUpperCase() }} {{ t.amount }} @ {{ t.price }}</div>
-                  <div class="text-xs text-gray-400">{{ t.time }}</div>
+              <li v-for="order in orders" :key="order.id" class="p-2 rounded hover:bg-[#122033]">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <div class="font-medium">{{ order.side.toUpperCase() }} {{ order.symbol }}</div>
+                    <div class="text-xs text-gray-400">{{ order.user.first_name }} {{ order.user.last_name }}</div>
+                  </div>
+                  <div class="text-right">
+                    <div :class="order.status === 'filled' ? 'text-green-400' : order.status === 'open' ? 'text-blue-400' : 'text-yellow-400'">
+                      {{ order.status.replace('_', ' ').toUpperCase() }}
+                    </div>
+                    <div class="text-xs text-gray-400">Qty: {{ order.quantity }}</div>
+                    <div class="text-xs text-gray-400">Price: {{ order.price ? '₦' + Number(order.price).toLocaleString() : 'Market' }}</div>
+                  </div>
                 </div>
-                <div :class="t.side === 'buy' ? 'text-green-400' : 'text-red-400'">₦{{ (t.amount * t.price).toLocaleString() }}</div>
+                <div class="mt-1 text-xs text-gray-500">{{ new Date(order.created_at).toLocaleString() }}</div>
               </li>
             </ul>
           </div>
         </div>
       </div>
 
-      <div class="text-xs text-gray-400 mt-2">Note: This view uses simulated data. Replace simulation calls with your OMS endpoints to show real book & depth.</div>
+      <div class="mt-2 text-xs text-gray-400">Note: This view uses simulated data. Replace simulation calls with your OMS endpoints to show real book & depth.</div>
     </div>
   </MainLayout>
 </template>
@@ -69,10 +81,10 @@ import OrderBookTable from '@/Components/admin/OrderBookTable.vue';
 import OrderDepthChart from '@/Components/admin/OrderDepthChart.vue';
 import axios from 'axios';
 
-const pair = ref('NGN/NGX'); 
+const pair = ref('NGN/NGX');
 const bids = ref([]);
 const asks = ref([]);
-const trades = ref([]);
+const orders = ref([]);
 
 // helper: generate simulated book rows (price, amount, cumulative)
 function genSide(basePrice, side) {
@@ -101,17 +113,7 @@ const price =
   });
 }
 
-// simulated trades
-function genTrades(basePrice) {
-  const out = [];
-  for (let i = 0; i < 10; i++) {
-    const side = Math.random() > 0.5 ? 'buy' : 'sell';
-    const price = Number((basePrice + (Math.random() * 0.5 - 0.25)).toFixed(2));
-    const amount = Number((Math.random() * 50 + 1).toFixed(2));
-    out.push({ id: `${Date.now()}-${i}`, side, price, amount, time: new Date().toLocaleTimeString() });
-  }
-  return out;
-}
+
 
 async function loadData() {
   try {
@@ -119,7 +121,10 @@ async function loadData() {
     const base = 48.5 + (Math.random() * 0.4 - 0.2);
     bids.value = genSide(base, 'bid');
     asks.value = genSide(base, 'ask');
-    trades.value = genTrades(base);
+
+    
+    const response = await axios.get('/admin/orders');
+    orders.value = response.data.data.data.slice(0, 10); 
   } catch (e) {
     console.error("Data load error", e);
   }

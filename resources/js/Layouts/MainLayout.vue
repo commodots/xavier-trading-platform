@@ -7,7 +7,7 @@
     <div 
       v-if="sidebarOpen" 
       @click="sidebarOpen = false"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
+      class="fixed inset-0 z-40 transition-opacity bg-black/50 backdrop-blur-sm md:hidden"
     ></div>
 
     <aside :class="[
@@ -31,20 +31,20 @@
         <nav class="px-4 mt-4 space-y-1 text-sm">
 
           <div v-if="currentView === 'user'">
-            <div class="mt-4 mb-1 text-xs text-gray-500 uppercase tracking-wider px-3">OVERVIEW</div>
+            <div class="px-3 mt-4 mb-1 text-xs tracking-wider text-gray-500 uppercase">OVERVIEW</div>
             <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
             <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
             <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
 
-            <div class="mt-6 mb-1 text-xs text-gray-500 uppercase tracking-wider px-3">MARKETS</div>
+            <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">MARKETS</div>
             <SidebarLink to="/ngx" :icon="BarChart2">NGX Market</SidebarLink>
             <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
             <SidebarLink to="/crypto" :icon="Bitcoin">Crypto Market</SidebarLink>
 
-            <div class="mt-6 mb-1 text-xs text-gray-500 uppercase tracking-wider px-3">TRADING</div>
+            <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">TRADING</div>
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
 
-            <div class="mt-6 mb-1 text-xs text-gray-500 uppercase tracking-wider px-3">ACCOUNT</div>
+            <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">ACCOUNT</div>
             <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
             <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
           </div>
@@ -58,6 +58,7 @@
             <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations</div>
             <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/users" :icon="Users">User Management</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
+            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/orders" :icon="FileText">Orders</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
 
             <div v-if="isAdmin || can('manage_kyc_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance</div>
@@ -100,7 +101,7 @@ import axios from "@/lib/axios";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

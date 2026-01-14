@@ -22,6 +22,7 @@ class NewTransactionSeeder extends Seeder
             ['name' => 'buy_stock', 'category' => 'trading'],
             ['name' => 'sell_stock', 'category' => 'trading'],
             ['name' => 'buy_crypto', 'category' => 'trading'],
+            ['name' => 'sell_crypto', 'category' => 'trading'],
         ];
 
         foreach ($types as $type) {
@@ -33,6 +34,8 @@ class NewTransactionSeeder extends Seeder
         TransactionCharge::updateOrCreate(['transaction_type' => 'withdrawal'], ['charge_type' => 'flat', 'value' => 100.0]);
         TransactionCharge::updateOrCreate(['transaction_type' => 'buy_stock'], ['charge_type' => 'percentage', 'value' => 0.5]);
         TransactionCharge::updateOrCreate(['transaction_type' => 'sell_stock'], ['charge_type' => 'percentage', 'value' => 0.5]);
+        TransactionCharge::updateOrCreate(['transaction_type' => 'buy_crypto'], ['charge_type' => 'percentage', 'value' => 0.5]);
+        TransactionCharge::updateOrCreate(['transaction_type' => 'sell_crypto'], ['charge_type' => 'percentage', 'value' => 0.5]);
 
 
         User::all()->each(function ($user) {

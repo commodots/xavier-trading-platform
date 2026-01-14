@@ -136,6 +136,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users/{id}/toggle-status', [AdminController::class, 'toggleStatus']);
         Route::post('/users/{id}/role', [AdminController::class, 'updateUserRole']);
 
+        /* Orders */
+        Route::get('/orders', [AdminController::class, 'orders']);
+
         /* Transactions */
         Route::get('/transactions', [AdminController::class, 'transactions']);
 

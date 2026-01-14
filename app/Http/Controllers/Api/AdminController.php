@@ -232,6 +232,52 @@ class AdminController extends Controller
 
     /*
     |--------------------------------------------------------------------------
+    | LIST ORDERS
+    |--------------------------------------------------------------------------
+    */
+    public function orders(Request $request)
+    {
+        $query = Order::with('user:id,first_name,last_name,email');
+
+        if ($request->filled('q')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('symbol', 'like', "%{$request->q}%")
+                    ->orWhereHas('user', function ($userQuery) use ($request) {
+                        $userQuery->where('email', 'like', "%{$request->q}%");
+                    });
+            });
+        }
+
+        if ($request->filled('status')) {
+            if ($request->status === 'pending') {
+                $query->whereIn('status', ['open', 'partially_filled']);
+            } elseif ($request->status === 'successful') {
+                $query->where('status', 'filled');
+            } elseif ($request->status === 'failed') {
+                $query->where('status', 'canceled');
+            } else {
+                $query->where('status', $request->status);
+            }
+        }
+
+        if ($request->filled('side')) {
+            $query->where('side', $request->side);
+        }
+
+        if ($request->filled('market')) {
+            $query->where('market', $request->market);
+        }
+
+        $orders = $query->latest()->paginate(20);
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | LIST TRANSACTIONS
     |--------------------------------------------------------------------------
     */
