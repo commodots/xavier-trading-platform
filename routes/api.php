@@ -51,6 +51,9 @@ Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->
 Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
 Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
 
+/* Paystack Webhook & Redirect */
+Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback']);
+
 Route::prefix('dummy')->group(function () {
     Route::prefix('ngx')->group(function () {
         Route::get('market/{symbol}', [DummyNgxController::class, 'marketData']);
@@ -73,23 +76,29 @@ Route::middleware('auth:sanctum')->get(
     [MarketDataController::class, 'candles']
 );
 Route::middleware('auth:sanctum')->group(function () {
-	
+
 	Route::get(
         '/markets/stocks/{symbol}/history',
         [StockMarketController::class, 'history']
     );
-	
+
 	Route::get('/markets/stocks/{symbol}/history', [
         \App\Http\Controllers\MarketDataController::class,
         'stockHistory'
     ]);
-	
+
     Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     /* Wallet */
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
     Route::post('/wallet/convert', [WalletController::class, 'convert']);
+
+    /* Paystack */
+    Route::prefix('paystack')->group(function () {
+        Route::post('/initiate', [PaystackController::class, 'initiate']);
+        Route::get('/verify/{reference}', [PaystackController::class, 'verify']);
+    });
 
     Route::get('/portfolio', [PortfolioController::class, 'index']);
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);

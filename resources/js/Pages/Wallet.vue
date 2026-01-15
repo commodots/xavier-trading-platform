@@ -184,6 +184,33 @@
             class="mt-4 text-sm font-medium text-center">{{ message }}</p>
         </div>
       </div>
+
+      <!-- Payment Result Modal -->
+      <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
+          <button @click="closePaymentModal" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
+          <div class="text-center">
+            <div class="mb-4 text-6xl" v-if="paymentResult.success">✅</div>
+            <div class="mb-4 text-6xl" v-else>❌</div>
+
+            <h2 class="mb-4 text-2xl font-bold" :class="paymentResult.success ? 'text-green-400' : 'text-red-400'">
+              {{ paymentResult.success ? 'Payment Successful!' : 'Payment Failed' }}
+            </h2>
+
+            <p class="mb-6 text-gray-400" v-if="paymentResult.success">
+              Your wallet has been credited with ₦{{ paymentResult.amount.toLocaleString() }}
+            </p>
+            <p class="mb-6 text-gray-400" v-else>
+              {{ paymentResult.message }}
+            </p>
+
+            <button @click="closePaymentModal"
+              class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-semibold">
+              Return to Wallet
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -214,6 +241,14 @@ const selectedAccountId = ref("");
 const form = ref({
   amount: 0,
   currency: "NGN"
+});
+
+// Payment result modal
+const showPaymentModal = ref(false);
+const paymentResult = ref({
+  success: false,
+  message: '',
+  amount: 0
 });
 
 
@@ -270,7 +305,10 @@ const refreshData = async () => {
 
 const openTransaction = (type) => {
   txnType.value = type;
-  form.value = { amount: 0, currency: "NGN" };
+  form.value = {
+    amount: 0,
+    currency: type === 'deposit' ? 'NGN' : 'NGN' // Force NGN for deposits (Paystack only)
+  };
   selectedAccountId.value = "";
   message.value = "";
   showModal.value = true;
@@ -288,24 +326,44 @@ const submitTransaction = async () => {
 
   loading.value = true;
   message.value = "Processing...";
-  const endpoint = txnType.value === 'deposit' ? '/deposit' : '/withdraw';
 
-  try {
-    await api.post(endpoint, {
-      amount: form.value.amount,
-      currency: form.value.currency,
-      linked_account_id: selectedAccountId.value
-    });
+  if (txnType.value === 'deposit') {
+    // Use Paystack for deposits
+    try {
+      const response = await api.post('/paystack/initiate', {
+        amount: form.value.amount
+      });
 
-    message.value = "Successful!";
-    setTimeout(() => {
-      showModal.value = false;
-      refreshData();
-    }, 1500);
-  } catch (e) {
-    message.value = e.response?.data?.message || "Transaction failed";
-  } finally {
-    loading.value = false;
+      if (response.data.success) {
+        // Redirect to Paystack checkout
+        window.location.href = response.data.data.authorization_url;
+        return; // Don't close modal yet
+      }
+    } catch (e) {
+      message.value = e.response?.data?.message || "Payment initiation failed";
+      loading.value = false;
+      return;
+    }
+  } else {
+    // Handle withdrawals with existing logic
+    const endpoint = '/withdraw';
+    try {
+      await api.post(endpoint, {
+        amount: form.value.amount,
+        currency: form.value.currency,
+        linked_account_id: selectedAccountId.value
+      });
+
+      message.value = "Successful!";
+      setTimeout(() => {
+        showModal.value = false;
+        refreshData();
+      }, 1500);
+    } catch (e) {
+      message.value = e.response?.data?.message || "Transaction failed";
+    } finally {
+      loading.value = false;
+    }
   }
 };
 
@@ -383,7 +441,95 @@ const combinedOptions = {
   legend: { show: false }
 };
 
-onMounted(refreshData);
+// Check for payment result parameters on page load
+const checkPaymentResult = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentSuccess = urlParams.get('payment_success');
+  const paymentError = urlParams.get('payment_error');
+
+  if (paymentSuccess) {
+    const amount = parseFloat(paymentSuccess);
+
+    // Successful payment
+    paymentResult.value = {
+      success: true,
+      message: 'Payment completed successfully!',
+      amount: amount
+    };
+    showPaymentModal.value = true;
+
+    // Clear URL parameters
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, newUrl);
+
+    // Refresh wallet data multiple times to catch webhook processing
+    refreshWithRetry();
+  } else if (paymentError) {
+    // Failed payment
+    let errorMessage = 'Payment failed. Please try again.';
+    switch (paymentError) {
+      case 'payment_failed':
+        errorMessage = 'Payment was not successful. Please contact support if amount was debited.';
+        break;
+      case 'verification_error':
+        errorMessage = 'Unable to verify payment. Please contact support.';
+        break;
+      case 'no_reference':
+        errorMessage = 'Payment reference missing. Please contact support.';
+        break;
+    }
+
+    paymentResult.value = {
+      success: false,
+      message: errorMessage,
+      amount: 0
+    };
+    showPaymentModal.value = true;
+
+    // Clear URL parameters
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, newUrl);
+  }
+};
+
+const closePaymentModal = () => {
+  showPaymentModal.value = false;
+  paymentResult.value = { success: false, message: '', amount: 0 };
+
+  // Ensure transaction list is updated after closing modal
+  refreshData();
+};
+
+// Retry refresh until balance/transaction updates are detected
+const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
+  if (attempts >= maxAttempts) {
+    console.warn('Max refresh attempts reached, balance may not have updated yet');
+    return;
+  }
+
+  const previousBalance = balances.value.balance_ngn;
+  const previousTxnCount = transactions.value.length;
+
+  await refreshData();
+
+  // Check if balance or transaction count changed
+  const balanceUpdated = balances.value.balance_ngn !== previousBalance;
+  const transactionsUpdated = transactions.value.length !== previousTxnCount;
+
+  if (balanceUpdated || transactionsUpdated) {
+    console.log('Payment data updated successfully');
+    return; // Success, data has updated
+  }
+
+  // Try again in 2 seconds
+  setTimeout(() => refreshWithRetry(attempts + 1, maxAttempts), 2000);
+};
+
+onMounted(() => {
+  refreshData();
+  checkPaymentResult();
+});
+
 // refresh linked accounts when wallet currency toggles while withdrawing
 watch(() => form.value.currency, (val) => {
   if (txnType.value === 'withdrawal') {

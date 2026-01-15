@@ -34,21 +34,23 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-	
-	'ngx' => [
-		'mode' => env('NGX_MODE', 'test'), // live | test | dummy
-		'simulate_errors' => env('NGX_SIMULATE_ERRORS', false),
-	],
-	
-	'ngx' => [
-		'simulate_errors' => env('NGX_SIMULATE_ERRORS', false),
-	],
 
-	'cscs' => [
-		'simulate_errors' => env('CSCS_SIMULATE_ERRORS', false),
-	],
+    'ngx' => [
+        'mode' => env('NGX_MODE', 'test'), // live | test | dummy
+        'simulate_errors' => env('NGX_SIMULATE_ERRORS', false),
+    ],
 
+    'ngx' => [
+        'simulate_errors' => env('NGX_SIMULATE_ERRORS', false),
+    ],
 
-
+    'cscs' => [
+        'simulate_errors' => env('CSCS_SIMULATE_ERRORS', false),
+    ],
+    'paystack' => [
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        'callback_url' => env('PAYSTACK_CALLBACK_URL'),
+    ],
 
 ];

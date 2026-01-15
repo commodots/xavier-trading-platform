@@ -16,7 +16,7 @@ class ServiceConfigSeeder extends Seeder
                 'mode' => 'dummy',
                 'base_url' => null,
                 'headers' => null,
-                'params' => json_encode(['allow_short_sell'=> false,'market_hours'=> '09:30-14:30']),
+                'params' => json_encode(['allow_short_sell' => false, 'market_hours' => '09:30-14:30']),
                 'credentials' => null,
                 'is_active' => true,
             ],
@@ -25,9 +25,17 @@ class ServiceConfigSeeder extends Seeder
                 'type' => 'payment',
                 'mode' => 'test',
                 'base_url' => 'https://api.paystack.co',
-                'headers' => ['Authorization' => 'Bearer sk_test_xxx'],
-                'params' => ['currency' => 'NGN'],
-                'credentials' => ['secret_key' => 'sk_test_xxx'],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
+                    'Content-Type' => 'application/json'
+                ],
+                'params' => [
+                    'currency' => 'NGN',
+                ],
+                'credentials' => [
+                    'public_key' => config('services.paystack.public_key'),
+                    'secret_key' => config('services.paystack.secret_key')
+                ],
                 'is_active' => true,
             ],
             [
@@ -36,7 +44,7 @@ class ServiceConfigSeeder extends Seeder
                 'mode' => 'dummy',
                 'base_url' => null,
                 'headers' => null,
-                'params' => ['auto_settle' => true, 'partial_allowed' => false],
+                'params' => json_encode(['auto_settle' => true, 'partial_allowed' => false]),
                 'credentials' => null,
                 'is_active' => true,
             ],

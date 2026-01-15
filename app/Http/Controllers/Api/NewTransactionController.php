@@ -11,6 +11,7 @@ use App\Models\TransactionCharge;
 use App\Models\ActivityLog;
 use App\Models\TransactionType;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NewTransactionController extends Controller
 {
@@ -43,6 +44,8 @@ class NewTransactionController extends Controller
         $user = auth()->user();
         $currency = $request->currency;
 
+        Log::info('Deposit initiated for user ' . $user->id . ' with amount ' . $request->amount);
+
         // 1. Create transaction record
         $transaction = NewTransaction::create([
             'user_id' => $user->id,
@@ -53,11 +56,15 @@ class NewTransactionController extends Controller
             'net_amount' => $request->amount
         ]);
 
+        Log::info('Transaction created with ID ' . $transaction->id);
+
         // 2. Calculate fee and update the record
         $charge = TransactionCharge::calculate('deposit', $request->amount, $transaction);
         $netAmount = $request->amount - $charge;
 
         $transaction->update(['net_amount' => $netAmount]);
+
+        Log::info('Transaction updated with net_amount ' . $netAmount);
 
         // 3. Update the Wallet balance
         $wallet = Wallet::firstOrCreate(
@@ -65,6 +72,8 @@ class NewTransactionController extends Controller
             ['balance' => 0]
         );
         $wallet->increment('balance', $netAmount);
+
+        Log::info('Wallet balance incremented by ' . $netAmount . ' for user ' . $user->id);
 
         try {
             ActivityLog::create([

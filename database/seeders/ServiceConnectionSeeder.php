@@ -43,5 +43,30 @@ class ServiceConnectionSeeder extends Seeder
                 ]
             );
         }
+        $paystack = Service::where('type', 'payment')->first();
+        if ($paystack) {
+            ServiceConnection::firstOrCreate(
+                [
+                    'service_id' => $paystack->id,
+                    'mode' => 'test'
+                ],
+                [
+                    'base_url' => 'https://api.paystack.co',
+                    'headers' => [
+                    'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
+                    'Content-Type' => 'application/json'
+                ],
+                    'parameters' => [
+                        'currency' => 'NGN',
+                    ],
+                    'credentials' =>
+                    [
+                        'public_key' => config('services.paystack.public_key'),
+                        'secret_key' => config('services.paystack.secret_key')
+                    ],
+                    'is_active' => 1
+                ]
+            );
+        }
     }
 }
