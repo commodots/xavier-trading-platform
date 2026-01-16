@@ -31,8 +31,20 @@
         <div class="flex items-center justify-between p-2 px-1 border border-gray-700 rounded-lg bg-gray-800/50">
           <span class="text-[11px] text-gray-400">Your Holdings:</span>
           <span class="text-xs font-bold text-white">
-            {{ currentAssetHolding.toFixed(4) }} {{ selectedTicker?.symbol }}
+            {{ currentAssetHolding }} {{ selectedTicker?.symbol }}
           </span>
+        </div>
+
+        <div class="flex items-center justify-between p-2 px-1 border border-gray-700 rounded-lg bg-gray-800/50">
+          <span class="text-[11px] text-gray-400">Current Price:</span>
+          <div class="text-right">
+            <span class="text-xs font-bold text-white">
+              {{ (selectedTicker?.currency !== 'USD') ? '₦' : '$' }}{{ selectedTicker?.price?.toLocaleString() }}
+            </span>
+            <div v-if="selectedTicker?.currency === 'USD'" class="text-xs text-gray-400">
+              ≈ ₦{{ (selectedTicker?.price * USD_RATE)?.toLocaleString() }} (at ₦{{ USD_RATE }}/$)
+            </div>
+          </div>
         </div>
 
         <div class="p-5 text-center border rounded-lg bg-blue-500/10 border-blue-500/30">
@@ -40,7 +52,7 @@
             You are {{ tradeAction === 'buy' ? 'Receiving' : 'Selling' }}
           </div>
           <div class="mb-1 text-3xl font-bold text-white">
-            {{ Number(unitInput).toFixed(6) }} <span class="text-sm font-medium text-gray-400">{{ selectedTicker?.symbol
+            {{ Number(unitInput).toFixed(selectedCategory?.id === 'CRYPTO' ? 6 : 0) }} <span class="text-sm font-medium text-gray-400">{{ selectedTicker?.symbol
               }}</span>
           </div>
           <div class="text-sm font-medium text-gray-300">
@@ -68,7 +80,7 @@
         <div>
           <label class="text-xs text-gray-400">Amount in Naira (₦)</label>
           <div class="relative">
-            <input v-model.number="nairaInput" type="number" @input="syncFromNaira"
+            <input v-model="formattedNairaInput" @input="syncFromNaira"
               class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white outline-none pr-12"
               placeholder="0.00" />
             <span class="absolute text-xs font-bold text-gray-500 -translate-y-1/2 right-4 top-1/2">NGN</span>
@@ -80,7 +92,7 @@
           <div class="relative">
             <input v-model.number="unitInput" type="number" @input="syncFromUnits"
               class="w-full px-4 py-3 mt-1 bg-[#0F1724] border border-gray-600 rounded-lg text-white outline-none pr-12"
-              placeholder="0.000000" />
+              placeholder="0" />
             <span class="absolute text-xs font-bold text-gray-500 uppercase -translate-y-1/2 right-4 top-1/2">{{
               selectedTicker?.symbol }}</span>
           </div>
@@ -192,10 +204,11 @@ const syncFromNaira = () => {
     return;
   }
   const price = selectedTicker.value.price;
+  const isCrypto = selectedCategory.value?.id === 'CRYPTO';
   if (selectedTicker.value.currency === 'NGN' || !selectedTicker.value.currency) {
-    unitInput.value = nairaInput.value / price;
+    unitInput.value = isCrypto ? nairaInput.value / price : Math.ceil(nairaInput.value / price);
   } else {
-    unitInput.value = (nairaInput.value / USD_RATE) / price;
+    unitInput.value = isCrypto ? (nairaInput.value / USD_RATE) / price : Math.ceil((nairaInput.value / USD_RATE) / price);
   }
 };
 
@@ -205,17 +218,29 @@ const syncFromUnits = () => {
     return;
   }
   const price = selectedTicker.value.price;
+  const isCrypto = selectedCategory.value?.id === 'CRYPTO';
   if (selectedTicker.value.currency === 'NGN' || !selectedTicker.value.currency) {
-    nairaInput.value = unitInput.value * price;
+    nairaInput.value = isCrypto ? unitInput.value * price : Math.ceil(unitInput.value * price);
   } else {
-    nairaInput.value = (unitInput.value * price) * USD_RATE;
+    nairaInput.value = isCrypto ? (unitInput.value * price) * USD_RATE : Math.ceil((unitInput.value * price) * USD_RATE);
   }
 };
+
+const formattedNairaInput = computed({
+  get() {
+    return nairaInput.value.toLocaleString();
+  },
+  set(value) {
+    nairaInput.value = Number(value.replace(/,/g, ''));
+    syncFromNaira();
+  }
+});
 
 const currentAssetHolding = computed(() => {
   if (!selectedTicker.value) return 0;
   const holding = allHoldings.value.find(h => h.symbol === selectedTicker.value.symbol);
-  return holding ? holding.quantity : 0;
+  const isCrypto = selectedCategory.value?.id === 'CRYPTO';
+  return holding ? (isCrypto ? holding.quantity : Math.ceil(holding.quantity)) : 0;
 });
 
 const filteredTickers = computed(() => {
