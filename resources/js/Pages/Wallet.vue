@@ -16,7 +16,7 @@
             class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             - Withdraw
           </button>
-          <button @click="openConvert = true"
+          <button @click="openConvertModal"
             class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] px-4 py-2 rounded-lg text-white font-semibold hover:opacity-90 transition">
             ⇄ Convert Currency
           </button>
@@ -121,7 +121,7 @@
 
               <div>
                 <label class="text-sm text-gray-400">Amount ({{ form.currency }})</label>
-                <input v-model.number="form.amount" type="number" step="0.01"
+                <input v-model="formattedAmount"
                   class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
                   required />
               </div>
@@ -163,7 +163,7 @@
               <option value="USD">USD → NGN</option>
             </select>
             <label class="text-sm text-gray-400">Amount</label>
-            <input v-model.number="amount" type="number"
+            <input v-model="formattedConvertAmount"
               class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg"
               placeholder="Enter amount" required />
 
@@ -235,12 +235,30 @@ const txnType = ref("");
 const from = ref("NGN");
 const amount = ref(0);
 
+const formattedConvertAmount = computed({
+  get() {
+    return amount.value.toLocaleString();
+  },
+  set(value) {
+    amount.value = Number(value.replace(/,/g, ''));
+  }
+});
+
 const linkedAccounts = ref([]);
 const selectedAccountId = ref("");
 
 const form = ref({
   amount: 0,
   currency: "NGN"
+});
+
+const formattedAmount = computed({
+  get() {
+    return form.value.amount.toLocaleString();
+  },
+  set(value) {
+    form.value.amount = Number(value.replace(/,/g, ''));
+  }
 });
 
 // Payment result modal
@@ -317,6 +335,11 @@ const openTransaction = (type) => {
   }
 };
 
+const openConvertModal = () => {
+  message.value = "";
+  openConvert.value = true;
+};
+
 const submitTransaction = async () => {
   if (form.value.amount <= 0) return;
   if (txnType.value === 'withdrawal' && !selectedAccountId.value) {
@@ -325,7 +348,6 @@ const submitTransaction = async () => {
   }
 
   loading.value = true;
-  message.value = "Processing...";
 
   if (txnType.value === 'deposit') {
     // Use Paystack for deposits
@@ -370,7 +392,6 @@ const submitTransaction = async () => {
 const convertCurrency = async () => {
   if (amount.value <= 0) return;
   loading.value = true;
-  message.value = "Converting...";
 
   try {
     await api.post("/wallet/convert", {
