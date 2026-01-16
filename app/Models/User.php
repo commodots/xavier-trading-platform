@@ -91,6 +91,13 @@ class User extends Authenticatable implements MustVerifyEmail
             set: fn($value) => Crypt::encryptString($value),
         );
     }
+
+    protected function profileImage(): Attribute
+    {
+        return new Attribute(
+            get: fn($value) => $value ? asset('storage/' . $value) : asset('images/user.png'),
+        );
+    }
     public function linkedAccounts()
     {
         return $this->hasMany(LinkedAccount::class);

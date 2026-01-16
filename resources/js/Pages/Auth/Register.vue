@@ -8,7 +8,7 @@
         <h1 class="text-3xl font-bold">Create Account</h1>
 
         <div class="flex justify-center gap-2 mt-4">
-          <div v-for="step in 3" :key="step" :class="['h-1.5 rounded-full transition-all duration-300',
+          <div v-for="step in 4" :key="step" :class="['h-1.5 rounded-full transition-all duration-300',
             currentStep >= step ? 'w-8 bg-[#00D4FF]' : 'w-4 bg-gray-600']">
           </div>
         </div>
@@ -64,6 +64,45 @@
         </div>
 
         <div v-if="currentStep === 2" class="space-y-4 animate-fadeIn">
+          <div class="text-center">
+            <h3 class="text-lg font-semibold mb-4">Take a Live Picture</h3>
+            <p class="text-sm text-gray-300 mb-4">This will be used as your profile picture for identity verification.</p>
+
+            <div class="relative">
+              <video v-if="!capturedImage" ref="video" autoplay playsinline muted class="w-full rounded-lg border border-gray-600"></video>
+              <canvas ref="canvas" class="hidden"></canvas>
+              <div v-if="capturedImage" class="mt-4">
+                <img :src="capturedImage" class="w-full rounded-lg border border-gray-600" />
+              </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+              <button v-if="!cameraActive" type="button" @click="startCamera"
+                class="w-full bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold hover:opacity-90">
+                Start Camera
+              </button>
+              <button v-if="cameraActive && !capturedImage" type="button" @click="capturePhoto"
+                class="w-full bg-green-500 text-white py-2 rounded-lg font-bold hover:opacity-90">
+                Take Picture
+              </button>
+              <button v-if="capturedImage" type="button" @click="retakePhoto"
+                class="w-full bg-gray-600 text-white py-2 rounded-lg font-bold hover:opacity-90">
+                Retake
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button type="button" @click="currentStep--"
+              class="w-1/3 py-2 font-semibold border border-gray-600 rounded-lg">Back</button>
+            <button type="button" @click="nextStep" :disabled="!capturedImage"
+              class="w-2/3 bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold disabled:bg-neutral-100/50">
+              Continue
+            </button>
+          </div>
+        </div>
+
+        <div v-if="currentStep === 3" class="space-y-4 animate-fadeIn">
           <div class="p-3 mb-4 border rounded-lg bg-blue-500/10 border-blue-500/30">
             <p class="text-xs leading-tight text-blue-300">
               ⓘ Adding these now speeds up your verification and enables instant transactions. You can skip this for
@@ -92,11 +131,12 @@
           </div>
         </div>
 
-        <div v-if="currentStep === 3" class="space-y-4 animate-fadeIn">
+        <div v-if="currentStep === 4" class="space-y-4 animate-fadeIn">
           <div class="bg-[#151a27] p-4 rounded-xl border border-gray-700">
             <h3 class="text-sm font-bold text-[#00D4FF] mb-2 uppercase tracking-widest">Summary</h3>
             <p class="text-sm">Name: <span class="text-white">{{ name }}</span></p>
             <p class="text-sm">Email: <span class="text-white">{{ email }}</span></p>
+            <p class="text-sm">Profile Picture: <span class="text-white">Captured</span></p>
             <p class="text-sm">Verification: <span class="text-white">{{ kyc.bvn || kyc.nin ? 'Provided' : 'Pending'
             }}</span></p>
           </div>
@@ -151,6 +191,13 @@ const kyc = ref({
 
 const localErrors = ref({});
 
+// Camera refs
+const video = ref(null);
+const canvas = ref(null);
+const cameraActive = ref(false);
+const capturedImage = ref(null);
+const stream = ref(null);
+
 const passwordStrength = computed(() => {
   const len = password.value.length;
   if (len < 5) return { level: 'weak', color: 'bg-amber-500', text: 'Weak' };
@@ -170,6 +217,35 @@ const nextStep = () => {
   currentStep.value++;
 };
 
+const startCamera = async () => {
+  try {
+    stream.value = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.value.srcObject = stream.value;
+    cameraActive.value = true;
+  } catch (err) {
+    console.error('Error accessing camera:', err);
+    alert('Unable to access camera. Please allow camera permissions.');
+  }
+};
+
+const capturePhoto = () => {
+  const context = canvas.value.getContext('2d');
+  canvas.value.width = video.value.videoWidth;
+  canvas.value.height = video.value.videoHeight;
+  context.drawImage(video.value, 0, 0);
+  capturedImage.value = canvas.value.toDataURL('image/png');
+  // Stop camera after capture
+  if (stream.value) {
+    stream.value.getTracks().forEach(track => track.stop());
+    cameraActive.value = false;
+  }
+};
+
+const retakePhoto = () => {
+  capturedImage.value = null;
+  startCamera();
+};
+
 const submit = async () => {
   localErrors.value = {};
 
@@ -181,13 +257,25 @@ const submit = async () => {
   loading.value = true;
 
   try {
-    const res = await axios.post("/register", {
-      name: name.value,
-      email: email.value,
-      password: password.value,
-      password_confirmation: password_confirmation.value,
-      bvn: kyc.value.bvn,
-      nin: kyc.value.nin
+    const formData = new FormData();
+    formData.append('name', name.value);
+    formData.append('email', email.value);
+    formData.append('password', password.value);
+    formData.append('password_confirmation', password_confirmation.value);
+    formData.append('bvn', kyc.value.bvn);
+    formData.append('nin', kyc.value.nin);
+
+    // Convert base64 to blob
+    if (capturedImage.value) {
+      const response = await fetch(capturedImage.value);
+      const blob = await response.blob();
+      formData.append('profile_image', blob, 'profile.png');
+    }
+
+    const res = await axios.post("/register", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     });
 
     localStorage.setItem("xavier_token", res.data.token);

@@ -302,7 +302,7 @@ const refreshData = async () => {
   try {
     const [balRes, txnRes, accRes] = await Promise.all([
       api.get("/wallet/balances"),
-      api.get("/transactions"),
+      api.get("/transactions?limit=10"),
       api.get("/user/linked-accounts/index")
     ]);
 
@@ -311,10 +311,10 @@ const refreshData = async () => {
     linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
 
     if (Array.isArray(txnRes.data)) {
-      transactions.value = txnRes.data;
+      transactions.value = txnRes.data.slice(0, 10);
     }
     else if (txnRes.data.transactions) {
-      transactions.value = txnRes.data.transactions;
+      transactions.value = txnRes.data.transactions.slice(0, 10);
     }
   } catch (e) {
     console.error("Fetch error", e);
