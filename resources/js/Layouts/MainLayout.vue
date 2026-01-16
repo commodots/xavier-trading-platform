@@ -24,7 +24,7 @@
         <div v-if="hasStaffAccess" class="px-4 mb-4">
           <button @click="toggleAccountMode"
             class="w-full py-2 px-3 text-[10px] font-bold tracking-widest rounded-lg border border-[#00D4FF] text-[#00D4FF] hover:bg-[#00D4FF] hover:text-black transition-all duration-300 uppercase">
-            SWITCH TO {{ currentView === 'user' ? 'STAFF MODE' : 'USER MODE' }}
+            SWITCH TO {{ currentView === 'user' ? 'STAFF MODE' : 'CLIENT MODE' }}
           </button>
         </div>
 
@@ -47,6 +47,7 @@
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">ACCOUNT</div>
             <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
             <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
+            <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help and Support</SidebarLink>
           </div>
 
           <div v-if="currentView === 'staff'">
@@ -97,11 +98,11 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import axios from "@/lib/axios";
+import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark,
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
@@ -133,7 +134,7 @@ const can = (capability) => {
 const fetchPermissions = async () => {
   if (user.value?.role === "admin") return;
   try {
-    const profileRes = await axios.get('/user/profile/show');
+    const profileRes = await api.get('/user/profile/show');
     const currentUser = profileRes.data.data;
     userPermissions.value = currentUser.permissions || {};
     user.value.permissions = userPermissions.value;

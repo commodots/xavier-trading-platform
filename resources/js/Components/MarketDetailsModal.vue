@@ -309,7 +309,9 @@ const chartOptions = computed(() => ({
     categories: chartLabels.value,
     labels: { 
       style: { colors: '#64748b' },
-      hideOverlappingLabels: true 
+      hideOverlappingLabels: true ,
+      rotate:-45,
+      rotateAlways:true,
     },
     axisBorder: { show: false },
     axisTicks: { show: false }

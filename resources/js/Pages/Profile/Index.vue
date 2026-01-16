@@ -31,11 +31,6 @@
           : 'text-gray-400 pb-2'">
           Notifications
         </button>
-        <button @click="activeTab = 'help'" :class="activeTab === 'help'
-          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-          : 'text-gray-400 pb-2'">
-          Help & Support
-        </button>
       </div>
 
       <div>
@@ -48,7 +43,6 @@
             @refresh="fetchUserData" />
 
           <NotificationsTab v-if="activeTab === 'notifications'" :user="user" />
-          <SupportTab v-if="activeTab === 'help'" />
         </template>
 
         <div v-else class="text-white animate-pulse">
@@ -61,14 +55,13 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
 import PersonalTab from "./Partials/PersonalTab.vue";
 import KycTab from "./Partials/KycTab.vue";
 import SettingsTab from "./Partials/SettingsTab.vue";
 import LinkedAccountsTab from "./Partials/LinkedAccountsTab.vue";
 import NotificationsTab from "./Partials/NotificationsTab.vue";
-import SupportTab from "./Partials/SupportTab.vue";
-import api from "@/lib/axios";
+import api from "@/api";
 
 
 const activeTab = ref("personal");

@@ -1,4 +1,5 @@
 <template>
+  <MainLayout>
   <div class="space-y-8">
     <div>
       <h2 class="text-xl font-semibold text-white">Help & Support</h2>
@@ -47,10 +48,12 @@
     </div>
 
   </div>
+  </MainLayout>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import MainLayout from '@/Layouts/MainLayout.vue';
 
 const activeIndex = ref(null);
 

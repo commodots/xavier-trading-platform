@@ -20,6 +20,7 @@ import CryptoMarket from "@/Pages/CryptoMarket.vue";
 import Profile from "@/Pages/Profile/Index.vue";
 import Settings from "@/Pages/Settings.vue";
 import Reports from "@/Pages/Reports.vue";
+import Support from "@/Pages/Support.vue";
 
 // OMS
 import Orders from "@/Pages/Orders.vue";
@@ -83,22 +84,28 @@ const routes = [
     component: Settings,
     meta: { requiresAuth: true },
   },
-{
+  {
     path: "/reports",
     name: "reports",
     component: Reports,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/support",
+    name: "support",
+    component: Support,
     meta: { requiresAuth: true },
   },
   /* ----------------------------------------------
      MARKETS
   ------------------------------------------------*/
   {
-	  path: "/market/ngx/:symbol",
-	  name: "ngx-stock",
-	  component: () => import("@/Pages/Market/Stock.vue"),
-	  meta: { requiresAuth: true },
-	},
-	{
+    path: "/market/ngx/:symbol",
+    name: "ngx-stock",
+    component: () => import("@/Pages/Market/Stock.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/ngx",
     name: "ngx",
     component: NgxMarket,
@@ -246,9 +253,9 @@ router.beforeEach((to, from, next) => {
     return next("/login");
   }
 
-  
+
   if (to.meta.adminOnly) {
-    const staffRoles = ['admin','super-admin','staff','compliance','manager','support','accounts'];
+    const staffRoles = ['admin', 'super-admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
 
     let hasStaff = false;
     if (user && typeof user.role === 'string' && staffRoles.includes(user.role)) {
@@ -257,7 +264,7 @@ router.beforeEach((to, from, next) => {
 
     if (!hasStaff && Array.isArray(user.roles)) {
       hasStaff = user.roles.some(r => {
-       
+
         if (typeof r === 'string') return staffRoles.includes(r);
         if (r && r.name) return staffRoles.includes(r.name);
         return false;

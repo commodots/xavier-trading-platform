@@ -120,18 +120,39 @@ class PaystackController extends Controller
                     ], 404);
                 }
 
+                $amount = $result['amount'] / 100; // Convert from kobo to NGN
+                $charge = ($result['fees'] ?? 0) / 100; // Get actual Paystack charge
+                $netAmount = $amount - $charge;
+
+                Log::info('💰 [Paystack:verify] Calculated amounts', [
+                    'raw_amount' => $result['amount'],
+                    'amount' => $amount,
+                    'charge' => $charge,
+                    'net_amount' => $netAmount
+                ]);
+
                 $wallet = Wallet::firstOrCreate(
                     ['user_id' => $userId, 'currency' => 'NGN'],
                     ['balance' => 0, 'status' => 'active']
                 );
 
-                $wallet->increment('balance', $result['amount']);
+                $wallet->increment('balance', $netAmount);
 
-                
+                NewTransaction::create([
+                    'user_id' => $userId,
+                    'amount' => $amount,
+                    'type' => 'deposit',
+                    'status' => 'completed',
+                    'charge' => $charge,
+                    'net_amount' => $netAmount,
+                    'currency' => 'NGN'
+                ]);
 
                 Log::info('✅ [Paystack:verify] Wallet credited', [
                     'user' => $user->email,
-                    'amount' => $result['amount'],
+                    'amount' => $amount,
+                    'charge' => $charge,
+                    'net_amount' => $netAmount,
                     'new_balance' => $wallet->balance,
                 ]);
 
@@ -144,7 +165,7 @@ class PaystackController extends Controller
 
             Log::warning('⚠️ [Paystack:verify] Transaction verification failed', [
                 'reference' => $reference,
-                'status' => $data['data']['status'] ?? 'unknown'
+                'status' => $result['data']['status'] ?? 'unknown'
             ]);
 
             return response()->json([
@@ -253,10 +274,17 @@ class PaystackController extends Controller
                 $reference = $data['reference'];
                 $userId = $data['metadata']['user_id'] ?? null;
 
+                $amount = $data['amount'] / 100; // Convert from kobo
+                $charge = ($data['fees'] ?? 0) / 100; // Get actual Paystack charge
+                $netAmount = $amount - $charge;
+
                 Log::info('🔍 [Paystack:webhook] Processing charge.success', [
                     'reference' => $reference,
                     'user_id' => $userId,
-                    'amount' => $data['amount'] ?? 0,
+                    'raw_amount' => $data['amount'] ?? 0,
+                    'amount' => $amount,
+                    'charge' => $charge,
+                    'net_amount' => $netAmount,
                     'metadata' => $data['metadata'] ?? []
                 ]);
 
@@ -279,7 +307,7 @@ class PaystackController extends Controller
                 }
 
                 // Check if transaction already processed (by webhook or redirect)
-                $existingTransaction = \App\Models\WalletTransaction::where('reference', $reference)->first();
+                $existingTransaction = NewTransaction::where('reference', $reference)->first();
                 if ($existingTransaction) {
                     Log::info('⚠️ [Paystack:webhook] Transaction already processed', [
                         'reference' => $reference,
@@ -293,33 +321,32 @@ class PaystackController extends Controller
                     ['balance' => 0, 'status' => 'active']
                 );
 
-                $amount = $data['amount'] / 100; // Convert from kobo
-
                 Log::info('💰 [Paystack:webhook] Updating wallet', [
                     'user_id' => $userId,
                     'wallet_id' => $wallet->id,
                     'current_balance' => $wallet->balance,
-                    'amount_to_add' => $amount
+                    'amount_to_add' => $netAmount,
+                    'charge' => $charge,
+                    'net_amount' => $netAmount
                 ]);
 
-                $wallet->increment('balance', $amount);
+                $wallet->increment('balance', $netAmount);
 
                 Log::info('✅ [Paystack:webhook] Wallet balance updated', [
                     'new_balance' => $wallet->fresh()->balance
                 ]);
 
                 // Record the transaction
-                $transaction = \App\Models\WalletTransaction::create([
-                    'wallet_id' => $wallet->id,
+                $transaction =  NewTransaction::create([
                     'user_id' => $userId,
-                    'type' => 'credit',
                     'amount' => $amount,
-                    'currency' => 'NGN',
-                    'reference' => $reference,
-                    'description' => 'Wallet funding via Paystack',
+                    'type' => 'deposit',
                     'status' => 'completed',
-                    'metadata' => $data,
+                    'charge' => $charge,
+                    'net_amount' => $netAmount,
+                    'currency' => 'NGN'
                 ]);
+
 
                 Log::info('✅ [Paystack:webhook] Transaction created', [
                     'transaction_id' => $transaction->id,
@@ -369,7 +396,7 @@ class PaystackController extends Controller
             }
 
             // Check if transaction already processed
-            $existingTransaction = \App\Models\WalletTransaction::where('reference', $reference)->first();
+            $existingTransaction =NewTransaction::where('reference', $reference)->first();
             if ($existingTransaction) {
                 Log::info('⚠️ [Paystack:redirect] Transaction already processed', [
                     'reference' => $reference
@@ -382,29 +409,33 @@ class PaystackController extends Controller
                 ['balance' => 0, 'status' => 'active']
             );
 
-            $amount = $result['amount'];
+            $amount = $result['amount'] / 100; // Convert from kobo to NGN
+            $charge = ($result['fees'] ?? 0) / 100; // Get actual Paystack charge
+            $netAmount = $amount - $charge;
 
             Log::info('💰 [Paystack:redirect] Updating wallet immediately', [
                 'user_id' => $userId,
                 'wallet_id' => $wallet->id,
                 'current_balance' => $wallet->balance,
-                'amount_to_add' => $amount
+                'raw_amount' => $result['amount'],
+                'amount' => $amount,
+                'charge' => $charge,
+                'net_amount' => $netAmount
             ]);
 
-            $wallet->increment('balance', $amount);
+            $wallet->increment('balance', $netAmount);
 
             // Record the transaction
-            $transaction = \App\Models\WalletTransaction::create([
-                'wallet_id' => $wallet->id,
-                'user_id' => $userId,
-                'type' => 'credit',
-                'amount' => $amount,
-                'currency' => 'NGN',
-                'reference' => $reference,
-                'description' => 'Wallet funding via Paystack',
-                'status' => 'completed',
-                'metadata' => $result,
-            ]);
+            $transaction =  NewTransaction::create([
+                    'user_id' => $userId,
+                    'amount' => $amount,
+                    'type' => 'deposit',
+                    'status' => 'completed',
+                    'charge' => $charge,
+                    'net_amount' => $netAmount,
+                    'currency' => 'NGN'
+                ]);
+
 
             Log::info('✅ [Paystack:redirect] Wallet credited immediately', [
                 'transaction_id' => $transaction->id,
@@ -430,3 +461,4 @@ class PaystackController extends Controller
         return hash_equals($computedSignature, $signature);
     }
 }
+
