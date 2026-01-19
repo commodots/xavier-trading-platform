@@ -36,6 +36,7 @@ import AdminOrders from "@/Pages/Admin/Orders.vue";
 import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
 import AdminReports from "@/Pages/Admin/Reports.vue";
+import AdminNotifications from "@/Pages/Admin/Notifications.vue";
 
 const routes = [
 
@@ -227,6 +228,12 @@ const routes = [
     path: "/admin/reports",
     name: "admin-reports",
     component: AdminReports,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/notifications",
+    name: "admin-notifications",
+    component: AdminNotifications,
     meta: { requiresAuth: true, adminOnly: true },
   },
 
