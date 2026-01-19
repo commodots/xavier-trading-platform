@@ -206,6 +206,9 @@ async function loadOrders() {
     loading.value = false;
   } catch (e) {
     console.error("Failed to load orders", e);
+    loading.value = false;
+    
+    alert("Unable to load orders. Please check your connection and try again.");
   }
 }
 
@@ -265,9 +268,12 @@ async function confirmCancel() {
 
     if (res.data.success) {
       loadOrders();
+    } else {
+      alert("Failed to cancel order. Please try again.");
     }
   } catch (e) {
     console.error("Cancel failed", e.response?.data?.message);
+    alert("Failed to cancel order: " + (e.response?.data?.message || "Unknown error"));
   } finally {
     isCancelling.value = false;
     orderToCancel.value = null;

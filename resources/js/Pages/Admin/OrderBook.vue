@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import OrderBookTable from '@/Components/admin/OrderBookTable.vue';
 import OrderDepthChart from '@/Components/admin/OrderDepthChart.vue';
@@ -134,9 +134,8 @@ onMounted(() => {
   loadData();
   // auto-refresh book every 2.5s
   const interval = setInterval(loadData, 2500);
-  
-  // Clean up interval on unmount to prevent memory leaks
-  return () => clearInterval(interval);
+
+  onUnmounted(() => clearInterval(interval));
 });
 
 function refresh() {

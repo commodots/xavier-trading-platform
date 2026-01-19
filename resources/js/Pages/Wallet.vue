@@ -317,7 +317,9 @@ const refreshData = async () => {
       transactions.value = txnRes.data.transactions.slice(0, 10);
     }
   } catch (e) {
-    console.error("Fetch error", e);
+    console.error("Failed to refresh wallet data", e);
+    // Show user-friendly error message
+    alert("Unable to load wallet data. Please check your connection and refresh the page.");
   }
 };
 

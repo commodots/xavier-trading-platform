@@ -65,14 +65,14 @@
 
         <div v-if="currentStep === 2" class="space-y-4 animate-fadeIn">
           <div class="text-center">
-            <h3 class="text-lg font-semibold mb-4">Take a Live Picture</h3>
-            <p class="text-sm text-gray-300 mb-4">This will be used as your profile picture for identity verification.</p>
+            <h3 class="mb-4 text-lg font-semibold">Take a Live Picture</h3>
+            <p class="mb-4 text-sm text-gray-300">This will be used as your profile picture for identity verification.</p>
 
             <div class="relative">
-              <video v-if="!capturedImage" ref="video" autoplay playsinline muted class="w-full rounded-lg border border-gray-600"></video>
+              <video v-if="!capturedImage" ref="video" autoplay playsinline muted class="w-full border border-gray-600 rounded-lg"></video>
               <canvas ref="canvas" class="hidden"></canvas>
               <div v-if="capturedImage" class="mt-4">
-                <img :src="capturedImage" class="w-full rounded-lg border border-gray-600" />
+                <img :src="capturedImage" class="w-full border border-gray-600 rounded-lg" />
               </div>
             </div>
 
@@ -82,11 +82,11 @@
                 Start Camera
               </button>
               <button v-if="cameraActive && !capturedImage" type="button" @click="capturePhoto"
-                class="w-full bg-green-500 text-white py-2 rounded-lg font-bold hover:opacity-90">
+                class="w-full py-2 font-bold text-white bg-green-500 rounded-lg hover:opacity-90">
                 Take Picture
               </button>
               <button v-if="capturedImage" type="button" @click="retakePhoto"
-                class="w-full bg-gray-600 text-white py-2 rounded-lg font-bold hover:opacity-90">
+                class="w-full py-2 font-bold text-white bg-gray-600 rounded-lg hover:opacity-90">
                 Retake
               </button>
             </div>
@@ -282,8 +282,8 @@ const submit = async () => {
     localStorage.setItem("user", JSON.stringify(res.data.user));
     router.push("/dashboard");
   } catch (err) {
-    console.error(err);
-    alert(err.response?.data?.message || "Registration failed");
+    console.error("Registration failed:", err);
+    alert(err.response?.data?.message || "Registration failed. Please try again.");
   } finally {
     loading.value = false;
   }

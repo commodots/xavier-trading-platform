@@ -97,7 +97,7 @@ const submit = async () => {
       router.push("/dashboard");
     }
   } catch (err) {
-    console.error(err);
+    console.error("Login failed:", err);
     errorMessage.value = err.response?.data?.message || "Invalid credentials. Please try again.";
   } finally {
     loading.value = false;
