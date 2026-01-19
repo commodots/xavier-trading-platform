@@ -61,7 +61,7 @@ const fallback = {
   ],
   holdings: [
     { symbol: "ZENITH", name: "Zenith Bank", quantity: 100, avg_price: 45.2, market_price: 50.5 },
-    { symbol: "MTN", name: "MTN Nigeria", quantity: 50, avg_price: 120, market_price: 135 },
+    { symbol: "MTNN", name: "MTN Nigeria", quantity: 50, avg_price: 120, market_price: 135 },
     { symbol: "AAPL", name: "Apple Inc", quantity: 2, avg_price: 145, market_price: 175 },
     { symbol: "BTC", name: "Bitcoin", quantity: 0.021, avg_price: 18000000, market_price: 24761904 }
   ],

@@ -55,7 +55,8 @@ import {
   MonitorCog,
   FileSpreadsheet,
   SquareChartGantt,
-  FileText
+  FileText,
+  TrendingUp
 } from "lucide-vue-next";
 
 // Props
@@ -121,6 +122,7 @@ const menu = [
   { label: "Wallet", to: "/wallet", icon: Wallet },
   { label: "Profile", to: "/profile", icon: User },
   { label: "Transactions", to: "/transactions", icon: List },
+  { label: "Fixed Income Market", to: "/fixed-income", icon: TrendingUp },
   { label: "Trade / OMS", to: "/orders", icon: ShoppingCart },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Reports", to: "/reports", icon: FileSpreadsheet },

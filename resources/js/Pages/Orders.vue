@@ -29,13 +29,33 @@
         </div>
       </div>
 
+      <div class="flex mb-4 space-x-2">
+        <button @click="statusFilter = 'all'"
+          :class="statusFilter === 'all' ? 'bg-blue-600' : 'bg-gray-700'"
+          class="px-3 py-2 text-sm text-white transition rounded-lg">All</button>
+        <button @click="statusFilter = 'active'"
+          :class="statusFilter === 'active' ? 'bg-blue-600' : 'bg-gray-700'"
+          class="px-3 py-2 text-sm text-white transition rounded-lg">Active</button>
+        <button @click="statusFilter = 'completed'"
+          :class="statusFilter === 'completed' ? 'bg-blue-600' : 'bg-gray-700'"
+          class="px-3 py-2 text-sm text-white transition rounded-lg">Completed</button>
+        <button @click="statusFilter = 'canceled'"
+          :class="statusFilter === 'canceled' ? 'bg-blue-600' : 'bg-gray-700'"
+          class="px-3 py-2 text-sm text-white transition rounded-lg">Canceled</button>
+      </div>
+
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold">Order History</h2>
           <span class="text-xs text-gray-500">{{ filteredOrders.length }} orders found</span>
         </div>
 
-        <div class="overflow-x-auto">
+        <div v-if="loading" class="flex items-center justify-center py-12">
+          <div class="w-8 h-8 border-b-2 border-blue-600 rounded-full animate-spin"></div>
+          <span class="ml-2 text-gray-400">Loading orders...</span>
+        </div>
+
+        <div v-if="!loading" class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
@@ -138,8 +158,10 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
 
 const orders = ref([]);
+const loading = ref(true);
 const searchQuery = ref("");
 const filterMarket = ref("");
+const statusFilter = ref("all");
 const showTradeModal = ref(false);
 
 // Cancel Modal State
@@ -181,6 +203,7 @@ async function loadOrders() {
       headers: { Authorization: `Bearer ${token}` }
     });
     orders.value = res.data.data?.data || res.data.data || res.data || [];
+    loading.value = false;
   } catch (e) {
     console.error("Failed to load orders", e);
   }
@@ -190,7 +213,11 @@ const filteredOrders = computed(() => {
   return orders.value.filter(o => {
     const matchesSearch = o.symbol.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchesMarket = filterMarket.value === "" || o.market === filterMarket.value;
-    return matchesSearch && matchesMarket;
+    const matchesStatus = statusFilter.value === "all" ||
+      (statusFilter.value === "active" && ["open", "pending_market", "partially_filled"].includes(o.status)) ||
+      (statusFilter.value === "completed" && o.status === "filled") ||
+      (statusFilter.value === "canceled" && ["canceled", "cancelled", "failed"].includes(o.status));
+    return matchesSearch && matchesMarket && matchesStatus;
   });
 });
 

@@ -17,6 +17,7 @@ import Portfolio from "@/Pages/Portfolio.vue";
 import NgxMarket from "@/Pages/NGXMarket.vue";
 import GlobalMarket from "@/Pages/GlobalStocks.vue";
 import CryptoMarket from "@/Pages/CryptoMarket.vue";
+import FixedIncomeMarket from "@/Pages/FixedIncomeMarket.vue";
 import Profile from "@/Pages/Profile/Index.vue";
 import Settings from "@/Pages/Settings.vue";
 import Reports from "@/Pages/Reports.vue";
@@ -121,6 +122,12 @@ const routes = [
     path: "/crypto",
     name: "crypto",
     component: CryptoMarket,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income",
+    name: "fixed-income",
+    component: FixedIncomeMarket,
     meta: { requiresAuth: true },
   },
 

@@ -40,6 +40,7 @@
             <SidebarLink to="/ngx" :icon="BarChart2">NGX Market</SidebarLink>
             <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
             <SidebarLink to="/crypto" :icon="Bitcoin">Crypto Market</SidebarLink>
+            <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income Market</SidebarLink>
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">TRADING</div>
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
@@ -102,7 +103,7 @@ import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark,
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark,TrendingUp
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
