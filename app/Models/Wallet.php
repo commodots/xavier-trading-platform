@@ -11,8 +11,17 @@ class Wallet extends Model
         'account_number',
         'currency',
         'balance',
+        'cleared_balance',
+        'uncleared_balance',
         'locked',
         'status',
+    ];
+
+    protected $casts = [
+        'balance' => 'float',
+        'cleared_balance' => 'float',
+        'uncleared_balance' => 'float',
+        'locked' => 'float',
     ];
 
     // ✅ Relationship: Wallet belongs to User

@@ -13,6 +13,7 @@
             + Deposit
           </button>
           <button @click="openTransaction('withdrawal')"
+            :disabled="(form.currency === 'NGN' && balances.cleared_balance_ngn <= 0) || (form.currency === 'USD' && balances.cleared_balance_usd <= 0)"
             class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             - Withdraw
           </button>
@@ -30,6 +31,11 @@
             <div>
               <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">NGN Wallet</h2>
               <div class="text-xl font-bold text-white">₦{{ Number(balances.balance_ngn).toLocaleString() }}</div>
+              <div class="text-sm text-gray-400 text-">Cleared: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString()
+                }}
+              </div>
+              <div class="text-sm text-yellow-400">Uncleared: ₦{{
+                Number(balances.uncleared_balance_ngn).toLocaleString() }}</div>
             </div>
           </div>
 
@@ -38,6 +44,10 @@
             <div>
               <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
               <div class="text-xl font-bold text-[#00D4FF]">${{ Number(balances.balance_usd).toLocaleString() }}</div>
+              <div class="text-sm text-gray-400">Cleared: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
+            </div>
+            <div class="text-sm text-yellow-400 text-">Uncleared: ${{
+              Number(balances.uncleared_balance_usd).toLocaleString() }}</div>
             </div>
           </div>
         </div>
@@ -186,7 +196,8 @@
       </div>
 
       <!-- Payment Result Modal -->
-      <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div v-if="showPaymentModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
           <button @click="closePaymentModal" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
           <div class="text-center">
@@ -298,7 +309,7 @@ const fetchLinkedAccountsFor = async (currency) => {
 };
 
 const refreshData = async () => {
-  balances.value = { balance_ngn: 0, balance_usd: 0 };
+  balances.value = { balance_ngn: 0, balance_usd: 0, cleared_balance_ngn: 0, uncleared_balance_ngn: 0, cleared_balance_usd: 0, uncleared_balance_usd: 0 };
   try {
     const [balRes, txnRes, accRes] = await Promise.all([
       api.get("/wallet/balances"),
@@ -416,22 +427,22 @@ const convertCurrency = async () => {
 const FX_CONVERSION_RATE = 1538;
 
 const combinedSeries = computed(() => [
-  { 
-    name: "NGN", 
+  {
+    name: "NGN",
     // Plotting actual Naira values
-    data: [95000, 110000, 140000, 130000, 160000, balances.value.balance_ngn] 
+    data: [95000, 110000, 140000, 130000, 160000, balances.value.balance_ngn]
   },
-  { 
-    name: "USD (Valued in NGN)", 
+  {
+    name: "USD (Valued in NGN)",
     // Plotting converted USD values so the chart scale is accurate
     data: [
-      400 * FX_CONVERSION_RATE, 
-      550 * FX_CONVERSION_RATE, 
-      480 * FX_CONVERSION_RATE, 
-      600 * FX_CONVERSION_RATE, 
-      1000 * FX_CONVERSION_RATE, 
+      400 * FX_CONVERSION_RATE,
+      550 * FX_CONVERSION_RATE,
+      480 * FX_CONVERSION_RATE,
+      600 * FX_CONVERSION_RATE,
+      1000 * FX_CONVERSION_RATE,
       balances.value.balance_usd * FX_CONVERSION_RATE
-    ] 
+    ]
   }
 ]);
 
@@ -456,9 +467,9 @@ const combinedOptions = {
     axisTicks: { show: false }
   },
   yaxis: {
-   show: false,
+    show: false,
   },
-  tooltip: { 
+  tooltip: {
     theme: 'dark',
   },
   legend: { show: false }

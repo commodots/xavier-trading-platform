@@ -7,9 +7,11 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Order;
+use App\Models\Trade;
 use App\Services\ContractNotes\ContractNoteService;
 use App\Services\Portfolio\PortfolioService;
 use App\Services\MatchingEngine\MatchingEngine;
+use App\Services\SettlementService;
 use App\Services\Audit\AuditLogger;
 use App\Models\ActivityLog;
 
@@ -33,6 +35,15 @@ class OrderController extends Controller
 
 		$order = Order::create($validated);
 
+		// For dummy system, immediately fill the order and create a trade
+		$order->update(['status' => 'filled', 'filled_quantity' => $order->quantity]);
+
+		Trade::create([
+			'order_id' => $order->id,
+			'price' => $order->price ?? $order->market_price,
+			'quantity' => $order->quantity,
+			'fee' => 0,
+		]);
 
 		try {
 			$action = strtoupper($order->type);

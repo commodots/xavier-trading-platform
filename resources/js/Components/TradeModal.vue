@@ -32,6 +32,9 @@
           <span class="text-[11px] text-gray-400">Your Holdings:</span>
           <span class="text-xs font-bold text-white">
             {{ currentAssetHolding }} {{ selectedTicker?.symbol }}
+            <span v-if="selectedHolding" class="text-[10px] text-gray-400">
+              (Cleared: {{ selectedHolding.cleared_quantity || 0 }}, Uncleared: {{ selectedHolding.uncleared_quantity || 0 }})
+            </span>
           </span>
         </div>
 
@@ -61,7 +64,7 @@
         </div>
 
         <div class="flex items-center justify-between px-1">
-          <span class="text-xs text-gray-500">Wallet Balance:</span>
+          <span class="text-xs text-gray-500">Cleared Wallet Balance:</span>
           <span class="text-xs font-bold"
             :class="nairaInput > userBalance && tradeAction === 'buy' ? 'text-red-400' : 'text-gray-300'">
             ₦{{ userBalance.toLocaleString() }}
@@ -188,10 +191,18 @@ const fetchNgxPrices = async () => {
 
 const fetchBalance = async () => {
   try {
-    const response = await api.get('/portfolio');
-    if (response.data) {
-      userBalance.value = response.data.wallet_balance;
-      allHoldings.value = response.data.holdings;
+    const [portfolioRes, walletRes] = await Promise.all([
+      api.get('/portfolio'),
+      api.get('/wallet/balances')
+    ]);
+
+    if (portfolioRes.data) {
+      allHoldings.value = portfolioRes.data.holdings;
+    }
+
+    if (walletRes.data.data) {
+      // Use cleared NGN balance for trading validation
+      userBalance.value = walletRes.data.data.cleared_balance_ngn || 0;
     }
   } catch (error) {
     console.error("Failed to fetch trade data", error);
@@ -206,9 +217,9 @@ const syncFromNaira = () => {
   const price = selectedTicker.value.price;
   const isCrypto = selectedCategory.value?.id === 'CRYPTO';
   if (selectedTicker.value.currency === 'NGN' || !selectedTicker.value.currency) {
-    unitInput.value = isCrypto ? nairaInput.value / price : Math.ceil(nairaInput.value / price);
+    unitInput.value = isCrypto ? nairaInput.value / price : Math.floor(nairaInput.value / price);
   } else {
-    unitInput.value = isCrypto ? (nairaInput.value / USD_RATE) / price : Math.ceil((nairaInput.value / USD_RATE) / price);
+    unitInput.value = isCrypto ? (nairaInput.value / USD_RATE) / price : Math.floor((nairaInput.value / USD_RATE) / price);
   }
 };
 
@@ -236,11 +247,22 @@ const formattedNairaInput = computed({
   }
 });
 
+const selectedHolding = computed(() => {
+  if (!selectedTicker.value) return null;
+  return allHoldings.value.find(h => h.symbol === selectedTicker.value.symbol);
+});
+
 const currentAssetHolding = computed(() => {
   if (!selectedTicker.value) return 0;
-  const holding = allHoldings.value.find(h => h.symbol === selectedTicker.value.symbol);
+  const holding = selectedHolding.value;
   const isCrypto = selectedCategory.value?.id === 'CRYPTO';
-  return holding ? (isCrypto ? holding.quantity : Math.ceil(holding.quantity)) : 0;
+
+  // For selling, use cleared_quantity; for buying, use total quantity
+  const availableQuantity = tradeAction.value === 'sell'
+    ? (holding?.cleared_quantity || 0)
+    : (holding?.quantity || 0);
+
+  return holding ? (isCrypto ? availableQuantity : Math.floor(availableQuantity)) : 0;
 });
 
 const filteredTickers = computed(() => {

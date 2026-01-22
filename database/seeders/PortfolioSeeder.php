@@ -43,6 +43,8 @@ class PortfolioSeeder extends Seeder
                         'name' => $holding['name'],
                         'category' => $holding['category'],
                         'quantity' => $quantity,
+                        'cleared_quantity' => $quantity, // All seeded holdings are cleared
+                        'uncleared_quantity' => 0,
                         'avg_price' => $avgPrice,
                         'market_price' => $holding['base_price'],
                         'currency' => $holding['currency'],

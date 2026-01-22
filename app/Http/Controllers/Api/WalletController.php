@@ -23,8 +23,12 @@ class WalletController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'balance_ngn' => (float)($ngnWallet?->balance ?? 0),
-                'balance_usd' => (float)($usdWallet?->balance ?? 0),
+                'balance_ngn' => (float)(($ngnWallet?->cleared_balance ?? 0) + ($ngnWallet?->uncleared_balance ?? 0)),
+                'balance_usd' => (float)(($usdWallet?->cleared_balance ?? 0) + ($usdWallet?->uncleared_balance ?? 0)),
+                'cleared_balance_ngn' => (float)($ngnWallet?->cleared_balance ?? 0),
+                'uncleared_balance_ngn' => (float)($ngnWallet?->uncleared_balance ?? 0),
+                'cleared_balance_usd' => (float)($usdWallet?->cleared_balance ?? 0),
+                'uncleared_balance_usd' => (float)($usdWallet?->uncleared_balance ?? 0),
             ]
         ]);
     }
@@ -45,8 +49,8 @@ class WalletController extends Controller
         $fromWallet = $user->wallet()->where('currency', $from)->first();
         $toWallet = $user->wallet()->where('currency', $target)->first();
 
-        if (!$fromWallet || $fromWallet->balance < $amount) {
-            return response()->json(['success' => false, 'message' => "Insufficient $from balance"], 400);
+        if (!$fromWallet || $fromWallet->cleared_balance < $amount) {
+            return response()->json(['success' => false, 'message' => "Insufficient $from cleared balance"], 400);
         }
 
         // 2. Fetch FX rate (Note: exchangerate.host often requires an API key now, check their docs) 
@@ -64,20 +68,20 @@ class WalletController extends Controller
             $convertedAmount = $amount / $rate;
         }
 
-        $fromWallet->decrement('balance', $amount);
+        $fromWallet->decrement('cleared_balance', $amount);
 
         // Ensure the target wallet exists, if not create it
         if (!$toWallet) {
-            $toWallet = $user->wallet()->create(['currency' => $target, 'balance' => 0]);
+            $toWallet = $user->wallet()->create(['currency' => $target, 'balance' => 0, 'cleared_balance' => 0, 'uncleared_balance' => 0]);
         }
-        $toWallet->increment('balance', $convertedAmount);
+        $toWallet->increment('cleared_balance', $convertedAmount);
 
         return response()->json([
             'success' => true,
             'message' => 'Conversion completed.',
             'data' => [
-                'balance_ngn' => $user->wallet()->where('currency', 'NGN')->first()?->balance ?? 0,
-                'balance_usd' => $user->wallet()->where('currency', 'USD')->first()?->balance ?? 0,
+                'balance_ngn' => ($user->wallet()->where('currency', 'NGN')->first()?->cleared_balance ?? 0) + ($user->wallet()->where('currency', 'NGN')->first()?->uncleared_balance ?? 0),
+                'balance_usd' => ($user->wallet()->where('currency', 'USD')->first()?->cleared_balance ?? 0) + ($user->wallet()->where('currency', 'USD')->first()?->uncleared_balance ?? 0),
             ]
         ]);
     }

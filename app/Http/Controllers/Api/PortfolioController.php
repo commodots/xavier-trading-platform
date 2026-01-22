@@ -21,6 +21,8 @@ class PortfolioController extends Controller
         $groupedHoldings = $rawHoldings->groupBy('symbol')->map(function ($items) use ($FX_RATE) {
             $first = $items->first();
             $totalQuantity = $items->sum('quantity');
+            $clearedQuantity = $items->sum('cleared_quantity');
+            $unclearedQuantity = $items->sum('uncleared_quantity');
 
             // Formula: Sum(qty * price) / Total Qty
             $totalCost = $items->sum(fn($i) => $i->quantity * $i->avg_price);
@@ -32,19 +34,32 @@ class PortfolioController extends Controller
             $isUsd = ($first->currency === 'USD' || $first->category === 'foreign' || $first->category === 'crypto');
             $multiplier = $isUsd ? $FX_RATE : 1;
 
+            $isCrypto = strtolower($first->category) === 'crypto';
+            $calculatedTotal = $clearedQuantity + $unclearedQuantity;
+            $displayQuantity = $isCrypto ? $calculatedTotal : floor($calculatedTotal);
+            $displayCleared = $isCrypto ? $clearedQuantity : floor($clearedQuantity);
+            $displayUncleared = $isCrypto ? $unclearedQuantity : floor($unclearedQuantity);
+
+            // Skip holdings with zero total quantity
+            if ($totalQuantity <= 0) {
+                return null;
+            }
+
             return [
                 'symbol' => $first->symbol,
                 'name' => $first->name,
                 'category' => $first->category,
                 'currency' => $first->currency,
-                'quantity' => $totalQuantity,
+                'quantity' => $isCrypto ? $totalQuantity : floor($totalQuantity),
+                'cleared_quantity' => $displayCleared,
+                'uncleared_quantity' => $displayUncleared,
                 'avg_price' => $weightedAvgPrice,
                 'market_price' => $first->market_price,
                 'total_value' => $currentValueRaw,
                 'avg_price_ngn' => (float) ($weightedAvgPrice * $multiplier),
                 'total_value_ngn' => (float) ($currentValueRaw * $multiplier),
             ];
-        })->values();
+        })->filter()->values();
 
         $ngnWallet = $user->wallet()->where('currency', 'NGN')->first();
         $usdWallet = $user->wallet()->where('currency', 'USD')->first();

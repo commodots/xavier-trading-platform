@@ -15,6 +15,8 @@ class Portfolio extends Model
         'name',
         'category',
         'quantity',
+        'cleared_quantity',
+        'uncleared_quantity',
         'avg_price',
         'market_price',
         'currency'
@@ -22,6 +24,8 @@ class Portfolio extends Model
 
     protected $casts = [
         'quantity' => 'float',
+        'cleared_quantity' => 'float',
+        'uncleared_quantity' => 'float',
         'avg_price' => 'float',
         'market_price' => 'float',
     ];

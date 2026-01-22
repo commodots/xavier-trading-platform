@@ -83,7 +83,7 @@
                   <div class="font-semibold text-white uppercase">{{ o.symbol }}</div>
                   <div class="text-[11px] text-gray-500 truncate max-w-[120px]">{{ o.company }}</div>
                 </td>
-                <td class="px-2 text-gray-300">{{ Number(o.units).toFixed(8) }}</td>
+                <td class="px-2 text-gray-300">{{ formatUnits(o.units, o.market) }}</td>
                 <td class="px-2 font-medium text-white">
                   {{ o.currency === 'USD' ? '$' : '₦' }}{{ Number(o.amount).toLocaleString(undefined,
                     {minimumFractionDigits: 2}) }}
@@ -251,6 +251,15 @@ function formatDate(dateStr) {
   });
 }
 
+function formatUnits(units, market) {
+  const num = Number(units);
+  if (market === 'CRYPTO') {
+    return num.toFixed(8).replace(/\.?0+$/, '');
+  } else {
+    return Math.floor(num).toString(); 
+  }
+}
+
 
 function cancelOrder(id) {
   orderToCancel.value = id;
@@ -280,3 +289,4 @@ async function confirmCancel() {
   }
 }
 </script>
+

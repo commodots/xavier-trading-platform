@@ -59,6 +59,10 @@ Route::prefix('dummy')->group(function () {
         Route::get('market/{symbol}', [DummyNgxController::class, 'marketData']);
         Route::post('orders', [DummyNgxController::class, 'placeOrder']);
         Route::get('orders/{order_id}', [DummyNgxController::class, 'orderStatus']);
+        Route::get('trades/{id}', [DummyNgxController::class, 'tradeStatus']);
+        Route::post('settle/{trade_id}', [DummyNgxController::class, 'settleTrade']);
+        Route::get('quotes', [DummyNgxController::class, 'marketQuotes']);
+        Route::get('trades', [DummyNgxController::class, 'tradeHistory']);
     });
     Route::prefix('cscs')->group(function () {
         Route::post('settle', [DummyCscsController::class, 'settle']);
@@ -194,6 +198,12 @@ Route::middleware('auth:sanctum')->group(function () {
         //Activity Log
         Route::get('/activities', [AdminController::class, 'getActivityLogs']);
         Route::get('/activities/export', [AdminController::class, 'exportActivityLogs']);
+
+        // Manual settlement processing
+        Route::post('/settlements/process', function () {
+            \Illuminate\Support\Facades\Artisan::call('settlements:process');
+            return response()->json(['message' => 'Settlements processed successfully.']);
+        });
     });
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);

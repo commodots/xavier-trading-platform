@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -34,6 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
 
     })
+    ->withSchedule(function (Schedule $schedule) {
+    $schedule->command('settlements:process')
+        ->dailyAt('02:00')
+        ->withoutOverlapping()
+        ->onOneServer()
+        ->appendOutputTo(storage_path('logs/settlements.log'));
+})
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })

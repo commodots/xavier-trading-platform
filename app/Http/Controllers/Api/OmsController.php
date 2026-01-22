@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Order;
+use App\Models\Trade;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ use App\Models\ActivityLog;
 use App\Models\NewTransaction;
 use App\Models\Portfolio;
 use App\Services\Execution\NgxDummyAdapter;
+use App\Services\SettlementService;
+use Carbon\Carbon;
 
 class OmsController extends Controller
 {
@@ -32,55 +35,32 @@ class OmsController extends Controller
         $currency = "NGN";
 
         if ($request->market === "NGX") {
-            $units = $request->amount / $request->market_price;
+            $units = floor($request->amount / $request->market_price);
         } else {
             $amountInUsd = $request->amount / $USD_RATE;
-            $units = $amountInUsd / $request->market_price;
+            $units = $request->market === "CRYPTO" ? $amountInUsd / $request->market_price : floor($amountInUsd / $request->market_price);
         }
 
-        // --- PRE-CHECK BEFORE TRANSACTION ---
+        // Calculate actual cost
+        $actualCost = $request->market === "NGX" ? $units * $request->market_price : ($units * $request->market_price * $USD_RATE);
+
+        // --- PRE-CHECK BEFORE TRANSACTION (T+2 Settlement) ---
         if ($request->side === 'buy') {
             $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
-            if (!$wallet || $wallet->balance < $request->amount) {
-                return response()->json(["success" => false, "message" => "Insufficient wallet balance"], 400);
+            if (!$wallet || $wallet->cleared_balance < $actualCost) {
+                return response()->json(["success" => false, "message" => "Insufficient cleared balance"], 400);
             }
         } else {
             $holding = Portfolio::where('user_id', $user->id)->where('symbol', $request->symbol)->first();
-            // Check if user owns enough units to sell
-            if (!$holding || $holding->quantity < $units) {
-                return response()->json(["success" => false, "message" => "Insufficient holdings to sell"], 400);
+            // Check if user owns enough cleared units to sell
+            if (!$holding || $holding->cleared_quantity < $units) {
+                return response()->json(["success" => false, "message" => "Insufficient cleared holdings to sell"], 400);
             }
         }
 
 
         return DB::transaction(function () use ($request, $user, $currency, $units) {
-            if ($request->side === 'buy') {
-                // Deduct cash immediately
-                $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->lockForUpdate()->first();
-                $wallet->decrement('balance', $request->amount);
-
-                NewTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => $request->market === 'CRYPTO' ? 'buy_crypto' : 'buy_stock',
-                    'amount' => $request->amount,
-                    'currency' => $currency,
-                    'status' => 'completed',
-                    'meta' => ['symbol' => $request->symbol, 'info' => 'Trade Placement']
-                ]);
-            } else {
-                // Deduct units immediately so they aren't "double-sold"
-                $holding = Portfolio::where('user_id', $user->id)->where('symbol', $request->symbol)->lockForUpdate()->first();
-                $holding->decrement('quantity', $units);
-
-                NewTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => $request->market === 'CRYPTO' ? 'sell_crypto' : 'sell_stock',
-                    'amount' => $request->amount,
-                    'currency' => $currency,
-                    'status' => 'pending',
-                    'meta' => ['symbol' => $request->symbol, 'info' => 'Sell Order Placement']
-                ]);
-            }
+            // Create and immediately fill the order for T+2 settlement
             $order = Order::create([
                 "user_id" => $user->id,
                 "market" => $request->market,
@@ -94,7 +74,33 @@ class OmsController extends Controller
                 "type"  => 'market',
                 "price" => $request->market_price,
                 "currency" => $currency,
-                "status" => "open"
+                "status" => "open", // Pending settlement
+                "filled_quantity" => $units
+            ]);
+
+            // Create trade record for settlement
+            $trade = Trade::create([
+                'order_id' => $order->id,
+                'price' => $request->market_price,
+                'quantity' => $units,
+                'fee' => 0,
+            ]);
+
+            // Process T+2 settlement
+            app(SettlementService::class)->settleOrder($order);
+
+            // Create transaction record (but mark as pending settlement)
+            $transactionType = $request->market === 'CRYPTO'
+                ? ($request->side === 'buy' ? 'buy_crypto' : 'sell_crypto')
+                : ($request->side === 'buy' ? 'buy_stock' : 'sell_stock');
+
+            NewTransaction::create([
+                'user_id' => $user->id,
+                'type' => $transactionType,
+                'amount' => $request->amount,
+                'currency' => $currency,
+                'status' => 'pending', // Pending settlement
+                'meta' => ['symbol' => $request->symbol, 'info' => 'T+2 Trade Settlement']
             ]);
 
             ActivityLog::log($user->id, 'ORDER_PLACED', [
@@ -116,7 +122,7 @@ class OmsController extends Controller
 
             return response()->json([
                 "success" => true,
-                "message" => "Order placed",
+                "message" => "Order placed - settlement pending T+2",
                 "data" => $order
             ]);
         });

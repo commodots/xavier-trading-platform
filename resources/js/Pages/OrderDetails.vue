@@ -31,7 +31,7 @@
           </div>
 
           <button v-if="order.status === 'open'" @click="showCancelModal = true"
-            class="px-4 py-2 text-sm text-red-300 rounded-lg bg-red-500/20 hover:bg-red-500/40 transition-colors">
+            class="px-4 py-2 text-sm text-red-300 transition-colors rounded-lg bg-red-500/20 hover:bg-red-500/40">
             Cancel Order
           </button>
         </div>
@@ -111,10 +111,13 @@
         <div class="border-t border-[#1f3348] pt-4">
           <h3 class="mb-3 text-lg font-semibold">Settlement Timeline</h3>
           <ul class="space-y-3">
-            <li class="text-sm flex items-center gap-2">📝 Order Submitted</li>
-            <li v-if="order.filled_quantity > 0" class="text-sm flex items-center gap-2 text-blue-300">⚡ Matched</li>
-            <li v-if="order.status === 'settled'" class="text-sm flex items-center gap-2 text-purple-300">🏦 CSCS Settled</li>
+            <li class="flex items-center gap-2 text-sm">📝 Order Submitted</li>
+            <li v-if="order.filled_quantity > 0" class="flex items-center gap-2 text-sm text-blue-300">⚡ Matched</li>
+            <li class="flex items-center gap-2 text-sm text-yellow-300">&#x231B; Pending T+2 Settlement</li>
+            <li v-if="order.status === 'filled'" class="flex items-center gap-2 text-sm text-green-300">&#x2713; Settlement Completed</li>
+            <li v-if="order.status === 'settled'" class="flex items-center gap-2 text-sm text-purple-300">🏦 CSCS Settled</li>
           </ul>
+          <p class="mt-3 text-xs text-gray-500">NGX T+2 settlement: Funds and assets clear within 2 business days.</p>
         </div>
 
         <div class="flex items-center gap-3">
@@ -128,14 +131,14 @@
 
       <div v-if="showCancelModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="bg-[#0F1724] border border-[#1f3348] w-full max-w-md rounded-2xl p-6 shadow-2xl">
-          <h3 class="text-xl font-bold mb-2">Cancel Order?</h3>
-          <p class="text-gray-400 mb-6">Are you sure you want to cancel this {{ order.side }} order for {{ order.symbol }}? This action cannot be undone.</p>
+          <h3 class="mb-2 text-xl font-bold">Cancel Order?</h3>
+          <p class="mb-6 text-gray-400">Are you sure you want to cancel this {{ order.side }} order for {{ order.symbol }}? This action cannot be undone.</p>
           
           <div class="flex gap-3">
-            <button @click="showCancelModal = false" class="flex-1 px-4 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 transition-colors">
+            <button @click="showCancelModal = false" class="flex-1 px-4 py-3 transition-colors bg-gray-800 rounded-xl hover:bg-gray-700">
               Go Back
             </button>
-            <button @click="confirmCancel" :disabled="isCancelling" class="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50">
+            <button @click="confirmCancel" :disabled="isCancelling" class="flex-1 px-4 py-3 transition-colors bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50">
               {{ isCancelling ? 'Cancelling...' : 'Yes, Cancel' }}
             </button>
           </div>
@@ -198,8 +201,8 @@ async function confirmCancel() {
 }
 
 function beautifyStatus(s) {
-  if (s === "open") return "Open";
-  if (s === "filled") return "Filled";
+  if (s === "open") return "Pending Settlement";
+  if (s === "filled") return "Completed";
   if (s === "canceled" || s === "cancelled") return "Canceled";
   return s;
 }
