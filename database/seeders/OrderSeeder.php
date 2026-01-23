@@ -25,6 +25,11 @@ class OrderSeeder extends Seeder
                 'name' => 'NGX', // Local Stocks
                 'currency' => 'NGN',
                 'symbols' => ['ZENITHBANK', 'GTCO', 'DANGCEM', 'MTNN', 'AIRTELAFRI']
+            ],
+            [
+                'name' => 'FIXED INCOME', 
+                'currency' => 'NGN',
+                'symbols' => ['FG132026S1', 'ABB2026S0', 'FGNSB_2027', 'CP_MTN_I','CP_DAN_X']
             ]
         ];
 

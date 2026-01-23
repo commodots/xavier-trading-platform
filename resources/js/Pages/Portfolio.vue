@@ -82,7 +82,7 @@ const holdings = ref([]);
 const totalEquity = ref(0);
 const chartSeries = ref([]);
 const chartOptions = ref({
-  labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto (USD)"],
+  labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto (USD)", "Fixed Income"],
   legend: { position: "bottom", labels: { colors: "#fff" } },
   theme: { mode: "dark" }
 });
@@ -94,7 +94,8 @@ const showTradeModal = ref(false);
 const assetCategories = [
   { id: 'NGX', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
   { id: 'GLOBAL', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
-  { id: 'CRYPTO', name: 'Cryptocurrency(USD)', description: 'Bitcoin & Digital Assets' }
+  { id: 'CRYPTO', name: 'Cryptocurrency(USD)', description: 'Bitcoin & Digital Assets' },
+  { id: 'FIXED_INCOME', name: 'Fixed Income', description: 'Fixed Income Market' }
 ];
 
 const tickers = {
@@ -112,6 +113,11 @@ const tickers = {
     { symbol: 'BTC', name: 'Bitcoin', price: 64250.00, currency: 'USD' },
     { symbol: 'ETH', name: 'Ethereum', price: 3450.00, currency: 'USD' },
     { symbol: 'SOL', name: 'Solana', price: 145.00, currency: 'USD' }
+  ],
+  FIXED_INCOME: [
+    { symbol: 'FGNSB_2027', name: 'FGN Savings Bond 2027', price: 1000.00, currency: 'NGN' },
+    { symbol: 'CP_MTN_I', name: 'MTN Commercial Paper', price: 1000.00, currency: 'NGN' },
+    { symbol: 'ABB2026S0', name: 'FGN Bond Jan 2026', price: 1000.00, currency: 'NGN' }
   ]
 };
 
@@ -125,13 +131,13 @@ const refreshPortfolio = async () => {
     const ngx = Number(data.ngx_value || 0);
     const crypto = Number(data.crypto_value_usd || 0);
     const globalUsd = Number(data.global_stocks_value_usd || 0);
+    const fixedIncome = Number(data.fixed_income_value || 0);
 
     totalEquity.value = Number(data.total_equity || 0);
 
     holdings.value = data.holdings || [];
 
-    chartSeries.value = [wallet, ngx, globalUsd, crypto];
-    console.log("Chart Series:", chartSeries.value);
+    chartSeries.value = [wallet, ngx, globalUsd, crypto, fixedIncome];
 
   } catch (err) {
     console.error("Portfolio fetch error:", err);

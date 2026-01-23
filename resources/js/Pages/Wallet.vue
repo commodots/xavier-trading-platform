@@ -31,10 +31,10 @@
             <div>
               <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">NGN Wallet</h2>
               <div class="text-xl font-bold text-white">₦{{ Number(balances.balance_ngn).toLocaleString() }}</div>
-              <div class="text-sm text-gray-400 text-">Cleared: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString()
+              <div class="text-sm text-gray-400 text-">Cleared Balance: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString()
                 }}
               </div>
-              <div class="text-sm text-yellow-400">Uncleared: ₦{{
+              <div class="text-sm text-yellow-400">Uncleared Balance: ₦{{
                 Number(balances.uncleared_balance_ngn).toLocaleString() }}</div>
             </div>
           </div>
@@ -44,9 +44,9 @@
             <div>
               <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
               <div class="text-xl font-bold text-[#00D4FF]">${{ Number(balances.balance_usd).toLocaleString() }}</div>
-              <div class="text-sm text-gray-400">Cleared: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
+              <div class="text-sm text-gray-400">Cleared Balance: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
             </div>
-            <div class="text-sm text-yellow-400 text-">Uncleared: ${{
+            <div class="text-sm text-yellow-400 text-">Uncleared Balance: ${{
               Number(balances.uncleared_balance_usd).toLocaleString() }}</div>
             </div>
           </div>

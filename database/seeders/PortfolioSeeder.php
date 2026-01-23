@@ -21,6 +21,8 @@ class PortfolioSeeder extends Seeder
             ['symbol' => 'TSLA', 'name' => 'Tesla Inc', 'category' => 'foreign', 'currency' => 'USD', 'base_price' => 258.40],
             ['symbol' => 'BTC', 'name' => 'Bitcoin', 'category' => 'crypto', 'currency' => 'USD', 'base_price' => 102500.00],
             ['symbol' => 'ETH', 'name' => 'Ethereum', 'category' => 'crypto', 'currency' => 'USD', 'base_price' => 3850.00],
+            ['symbol' => 'FGNSB_2027', 'name' => 'FGN Savings Bond 2027', 'category' => 'fixed_income', 'currency' => 'NGN', 'base_price' => 1000.00],
+            ['symbol' => 'CP_MTN_I', 'name' => 'MTN Commercial Paper', 'category' => 'fixed_income', 'currency' => 'NGN', 'base_price' => 1000.00],
         ];
 
         foreach ($users as $user) {

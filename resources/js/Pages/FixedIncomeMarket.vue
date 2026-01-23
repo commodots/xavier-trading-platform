@@ -28,7 +28,7 @@
               class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
               <td class="px-4 py-3 font-medium">{{ instrument.symbol }}</td>
               <td>{{ instrument.name }}</td>
-              <td class="text-right">{{ instrument.yield }}%</td>
+              <td class="text-right">{{ instrument.yield.toFixed(2) }}%</td>
               <td class="text-right" :class="instrument.change >= 0 ? 'text-green-400' : 'text-red-400'">
                 {{ instrument.change }}%
               </td>
@@ -94,7 +94,7 @@ const isGraphLoading = ref(false);
 const fetchPortfolioPerformance = async (range = '1W') => {
   isGraphLoading.value = true;
   try {
-    const params = { category: 'fixed-income' };
+    const params = { category: 'fixed_income' };
 
     if (typeof range === 'object' && range.start && range.end) {
       
@@ -134,10 +134,10 @@ const openTrade = (instrument) => {
 
 const search = ref("");
 const instruments = ref([
-  { symbol: "FGN Bond", name: "Federal Government of Nigeria", yield: 12.5, change: 0.2, volume: 50000, spark: [12.3, 12.4, 12.5, 12.5, 12.5] },
-  { symbol: "NTB", name: "Central Bank of Nigeria", yield: 10.8, change: -0.1, volume: 200000, spark: [11.0, 10.9, 10.8, 10.8, 10.8] },
-  { symbol: "MTN Series 10 CP", name: "MTN Nigeria Communications PLC", yield: 8.5, change: 0.3, volume: 150000, spark: [8.2, 8.3, 8.4, 8.5, 8.5] },
-  { symbol: "FGN Sukuk 2031", name: "FGN Sukuk Company 1 Limited", yield: 9.2, change: 0.1, volume: 75000, spark: [9.1, 9.1, 9.2, 9.2, 9.2] },
+  { symbol: "FG132026S1", name: "FGN Bond Jan 2026", yield: 12.5, change: 0.2, volume: 50000, price: 1000, spark: [12.3, 12.4, 12.5, 12.5, 12.5] },
+  { symbol: "ABB2026S0", name: "Access Bank July 2026", yield: 10.8, change: -0.1, volume: 200000, price: 1000, spark: [11.0, 10.9, 10.8, 10.8, 10.8] },
+  { symbol: "FGNSB_2027", name: "FGN Savings Bond 2027", yield: 8.5, change: 0.3, volume: 150000, price: 1000, spark: [8.2, 8.3, 8.4, 8.5, 8.5] },
+  { symbol: "CP_MTN_I", name: "MTN Commercial Paper", yield: 9.2, change: 0.1, volume: 75000, price: 1000, spark: [9.1, 9.1, 9.2, 9.2, 9.2] },
 ]);
 
 
@@ -164,7 +164,7 @@ const updateMarketPrices = async () => {
 };
 
 const tradeTickers = computed(() => ({
-  FixedIncome: instruments.value.map(i => ({ ...i, currency: 'NGN' }))
+  FIXED_INCOME: instruments.value.map(i => ({ ...i, currency: 'NGN' }))
 }));
 
 const filteredInstruments = computed(() =>

@@ -75,6 +75,8 @@ class PortfolioController extends Controller
 
         $ngxValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'local')->sum('total_value_ngn');
 
+        $fixedIncomeValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'fixed_income')->sum('total_value_ngn');
+
         $cryptoValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value_ngn');
 
         $cryptoValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value');
@@ -87,12 +89,13 @@ class PortfolioController extends Controller
             'success' => true,
             'wallet_balance' => $walletValueNgn,
             'ngx_value' => $ngxValue,
+            'fixed_income_value' => $fixedIncomeValue,
             'global_stocks_value_usd' => $globalValueUsd,
             'global_stocks_value_ngn' => $globalValueNgn,
             'crypto_value_ngn' => $cryptoValueNgn,
             'crypto_value_usd' => $cryptoValueUsd,
             'holdings' => $groupedHoldings,
-            'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn)
+            'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn + $fixedIncomeValue)
         ]);
     }
  public function performance(Request $request)

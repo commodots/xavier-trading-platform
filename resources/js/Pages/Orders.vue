@@ -19,6 +19,7 @@
               <option value="CRYPTO">Crypto</option>
               <option value="NGX">Local Stocks (NGX)</option>
               <option value="GLOBAL">Global Stocks</option>
+              <option value="FIXED INCOME">Fixed Income Market</option>
             </select>
           </div>
 
@@ -171,7 +172,8 @@ const isCancelling = ref(false);
 const categoriesData = ref([
   { id: 'stocks', name: 'Global Stocks', description: 'Trade Apple, Tesla, etc.' },
   { id: 'crypto', name: 'Cryptocurrency', description: 'Trade BTC, ETH, SOL' },
-  { id: 'ngx', name: 'Local Stocks', description: 'Nigerian Exchange' }
+  { id: 'ngx', name: 'Local Stocks', description: 'Nigerian Exchange' },
+  { id: 'fixed_income', name: 'Fixed Income', description: 'Trade Bonds, Papers, etc' },
 ]);
 
 const tickersData = ref({
@@ -186,6 +188,10 @@ const tickersData = ref({
   ngx: [
     { symbol: 'DANGCEM', name: 'Dangote Cement', price: 450, currency: 'NGN' },
     { symbol: 'MTNN', name: 'MTN Nigeria', price: 280, currency: 'NGN' }
+  ],
+  fixed_income: [
+    {symbol: 'FGNSB_2027', name:'FGN Savings Bond 2027', price: 1000.00, currency: 'NGN'},
+    { symbol: 'CP_MTN_I', name: 'MTN Commercial Paper', price: 1000, currency: 'NGN' }
   ]
 });
 

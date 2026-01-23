@@ -20,7 +20,8 @@ const showTradeModal = ref(false);
 const assetCategories = [
   { id: 'NGX', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' },
   { id: 'GLOBAL', name: 'Global Stocks (USD)', description: 'US Markets (Tesla, Apple, etc.)' },
-  { id: 'CRYPTO', name: 'Cryptocurrency (USD)', description: 'Bitcoin & Digital Assets' }
+  { id: 'CRYPTO', name: 'Cryptocurrency (USD)', description: 'Bitcoin & Digital Assets' },
+  { id: 'FIXED_INCOME', name: 'Fixed Income', description: 'Fixed Income Market' }
 ];
 
 const tickers = {
@@ -38,6 +39,11 @@ const tickers = {
     { symbol: 'BTC', name: 'Bitcoin', price: 64250.00, currency: 'USD' },
     { symbol: 'ETH', name: 'Ethereum', price: 3450.00, currency: 'USD' },
     { symbol: 'SOL', name: 'Solana', price: 145.00, currency: 'USD' }
+  ],
+ FIXED_INCOME: [
+    { symbol: 'FGNSB_2027', name: 'FGN Savings Bond 2027', price: 1000.00, currency: 'NGN' },
+    { symbol: 'CP_MTN_I', name: 'MTN Commercial Paper', price: 1000.00, currency: 'NGN' },
+    { symbol: 'ABB2026S0', name: 'FGN Bond Jan 2026', price: 1000.00, currency: 'NGN' }
   ]
 };
 
@@ -47,6 +53,7 @@ const fallback = {
   ngx_value: 845000,
   global_stocks_value_usd: 3720,
   crypto_value_usd: 520000,
+  fixed_income_value:200000,
   total_equity: 2600000,
   series_performance: [
     { name: "Total Equity", data: [2400000, 2420000, 2435000, 2440000, 2480000, 2520000, 2600000] },
@@ -57,13 +64,16 @@ const fallback = {
     { label: "Wallet", value: 1240000 },
     { label: "NGX", value: 845000 },
     { label: "Global Stocks (USD)", value: 3720 },
-    { label: "Crypto (USD)", value: 520000 }
+    { label: "Crypto (USD)", value: 520000 },
+    { label: "Fixed Income", value: 20000 }
   ],
   holdings: [
     { symbol: "ZENITH", name: "Zenith Bank", quantity: 100, avg_price: 45.2, market_price: 50.5 },
     { symbol: "MTNN", name: "MTN Nigeria", quantity: 50, avg_price: 120, market_price: 135 },
     { symbol: "AAPL", name: "Apple Inc", quantity: 2, avg_price: 145, market_price: 175 },
-    { symbol: "BTC", name: "Bitcoin", quantity: 0.021, avg_price: 18000000, market_price: 24761904 }
+    { symbol: "BTC", name: "Bitcoin", quantity: 0.021, avg_price: 18000000, market_price: 24761904 },
+     { symbol: 'CP_MTN_I', name: 'MTN Commercial Paper', quantity:50, avg_price: 1000.00, market_price:950.00},
+    { symbol: 'ABB2026S0', name: 'FGN Bond Jan 2026', quantity:40, avg_price: 1000.00, market_price:950.00}
   ],
   transactions: [
     { date: "2025-10-20", type: "Deposit", asset: "NGN Wallet", currency: "NGN",amount: 500000, status: "Completed", ref: "DEP-00123" },
@@ -75,6 +85,7 @@ const fallback = {
 // --- Logic ---
 const walletBalance = computed(() => (data.value?.wallet_balance ?? 0));
 const ngxValue = computed(() => (data.value?.ngx_value ?? 0));
+const fixedIncomeValue = computed(() => (data.value?.fixed_income_value ?? 0));
 const globalValueNGN = computed(() => (data.value?.global_stocks_value_ngn ?? 0));
 const globalValueUSD = computed(() => (data.value?.global_stocks_value_usd ?? 0));
 const cryptoValueNGN = computed(() => (data.value?.crypto_value_ngn ?? 0));
@@ -97,10 +108,10 @@ const perfOptions = ref({
 
 const donutOptions = ref({
   chart: { type: "donut", toolbar: { show: false } },
-  labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto (USD)"],
+  labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto (USD)", "Fixed Income"],
   theme: { mode: "dark" },
   legend: { position: "bottom" },
-  colors: ["#00D4FF", "#0047AB", "#00A3FF", "#8CFF66"],
+  colors: ["#00D4FF", "#0047AB", "#00A3FF", "#8CFF66","#4d5c72"],
 });
 
 const donutSeries = ref([0, 0, 0, 0]);
@@ -150,6 +161,7 @@ async function fetchDashboard() {
       donutSeries.value = [
         Number(data.value.wallet_balance),
         Number(data.value.ngx_value),
+        Number(data.value.fixed_income_value),
         Number(data.value.global_stocks_value_usd),
         Number(data.value.crypto_value_usd)
       ];
@@ -232,6 +244,11 @@ onMounted(fetchDashboard);
           class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">Crypto</div>
           <div class="text-xl font-semibold">₦{{ cryptoValueNGN.toLocaleString() }}</div>
+        </div>
+        <div @click="$router.push({ name: 'fixed-income' })"
+          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+          <div class="text-xs text-gray-400">Fixed Income</div>
+          <div class="text-xl font-semibold">₦{{ fixedIncomeValue.toLocaleString() }}</div>
         </div>
       </div>
 
