@@ -2,13 +2,11 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\TransactionCharge;
-use App\Models\NewTransaction;
+use App\Models\User;
 use App\Models\Wallet;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class WalletFunctionsTest extends TestCase
 {
@@ -26,12 +24,12 @@ class WalletFunctionsTest extends TestCase
             'transaction_type' => 'deposit',
             'charge_type' => 'flat',
             'value' => 150,
-            'active' => true
+            'active' => true,
         ]);
 
         $response = $this->actingAs($user)->postJson('/api/deposit', [
             'amount' => 5000,
-            'currency' => 'NGN'
+            'currency' => 'NGN',
         ]);
 
         $response->assertStatus(200);
@@ -40,16 +38,17 @@ class WalletFunctionsTest extends TestCase
         $this->assertDatabaseHas('new_transactions_table', [
             'user_id' => $user->id,
             'amount' => 5000,
-            'charge' => 150
+            'charge' => 150,
         ]);
     }
+
     public function test_deposit_requires_a_positive_amount(): void
     {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->postJson('/api/deposit', [
             'amount' => -100, // Invalid amount
-            'currency' => 'NGN'
+            'currency' => 'NGN',
         ]);
 
         $response->assertStatus(422); // Validation error
@@ -62,6 +61,8 @@ class WalletFunctionsTest extends TestCase
         $ngnWallet = Wallet::create([
             'user_id' => $user->id,
             'currency' => 'NGN',
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
             'balance' => 100000,
             'locked' => 0,
         ]);
@@ -69,20 +70,24 @@ class WalletFunctionsTest extends TestCase
         $usdWallet = Wallet::create([
             'user_id' => $user->id,
             'currency' => 'USD',
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
             'balance' => 0,
             'locked' => 0,
         ]);
 
         $response = $this->actingAs($user)->postJson('/api/wallet/convert', [
             'from' => 'NGN',
-            'amount' => 50000
+            'amount' => 50000,
         ]);
         $response->assertStatus(200);
 
-        // 4. Assert: Check NGN balance decreased
-        $this->assertEquals(50000, $ngnWallet->fresh()->balance);
+        // Assert: Check NGN balance decreased
+        $ngnWallet->refresh();
+        $this->assertEquals(50000, $ngnWallet->ngn_cleared);
 
-        // 5. Assert: Check USD balance increased
-        $this->assertGreaterThan(0, $usdWallet->fresh()->balance);
+        // Assert: Check USD balance increased
+        $usdWallet->refresh();
+        $this->assertGreaterThan(0, $usdWallet->usd_uncleared);
     }
 }

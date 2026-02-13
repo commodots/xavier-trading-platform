@@ -8,9 +8,8 @@
         </div>
       </div>
 
-      <!-- Search and Filters -->
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="mb-4 text-lg font-semibold">User Selection</h2>
+      <div v-if="currentStep === 1" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+        <h2 class="mb-4 text-lg font-semibold">Step 1: User Selection</h2>
 
         <div class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2 lg:grid-cols-3">
           <div>
@@ -68,14 +67,34 @@
               </tbody>
             </table>
           </div>
+
+          <div class="flex justify-end mt-6">
+            <button @click="currentStep = 2" :disabled="selectedUsers.length === 0"
+              class="px-8 py-2 text-white transition bg-blue-600 rounded-lg hover:bg-blue-500 disabled:opacity-50">
+              Next: Compose Notification ({{ selectedUsers.length }} Selected)
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Notification Form -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="mb-4 text-lg font-semibold">Compose Notification</h2>
+        <div v-if="currentStep === 1" class="flex flex-col items-center justify-center py-12 text-center">
+            <h2 class="text-lg font-semibold">Compose Notification</h2>
+            <p class="text-xs text-gray-600 italic">Please select users to continue.</p>
+        </div>
 
-        <div class="space-y-4">
+        <div v-else-if="currentStep === 2" class="space-y-4">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Step 2: Compose Notification</h2>
+            <button @click="currentStep = 1" class="text-sm text-blue-400 hover:underline">
+              &larr; Back to User Selection
+            </button>
+          </div>
+
+          <div class="p-3 bg-blue-600/10 border border-blue-500/20 rounded-lg">
+            <p class="text-sm text-blue-400">Sending to <strong>{{ selectedUsers.length }}</strong> selected users.</p>
+          </div>
+
           <div>
             <label class="block mb-2 text-sm font-medium text-gray-300">Notification Title</label>
             <input v-model="notificationTitle" type="text" placeholder="Enter notification title"
@@ -106,7 +125,6 @@
         </div>
       </div>
 
-      <!-- Notification History -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
         <h2 class="mb-4 text-lg font-semibold">Recent Notifications</h2>
         <div v-if="notifications.length === 0" class="py-8 text-center text-gray-500">
@@ -147,6 +165,7 @@ import { ref, computed, onMounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 
+const currentStep = ref(1);
 const searchQuery = ref("");
 const kycFilter = ref("");
 const users = ref([]);
@@ -208,6 +227,7 @@ async function sendNotification() {
     sendEmail.value = false;
     sendMessage.value = false;
     selectedUsers.value = [];
+    currentStep.value = 1;
 
     // Reload notifications
     loadNotifications();

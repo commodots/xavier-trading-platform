@@ -39,6 +39,7 @@
           : 'text-gray-400 pb-2'">
           Staff Access
         </button>
+
       </div>
 
       <div>
@@ -141,8 +142,10 @@ const isTabVisible = (tab) => {
     'transactions-charges': 'manage_transaction_charges',
     'kyc-settings': 'manage_kyc_settings',
     'platform-earnings': 'manage_platform_earnings',
-    'staff-access': 'manage_system_settings'
+    'staff-access': 'manage_system_settings',
+    
   };
+  if (tab === 'fx-rates') return isAdmin.value;
   const cap = tabCapabilities[tab];
   return isAdmin.value || hasCapability(cap);
 };

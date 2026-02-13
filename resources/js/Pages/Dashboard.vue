@@ -65,7 +65,7 @@ const fallback = {
     { label: "NGX", value: 845000 },
     { label: "Global Stocks (USD)", value: 3720 },
     { label: "Crypto (USD)", value: 520000 },
-    { label: "Fixed Income", value: 20000 }
+    { label: "Fixed Income", value: 200000 }
   ],
   holdings: [
     { symbol: "ZENITH", name: "Zenith Bank", quantity: 100, avg_price: 45.2, market_price: 50.5 },
@@ -85,7 +85,19 @@ const fallback = {
 // --- Logic ---
 const walletBalance = computed(() => (data.value?.wallet_balance ?? 0));
 const ngxValue = computed(() => (data.value?.ngx_value ?? 0));
-const fixedIncomeValue = computed(() => (data.value?.fixed_income_value ?? 0));
+const fixedIncomeValue = computed(() => {
+  // Prefer explicit fixed_income_value if provided
+  if (data.value?.fixed_income_value != null) return Number(data.value.fixed_income_value);
+
+  // Otherwise, try to derive from portfolio_distribution (match label case-insensitively)
+  const dist = data.value?.portfolio_distribution;
+  if (Array.isArray(dist)) {
+    const item = dist.find(p => /fixed\s*income/i.test(p.label));
+    if (item) return Number(item.value);
+  }
+
+  return 0;
+});
 const globalValueNGN = computed(() => (data.value?.global_stocks_value_ngn ?? 0));
 const globalValueUSD = computed(() => (data.value?.global_stocks_value_usd ?? 0));
 const cryptoValueNGN = computed(() => (data.value?.crypto_value_ngn ?? 0));
@@ -114,7 +126,7 @@ const donutOptions = ref({
   colors: ["#00D4FF", "#0047AB", "#00A3FF", "#8CFF66","#4d5c72"],
 });
 
-const donutSeries = ref([0, 0, 0, 0]);
+const donutSeries = ref([0, 0, 0, 0, 0]);
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
@@ -158,12 +170,13 @@ async function fetchDashboard() {
       donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
       donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
     } else {
+     
       donutSeries.value = [
         Number(data.value.wallet_balance),
         Number(data.value.ngx_value),
-        Number(data.value.fixed_income_value),
         Number(data.value.global_stocks_value_usd),
-        Number(data.value.crypto_value_usd)
+        Number(data.value.crypto_value_usd),
+        Number(data.value.fixed_income_value)
       ];
     }
 
@@ -224,7 +237,7 @@ onMounted(fetchDashboard);
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-5">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-6">
         <div @click="$router.push({ name: 'portfolio' })"
           class="col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
           <div class="text-xs text-gray-400">Total Portfolio Value</div>

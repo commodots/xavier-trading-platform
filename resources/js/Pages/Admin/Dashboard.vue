@@ -22,6 +22,26 @@
           :subtitle="`This Month's Earnings: ₦` + stats.monthEarnings.toLocaleString()"
           @click="$router.push({ name: 'admin-control-panel', query: { tab: 'platform-earnings' } })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+          title="User USD Total" :value="'$' + formatNumber(fxStats.userTotal)" icon="Wallet"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+          title="Buffer/Shortfall" 
+          :value="'$' + formatNumber(Math.abs(fxStats.buffer))" 
+          :subtitle="fxStats.buffer >= 0 ? 'Safe margin' : 'SHORTFALL'"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+          title="Pending Settlements" :value="fxStats.pendingSettlements" icon="Clock"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+          title="FX Margin Earned" :value="'₦' + formatNumber(fxStats.fxMargin)" icon="TrendingUp"
+          :subtitle="'Today'"
+           @click="$router.push({ name: 'admin-fx-dashboard' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
       </div>
 
       <div :class="chartGridClasses">
@@ -123,21 +143,25 @@ try {
 const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
 
 const visibleMetricCards = computed(() => {
-  let count = 0;
-  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance')) count++;
-  if (isAdmin.value || user.value.roles?.includes('support') || user.value.roles?.includes('compliance')) count++;
-  if (isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support')) count++;
-  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts')) count++;
-  return count;
+  const conditions = [
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance'),
+    isAdmin.value || user.value.roles?.includes('support') || user.value.roles?.includes('compliance'),
+    isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support'),
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+  ];
+  return conditions.reduce((s, c) => s + (c ? 1 : 0), 0);
 });
 
 const gridClasses = computed(() => {
-  let classes = 'grid grid-cols-1 gap-6 mb-8 ';
-  if (visibleMetricCards.value >= 4) classes += 'md:grid-cols-4';
-  else if (visibleMetricCards.value === 3) classes += 'md:grid-cols-3';
-  else if (visibleMetricCards.value === 2) classes += 'md:grid-cols-2';
-  else classes += 'md:grid-cols-1';
-  return classes;
+  const count = visibleMetricCards.value || 1;
+  const mdCols = Math.max(1, Math.min(count, 4));
+  const lgCols = Math.max(1, Math.min(count, 6));
+  return `grid grid-cols-1 gap-6 mb-8 md:grid-cols-${mdCols} lg:grid-cols-${lgCols}`;
 });
 
 const visibleCharts = computed(() => {
@@ -183,6 +207,13 @@ const stats = ref({
   monthEarnings: 0,
 });
 
+const fxStats = ref({
+  userTotal: 0,
+  buffer: 0,
+  pendingSettlements: 0,
+  fxMargin: 0,
+});
+
 const earningsByType = ref([
   { type: 'Deposit', total: 0 },
   { type: 'Withdrawal', total: 0 },
@@ -201,11 +232,12 @@ const recentTransactions = ref([
 
 async function fetchDashboardData() {
   try {
-    const [earningsRes, txnRes, usersRes, dashboardRes] = await Promise.all([
+    const [earningsRes, txnRes, usersRes, dashboardRes, fxRes] = await Promise.all([
       api.get('/admin/earnings'),
       api.get('/admin/transactions'),
       api.get('/admin/kycs', { params: { per_page: 10 } }),
-      api.get('/admin/dashboard')
+      api.get('/admin/dashboard'),
+      api.get('/admin/fx/reconciliation').catch(() => ({ data: {} }))
     ]);
 
     if (dashboardRes.data.success) {
@@ -247,10 +279,25 @@ async function fetchDashboardData() {
         email: u.user.email,
         kyc: u.status || 'none'
       }));
+
+    if (fxRes.data) {
+      fxStats.value = {
+        userTotal: fxRes.data.user_usd_total || 0,
+        pendingSettlements: fxRes.data.pending_settlements || 0,
+        fxMargin: fxRes.data.fx_margin_today || 0,
+      };
+    }
   }
   catch (error) {
     console.warn("API Error: Fallback data");
   }
+}
+
+const formatNumber = (num) => {
+  return num.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 onMounted(async () => {

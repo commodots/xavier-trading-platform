@@ -37,6 +37,7 @@ import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
 import AdminReports from "@/Pages/Admin/Reports.vue";
 import AdminNotifications from "@/Pages/Admin/Notifications.vue";
+import AdminFxDashboard from "@/Pages/Admin/FxDashboard.vue";
 
 const routes = [
 
@@ -234,6 +235,12 @@ const routes = [
     path: "/admin/notifications",
     name: "admin-notifications",
     component: AdminNotifications,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/fx-dashboard",
+    name: "admin-fx-dashboard",
+    component: AdminFxDashboard,
     meta: { requiresAuth: true, adminOnly: true },
   },
 

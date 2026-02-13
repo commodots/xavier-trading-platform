@@ -2,15 +2,16 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Vite;
-use Illuminate\Support\ServiceProvider;
-
-use App\Services\Stocks\Contracts\StockBroker;
+use App\Models\KycProfile;
+use App\Models\User;
+use App\Observers\KycProfileObserver;
+use App\Observers\UserObserver;
 use App\Services\Stocks\Contracts\MarketDataProvider;
+use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Mock\MockDriveWealthService;
 use App\Services\Stocks\Mock\MockPolygonService;
-use App\Models\KycProfile;
-use App\Observers\KycProfileObserver;
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,17 +19,17 @@ class AppServiceProvider extends ServiceProvider
      * Register any application services.
      */
     public function register()
-	{
-		$this->app->singleton(\App\Services\BvnService::class);
-		
-		$this->app->bind(StockBroker::class, function () {
-			return new MockDriveWealthService();
-		});
+    {
+        $this->app->singleton(\App\Services\BvnService::class);
 
-		$this->app->bind(MarketDataProvider::class, function () {
-			return new MockPolygonService();
-		});
-	}
+        $this->app->bind(StockBroker::class, function () {
+            return new MockDriveWealthService;
+        });
+
+        $this->app->bind(MarketDataProvider::class, function () {
+            return new MockPolygonService;
+        });
+    }
 
     /**
      * Bootstrap any application services.
@@ -37,5 +38,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
         KycProfile::observe(KycProfileObserver::class);
+        User::observe(UserObserver::class);
     }
 }

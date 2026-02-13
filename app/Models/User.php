@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory; // ✅ correct import
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Support\Facades\Crypt;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Facades\Crypt;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -29,7 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'next_of_kin',
         'next_of_kin_phone',
         'next_of_kin_email',
-        'kyc_status'
+        'kyc_status',
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -45,24 +45,24 @@ class User extends Authenticatable implements MustVerifyEmail
         'dob' => 'date',
     ];
 
-    // kyc_status is available via fillable above
-
-    // ✅ Relationship: One User has one Wallet
+    //  Relationship: One User has one Wallet
     public function wallet()
     {
         return $this->hasMany(\App\Models\Wallet::class);
     }
 
-    // ✅ Relationship: One User has one KYC Record
+    //  Relationship: One User has one KYC Record
     public function kyc()
     {
-        //return $this->hasOne(Kyc::class);
+        // return $this->hasOne(Kyc::class);
         return $this->hasOne(KycProfile::class, 'user_id');
     }
+
     public function orders()
     {
         return $this->hasMany(\App\Models\Order::class);
     }
+
     public function transactions()
     {
         return $this->hasMany(\App\Models\Transaction::class);
@@ -76,6 +76,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $lastName = $this->attributes['last_name'] ?? '';
         $this->attributes['name'] = trim("{$value} {$lastName}");
     }
+
     public function setLastNameAttribute($value)
     {
         $this->attributes['last_name'] = $value;
@@ -84,39 +85,65 @@ class User extends Authenticatable implements MustVerifyEmail
         $firstName = $this->attributes['first_name'] ?? '';
         $this->attributes['name'] = trim("{$firstName} {$value}");
     }
+
     protected function google2faSecret(): Attribute
     {
         return new Attribute(
-            get: fn($value) => $value ? Crypt::decryptString($value) : null,
-            set: fn($value) => Crypt::encryptString($value),
+            get: fn ($value) => $value ? Crypt::decryptString($value) : null,
+            set: fn ($value) => Crypt::encryptString($value),
         );
     }
 
     protected function profileImage(): Attribute
     {
         return new Attribute(
-            get: fn($value) => $value ? asset('storage/' . $value) : asset('images/user.png'),
+            get: fn ($value) => $value ? asset('storage/'.$value) : asset('images/user.png'),
         );
     }
+
     public function linkedAccounts()
     {
         return $this->hasMany(LinkedAccount::class);
     }
+
     public function notificationPreferences()
     {
         return $this->hasOne(NotificationPreference::class);
     }
+
     public function holdings()
     {
         return $this->hasMany(Portfolio::class);
     }
+
     public function activities()
     {
         return $this->hasMany(ActivityLog::class);
     }
+
+    /**
+     * Get FX transactions for this user
+     */
     public function isStaff()
     {
         return $this->hasAnyRole(['admin', 'accounts', 'manager', 'compliance', 'support']);
+    }
+
+    /**
+     * Get FX wallet for a currency
+     */
+    public function fxWallet(string $currency): Wallet
+    {
+        return Wallet::firstOrCreate(
+            ['user_id' => $this->id, 'currency' => $currency],
+            [
+                'balance' => 0,
+                'cleared_balance' => 0,
+                'uncleared_balance' => 0,
+                'locked' => 0,
+                'status' => 'active',
+            ]
+        );
     }
 
     /**
@@ -124,7 +151,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasVerifiedEmail(): bool
     {
-        return !is_null($this->email_verified_at);
+        return ! is_null($this->email_verified_at);
     }
 
     /**

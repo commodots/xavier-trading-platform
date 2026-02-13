@@ -58,6 +58,8 @@
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">Notifications</SidebarLink>
 
+            <SidebarLink v-if="isAdmin" to="/admin/fx-dashboard" :icon="DollarSign">FX Dashboard</SidebarLink>
+
             <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations</div>
             <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/users" :icon="Users">User Management</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
@@ -104,7 +106,7 @@ import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark,TrendingUp, Bell
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark,TrendingUp, Bell, DollarSign
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

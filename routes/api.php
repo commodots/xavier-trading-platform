@@ -1,42 +1,34 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-
-use App\Http\Controllers\Api\{
-    OnboardingController,
-    AuthController,
-    PaystackController,
-    ProfileController,
-    KycController,
-    OmsController,
-    AdminController,
-    MarketController,
-    WalletController,
-    SystemSettingsController,
-    TwoFactorController,
-    AdminServiceController,
-    PortfolioController,
-    ServiceConfigController,
-    NewTransactionController,
-    TransactionTypeController,
-    MarketDataController,
-    DummyNgxController,
-    DummyCscsController,
-};
-use App\Http\Controllers\Auth\{
-    PasswordResetLinkController,
-    NewPasswordController
-};
-use App\Http\Controllers\Api\User\{
-    LinkedAccountController,
-    NotificationController,
-    SecurityController
-};
-use App\Http\Controllers\Admin\{
-    TransactionChargeController,
-};
+use App\Http\Controllers\Admin\FxReconciliationController;
+use App\Http\Controllers\Admin\TransactionChargeController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminServiceController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DummyCscsController;
+use App\Http\Controllers\Api\DummyNgxController;
+use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\Market\StockMarketController;
+use App\Http\Controllers\Api\MarketController;
+use App\Http\Controllers\Api\MarketDataController;
+use App\Http\Controllers\Api\NewTransactionController;
+use App\Http\Controllers\Api\OmsController;
+use App\Http\Controllers\Api\OnboardingController;
+use App\Http\Controllers\Api\PaystackController;
+use App\Http\Controllers\Api\PortfolioController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SystemSettingsController;
+use App\Http\Controllers\Api\TransactionTypeController;
+use App\Http\Controllers\Api\TwoFactorController;
+use App\Http\Controllers\Api\User\LinkedAccountController;
+use App\Http\Controllers\Api\User\NotificationController;
+use App\Http\Controllers\Api\User\SecurityController;
+use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -53,6 +45,7 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
 
 /* Paystack Webhook & Redirect */
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback']);
+Route::post('/paystack/webhook', [\App\Http\Controllers\Api\PaystackWebhookController::class, 'handle']);
 
 Route::prefix('dummy')->group(function () {
     Route::prefix('ngx')->group(function () {
@@ -81,22 +74,22 @@ Route::middleware('auth:sanctum')->get(
 );
 Route::middleware('auth:sanctum')->group(function () {
 
-	Route::get(
+    Route::get(
         '/markets/stocks/{symbol}/history',
         [StockMarketController::class, 'history']
     );
 
-	Route::get('/markets/stocks/{symbol}/history', [
+    Route::get('/markets/stocks/{symbol}/history', [
         \App\Http\Controllers\MarketDataController::class,
-        'stockHistory'
+        'stockHistory',
     ]);
 
-    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     /* Wallet */
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
-    Route::post('/wallet/convert', [WalletController::class, 'convert']);
+    Route::post('/wallet/convert', [WalletController::class, 'convert'])->middleware('throttle:10,1');
 
     /* Paystack */
     Route::prefix('paystack')->group(function () {
@@ -107,7 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/portfolio', [PortfolioController::class, 'index']);
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
 
-    //Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
+    // Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
 
     // Authenticated Endpoints
     Route::get('/2fa/setup', [TwoFactorController::class, 'enable2FA']);
@@ -119,7 +112,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/update', [ProfileController::class, 'update']);
     Route::get('/profile/kyc', [ProfileController::class, 'getKyc']);
     Route::post('/profile/kyc', [ProfileController::class, 'submitKyc']);
-
 
     /* Market */
     Route::get('/market/ngx', [MarketController::class, 'ngx']);
@@ -163,6 +155,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/kyc-settings', [AdminController::class, 'updateKycSettings']);
         Route::delete('/admin/kyc-settings/{tier}', [AdminController::class, 'destroyKycSetting']);
 
+        // FX rate management
+        Route::post('/fx-rates', [\App\Http\Controllers\Admin\FxRateController::class, 'store']);
+
         /* Settings */
         Route::get('/settings', [SystemSettingsController::class, 'get']);
         Route::post('/settings', [SystemSettingsController::class, 'update']);
@@ -170,7 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
         /* Stats */
         Route::get('/stats', [AdminController::class, 'stats']);
 
-        /*Control Panel */
+        /* Control Panel */
         Route::get('/services', [AdminServiceController::class, 'index']);
         Route::post('/services', [AdminServiceController::class, 'store']);
         Route::patch('/services/{id}/toggle', [AdminServiceController::class, 'toggleService']);
@@ -195,15 +190,27 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/earnings/report', [AdminController::class, 'getEarningsReport']);
         Route::get('/transactions/export', [AdminController::class, 'exportTransactions']);
 
-        //Activity Log
+        // Activity Log
         Route::get('/activities', [AdminController::class, 'getActivityLogs']);
         Route::get('/activities/export', [AdminController::class, 'exportActivityLogs']);
 
         // Manual settlement processing
         Route::post('/settlements/process', function () {
             \Illuminate\Support\Facades\Artisan::call('settlements:process');
+
             return response()->json(['message' => 'Settlements processed successfully.']);
         });
+
+        // FX Reconciliation
+        Route::prefix('fx')->middleware('throttle:30,1')->group(function () {
+            Route::get('/reconciliation', [FxReconciliationController::class, 'getReconciliation']);
+            Route::get('/recent-transactions', [FxReconciliationController::class, 'getRecentTransactions']);
+            Route::post('/run-reconciliation', [FxReconciliationController::class, 'runReconciliation']);
+            Route::get('/pending-settlements', [FxReconciliationController::class, 'getPendingSettlements']);
+        });
+
+        // FX Admin Dashboard metrics
+        Route::get('/fx-dashboard', [\App\Http\Controllers\Admin\FxDashboardController::class, 'index']);
     });
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);
