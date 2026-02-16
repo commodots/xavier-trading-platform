@@ -31,39 +31,35 @@ class PaystackWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    private function handleSuccessfulPayment(array $data): void
-    {
-        DB::transaction(function () use ($data) {
-            $email = $data['customer']['email'] ?? null;
+    
+private function handleSuccessfulPayment(array $data): void
+{
+    $reference = $data['reference'];
 
-            if (! $email) {
-                Log::warning('Paystack webhook missing customer email', ['data' => $data]);
-
-                return;
-            }
-
-            $user = User::where('email', $email)->first();
-            if (! $user) {
-                Log::warning('Paystack webhook user not found', ['email' => $email]);
-
-                return;
-            }
-
-            $amount = ($data['amount'] ?? 0) / 100;
-
-            // Credit NGN as uncleared
-            $wallet = $user->fxWallet('NGN');
-            $wallet->increment('ngn_uncleared', $amount);
-
-            Ledger::create([
-                'user_id' => $user->id,
-                'currency' => 'NGN',
-                'amount' => $amount,
-                'type' => 'FUND',
-                'status' => 'pending',
-                'reference' => $data['reference'] ?? null,
-                'meta' => $data,
-            ]);
-        });
+   
+    if (Ledger::where('reference', $reference)->exists()) {
+        Log::info('Paystack webhook: Duplicate reference ignored', ['ref' => $reference]);
+        return;
     }
+
+    DB::transaction(function () use ($data, $reference) {
+        $user = User::where('email', $data['customer']['email'])->first();
+        if (!$user) return;
+
+        $amount = $data['amount'] / 100;
+        $wallet = $user->fxWallet('NGN'); 
+
+        $wallet->credit($amount, 'uncleared');
+
+        Ledger::create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'amount' => $amount,
+            'type' => 'FUND',
+            'status' => 'pending',
+            'reference' => $reference,
+            'meta' => $data,
+        ]);
+    });
+}
 }

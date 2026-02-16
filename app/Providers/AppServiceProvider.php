@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Models\KycProfile;
 use App\Models\User;
 use App\Observers\KycProfileObserver;
-use App\Observers\UserObserver;
 use App\Services\Stocks\Contracts\MarketDataProvider;
 use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Mock\MockDriveWealthService;
@@ -38,6 +37,5 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
         KycProfile::observe(KycProfileObserver::class);
-        User::observe(UserObserver::class);
     }
 }

@@ -19,14 +19,24 @@ class SettleFx extends Command
 
         try {
             DB::transaction(function () {
-                $settled = Wallet::where('uncleared_balance', '>', 0)
+                // Settle NGN balances
+                $ngnSettled = Wallet::where('ngn_uncleared', '>', 0)
                     ->update([
-                        'cleared_balance' => DB::raw('cleared_balance + uncleared_balance'),
-                        'uncleared_balance' => 0,
+                        'ngn_cleared' => DB::raw('ngn_cleared + ngn_uncleared'),
+                        'ngn_uncleared' => 0,
                     ]);
+                
+                // Settle USD balances
+                $usdSettled = Wallet::where('usd_uncleared', '>', 0)
+                    ->update([
+                        'usd_cleared' => DB::raw('usd_cleared + usd_uncleared'),
+                        'usd_uncleared' => 0,
+                    ]);
+                
+                $totalSettled = $ngnSettled + $usdSettled;
 
-                $this->info("Settled {$settled} wallet(s)");
-                Log::info('FX settlement completed', ['wallets_settled' => $settled]);
+                $this->info("Settled {$totalSettled} wallet(s)");
+                Log::info('FX settlement completed', ['wallets_settled' => $totalSettled]);
             });
 
             $this->info('Settlement completed successfully');

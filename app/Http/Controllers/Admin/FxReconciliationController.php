@@ -36,8 +36,8 @@ class FxReconciliationController extends Controller
             // Get user liabilities
             $usdWallets = Wallet::where('currency', 'USD')->get();
 
-            $usersClearedBalance = $usdWallets->sum('cleared_balance');
-            $usersUnclearedBalance = $usdWallets->sum('uncleared_balance');
+            $usersClearedBalance = $usdWallets->sum('usd_cleared');
+            $usersUnclearedBalance = $usdWallets->sum('usd_uncleared');
             $usersLockedBalance = $usdWallets->sum('locked');
 
             $userLiability = $usersClearedBalance + $usersUnclearedBalance + $usersLockedBalance;
@@ -46,7 +46,7 @@ class FxReconciliationController extends Controller
             $buffer = $brokerBalance - $userLiability;
 
             // Get pending settlements
-            $pendingSettlements = $usdWallets->where('uncleared_balance', '>', 0)->count();
+            $pendingSettlements = $usdWallets->where('usd_uncleared', '>', 0)->count();
 
             $dailyFxCount = 0;
 
@@ -117,11 +117,14 @@ class FxReconciliationController extends Controller
             ], 403);
         }
 
+        // Get recent transactions (placeholder)
+        $transactions = [];
+
         // Log access
         ActivityLog::log(
             Auth::id(),
             'fx_transactions_viewed',
-            ['count' => $transactions->count()]
+            ['count' => count($transactions)]
         );
 
         return response()->json([
@@ -194,15 +197,15 @@ class FxReconciliationController extends Controller
 
         $wallets = Wallet::with('user')
             ->where('currency', 'USD')
-            ->where('uncleared_balance', '>', 0)
+            ->where('usd_uncleared', '>', 0)
             ->get()
             ->map(function ($wallet) {
                 return [
                     'id' => $wallet->id,
                     'user_id' => $wallet->user_id,
                     'user_email' => $wallet->user->email,
-                    'uncleared_balance' => $wallet->uncleared_balance,
-                    'cleared_balance' => $wallet->cleared_balance,
+                    'uncleared_balance' => $wallet->usd_uncleared,
+                    'cleared_balance' => $wallet->usd_cleared,
                     'created_at' => $wallet->created_at,
                 ];
             });

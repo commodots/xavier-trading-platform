@@ -132,19 +132,14 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get FX wallet for a currency
      */
-    public function fxWallet(string $currency): Wallet
-    {
-        return Wallet::firstOrCreate(
-            ['user_id' => $this->id, 'currency' => $currency],
-            [
-                'balance' => 0,
-                'cleared_balance' => 0,
-                'uncleared_balance' => 0,
-                'locked' => 0,
-                'status' => 'active',
-            ]
-        );
-    }
+   
+public function fxWallet(string $currency)
+{
+    return $this->wallet()->firstOrCreate(
+        ['currency' => $currency],
+        ['ngn_cleared' => 0, 'ngn_uncleared' => 0, 'usd_cleared' => 0, 'usd_uncleared' => 0]
+    );
+}
 
     /**
      * Check if the user's email has been verified.

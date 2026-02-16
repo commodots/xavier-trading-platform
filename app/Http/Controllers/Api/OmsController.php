@@ -47,7 +47,8 @@ class OmsController extends Controller
         // --- PRE-CHECK BEFORE TRANSACTION (T+2 Settlement) ---
         if ($request->side === 'buy') {
             $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
-            if (!$wallet || $wallet->cleared_balance < $actualCost) {
+            $clearedBalance = $currency === 'NGN' ? ($wallet?->ngn_cleared ?? 0) : ($wallet?->usd_cleared ?? 0);
+            if (!$wallet || $clearedBalance < $actualCost) {
                 return response()->json(["success" => false, "message" => "Insufficient cleared balance"], 400);
             }
         } else {

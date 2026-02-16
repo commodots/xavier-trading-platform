@@ -68,8 +68,12 @@ class SettlementService
         $order = $trade->order;
         $wallet = Wallet::where('user_id', $userId)->where('currency', $currency)->firstOrFail();
 
-        // 1. Move Cash to Locked
-        $wallet->decrement('cleared_balance', $totalValue);
+        // 1. Move Cash to Locked (use currency-specific cleared balance)
+        if ($currency === 'NGN') {
+            $wallet->decrement('ngn_cleared', $totalValue);
+        } elseif ($currency === 'USD') {
+            $wallet->decrement('usd_cleared', $totalValue);
+        }
         $wallet->increment('locked', $totalValue);
 
         // 2. Update Portfolio with Uncleared Quantity
@@ -108,9 +112,13 @@ class SettlementService
         $portfolio->decrement('cleared_quantity', $trade->quantity);
         $portfolio->increment('uncleared_quantity', $trade->quantity);
 
-        // 2. Wallet record (Profit is uncleared until T+2)
+        // 2. Wallet record (Profit is uncleared until T+2) - use currency-specific column
         $wallet = Wallet::where('user_id', $userId)->where('currency', $currency)->firstOrFail();
-        $wallet->increment('uncleared_balance', $totalValue);
+        if ($currency === 'NGN') {
+            $wallet->increment('ngn_uncleared', $totalValue);
+        } elseif ($currency === 'USD') {
+            $wallet->increment('usd_uncleared', $totalValue);
+        }
     }
 
     private function calculateSettlementDate(Carbon $date, int $days): string

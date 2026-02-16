@@ -81,8 +81,8 @@ class ProcessSettlements extends Command
         }
 
         // 2. Finalize the Cash: Remove from Locked and Total Balance
-        // Since we already deducted from 'cleared_balance' in the Service,
-        // we now remove it from the system entirely.
+        // Since we already deducted from the currency-specific cleared balance in the Service,
+        // we now remove the locked amount from the system entirely.
         $wallet = Wallet::where('user_id', $order->user_id)
             ->where('currency', $order->currency)
             ->first();
@@ -111,8 +111,13 @@ class ProcessSettlements extends Command
             ->first();
 
         if ($wallet) {
-            $wallet->decrement('uncleared_balance', $totalValue);
-            $wallet->increment('cleared_balance', $totalValue);
+            if ($order->currency === 'NGN') {
+                $wallet->decrement('ngn_uncleared', $totalValue);
+                $wallet->increment('ngn_cleared', $totalValue);
+            } elseif ($order->currency === 'USD') {
+                $wallet->decrement('usd_uncleared', $totalValue);
+                $wallet->increment('usd_cleared', $totalValue);
+            }
             // Note: 'balance' was already incremented in the Service T+0 phase
         }
     }

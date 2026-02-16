@@ -126,7 +126,12 @@ class WalletController extends Controller
     {
         $w = $user->wallet()->where('currency', $currency)->first();
 
-        return (float) (($w?->cleared_balance ?? 0) + ($w?->uncleared_balance ?? 0));
+        if ($currency === 'NGN') {
+            return (float) (($w?->ngn_cleared ?? 0) + ($w?->ngn_uncleared ?? 0));
+        } elseif ($currency === 'USD') {
+            return (float) (($w?->usd_cleared ?? 0) + ($w?->usd_uncleared ?? 0));
+        }
+        return 0;
     }
 
     public function recentTransactions(Request $request)

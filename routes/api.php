@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\PaystackWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -45,7 +46,7 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
 
 /* Paystack Webhook & Redirect */
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback']);
-Route::post('/paystack/webhook', [\App\Http\Controllers\Api\PaystackWebhookController::class, 'handle']);
+Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 
 Route::prefix('dummy')->group(function () {
     Route::prefix('ngx')->group(function () {
