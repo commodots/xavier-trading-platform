@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\PaystackWebhookController;
+use App\Http\Controllers\DemoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -130,6 +131,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /* Reports */
     Route::post('/reports/generate', [ProfileController::class, 'generateReport']);
+
+    /*Demo Mode Routes*/
+     Route::post('/switch-mode', [DemoController::class, 'switchMode']); // toggle live/demo
+    Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
+    Route::post('/demo/trade', [DemoController::class, 'placeTrade']);  // place demo trade
+    Route::get('/demo/portfolio', [DemoController::class, 'portfolio']); // view holdings
+    Route::post('/demo/reset', [DemoController::class, 'resetDemo']);   // reset demo account
 
     /* Admin Routes */
     Route::middleware('admin')->prefix('admin')->group(function () {

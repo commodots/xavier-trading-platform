@@ -30,6 +30,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'next_of_kin_phone',
         'next_of_kin_email',
         'kyc_status',
+        'trading_mode',
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
