@@ -10,7 +10,7 @@ class Wallet extends Model
         'user_id',
         'account_number',
         'currency',
-        'balance',
+        'balance', // Kept for legacy compatibility if needed elsewhere
         'ngn_cleared',
         'ngn_uncleared',
         'usd_cleared',
@@ -28,7 +28,6 @@ class Wallet extends Model
         'locked' => 'float',
     ];
 
-    // ✅ Relationship: Wallet belongs to User
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -39,9 +38,6 @@ class Wallet extends Model
         return $this->hasMany(WalletTransaction::class);
     }
 
-    /**
-     * Debit wallet by amount
-     */
     public function debit(float $amount, string $balanceType = 'balance'): self
     {
         if ($balanceType === 'uncleared') {
@@ -57,13 +53,9 @@ class Wallet extends Model
         }
 
         $this->save();
-
         return $this;
     }
 
-    /**
-     * Credit wallet by amount
-     */
     public function credit(float $amount, string $balanceType = 'balance'): self
     {
         if ($balanceType === 'uncleared') {
@@ -79,29 +71,28 @@ class Wallet extends Model
         }
 
         $this->save();
-
         return $this;
     }
 
     /**
-     * Reserve amount for trading (locks it)
+     * Reserve amount for trading (Moves from cleared to locked)
      */
     public function reserve(float $amount): self
     {
-        if ($this->balance < $amount) {
-            throw new \Exception("Insufficient balance to reserve {$amount}");
+        $clearedCol = $this->getClearedColumn();
+
+        if (($this->{$clearedCol} ?? 0) < $amount) {
+            throw new \Exception("Insufficient {$this->currency} cleared balance to reserve {$amount}");
         }
 
-        $this->balance -= $amount;
+        // Deduct from specific currency cleared column, add to locked
+        $this->{$clearedCol} -= $amount;
         $this->locked += $amount;
         $this->save();
 
         return $this;
     }
 
-    /**
-     * Finalize reservation - move from locked to balance for actual trades
-     */
     public function finalizeReservation(float $filledAmount): self
     {
         $this->locked -= $filledAmount;
@@ -112,15 +103,18 @@ class Wallet extends Model
 
     /**
      * Settle uncleared balance to cleared
+     * Accepts specific amount (from CSV). If null, settles all uncleared.
      */
-    public function settle(): self
+    public function settle(float $amount = null): self
     {
         $colUn = $this->getUnclearedColumn();
         $colCleared = $this->getClearedColumn();
 
-        if (($this->{$colUn} ?? 0) > 0) {
-            $this->{$colCleared} = ($this->{$colCleared} ?? 0) + ($this->{$colUn} ?? 0);
-            $this->{$colUn} = 0;
+        $settleAmount = $amount ?? $this->{$colUn};
+
+        if ($settleAmount > 0 && ($this->{$colUn} ?? 0) >= $settleAmount) {
+            $this->{$colCleared} = ($this->{$colCleared} ?? 0) + $settleAmount;
+            $this->{$colUn} -= $settleAmount;
             $this->save();
         }
 

@@ -106,7 +106,7 @@ import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark,TrendingUp, Bell, DollarSign
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
@@ -127,22 +127,40 @@ const getUser = () => {
 
 const user = ref(getUser());
 
-const isAdmin = computed(() => user.value?.role === "admin");
-const userPermissions = ref(user.value?.permissions || {});
+const isAdmin = computed(() => {
+  return user.value?.role === "admin" || 
+         (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
+});
+
+const userPermissions = ref(user.value?.permissions || []);
 
 const can = (capability) => {
   if (isAdmin.value) return true;
+  if (!userPermissions.value) return false;
+  
+  
+  if (Array.isArray(userPermissions.value)) {
+    return userPermissions.value.some(p => {
+      const pName = typeof p === 'string' ? p : p.name;
+      return pName === capability;
+    });
+  }
+  
+ 
   return !!userPermissions.value[capability];
 };
 
 const fetchPermissions = async () => {
-  if (user.value?.role === "admin") return;
+  if (isAdmin.value) return;
   try {
     const profileRes = await api.get('/user/profile/show');
     const currentUser = profileRes.data.data;
-    userPermissions.value = currentUser.permissions || {};
+    
+    // Default to an empty array to prevent undefined errors
+    userPermissions.value = currentUser.permissions || [];
     user.value.permissions = userPermissions.value;
-    // Update localStorage
+    
+    // Update localStorage 
     let storedUser = JSON.parse(localStorage.getItem("user") || "{}");
     storedUser.permissions = userPermissions.value;
     localStorage.setItem("user", JSON.stringify(storedUser));
@@ -157,8 +175,9 @@ onMounted(fetchPermissions);
 const hasStaffAccess = computed(() => {
     const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
     if (!user.value) return false;
-    const role = user.value.role?.toLowerCase();
-    const hasRoleInString = typeof role === 'string' && staffRoles.includes(role);
+    
+    const roleString = typeof user.value.role === 'string' ? user.value.role.toLowerCase() : '';
+    const hasRoleInString = staffRoles.includes(roleString);
 
     let hasRoleInArray = false;
     if (Array.isArray(user.value.roles)) {
@@ -167,6 +186,7 @@ const hasStaffAccess = computed(() => {
         return staffRoles.includes(roleName);
       });
     }
+    
     return hasRoleInArray || hasRoleInString;
 });
 

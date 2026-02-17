@@ -69,6 +69,8 @@ class WalletController extends Controller
                 $walletNgn->debit($ngnAmount, 'cleared');
                 $walletUsd->credit($usdAmount, 'uncleared');
 
+                $txReference = 'FX-' . \Illuminate\Support\Str::uuid();
+
                 // Record conversion ledger entry
                 Ledger::create([
                     'user_id' => $user->id,
@@ -76,6 +78,7 @@ class WalletController extends Controller
                     'amount' => $usdAmount,
                     'type' => 'FX_CONVERSION',
                     'status' => 'pending',
+                    'reference' => $txReference,
                     'meta' => [
                         'ngn_amount' => $ngnAmount,
                         'locked_rate' => $rate->effective_rate,
@@ -101,6 +104,21 @@ class WalletController extends Controller
                         ],
                     ]);
                 }
+
+                NewTransaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'fx_conversion',
+                    'amount' => $ngnAmount,
+                    'currency' => 'NGN',
+                    'status' => 'pending', 
+                    'reference' => $txReference,
+                    'meta' => [
+                        'to_currency' => 'USD',
+                        'received_amount' => $usdAmount,
+                        'exchange_rate' => $rate->effective_rate,
+                        'note' => "Converted ₦" . number_format($ngnAmount, 2) . " to $" . number_format($usdAmount, 2)
+                    ]
+                ]);
 
                 ActivityLog::log($user->id, 'fx_conversion_initiated', [
                     'ngn_amount' => $ngnAmount,

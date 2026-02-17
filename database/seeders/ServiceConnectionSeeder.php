@@ -45,10 +45,10 @@ class ServiceConnectionSeeder extends Seeder
         }
         $paystack = Service::where('type', 'payment')->first();
         if ($paystack) {
-            ServiceConnection::firstOrCreate(
+            ServiceConnection::updateOrCreate(
                 [
                     'service_id' => $paystack->id,
-                    'mode' => 'test'
+                    'mode' => 'testing'
                 ],
                 [
                     'base_url' => 'https://api.paystack.co',

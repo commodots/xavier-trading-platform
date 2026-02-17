@@ -52,7 +52,7 @@
                       : 'bg-red-600/20 text-red-400',
                   ]"
                 >
-                  {{ k.status }}
+                  {{ k.status || 'Pending' }}
                 </span>
               </td>
 
@@ -76,6 +76,12 @@
                 </div>
               </td>
             </tr>
+            
+            <tr v-if="filteredKycs.length === 0">
+              <td colspan="5" class="py-8 text-center text-gray-500">
+                No KYC records found.
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -87,7 +93,7 @@
           </h2>
           <p class="text-gray-400 text-sm mb-6">
             Are you sure you want to set the KYC submission status for 
-            <span class="capitalize text-white">{{ selectedKyc?.user?.name }}</span> to <strong>{{ currentDecision }}</strong> ? 
+            <span class="capitalize text-white">{{ selectedKyc?.user?.first_name }} {{ selectedKyc?.user?.last_name }}</span> to <strong :class="currentDecision === 'verified' ? 'text-green-400' : 'text-red-400'">{{ currentDecision }}</strong> ? 
             This action cannot be undone.
           </p>
           
@@ -131,9 +137,12 @@ const currentDecision = ref("");
 const statusFilter = ref("");
 
 onMounted(async () => {
-  let res = await api.get("/admin/kycs", { params: { per_page: 10000 } });
-  // Assuming the pagination structure is data.data.data
-  kycs.value = res.data.data.data || [];
+  try {
+    let res = await api.get("/admin/kycs", { params: { per_page: 10000 } });
+    kycs.value = res.data.data.data || [];
+  } catch (error) {
+    console.error("Failed to load KYC data", error);
+  }
 });
 
 const filteredKycs = computed(() => {
@@ -145,9 +154,12 @@ const filteredKycs = computed(() => {
 });
 
 /**
- * Maps short ID keys to full display names
+ * Maps short ID keys to full display names 
  */
 const formatIdType = (type) => {
+  // SAFETY CHECK: If type is null or undefined, return a placeholder
+  if (!type) return 'Not Provided';
+
   const types = {
     'intl_passport': 'International Passport',
     'national_id': 'National ID Card',
@@ -155,6 +167,7 @@ const formatIdType = (type) => {
     'voters_card': 'Voter\'s Card',
     'nin': 'NIN Slip'
   };
+  
   return types[type] || type.replace('_', ' ').toUpperCase();
 };
 
@@ -169,18 +182,19 @@ const confirmReview = async () => {
   
   submitting.value = true;
   try {
-    const id = selectedKyc.value.id;
+    // The backend uses user_id in the URL for reviewKyc
+    const userId = selectedKyc.value.user_id; 
     const decision = currentDecision.value;
 
-    // Use user_id if that's what your backend expects, or just k.id
-    await api.post(`/admin/kycs/${id}/review`, { 
+    await api.post(`/admin/kycs/${userId}/review`, { 
         status: decision,
         daily_limit: selectedKyc.value.daily_limit || 0,
         tier: selectedKyc.value.tier || 1
     });
 
+    // Update the local state so the UI reflects the change instantly
     kycs.value = kycs.value.map((k) =>
-      k.id === id ? { ...k, status: decision } : k
+      k.user_id === userId ? { ...k, status: decision } : k
     );
     
     showModal.value = false;

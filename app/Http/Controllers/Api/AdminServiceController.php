@@ -30,6 +30,7 @@ class AdminServiceController extends Controller
             'services' => $services
         ]);
     }
+
     public function store(Request $request)
     {
         if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
@@ -51,26 +52,39 @@ class AdminServiceController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {
-        }
+        } catch (\Throwable $e) {}
 
         return response()->json($service, 201);
     }
 
-    public function update(Request $request, ServiceConfig $service)
+    
+    public function update(Request $request, $id)
     {
+        // Check permissions
+        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        // Find the base Service, NOT ServiceConfig
+        $service = Service::findOrFail($id);
+
         $data = $request->validate([
-            'service'     => 'required|string',
-            'type'        => 'required|string',
-            'mode'        => 'required|in:dummy,test,live',
-            'base_url'    => 'nullable|string',
-            'headers'     => 'nullable|array',
-            'params'      => 'nullable|array',
-            'credentials' => 'nullable|array',
-            'is_active'   => 'boolean',
+            'name'      => 'required|string',
+            'type'      => 'required|in:ngx,crypto,stocks,fx,cscs,payment',
+            'is_active' => 'boolean',
         ]);
 
         $service->update($data);
+
+        try {
+            ActivityLog::create([
+                'user_id'    => auth()->id(),
+                'activity'   => 'Service Updated',
+                'details'    => "Updated system service: {$service->name}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success' => true,
@@ -85,7 +99,7 @@ class AdminServiceController extends Controller
         }
         $request->validate([
             'mode' => 'required|in:live,testing,dummy',
-            'base_url' => 'required|url|max:255',
+            'base_url' => 'nullable|url|max:255', // Made nullable for dummy modes
             'headers' => 'nullable|array',
             'parameters' => 'nullable|array',
             'credentials' => 'nullable|array',
@@ -103,22 +117,23 @@ class AdminServiceController extends Controller
                 'service_id' => $serviceId,
                 'mode' => $request->mode,
                 'base_url' => $request->base_url,
-                'headers' => $request->headers,
-                'parameters' => $request->parameters,
-                'credentials' => $request->credentials,
+                'headers' => empty($request->headers) ? null : $request->headers,
+                'parameters' => empty($request->parameters) ? null : $request->parameters,
+                'credentials' => empty($request->credentials) ? null : $request->credentials,
                 'is_active' => true,
             ]);
         });
+
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
                 'activity'   => 'Service Connection Update',
-                'details'    => "Updated connection settings for {$service->name}. Mode: {$request->mode}, URL: {$request->base_url}. (Credentials updated)",
+                'details'    => "Updated connection settings for {$service->name}. Mode: {$request->mode}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {
-        }
+        } catch (\Throwable $e) {}
+
         return response()->json(['success' => true], 201);
     }
 
@@ -128,6 +143,7 @@ class AdminServiceController extends Controller
         $old = $service->is_active;
         $service->is_active = !$service->is_active;
         $service->save();
+        
         try {
             ActivityLog::create([
                 'user_id'    => auth()->id(),
@@ -136,8 +152,7 @@ class AdminServiceController extends Controller
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
-        } catch (\Throwable $e) {
-        }
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success' => true,
@@ -145,6 +160,7 @@ class AdminServiceController extends Controller
             'message' => $service->name . ($service->is_active ? ' enabled' : ' disabled')
         ]);
     }
+
     public function updateMode(Request $request, $id)
     {
         $service = Service::findOrFail($id);
@@ -159,8 +175,7 @@ class AdminServiceController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {
-        }
+        } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Mode updated']);
     }
@@ -181,15 +196,22 @@ class AdminServiceController extends Controller
         if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
+        
         $connection = ServiceConnection::findOrFail($connectionId);
+        
         $data = $request->validate([
             'mode' => 'required|in:live,testing,dummy',
-            'base_url' => 'required|url',
+            'base_url' => 'nullable|url', // Nullable so dummy mode saves
             'headers' => 'nullable|array',
             'parameters' => 'nullable|array',
             'credentials' => 'nullable|array',
             'is_active' => 'boolean',
         ]);
+
+        // Fix JSON saving bug by ensuring empty arrays save as null
+        $data['headers'] = empty($data['headers']) ? null : $data['headers'];
+        $data['parameters'] = empty($data['parameters']) ? null : $data['parameters'];
+        $data['credentials'] = empty($data['credentials']) ? null : $data['credentials'];
 
         $connection->update($data);
 
@@ -201,8 +223,7 @@ class AdminServiceController extends Controller
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {
-        }
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success' => true,
@@ -226,15 +247,18 @@ class AdminServiceController extends Controller
         if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
+        
         $service = Service::findOrFail($serviceId);
-        $config = ServiceConfig::where('service', strtoupper($service->type))->firstOrFail();
-
-        $data = $request->validate([
-            'params' => 'nullable|array',
-            'is_active' => 'boolean',
-        ]);
-
-        $config->update($data);
+        
+        // Use updateOrCreate in case the config record doesn't exist yet
+        $config = ServiceConfig::updateOrCreate(
+            ['service' => strtoupper($service->type)],
+            [
+                'params' => empty($request->params) ? null : $request->params,
+                'is_active' => $request->is_active ?? true,
+                'mode' => 'live' // Defaulting to live to fulfill DB constraints
+            ]
+        );
 
         return response()->json([
             'success' => true,

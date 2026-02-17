@@ -11,7 +11,13 @@ class FxRateController extends Controller
 {
     public function store(Request $request)
     {
-        $this->authorize('admin');
+        
+        $user = auth()->user();
+        $isAdmin = $user && (strtolower($user->role ?? '') === 'admin' || $user->hasRole('admin'));
+
+        if (!$isAdmin) {
+            return response()->json(['success' => false, 'message' => 'Forbidden: Admins only'], 403);
+        }
 
         $validated = $request->validate([
             'from_currency' => 'required|string|size:3',

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '@/api';
 
 /* ================= STATE ================= */
@@ -26,6 +26,7 @@ const emptyForm = {
   headers: '{}',
   parameters: '{}',
   credentials: '{}',
+  params: '{}',
   is_active: true,
 }
 
@@ -62,14 +63,12 @@ const fetchServices = async () => {
     const res = await api.get('/admin/services')
     const servicesData = res.data.services || []
 
-    
     const servicesWithConnections = await Promise.all(
       servicesData.map(async (service) => {
         try {
           const connRes = await api.get(`/admin/services/${service.id}/connections`)
           service.connection = connRes.data.connections[0] || null
         } catch (e) {
-         
           service.connection = null
         }
         return service
@@ -99,22 +98,34 @@ const openEdit = async (service) => {
   selectedService.value = service
   activeTab.value = 'general'
   
- 
+  let fetchedConnection = null;
+  let fetchedConfig = null;
+
   try {
     const connRes = await api.get(`/admin/services/${service.id}/connections`)
-    connection.value = connRes.data.connections[0] || null 
-  } catch (e) {
-    console.error('Failed to fetch connection', e)
-  }
+    fetchedConnection = connRes.data.connections[0] || null
+    connection.value = fetchedConnection
+  } catch (e) { console.error('Failed to fetch connection', e) }
 
- 
   try {
     const configRes = await api.get(`/admin/services/${service.id}/config`)
-    config.value = configRes.data.config || null
-  } catch (e) {
-    console.error('Failed to fetch config', e)
-  }
+    fetchedConfig = configRes.data.config || null
+    config.value = fetchedConfig
+  } catch (e) { console.error('Failed to fetch config', e) }
   
+  
+  form.value = {
+    service: service.name,
+    type: service.type,
+    is_active: service.is_active,
+    mode: fetchedConnection?.mode ?? 'dummy',
+    base_url: fetchedConnection?.base_url ?? '',
+    headers: JSON.stringify(fetchedConnection?.headers ?? {}, null, 2),
+    parameters: JSON.stringify(fetchedConnection?.parameters ?? {}, null, 2),
+    credentials: JSON.stringify(fetchedConnection?.credentials ?? {}, null, 2),
+    params: JSON.stringify(fetchedConfig?.params ?? {}, null, 2),
+  }
+
   showModal.value = true
 }
 
@@ -153,29 +164,48 @@ const saveService = async () => {
 
   try {
     if (selectedService.value) {
+      await api.put(`/admin/services/${selectedService.value.id}`, {
+        name: form.value.service,
+        type: form.value.type,
+        is_active: form.value.is_active,
+      })
+
       if (connection.value) {
         await api.put(`/admin/service-connections/${connection.value.id}`, {
           mode: form.value.mode,
           base_url: form.value.base_url,
-          headers,
-          parameters,
-          credentials,
+          headers, parameters, credentials,
           is_active: form.value.is_active,
+        })
+      } else {
+        await api.post(`/admin/services/${selectedService.value.id}/connections`, {
+          mode: form.value.mode,
+          base_url: form.value.base_url,
+          headers, parameters, credentials,
         })
       }
 
       if (config.value) {
         await api.put(`/admin/services/${selectedService.value.id}/config`, {
-          params,
-          is_active: form.value.is_active,
+          params, is_active: form.value.is_active,
         })
       }
     } else {
-      await api.post('/admin/services', {
+      const newServiceRes = await api.post('/admin/services', {
         name: form.value.service,
         type: form.value.type,
         is_active: form.value.is_active,
       })
+
+      
+      const newServiceId = newServiceRes.data.id || newServiceRes.data.data?.id;
+      if (newServiceId) {
+          await api.post(`/admin/services/${newServiceId}/connections`, {
+            mode: form.value.mode,
+            base_url: form.value.base_url,
+            headers, parameters, credentials,
+          })
+      }
     }
 
     closeModal()
@@ -185,24 +215,6 @@ const saveService = async () => {
     alert(e.response?.data?.message || 'Failed to save service')
   }
 }
-
-/* ================= WATCH ================= */
-watch(showModal, (open) => {
-  if (open && selectedService.value) {
-    const s = selectedService.value
-    form.value = {
-      service: s.name,
-      type: s.type,
-      is_active: s.is_active,
-      mode: connection.value?.mode ?? 'dummy',
-      base_url: connection.value?.base_url ?? '',
-      headers: JSON.stringify(connection.value?.headers ?? {}, null, 2),
-      parameters: JSON.stringify(connection.value?.parameters ?? {}, null, 2),
-      credentials: JSON.stringify(connection.value?.credentials ?? {}, null, 2),
-      params: JSON.stringify(config.value?.params ?? {}, null, 2),
-    }
-  }
-})
 
 onMounted(fetchServices)
 </script>

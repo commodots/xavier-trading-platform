@@ -4,40 +4,52 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ledger;
+use App\Models\FxRate;
 use Illuminate\Http\Request;
 
 class FxDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $todayProfit = Ledger::where('type', 'FX_MARKUP_PROFIT')
+        // Get the latest base rate to calculate the NGN equivalent
+        $latestFxRecord = FxRate::latest()->first();
+        $latestRate = $latestFxRecord ? $latestFxRecord->base_rate : 1500;
+        $latestMarkup = $latestFxRecord ? $latestFxRecord->markup_percent : 0;
+
+        //  Today's Profit
+        $todayProfitUsd = Ledger::where('type', 'FX_MARKUP_PROFIT')
             ->whereDate('created_at', today())
             ->sum('amount');
 
-        $monthlyProfit = Ledger::where('type', 'FX_MARKUP_PROFIT')
-            ->whereMonth('created_at', now()->month)
+        //This Month's Profit
+        $monthlyProfitUsd = Ledger::where('type', 'FX_MARKUP_PROFIT')
+            ->where('created_at', '>=', now()->startOfMonth())
             ->sum('amount');
 
-        $totalProfit = Ledger::where('type', 'FX_MARKUP_PROFIT')
+        //  Lifetime Profit
+        $totalProfitUsd = Ledger::where('type', 'FX_MARKUP_PROFIT')
             ->sum('amount');
 
-        $totalVolume = Ledger::where('type', 'FX_CONVERSION')
+        // Total Volume (USD bought by users)
+        $totalVolumeUsd = Ledger::where('type', 'FX_CONVERSION')
             ->sum('amount');
 
-        // Build 14-day daily profit series (dates + totals)
+        // Build 14-day daily profit series
         $start = now()->subDays(13)->startOfDay();
-
-        $rows = Ledger::selectRaw('DATE(created_at) as date, SUM(amount) as total')
-            ->where('type', 'FX_MARKUP_PROFIT')
+        
+        $profitLedgers = Ledger::where('type', 'FX_MARKUP_PROFIT')
             ->where('created_at', '>=', $start)
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get()
-            ->pluck('total', 'date')
-            ->toArray();
+            ->get();
+
+        $rows = $profitLedgers->groupBy(function($item) {
+            return $item->created_at->format('Y-m-d');
+        })->map(function($dayGroup) {
+            return $dayGroup->sum('amount');
+        })->toArray();
 
         $labels = [];
         $series = [];
+        
         for ($i = 0; $i < 14; $i++) {
             $d = $start->copy()->addDays($i)->format('Y-m-d');
             $labels[] = $d;
@@ -47,11 +59,21 @@ class FxDashboardController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'todayProfit' => (float) $todayProfit,
-                'monthlyProfit' => (float) $monthlyProfit,
-                'totalProfit' => (float) $totalProfit,
-                'totalVolume' => (float) $totalVolume,
-                'daily' => ['labels' => $labels, 'data' => $series],
+                // USD Values
+                'todayProfit'      => (float) $todayProfitUsd,
+                'monthlyProfit'    => (float) $monthlyProfitUsd,
+                'totalProfit'      => (float) $totalProfitUsd,
+                'totalVolume'      => (float) $totalVolumeUsd,
+                
+                // NGN Equivalents
+                'todayProfitNgn'   => (float) ($todayProfitUsd * $latestRate),
+                'monthlyProfitNgn' => (float) ($monthlyProfitUsd * $latestRate),
+                'totalProfitNgn'   => (float) ($totalProfitUsd * $latestRate),
+                'totalVolumeNgn'   => (float) ($totalVolumeUsd * $latestRate),
+                
+                'currentRate'      => $latestRate,
+                'currentMarkup'    => (float) $latestMarkup,
+                'daily'            => ['labels' => $labels, 'data' => $series],
             ],
         ]);
     }

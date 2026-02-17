@@ -15,7 +15,6 @@ use App\Models\NewTransaction;
 use App\Models\Portfolio;
 use App\Services\Execution\NgxDummyAdapter;
 use App\Services\SettlementService;
-use Carbon\Carbon;
 
 class OmsController extends Controller
 {
@@ -32,36 +31,43 @@ class OmsController extends Controller
 
         $user = Auth::user();
         $USD_RATE = 1500;
-        $currency = "NGN";
+        $currency = "NGN"; // Assuming NGN is default unless trading GLOBAL
 
         if ($request->market === "NGX") {
             $units = floor($request->amount / $request->market_price);
         } else {
-            $amountInUsd = $request->amount / $USD_RATE;
-            $units = $request->market === "CRYPTO" ? $amountInUsd / $request->market_price : floor($amountInUsd / $request->market_price);
+            // If trading Global, currency should be USD. Adjusting logic based on your setup.
+            $currency = "USD"; 
+            $units = floor($request->amount / $request->market_price);
         }
 
-        // Calculate actual cost
-        $actualCost = $request->market === "NGX" ? $units * $request->market_price : ($units * $request->market_price * $USD_RATE);
+        $actualCost = $units * $request->market_price;
 
-        // --- PRE-CHECK BEFORE TRANSACTION (T+2 Settlement) ---
-        if ($request->side === 'buy') {
-            $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();
-            $clearedBalance = $currency === 'NGN' ? ($wallet?->ngn_cleared ?? 0) : ($wallet?->usd_cleared ?? 0);
-            if (!$wallet || $clearedBalance < $actualCost) {
-                return response()->json(["success" => false, "message" => "Insufficient cleared balance"], 400);
+        return DB::transaction(function () use ($request, $user, $currency, $units, $actualCost) {
+            
+            // --- PRE-CHECK AND DEDUCT FUNDS/ASSETS ---
+            if ($request->side === 'buy') {
+                $wallet = $user->fxWallet($currency);
+                $clearedBalance = $currency === 'NGN' ? $wallet->ngn_cleared : $wallet->usd_cleared;
+                
+                if ($clearedBalance < $actualCost) {
+                    return response()->json(["success" => false, "message" => "Insufficient {$currency} cleared balance"], 400);
+                }
+
+                // Actually deduct the money from cleared funds
+                $wallet->debit($actualCost, 'cleared');
+
+            } else {
+                $holding = Portfolio::where('user_id', $user->id)->where('symbol', $request->symbol)->first();
+                if (!$holding || $holding->cleared_quantity < $units) {
+                    return response()->json(["success" => false, "message" => "Insufficient cleared holdings to sell"], 400);
+                }
+                
+                // Deduct units from cleared_quantity immediately
+                $holding->decrement('cleared_quantity', $units);
             }
-        } else {
-            $holding = Portfolio::where('user_id', $user->id)->where('symbol', $request->symbol)->first();
-            // Check if user owns enough cleared units to sell
-            if (!$holding || $holding->cleared_quantity < $units) {
-                return response()->json(["success" => false, "message" => "Insufficient cleared holdings to sell"], 400);
-            }
-        }
 
-
-        return DB::transaction(function () use ($request, $user, $currency, $units) {
-            // Create and immediately fill the order for T+2 settlement
+            // Create Order
             $order = Order::create([
                 "user_id" => $user->id,
                 "market" => $request->market,
@@ -75,7 +81,7 @@ class OmsController extends Controller
                 "type"  => 'market',
                 "price" => $request->market_price,
                 "currency" => $currency,
-                "status" => "open", // Pending settlement
+                "status" => "open", 
                 "filled_quantity" => $units
             ]);
 
@@ -87,10 +93,6 @@ class OmsController extends Controller
                 'fee' => 0,
             ]);
 
-            // Process T+2 settlement
-            app(SettlementService::class)->settleOrder($order);
-
-            // Create transaction record (but mark as pending settlement)
             $transactionType = $request->market === 'CRYPTO'
                 ? ($request->side === 'buy' ? 'buy_crypto' : 'sell_crypto')
                 : ($request->side === 'buy' ? 'buy_stock' : 'sell_stock');
@@ -98,9 +100,9 @@ class OmsController extends Controller
             NewTransaction::create([
                 'user_id' => $user->id,
                 'type' => $transactionType,
-                'amount' => $request->amount,
+                'amount' => $actualCost,
                 'currency' => $currency,
-                'status' => 'pending', // Pending settlement
+                'status' => 'pending', 
                 'meta' => ['symbol' => $request->symbol, 'info' => 'T+2 Trade Settlement']
             ]);
 
@@ -110,17 +112,6 @@ class OmsController extends Controller
                 'side' => $request->side
             ]);
 
-            // Send order to NGX dummy service for execution
-            if ($request->market === "NGX") {
-                try {
-                    $ngxAdapter = new NgxDummyAdapter();
-                    $ngxAdapter->send($order);
-                } catch (\Exception $e) {
-                    // Log error but don't fail the order placement
-                    Log::error('NGX Dummy Adapter Error: ' . $e->getMessage());
-                }
-            }
-
             return response()->json([
                 "success" => true,
                 "message" => "Order placed - settlement pending T+2",
@@ -129,11 +120,16 @@ class OmsController extends Controller
         });
     }
 
+    /**
+     * RESTORED: Fetch user's order history
+     */
     public function listOrders()
     {
         return response()->json([
             "success" => true,
-            "data" => Order::where('user_id', Auth::id())->orderByDesc('id')->get()
+            "data" => Order::where('user_id', Auth::id())
+                ->orderByDesc('id')
+                ->get()
         ]);
     }
 
@@ -142,7 +138,6 @@ class OmsController extends Controller
         $user = Auth::user();
 
         return DB::transaction(function () use ($id, $user) {
-
             $order = Order::where('id', $id)
                 ->where('user_id', $user->id)
                 ->lockForUpdate()
@@ -152,68 +147,38 @@ class OmsController extends Controller
                 return response()->json(["success" => false, "message" => "Order not found"], 404);
             }
 
-            // Check if the status allows cancellation
             $cancellableStatuses = ['open', 'pending_market', 'partially_filled'];
             if (!in_array($order->status, $cancellableStatuses)) {
-                return response()->json([
-                    "success" => false,
-                    "message" => "This order is already {$order->status} and cannot be canceled."
-                ], 400);
+                return response()->json(["success" => false, "message" => "This order is already {$order->status}."], 400);
             }
 
             $filledUnits = $order->filled_quantity ?? 0;
             $remainingUnits = $order->units - $filledUnits;
-
             $remainingRatio = $order->units > 0 ? ($remainingUnits / $order->units) : 0;
             $refundCashAmount = $order->amount * $remainingRatio;
 
-            // Refund only the unused portion
             if ($order->side === 'buy') {
-                // REFUND CASH to Wallet
-                $wallet = Wallet::where('user_id', $user->id)
-                    ->where('currency', $order->currency)
-                    ->lockForUpdate()
-                    ->first();
+                $wallet = $user->fxWallet($order->currency);
 
                 if ($refundCashAmount > 0) {
-                    $wallet->increment('balance', $refundCashAmount);
+                    // Refund to 'cleared' column
+                    $wallet->credit($refundCashAmount, 'cleared');
                 }
                 $message = "Order canceled. Refunded " . $order->currency . " " . number_format($refundCashAmount, 2);
             } else {
-                // REFUND UNITS to Portfolio
                 $holding = Portfolio::where('user_id', $user->id)
                     ->where('symbol', $order->symbol)
                     ->lockForUpdate()
                     ->first();
 
-                if ($remainingUnits > 0) {
-                    // If the holding record was deleted somehow, re-create it; 
-                    // otherwise, just increment back the locked units.
-                    if ($holding) {
-                        $holding->increment('quantity', $remainingUnits);
-                    } else {
-                        Portfolio::create([
-                            'user_id' => $user->id,
-                            'symbol' => $order->symbol,
-                            'quantity' => $remainingUnits,
-                            'name' => $order->company,
-                            'category' => $order->market,
-                            'currency' => $order->currency,
-                            'avg_price' => $order->market_price,
-                            'market_price' => $order->market_price
-                        ]);
-                    }
+                if ($remainingUnits > 0 && $holding) {
+                    // Refund back to cleared_quantity
+                    $holding->increment('cleared_quantity', $remainingUnits);
                 }
                 $message = "Order canceled. Returned " . number_format($remainingUnits, 6) . " " . $order->symbol . " to portfolio.";
             }
 
             $order->update(['status' => 'canceled']);
-
-            ActivityLog::log($user->id, 'ORDER_CANCELED', [
-                'order_id' => $order->id,
-                'symbol' => $order->symbol,
-                'refund_type' => $order->side === 'buy' ? 'cash' : 'units'
-            ]);
 
             return response()->json([
                 "success" => true,

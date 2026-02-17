@@ -4,40 +4,36 @@
       <h1 class="mb-6 text-2xl font-bold">Admin Dashboard</h1>
 
       <div :class="gridClasses">
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('compliance')" title="Total Users" :value="stats.totalUsers"
+        <MetricCard v-if="hasRole('manager', 'compliance')" title="Total Users" :value="stats.totalUsers"
           icon="Users" @click="$router.push({ name: 'admin-users' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="isAdmin || user.roles?.includes('support') || user.roles?.includes('compliance')"
+        <MetricCard v-if="hasRole('support', 'compliance')"
           title="KYC Pending" :value="stats.kycPending" icon="ShieldCheck" @click="$router.push({ name: 'admin-kyc' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
           
-        <MetricCard v-if="isAdmin || user.roles?.includes('accounts') || user.roles?.includes('support')"
+        <MetricCard v-if="hasRole('accounts', 'support')"
           title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered"
           @click="$router.push({ name: 'admin-transactions' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+        <MetricCard v-if="hasRole('manager', 'accounts')"
           title="Today's Earnings" :value="'₦' + stats.todayEarnings.toLocaleString()" icon="PieChart"
           :subtitle="`This Month's Earnings: ₦` + stats.monthEarnings.toLocaleString()"
           @click="$router.push({ name: 'admin-control-panel', query: { tab: 'platform-earnings' } })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
-          title="User USD Total" :value="'$' + formatNumber(fxStats.userTotal)" icon="Wallet"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
-
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+        <MetricCard v-if="hasRole('manager', 'accounts')"
           title="Buffer/Shortfall" 
           :value="'$' + formatNumber(Math.abs(fxStats.buffer))" 
           :subtitle="fxStats.buffer >= 0 ? 'Safe margin' : 'SHORTFALL'"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+        <MetricCard v-if="hasRole('manager', 'accounts')"
           title="Pending Settlements" :value="fxStats.pendingSettlements" icon="Clock"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
+        <MetricCard v-if="hasRole('manager', 'accounts')"
           title="FX Margin Earned" :value="'₦' + formatNumber(fxStats.fxMargin)" icon="TrendingUp"
           :subtitle="'Today'"
            @click="$router.push({ name: 'admin-fx-dashboard' })"
@@ -45,25 +41,22 @@
       </div>
 
       <div :class="chartGridClasses">
-        <div v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('compliance')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="hasRole('manager', 'compliance')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">User Growth</h2>
           <canvas ref="userGrowthChart"></canvas>
         </div>
-        <div v-if="isAdmin || user.roles?.includes('accounts') || user.roles?.includes('support')"
-          class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="hasRole('accounts', 'support')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Monthly Transaction Volume</h2>
           <canvas ref="txnChart"></canvas>
         </div>
-        <div v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('accounts')"
-          class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="hasRole('manager', 'accounts')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Portfolio Distribution</h2>
           <canvas ref="pieChart"></canvas>
         </div>
       </div>
 
       <div :class="bottomGridClasses">
-
-        <div v-if="isAdmin || user.roles?.includes('manager') || user.roles?.includes('compliance')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="hasRole('manager', 'compliance')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Recent Users</h2>
           <table class="w-full text-sm text-left">
             <thead class="text-gray-400">
@@ -87,8 +80,7 @@
           </table>
         </div>
 
-        <div v-if="isAdmin || user.roles?.includes('accounts') || user.roles?.includes('support')"
-          class="bg-[#1C1F2E] p-6 rounded-xl shadow">
+        <div v-if="hasRole('accounts', 'support')" class="bg-[#1C1F2E] p-6 rounded-xl shadow">
           <h2 class="mb-4 font-semibold">Latest Transactions</h2>
           <table class="w-full text-sm text-left">
             <thead class="text-gray-400">
@@ -108,8 +100,7 @@
           </table>
 
           <div class="pt-6 mt-8 border-t border-gray-700">
-            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction
-              Type</h3>
+            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction Type</h3>
             <div class="grid grid-cols-3 gap-4">
               <div v-for="item in earningsByType" :key="item.type"
                 class="bg-[#151a27] p-3 rounded-lg border border-[#2A314A]">
@@ -119,7 +110,6 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </MainLayout>
@@ -140,19 +130,31 @@ try {
   user.value = {};
 }
 
-const isAdmin = computed(() => user.value.role === "admin" || user.value.roles?.includes('admin'));
+const isAdmin = computed(() => {
+  return user.value.role === "admin" || 
+         (user.value.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
+});
+
+const hasRole = (...rolesAllowed) => {
+  if (isAdmin.value) return true;
+  if (!user.value?.roles) return false;
+  
+  return user.value.roles.some(r => {
+    const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
+    return rolesAllowed.includes(roleName);
+  });
+};
 
 const visibleMetricCards = computed(() => {
   const conditions = [
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance'),
-    isAdmin.value || user.value.roles?.includes('support') || user.value.roles?.includes('compliance'),
-    isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support'),
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
-    isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts'),
+    hasRole('manager', 'compliance'),
+    hasRole('support', 'compliance'),
+    hasRole('accounts', 'support'),
+    hasRole('manager', 'accounts'),
+    hasRole('manager', 'accounts'),
+    hasRole('manager', 'accounts'),
+    hasRole('manager', 'accounts'),
+    hasRole('manager', 'accounts')
   ];
   return conditions.reduce((s, c) => s + (c ? 1 : 0), 0);
 });
@@ -166,9 +168,9 @@ const gridClasses = computed(() => {
 
 const visibleCharts = computed(() => {
   let count = 0;
-  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance')) count++;
-  if (isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support')) count++;
-  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('accounts')) count++;
+  if (hasRole('manager', 'compliance')) count++;
+  if (hasRole('accounts', 'support')) count++;
+  if (hasRole('manager', 'accounts')) count++;
   return count;
 });
 
@@ -182,8 +184,8 @@ const chartGridClasses = computed(() => {
 
 const visibleBottomSections = computed(() => {
   let count = 0;
-  if (isAdmin.value || user.value.roles?.includes('manager') || user.value.roles?.includes('compliance')) count++;
-  if (isAdmin.value || user.value.roles?.includes('accounts') || user.value.roles?.includes('support')) count++;
+  if (hasRole('manager', 'compliance')) count++;
+  if (hasRole('accounts', 'support')) count++;
   return count;
 });
 
@@ -197,7 +199,6 @@ const bottomGridClasses = computed(() => {
 const userGrowthChart = ref(null);
 const txnChart = ref(null);
 const pieChart = ref(null);
-
 
 const stats = ref({
   totalUsers: 0,
@@ -233,24 +234,23 @@ const recentTransactions = ref([
 async function fetchDashboardData() {
   try {
     const [earningsRes, txnRes, usersRes, dashboardRes, fxRes] = await Promise.all([
-      api.get('/admin/earnings'),
-      api.get('/admin/transactions'),
-      api.get('/admin/kycs', { params: { per_page: 10 } }),
-      api.get('/admin/dashboard'),
+      api.get('/admin/earnings').catch(() => ({ data: {} })),
+      api.get('/admin/transactions').catch(() => ({ data: { data: { data: [] } } })),
+      api.get('/admin/kycs', { params: { per_page: 10 } }).catch(() => ({ data: { data: { data: [] } } })),
+      api.get('/admin/dashboard').catch(() => ({ data: {} })),
       api.get('/admin/fx/reconciliation').catch(() => ({ data: {} }))
     ]);
 
-    if (dashboardRes.data.success) {
+    if (dashboardRes.data?.success) {
       const dData = dashboardRes.data.stats;
-      stats.value.totalUsers = dData.users_count;
-      stats.value.kycPending = dData.pending_kyc;
-      stats.value.totalTransactions = dData.total_transactions;
+      stats.value.totalUsers = dData.users_count || 0;
+      stats.value.kycPending = dData.pending_kyc || 0;
+      stats.value.totalTransactions = dData.total_transactions || 0;
     }
+    
     if (earningsRes.data) {
       stats.value.todayEarnings = earningsRes.data.today_earnings ?? stats.value.todayEarnings;
-
       stats.value.monthEarnings = earningsRes.data.this_month_earnings ?? stats.value.monthEarnings;
-
       if (earningsRes.data.by_type) {
         earningsByType.value = earningsRes.data.by_type.map(item => ({
           type: item.type,
@@ -259,7 +259,7 @@ async function fetchDashboardData() {
       }
     }
 
-    const transactionList = txnRes.data.data?.data || [];
+    const transactionList = txnRes.data?.data?.data || [];
     if (transactionList.length > 0) {
       recentTransactions.value = transactionList.slice(0, 5).map(t => ({
         id: t.id,
@@ -270,31 +270,34 @@ async function fetchDashboardData() {
       }));
     }
 
-    const kycList = usersRes.data.data?.data || [];
+    const kycList = usersRes.data?.data?.data || [];
     recentUsers.value = kycList
       .filter(u => u.user)
       .map(u => ({
         id: u.user_id,
-        name: `${u.user.first_name} ${u.user.last_name}`,
+        name: `${u.user.first_name || ''} ${u.user.last_name || ''}`.trim(),
         email: u.user.email,
         kyc: u.status || 'none'
       }));
 
-    if (fxRes.data) {
+    if (fxRes.data && fxRes.data.data) {
+      const fxData = fxRes.data.data;
+
       fxStats.value = {
-        userTotal: fxRes.data.user_usd_total || 0,
-        pendingSettlements: fxRes.data.pending_settlements || 0,
-        fxMargin: fxRes.data.fx_margin_today || 0,
+        userTotal: fxData.user_usd_total || 0,
+        buffer: fxData.buffer || 0,
+        pendingSettlements: fxData.pending_settlements || 0,
+        fxMargin: fxData.fx_margin_today || 0,
       };
     }
   }
   catch (error) {
-    console.warn("API Error: Fallback data");
+    console.warn("API Error: Using fallback data", error);
   }
 }
 
 const formatNumber = (num) => {
-  return num.toLocaleString('en-US', {
+  return Number(num).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
@@ -302,7 +305,6 @@ const formatNumber = (num) => {
 
 onMounted(async () => {
   await fetchDashboardData();
-
 
   if (userGrowthChart.value) {
     new Chart(userGrowthChart.value, {
@@ -314,7 +316,6 @@ onMounted(async () => {
     });
   }
 
-
   if (txnChart.value) {
     new Chart(txnChart.value, {
       type: "bar",
@@ -324,7 +325,6 @@ onMounted(async () => {
       }
     });
   }
-
 
   if (pieChart.value) {
     new Chart(pieChart.value, {

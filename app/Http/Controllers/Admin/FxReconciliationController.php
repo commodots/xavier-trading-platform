@@ -8,6 +8,8 @@ use App\Models\Wallet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Models\Ledger;
+use App\Models\FxRate;
 
 class FxReconciliationController extends Controller
 {
@@ -32,34 +34,41 @@ class FxReconciliationController extends Controller
         }
 
         try {
-            $brokerBalance = 0;
-            // Get user liabilities
+            //  Get user liabilities from specific currency columns
             $usdWallets = Wallet::where('currency', 'USD')->get();
-
             $usersClearedBalance = $usdWallets->sum('usd_cleared');
             $usersUnclearedBalance = $usdWallets->sum('usd_uncleared');
             $usersLockedBalance = $usdWallets->sum('locked');
 
             $userLiability = $usersClearedBalance + $usersUnclearedBalance + $usersLockedBalance;
 
-            // Calculate buffer/shortfall
+            //  Assuming platform holds user funds + platform profit
+            $totalPlatformProfitUsd = Ledger::where('is_platform', true)->where('type', 'FX_MARKUP_PROFIT')->sum('amount');
+            $brokerBalance = $userLiability + $totalPlatformProfitUsd; 
+
             $buffer = $brokerBalance - $userLiability;
 
-            // Get pending settlements
-            $pendingSettlements = $usdWallets->where('usd_uncleared', '>', 0)->count();
+            //Get pending settlements from Ledger
+            $pendingSettlements = Ledger::where('status', 'pending')
+                ->whereIn('type', ['FUND', 'FX_CONVERSION'])
+                ->count();
 
-            $dailyFxCount = 0;
+            //  Calculate today's FX Margin in NGN
+            $fxMarginUsdToday = Ledger::where('is_platform', true)
+                ->where('type', 'FX_MARKUP_PROFIT')
+                ->whereDate('created_at', today())
+                ->sum('amount');
+                
+            $rate = FxRate::latest()->value('base_rate') ?? 1500;
+            $fxMarginNgnToday = $fxMarginUsdToday * $rate;
 
-            // Log successful access
-            ActivityLog::log(
-                Auth::id(),
-                'fx_reconciliation_viewed',
-                [
-                    'broker_balance' => $brokerBalance,
-                    'user_liability' => $userLiability,
-                    'buffer' => $buffer,
-                ]
-            );
+            $dailyFxCount = Ledger::where('type', 'FX_CONVERSION')->whereDate('created_at', today())->count();
+
+            ActivityLog::log(Auth::id(), 'fx_reconciliation_viewed', [
+                'broker_balance' => $brokerBalance,
+                'user_liability' => $userLiability,
+                'buffer' => $buffer,
+            ]);
 
             return response()->json([
                 'status' => 'success',
@@ -78,24 +87,12 @@ class FxReconciliationController extends Controller
                     'last_synced' => now(),
                     'last_checked' => now(),
                     'daily_fx_count' => $dailyFxCount,
+                    'fx_margin_today' => $fxMarginNgnToday, 
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('FX reconciliation failed', [
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage(),
-            ]);
-
-            ActivityLog::log(
-                Auth::id(),
-                'fx_reconciliation_failed',
-                ['error' => $e->getMessage()]
-            );
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unable to fetch reconciliation data. Please try again.',
-            ], 422);
+            Log::error('FX reconciliation failed', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error', 'message' => 'Unable to fetch reconciliation data.'], 422);
         }
     }
 
@@ -117,8 +114,22 @@ class FxReconciliationController extends Controller
             ], 403);
         }
 
-        // Get recent transactions (placeholder)
-        $transactions = [];
+        $transactions = Ledger::with('user:id,email')
+            ->whereIn('type', ['FX_CONVERSION', 'FUND', 'BROKER_FUNDING'])
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'id' => $t->id,
+                    'user' => $t->user ? $t->user->email : 'System',
+                    'type' => str_replace('_', ' ', $t->type),
+                    'amount' => $t->amount,
+                    'currency' => $t->currency,
+                    'status' => $t->status,
+                    'date' => $t->created_at->format('Y-m-d H:i')
+                ];
+            });
 
         // Log access
         ActivityLog::log(
@@ -182,44 +193,18 @@ class FxReconciliationController extends Controller
      */
     public function getPendingSettlements(): JsonResponse
     {
-        // Verify admin authorization
         if (! Auth::user() || ! Auth::user()->hasRole('admin')) {
-            ActivityLog::log(
-                Auth::id(),
-                'fx_pending_access_denied',
-                ['endpoint' => 'getPendingSettlements']
-            );
-
-            return response()->json([
-                'message' => 'Unauthorized access',
-            ], 403);
+            return response()->json(['message' => 'Unauthorized access'], 403);
         }
 
-        $wallets = Wallet::with('user')
-            ->where('currency', 'USD')
-            ->where('usd_uncleared', '>', 0)
-            ->get()
-            ->map(function ($wallet) {
-                return [
-                    'id' => $wallet->id,
-                    'user_id' => $wallet->user_id,
-                    'user_email' => $wallet->user->email,
-                    'uncleared_balance' => $wallet->usd_uncleared,
-                    'cleared_balance' => $wallet->usd_cleared,
-                    'created_at' => $wallet->created_at,
-                ];
-            });
-
-        // Log access
-        ActivityLog::log(
-            Auth::id(),
-            'fx_pending_settlements_viewed',
-            ['count' => $wallets->count()]
-        );
+        $pending = Ledger::with('user:id,email')
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $wallets,
+            'data' => $pending,
         ]);
     }
 }

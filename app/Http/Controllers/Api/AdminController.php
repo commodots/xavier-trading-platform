@@ -17,6 +17,8 @@ use App\Models\ActivityLog;
 use App\Models\KycProfile;
 use App\Models\KycSetting;
 use App\Models\StaffPermission;
+use App\Models\Ledger;
+use App\Models\FxRate;
 
 class AdminController extends Controller
 {
@@ -27,6 +29,15 @@ class AdminController extends Controller
     */
     public function dashboard()
     {
+        $ngnTotal = Wallet::where('currency', 'NGN')
+            ->selectRaw('SUM(ngn_cleared + ngn_uncleared) as total')
+            ->value('total') ?? 0;
+
+        // Calculate USD Total (Cleared + Uncleared)
+        $usdTotal = Wallet::where('currency', 'USD')
+            ->selectRaw('SUM(usd_cleared + usd_uncleared) as total')
+            ->value('total') ?? 0;
+
         return response()->json([
             'success' => true,
             'stats' => [
@@ -35,8 +46,8 @@ class AdminController extends Controller
                 'total_transactions' => NewTransaction::count(),
                 'pending_orders'     => Order::where('status', 'pending')->count(),
                 'wallets' => [
-                    'ngn' => Wallet::where('currency', 'NGN')->sum('balance'),
-                    'usd' => Wallet::where('currency', 'USD')->sum('balance'),
+                    'ngn' => (float) $ngnTotal,
+                    'usd' => (float) $usdTotal,
                 ]
             ],
             'chart' => [
@@ -110,8 +121,11 @@ class AdminController extends Controller
     {
         $user = User::with(['kyc', 'roles'])->findOrFail($id);
 
-        $walletNGN = Wallet::where('user_id', $id)->where('currency', 'NGN')->value('balance') ?? 0;
-        $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')->value('balance') ?? 0;
+        $walletNGN = Wallet::where('user_id', $id)->where('currency', 'NGN')
+    ->selectRaw('(ngn_cleared + ngn_uncleared) as total')->value('total') ?? 0;
+ 
+$walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
+    ->selectRaw('(usd_cleared + usd_uncleared) as total')->value('total') ?? 0;
 
         $transactions = Transaction::where('user_id', $id)
             ->latest()
@@ -612,12 +626,28 @@ class AdminController extends Controller
     }
     public function getEarnings()
     {
+        $baseRate = FxRate::latest()->value('base_rate') ?? 1500;
+
+        $todayFxUsd = Ledger::where('is_platform', true)->where('type', 'FX_MARKUP_PROFIT')->whereDate('created_at', today())->sum('amount');
+        $monthFxUsd = Ledger::where('is_platform', true)->where('type', 'FX_MARKUP_PROFIT')->whereMonth('created_at', now()->month)->sum('amount');
+
+        $todayFxNgn = $todayFxUsd * $baseRate;
+        $monthFxNgn = $monthFxUsd * $baseRate;
+
+        $todayLegacy = PlatformEarning::whereDate('created_at', today())->sum('amount_ngn');
+        $monthLegacy = PlatformEarning::whereMonth('created_at', now()->month)->sum('amount_ngn');
+
+        $todayTxnFees = NewTransaction::whereDate('created_at', today())->sum('charge') ?? 0;
+        $monthTxnFees = NewTransaction::whereMonth('created_at', now()->month)->sum('charge') ?? 0;
+
         return response()->json([
-            'today_earnings' => PlatformEarning::whereDate('created_at', today())->sum('amount_ngn'),
-            'this_month_earnings' => PlatformEarning::whereMonth('created_at', now()->month)->sum('amount_ngn'),
-            'by_type' => NewTransaction::select('type')
-                ->selectRaw('SUM(charge) as total_earnings')
-                ->groupBy('type')->get(),
+            'today_earnings' => $todayFxNgn + $todayLegacy + $todayTxnFees,
+            'this_month_earnings' => $monthFxNgn + $monthLegacy + $monthTxnFees,
+            'by_type' => [
+                ['type' => 'FX Markup', 'total_earnings' => $monthFxNgn],
+                ['type' => 'Legacy Earnings', 'total_earnings' => $monthLegacy],
+                ['type' => 'Transaction Fees', 'total_earnings' => $monthTxnFees]
+            ],
         ]);
     }
 
