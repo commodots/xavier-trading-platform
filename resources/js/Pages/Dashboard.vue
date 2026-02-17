@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import api from "@/api";
 import VueApexCharts from "vue3-apexcharts";
 import MainLayout from "@/Layouts/MainLayout.vue";
@@ -14,6 +14,7 @@ const data = ref(null);
 const transactions = ref([]);
 const error = ref(null);
 const showTradeModal = ref(false);
+const isDemo = ref(false);
 
 
 // Asset Data
@@ -156,16 +157,44 @@ async function fetchDashboard() {
   loading.value = true;
   error.value = null;
   try {
+
+    const userStr = localStorage.getItem("user");
+    const userObj = userStr ? JSON.parse(userStr) : null;
+    isDemo.value = userObj?.trading_mode === 'demo';
+
     const token = localStorage.getItem("xavier_token");
-    const [portfolioResp, transResp] = await Promise.all([
-      api.get("/portfolio", { headers: { Authorization: `Bearer ${token}` } }),
-      api.get("/transactions", { headers: { Authorization: `Bearer ${token}` } })
-    ]);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    if (isDemo.value) {
+      // FETCH FROM DEMO ENDPOINT
+      const res = await api.get('/demo/portfolio', { headers });
+      const dData = res.data.data;
+data.value = {
+        wallet_balance: dData.balance || 0,
+        total_equity: dData.equity || 0,
+        ngx_value: 0, global_stocks_value_usd: 0, crypto_value_ngn: 0, fixed_income_value: 0,
+        portfolio_distribution: [{ label: 'Demo Wallet', value: dData.balance || 0 }],
+        holdings: Object.entries(dData.holdings || {}).map(([sym, details]) => ({
+          symbol: sym,
+          name: sym,
+          quantity: details.quantity,
+          avg_price: 0, market_price: 0, total_value_ngn: 0
+        }))
+      };
+      transactions.value = []; 
+
+    } else {
+      // FETCH FROM LIVE ENDPOINT
+      const [portfolioResp, transResp] = await Promise.all([
+        api.get("/portfolio", { headers }),
+        api.get("/transactions", { headers })
+      ]); 
 
     data.value = portfolioResp.data;
     transactions.value = Array.isArray(transResp.data) ? transResp.data : transResp.data.transactions;
-
+    }
     
+    // Chart population logic (Same for both modes)
     if (data.value.portfolio_distribution) {
       donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
       donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
@@ -209,7 +238,15 @@ async function fetchDashboard() {
   }
 }
 
-onMounted(fetchDashboard);
+onMounted(() => {
+  fetchDashboard();
+  window.addEventListener('trading-mode-changed', fetchDashboard); 
+});
+
+onUnmounted(() => {
+ 
+  window.removeEventListener('trading-mode-changed', fetchDashboard);
+});
 </script>
 
 <template>
@@ -222,13 +259,20 @@ onMounted(fetchDashboard);
         </div>
         <div class="flex items-center gap-4">
           <button @click="showTradeModal = true"
-            class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg">
-            ⇄ Trade
+            :class="[
+              'px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg',
+              isDemo ? 'bg-gradient-to-r from-yellow-600 to-orange-500' : 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]'
+            ]">
+            {{ isDemo ? '⇄ Demo Trade' : '⇄ Trade' }}
           </button>
           <div @click="$router.push({ name: 'wallet' })"
             class="text-right hidden sm:block col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
-            <div class="text-xs text-gray-400">Total Wallet Balance</div>
-            <div class="text-lg font-semibold">₦{{ walletBalance.toLocaleString() }}</div>
+            <div class="text-xs text-gray-400">
+              <span v-if="isDemo" class="text-yellow-500 font-bold mr-1">DEMO</span> Wallet Balance
+            </div>
+            <div class="text-lg font-semibold" :class="isDemo ? 'text-yellow-400' : 'text-white'">
+              ₦{{ walletBalance.toLocaleString() }}
+            </div>
           </div>
           <TradeModal :show="showTradeModal" :tickers="tickers" :assetCategories="assetCategories"
             @close="showTradeModal = false"
@@ -240,8 +284,12 @@ onMounted(fetchDashboard);
       <div class="grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-6">
         <div @click="$router.push({ name: 'portfolio' })"
           class="col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
-          <div class="text-xs text-gray-400">Total Portfolio Value</div>
-          <div class="text-2xl font-bold">₦{{ totalEquity.toLocaleString() }}</div>
+          <div class="text-xs text-gray-400">
+            <span v-if="isDemo" class="text-yellow-500 font-bold mr-1">DEMO</span> Total Portfolio Value
+          </div>
+          <div class="text-2xl font-bold" :class="isDemo ? 'text-yellow-400' : 'text-white'">
+            ₦{{ totalEquity.toLocaleString() }}
+          </div>
         </div>
         <div @click="$router.push({ name: 'ngx' })"
           class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
@@ -322,15 +370,14 @@ onMounted(fetchDashboard);
             <li v-for="t in (transactions.length > 0 ? transactions : fallback.transactions)" :key="t.id || t.ref"
               class="flex items-center justify-between p-2 rounded hover:bg-[#122033]">
               <div>
-                <div class="font-medium">{{ t.type }} — {{ t.currency }}</div>
+                <div class="font-medium">{{ t.type }} — {{ t.currency || 'NGN' }}</div>
                 <div class="text-xs text-gray-400">
-                  {{ formatDate(t.created_at) }} • ref: {{ t.reference || t.id }}
+                  {{ formatDate(t.created_at) }} • ref: {{ t.reference || t.id || 'DEMO' }}
                 </div>
               </div>
               <div class="text-right">
-                <div class="font-medium" :class="t.type === 'deposit' ? 'text-green-400' : 'text-white'">
-                  {{ t.type === 'withdrawal' ? '-' : '' }}{{ t.currency === 'USD' ? '$' : '₦' }}{{
-                    Number(t.amount).toLocaleString() }}
+                <div class="font-medium" :class="t.type.toLowerCase().includes('deposit') || t.type === 'buy' ? 'text-green-400' : 'text-white'">
+                  {{ t.type === 'withdrawal' ? '-' : '' }}{{ t.currency === 'USD' ? '$' : '₦' }}{{ Number(t.amount || t.total || 0).toLocaleString() }}
                 </div>
                 <div class="text-xs text-gray-400">{{ t.status }}</div>
               </div>

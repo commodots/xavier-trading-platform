@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Demo;
 
 use App\Repositories\DemoWalletRepository;
 use App\Repositories\DemoOrderRepository;

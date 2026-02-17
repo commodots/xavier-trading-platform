@@ -1,14 +1,11 @@
 <template>
   <div :class="[
-    'min-h-screen flex text-white relative transition-colors duration-500', 
+    'min-h-screen flex text-white relative transition-colors duration-500',
     currentView === 'user' ? 'bg-[#0B132B]' : 'bg-[#313753]'
   ]">
 
-    <div 
-      v-if="sidebarOpen" 
-      @click="sidebarOpen = false"
-      class="fixed inset-0 z-40 transition-opacity bg-black/50 backdrop-blur-sm md:hidden"
-    ></div>
+    <div v-if="sidebarOpen" @click="sidebarOpen = false"
+      class="fixed inset-0 z-40 transition-opacity bg-black/50 backdrop-blur-sm md:hidden"></div>
 
     <aside :class="[
       'w-64 border-r flex flex-col justify-between transition-all duration-300',
@@ -52,24 +49,37 @@
           </div>
 
           <div v-if="currentView === 'staff'">
-            <div class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Admin Management</div>
+            <div class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Admin
+              Management</div>
             <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">Notifications</SidebarLink>
+            <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/reports" :icon="FileSpreadsheet">
+              Generate Report</SidebarLink>
+            <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">
+              Notifications</SidebarLink>
 
             <SidebarLink v-if="isAdmin" to="/admin/fx-dashboard" :icon="DollarSign">FX Dashboard</SidebarLink>
 
-            <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations</div>
-            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/users" :icon="Users">User Management</SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/transactions" :icon="ListOrdered">Transactions</SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/orders" :icon="FileText">Orders</SidebarLink>
+            <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')"
+              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations
+            </div>
+            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/users" :icon="Users">User Management
+            </SidebarLink>
+            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/transactions"
+              :icon="ListOrdered">Transactions</SidebarLink>
+            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/orders" :icon="FileText">Orders
+            </SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
 
-            <div v-if="isAdmin || can('manage_kyc_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance</div>
-            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/kyc" :icon="ShieldCheck">KYC Review</SidebarLink>
-            
-            <div v-if="isAdmin || can('manage_system_settings')" class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">System Settings</div>
+            <div v-if="isAdmin || can('manage_kyc_settings')"
+              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance
+            </div>
+            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/kyc" :icon="ShieldCheck">KYC Review
+            </SidebarLink>
+
+            <div v-if="isAdmin || can('manage_system_settings')"
+              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">System
+              Settings</div>
             <SidebarLink to="/admin/control-panel" :icon="MonitorCog">Control Panel</SidebarLink>
           </div>
 
@@ -90,12 +100,22 @@
     </aside>
 
     <main class="flex-1 p-6 overflow-y-auto bg-[#0B132B]">
-      <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white " @click="sidebarOpen = !sidebarOpen">
-        ☰
-      </button>
-      <slot />
-    </main>
+      <div
+        class="flex items-center justify-between p-1 md:px-6 bg-[#0B132B]/95 backdrop-blur z-30 sticky top-0">
+        <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white " @click="sidebarOpen = !sidebarOpen">
+          ☰
+        </button>
 
+        <div class="hidden md:block"></div>
+        <div v-if="currentView === 'user'">
+          <DemoToggle :initialMode="user?.trading_mode || 'live'" />
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
+        <slot />
+      </div>
+
+    </main>
   </div>
 </template>
 
@@ -110,6 +130,7 @@ import {
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
+import DemoToggle from "@/Components/DemoToggle.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -128,8 +149,8 @@ const getUser = () => {
 const user = ref(getUser());
 
 const isAdmin = computed(() => {
-  return user.value?.role === "admin" || 
-         (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
+  return user.value?.role === "admin" ||
+    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
 });
 
 const userPermissions = ref(user.value?.permissions || []);
@@ -137,16 +158,16 @@ const userPermissions = ref(user.value?.permissions || []);
 const can = (capability) => {
   if (isAdmin.value) return true;
   if (!userPermissions.value) return false;
-  
-  
+
+
   if (Array.isArray(userPermissions.value)) {
     return userPermissions.value.some(p => {
       const pName = typeof p === 'string' ? p : p.name;
       return pName === capability;
     });
   }
-  
- 
+
+
   return !!userPermissions.value[capability];
 };
 
@@ -155,14 +176,16 @@ const fetchPermissions = async () => {
   try {
     const profileRes = await api.get('/user/profile/show');
     const currentUser = profileRes.data.data;
-    
+
     // Default to an empty array to prevent undefined errors
     userPermissions.value = currentUser.permissions || [];
     user.value.permissions = userPermissions.value;
-    
+    user.value.trading_mode = currentUser.trading_mode || 'live';
+
     // Update localStorage 
     let storedUser = JSON.parse(localStorage.getItem("user") || "{}");
     storedUser.permissions = userPermissions.value;
+    storedUser.trading_mode = user.value.trading_mode;
     localStorage.setItem("user", JSON.stringify(storedUser));
   } catch (e) {
     console.error('Failed to fetch permissions', e);
@@ -173,54 +196,54 @@ onMounted(fetchPermissions);
 
 // Logic: Check if user has ANY staff/admin roles
 const hasStaffAccess = computed(() => {
-    const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
-    if (!user.value) return false;
-    
-    const roleString = typeof user.value.role === 'string' ? user.value.role.toLowerCase() : '';
-    const hasRoleInString = staffRoles.includes(roleString);
+  const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
+  if (!user.value) return false;
 
-    let hasRoleInArray = false;
-    if (Array.isArray(user.value.roles)) {
-      hasRoleInArray = user.value.roles.some(r => {
-        const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
-        return staffRoles.includes(roleName);
-      });
-    }
-    
-    return hasRoleInArray || hasRoleInString;
+  const roleString = typeof user.value.role === 'string' ? user.value.role.toLowerCase() : '';
+  const hasRoleInString = staffRoles.includes(roleString);
+
+  let hasRoleInArray = false;
+  if (Array.isArray(user.value.roles)) {
+    hasRoleInArray = user.value.roles.some(r => {
+      const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
+      return staffRoles.includes(roleName);
+    });
+  }
+
+  return hasRoleInArray || hasRoleInString;
 });
 
 // INITIALIZATION LOGIC FOR BUG FIX
 const getInitialView = () => {
-    // 1. If user previously selected a view in this session, keep it
-    const saved = localStorage.getItem("active_view");
-    if (saved) return saved;
+  // 1. If user previously selected a view in this session, keep it
+  const saved = localStorage.getItem("active_view");
+  if (saved) return saved;
 
-    if (hasStaffAccess.value) {
-        // 2. If specifically 'admin', land on staff dashboard
-        if (user.value?.role?.toLowerCase() === 'admin') {
-            return 'staff';
-        }
-        // 3. If Manager/Staff/Others, land on user dashboard first
-        return 'user';
+  if (hasStaffAccess.value) {
+    // 2. If specifically 'admin', land on staff dashboard
+    if (user.value?.role?.toLowerCase() === 'admin') {
+      return 'staff';
     }
-
-    // 4. Pure users
+    // 3. If Manager/Staff/Others, land on user dashboard first
     return 'user';
+  }
+
+  // 4. Pure users
+  return 'user';
 };
 
 const currentView = ref(getInitialView());
 
 const toggleAccountMode = () => {
-    currentView.value = currentView.value === 'user' ? 'staff' : 'user';
-    localStorage.setItem("active_view", currentView.value);
-    
-    // Redirect to relevant dashboard after toggle
-    if (currentView.value === 'staff') {
-        router.push("/admin");
-    } else {
-        router.push("/dashboard");
-    }
+  currentView.value = currentView.value === 'user' ? 'staff' : 'user';
+  localStorage.setItem("active_view", currentView.value);
+
+  // Redirect to relevant dashboard after toggle
+  if (currentView.value === 'staff') {
+    router.push("/admin");
+  } else {
+    router.push("/dashboard");
+  }
 };
 
 const logout = () => {
