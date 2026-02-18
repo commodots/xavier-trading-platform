@@ -365,6 +365,7 @@ const handleTrade = async () => {
         market_type: mType,
         type: tradeAction.value, // 'buy' or 'sell'
         quantity: unitInput.value,
+        amount: nairaInput.value,
         price: selectedTicker.value.price
       };
 

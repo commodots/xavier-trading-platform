@@ -7,7 +7,6 @@ use App\Services\Demo\DemoWalletService;
 use App\Services\Demo\DemoTradingService;
 use Illuminate\Http\Request;
 use App\Models\DemoOrder;
-use Illuminate\Support\Facades\Log;
 
 class DemoController extends Controller
 {
@@ -22,7 +21,6 @@ class DemoController extends Controller
     $this->tradingService = $tradingService;
   }
 
-  /** Switch user between live and demo mode */
   public function switchMode(Request $request)
   {
     $request->validate(['mode' => 'required|in:live,demo']);
@@ -40,10 +38,7 @@ class DemoController extends Controller
   public function startDemo(Request $request)
   {
     $request->validate(['amount' => 'required|numeric|min:1000']);
-
-    return response()->json(
-      $this->walletService->fund($request->user()->id, $request->amount)
-    );
+    return response()->json($this->walletService->fund($request->user()->id, $request->amount));
   }
 
   /** Place a simulated trade in demo mode */
@@ -51,8 +46,9 @@ class DemoController extends Controller
   {
     $request->validate([
       'symbol' => 'required|string',
-      'market_type' => 'required|in:local,international,crypto',
+      'market_type' => 'required|in:local,international,crypto,fixed_income',
       'type' => 'required|in:buy,sell',
+      'amount' => 'required|numeric|min:0', 
       'quantity' => 'required|numeric|min:0'
     ]);
 
@@ -61,7 +57,8 @@ class DemoController extends Controller
       $request->symbol,
       $request->market_type,
       $request->type,
-      $request->quantity
+      $request->amount, 
+      $request->quantity 
     );
 
     return response()->json($order);
@@ -82,24 +79,17 @@ class DemoController extends Controller
   public function resetDemo(Request $request)
   {
     $this->walletService->reset($request->user()->id);
-
     return response()->json(['message' => 'Demo reset successful']);
   }
 
   /** Fetch user transactions/orders in demo mode */
   public function transactions(Request $request)
   {
-
-    $orders = $this->tradingService->getPortfolio($request->user()->id);
-
     $demoOrders = DemoOrder::where('user_id', $request->user()->id)
       ->orderBy('created_at', 'desc')
       ->limit(10)
       ->get();
 
-    return response()->json([
-      'success' => true,
-      'data' => $demoOrders
-    ]);
+    return response()->json(['success' => true, 'data' => $demoOrders]);
   }
 }

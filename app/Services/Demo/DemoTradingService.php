@@ -6,7 +6,6 @@ use App\Repositories\DemoWalletRepository;
 use App\Repositories\DemoOrderRepository;
 use App\Services\Demo\PriceService;
 
-
 class DemoTradingService
 {
   protected $walletRepo;
@@ -23,7 +22,7 @@ class DemoTradingService
     $this->priceService = $priceService;
   }
 
-  public function executeTrade($user, $symbol, $marketType, $type, $quantity)
+  public function executeTrade($user, $symbol, $marketType, $type, $amount, $frontendQuantity)
   {
     if ($user->trading_mode !== 'demo') {
       throw new \Exception("Switch to demo mode first.");
@@ -36,34 +35,62 @@ class DemoTradingService
     }
 
     $price = $this->priceService->getCurrentPrice($symbol, $marketType);
-
     $fxRate = 1500;
     $isUsdAsset = in_array(strtolower($marketType), ['international', 'crypto', 'global']);
 
-    $total = $isUsdAsset ? ($price * $quantity * $fxRate) : ($price * $quantity);
+    if ($type === 'buy') {
+        // --- BUY LOGIC: Spend exact Naira amount, calculate true units ---
+        if ($isUsdAsset) {
+            $usdAmount = $amount / $fxRate;
+            $quantity = ($marketType === 'crypto') ? ($usdAmount / $price) : floor($usdAmount / $price);
+        } else {
+            $quantity = ($marketType === 'crypto') ? ($amount / $price) : floor($amount / $price);
+        }
+        
+        if ($quantity <= 0) {
+             throw new \Exception("Amount is too low to purchase even 1 unit at current market price of {$price}.");
+        }
 
+        // Re-calculate the final cost based on whole units (so it matches exactly)
+        $totalCost = $isUsdAsset ? ($quantity * $price * $fxRate) : ($quantity * $price);
 
-    if ($type === 'buy' && $wallet->balance < $total) {
-      throw new \Exception("Insufficient demo balance to purchase {$quantity} units of {$symbol}.");
+        if ($wallet->balance < $totalCost) {
+            throw new \Exception("Insufficient demo balance.");
+        }
+
+        $this->walletRepo->updateBalance($wallet, $wallet->balance - $totalCost);
+
+        return $this->orderRepo->create([
+            'user_id' => $user->id,
+            'symbol' => $symbol,
+            'market_type' => $marketType,
+            'type' => $type,
+            'quantity' => $quantity, 
+            'price' => $price,
+            'total' => $totalCost, 
+            'status' => 'closed'
+        ]);
+
+    } else {
+        // --- SELL LOGIC: Sell exact units, receive true market value ---
+        $quantity = $frontendQuantity;
+        $totalValue = $isUsdAsset ? ($quantity * $price * $fxRate) : ($quantity * $price);
+
+        $this->walletRepo->updateBalance($wallet, $wallet->balance + $totalValue);
+
+        return $this->orderRepo->create([
+            'user_id' => $user->id,
+            'symbol' => $symbol,
+            'market_type' => $marketType,
+            'type' => $type,
+            'quantity' => $quantity,
+            'price' => $price,
+            'total' => $totalValue,
+            'status' => 'closed'
+        ]);
     }
-
-    $newBalance = $type === 'buy'
-      ? $wallet->balance - $total
-      : $wallet->balance + $total;
-
-    $this->walletRepo->updateBalance($wallet, $newBalance);
-
-    return $this->orderRepo->create([
-      'user_id' => $user->id,
-      'symbol' => $symbol,
-      'market_type' => $marketType,
-      'type' => $type,
-      'quantity' => $quantity,
-      'price' => $price,
-      'total' => $total,
-      'status' => 'closed'
-    ]);
   }
+
 
  public function getPortfolio($userId)
   {
