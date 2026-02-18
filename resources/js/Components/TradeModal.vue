@@ -205,6 +205,12 @@ watch(() => props.show, (newVal) => {
 });
 
 const fetchNgxPrices = async () => {
+
+  const userStr = localStorage.getItem("user");
+  const userObj = userStr ? JSON.parse(userStr) : null;
+  if (userObj?.trading_mode === 'demo') {
+    return;
+  }
  
   if (!localTickers.value.NGX) return;
   for (let ticker of localTickers.value.NGX) {
