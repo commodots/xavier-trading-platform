@@ -138,6 +138,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/demo/trade', [DemoController::class, 'placeTrade']);  // place demo trade
     Route::get('/demo/portfolio', [DemoController::class, 'portfolio']); // view holdings
     Route::post('/demo/reset', [DemoController::class, 'resetDemo']);   // reset demo account
+    Route::get('/demo/transactions', [DemoController::class, 'transactions']); // view demo transactions
+
 
     /* Admin Routes */
     Route::middleware('admin')->prefix('admin')->group(function () {

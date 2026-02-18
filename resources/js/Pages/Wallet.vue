@@ -4,7 +4,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">
-            <span v-if="isDemo" class="text-yellow-500 font-bold mr-2">DEMO</span>
+            <span v-if="isDemo" class="mr-2 font-bold text-yellow-500">DEMO</span>
             💼 Wallet
           </h1>
           <p class="text-sm text-gray-400">
@@ -31,91 +31,111 @@
 
           <template v-else>
             <button @click="refillDemo" :disabled="loading"
-              class="bg-yellow-600/20 border border-yellow-600 px-4 py-2 rounded-lg text-yellow-500 font-semibold hover:bg-yellow-600/40 transition">
-              + Refill Virtual Funds
+              class="flex items-center gap-2 px-4 py-2 font-semibold text-yellow-500 transition border border-yellow-600 rounded-lg bg-yellow-600/20 hover:bg-yellow-600/40 disabled:opacity-50">
+              <span v-if="loading && actionType === 'refill'"
+                class="w-4 h-4 border-2 border-yellow-500 rounded-full animate-spin border-t-transparent"></span>
+              {{ loading && actionType === 'refill' ? 'Refilling...' : '+ Refill Virtual Funds' }}
             </button>
-            <button @click="resetDemo" :disabled="loading"
-              class="bg-red-600/20 border border-red-600 px-4 py-2 rounded-lg text-red-500 font-semibold hover:bg-red-600/40 transition">
-              Reset Demo Account
+            <button @click="promptResetDemo" :disabled="loading"
+              class="flex items-center gap-2 px-4 py-2 font-semibold text-red-500 transition border border-red-600 rounded-lg bg-red-600/20 hover:bg-red-600/40 disabled:opacity-50">
+              <span v-if="loading && actionType === 'reset'"
+                class="w-4 h-4 border-2 border-red-500 rounded-full animate-spin border-t-transparent"></span>
+              {{ loading && actionType === 'reset' ? 'Resetting...' : 'Reset Demo Account' }}
             </button>
           </template>
         </div>
       </div>
 
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-8 overflow-hidden">
-        <div class="flex items-center gap-12 mb-6 border-b border-[#1f3348] pb-6">
-          <div class="flex items-center gap-3">
-            <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
-            <div>
-              <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
-                {{ isDemo ? 'VIRTUAL NGN WALLET' : 'NGN WALLET' }}
-              </h2>
-              <div class="text-xl font-bold" :class="isDemo ? 'text-yellow-400' : 'text-white'">
-                ₦{{ Number(balances.balance_ngn).toLocaleString() }}
+      <div :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-8 overflow-hidden">
+          <div class="flex items-center gap-12" :class="isDemo ? '' : 'mb-6 border-b border-[#1f3348] pb-6'">
+
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
+              <div>
+                <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                  {{ isDemo ? 'VIRTUAL WALLET BALANCE' : 'NGN WALLET' }}
+                </h2>
+                <div class="text-xl font-bold transition-colors" :class="isDemo ? 'text-yellow-400 text-3xl mt-1' : 'text-white'">
+                  ₦{{ Number(balances.balance_ngn).toLocaleString() }}
+                </div>
+
+                <template v-if="!isDemo">
+                  <div class="text-sm text-gray-400">
+                    Cleared Balance: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString() }}
+                  </div>
+                  <div class="text-sm text-yellow-400">
+                    Uncleared Balance: ₦{{ Number(balances.uncleared_balance_ngn).toLocaleString() }}
+                  </div>
+                  <div class="text-sm text-red-400" v-if="balances.locked_balance_ngn > 0">
+                    Locked (In Orders): ₦{{ Number(balances.locked_balance_ngn).toLocaleString() }}
+                  </div>
+                </template>
               </div>
-              <div class="text-sm text-gray-400">
-                Cleared Balance: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString() }}
-              </div>
-              <div class="text-sm text-yellow-400" v-if="!isDemo">
-                Uncleared Balance: ₦{{ Number(balances.uncleared_balance_ngn).toLocaleString() }}
+            </div>
+
+            <div v-if="!isDemo" class="flex items-center gap-3 border-l border-[#1f3348] pl-12">
+              <div class="w-2 h-2 rounded-full bg-[#00D4FF]"></div>
+              <div>
+                <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
+                <div class="text-xl font-bold text-[#00D4FF]">${{ Number(balances.balance_usd).toLocaleString() }}</div>
+                <div class="text-sm text-gray-400">
+                  Cleared Balance: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
+                </div>
+                <div class="text-sm text-yellow-400">
+                  Uncleared Balance: ${{ Number(balances.uncleared_balance_usd).toLocaleString() }}
+                </div>
+                <div class="text-sm text-red-400" v-if="balances.locked_balance_usd > 0">
+                  Locked (In Orders): ${{ Number(balances.locked_balance_usd).toLocaleString() }}
+                </div>
               </div>
             </div>
           </div>
 
-          <div v-if="!isDemo" class="flex items-center gap-3 border-l border-[#1f3348] pl-12">
-            <div class="w-2 h-2 rounded-full bg-[#00D4FF]"></div>
-            <div>
-              <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
-              <div class="text-xl font-bold text-[#00D4FF]">${{ Number(balances.balance_usd).toLocaleString() }}</div>
-              <div class="text-sm text-gray-400">
-                Cleared Balance: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
-              </div>
-              <div class="text-sm text-yellow-400">
-                Uncleared Balance: ${{ Number(balances.uncleared_balance_usd).toLocaleString() }}
-              </div>
-            </div>
+          <div v-if="!isDemo" class="h-[180px] -mx-4">
+            <apexchart type="line" height="100%" :options="combinedOptions" :series="combinedSeries" />
           </div>
-        </div>
-
-        <div class="h-[180px] -mx-4" v-if="!isDemo">
-          <apexchart type="line" height="100%" :options="combinedOptions" :series="combinedSeries" />
-        </div>
-        <div class="h-[80px] flex items-center justify-center text-gray-500 italic" v-else>
-          Charts are disabled in Demo Mode
         </div>
       </div>
 
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Simulated Trades' : 'Recent Transactions' }}</h2>
-        <div v-if="transactions.length === 0" class="py-6 text-center text-gray-500">
-          No recent {{ isDemo ? 'demo activity' : 'transactions' }}.
-        </div>
-        <div v-else class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
-              <tr>
-                <th class="px-2 py-2 text-left">Date</th>
-                <th class="px-2 text-left">Type</th>
-                <th class="px-2 text-right">Gross</th>
-                <th class="px-2 text-right">Fee</th>
-                <th class="px-2 text-right">Net</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="t in transactions" :key="t.id" class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
-                <td class="px-2 py-3 text-gray-400">{{ formatDate(t.created_at) }}</td>
-                <td class="px-2 capitalize">
-                  <div class="font-medium">{{ t.type }}</div>
-                  <div v-if="t.meta && t.meta.bank_name" class="text-[10px] text-gray-500 leading-tight">
-                    to {{ t.meta.bank_name }} ({{ t.meta.account_number }})
-                  </div>
-                </td>
-                <td class="px-2 text-right">{{ formatAmount(t.amount || t.total, t.currency || 'NGN') }}</td>
-                <td class="px-2 text-right text-red-400">-{{ formatAmount(t.charge || 0, t.currency || 'NGN') }}</td>
-                <td class="px-2 font-bold text-right text-green-400">{{ formatAmount(t.net_amount || t.amount || t.total, t.currency || 'NGN') }}</td>
-              </tr>
-            </tbody>
-          </table>
+      <div :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
+          <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Simulated Trades' : 'Recent Transactions' }}</h2>
+
+          <div v-if="transactions.length === 0" class="py-10 text-center">
+            <div class="font-medium text-gray-500">No recent {{ isDemo ? 'demo activity' : 'transactions' }}.</div>
+            <div class="mt-1 text-xs text-gray-600" v-if="isDemo">Your paper trades will appear here.</div>
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+                <tr>
+                  <th class="px-2 py-2 text-left">Date</th>
+                  <th class="px-2 text-left">Type</th>
+                  <th class="px-2 text-right">Gross</th>
+                  <th class="px-2 text-right">Fee</th>
+                  <th class="px-2 text-right">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="t in transactions" :key="t.id" class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
+                  <td class="px-2 py-3 text-gray-400">{{ formatDate(t.created_at) }}</td>
+                  <td class="px-2 capitalize">
+                    <div class="font-medium">{{ t.type }}</div>
+                    <div v-if="t.meta && t.meta.bank_name" class="text-[10px] text-gray-500 leading-tight">
+                      to {{ t.meta.bank_name }} ({{ t.meta.account_number }})
+                    </div>
+                  </td>
+                  <td class="px-2 text-right">{{ formatAmount(t.amount || t.total, t.currency || 'NGN') }}</td>
+                  <td class="px-2 text-right text-red-400">-{{ formatAmount(t.charge || 0, t.currency || 'NGN') }}</td>
+                  <td class="px-2 font-bold text-right text-green-400">{{ formatAmount(t.net_amount || t.amount ||
+                    t.total,
+                    t.currency || 'NGN') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -172,7 +192,8 @@
 
             <button :disabled="loading"
               class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
-              {{ loading ? 'Processing...' : 'Confirm ' + txnType }}
+              {{ loading && actionType === 'submit' ? 'Processing...' : 'Confirm ' + txnType
+              }}
             </button>
           </form>
           <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'"
@@ -215,10 +236,11 @@
 
             <button :disabled="loading"
               class="w-full mt-5 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg font-semibold disabled:opacity-50">
-              {{ loading ? 'Converting...' : 'Convert Now' }}
+              {{ loading && actionType === 'convert' ? 'Converting...' : 'Convert Now' }}
             </button>
           </form>
-          <p v-if="message" :class="message.includes('Success') || message.includes('successfully') ? 'text-green-400' : 'text-yellow-300'"
+          <p v-if="message"
+            :class="message.includes('Success') || message.includes('successfully') ? 'text-green-400' : 'text-yellow-300'"
             class="mt-4 text-sm font-medium text-center">{{ message }}</p>
         </div>
       </div>
@@ -249,6 +271,42 @@
           </div>
         </div>
       </div>
+
+      <div v-if="showConfirmModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div
+          class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-sm relative border border-[#2A314A] text-center">
+          <h2 class="mb-2 text-xl font-bold text-white">Reset Demo Account?</h2>
+          <p class="mb-6 text-sm text-gray-400">All simulated trades will be erased. This action cannot be undone.</p>
+          <div class="flex gap-3">
+            <button @click="showConfirmModal = false"
+              class="flex-1 py-3 font-semibold text-gray-300 transition rounded-lg bg-gray-700/50 hover:bg-gray-700">
+              Cancel
+            </button>
+            <button @click="executeResetDemo"
+              class="flex-1 py-3 font-semibold text-white transition bg-red-600 rounded-lg hover:bg-red-700">
+              Yes, Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showNotificationModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div
+          class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-sm relative border border-[#2A314A] text-center">
+          <div class="mb-4 text-5xl">{{ notificationData.success ? '✅' : '❌' }}</div>
+          <h2 class="mb-2 text-xl font-bold" :class="notificationData.success ? 'text-green-400' : 'text-red-400'">
+            {{ notificationData.title }}
+          </h2>
+          <p class="mb-6 text-gray-400">{{ notificationData.message }}</p>
+          <button @click="showNotificationModal = false"
+            class="w-full py-3 font-semibold text-white transition bg-gray-700 rounded-lg hover:bg-gray-600">
+            Close
+          </button>
+        </div>
+      </div>
+
     </div>
   </MainLayout>
 </template>
@@ -263,16 +321,29 @@ const apexchart = VueApexCharts;
 
 // --- State ---
 const isDemo = ref(false);
-const balances = ref({ balance_ngn: 0, balance_usd: 0, cleared_balance_ngn: 0, uncleared_balance_ngn: 0, cleared_balance_usd: 0, uncleared_balance_usd: 0 });
+const balances = ref({ 
+  balance_ngn: 0, balance_usd: 0, 
+  cleared_balance_ngn: 0, uncleared_balance_ngn: 0, locked_balance_ngn: 0,
+  cleared_balance_usd: 0, uncleared_balance_usd: 0, locked_balance_usd: 0 
+});
 const transactions = ref([]);
 const message = ref("");
-const loading = ref(false);
+const loading = ref(true); // Default to true for initial blur
+const actionType = ref("");
 
+// Modal States
 const openConvert = ref(false);
 const showModal = ref(false);
+const showPaymentModal = ref(false);
+const showConfirmModal = ref(false);
+const showNotificationModal = ref(false);
+
 const txnType = ref("");
 const from = ref("NGN");
 const amount = ref(0);
+
+const notificationData = ref({ success: true, title: '', message: '' });
+const paymentResult = ref({ success: false, message: '', amount: 0 });
 
 const formattedConvertAmount = computed({
   get() { return amount.value.toLocaleString(); },
@@ -289,9 +360,6 @@ const formattedAmount = computed({
   set(value) { form.value.amount = Number(value.replace(/,/g, '')); }
 });
 
-const showPaymentModal = ref(false);
-const paymentResult = ref({ success: false, message: '', amount: 0 });
-
 // --- Formatting Helpers ---
 const formatAmount = (amt, currency) => {
   if (amt === null || amt === undefined) return '---';
@@ -307,6 +375,18 @@ const formatDate = (dateStr) => {
   });
 };
 
+const triggerNotification = (success, title, msg) => {
+  notificationData.value = { success, title, message: msg };
+  showNotificationModal.value = true;
+};
+
+// Immediately trigger the blur and update the text colors optimistically
+const handleModeSwitching = (e) => {
+  isDemo.value = e.detail === 'demo';
+  loading.value = true;
+  actionType.value = ""; 
+};
+
 // --- API Methods ---
 const fetchLinkedAccountsFor = async (currency) => {
   try {
@@ -319,20 +399,32 @@ const fetchLinkedAccountsFor = async (currency) => {
 };
 
 const refreshData = async () => {
+  loading.value = true;
   try {
     const userStr = localStorage.getItem("user");
     const userObj = userStr ? JSON.parse(userStr) : null;
     isDemo.value = userObj?.trading_mode === 'demo';
 
     if (isDemo.value) {
-      const res = await api.get("/demo/portfolio");
+      const [portfolioRes, txnRes] = await Promise.all([
+        api.get("/demo/portfolio"),
+        api.get("/demo/transactions")
+      ]);
+
+      const demoData = portfolioRes.data.data || portfolioRes.data || {};
+
       balances.value = {
-        balance_ngn: res.data.data.balance || 0,
-        cleared_balance_ngn: res.data.data.balance || 0,
+        balance_ngn: demoData.wallet_balance || demoData.balance || 0,
+        cleared_balance_ngn: 0,
         uncleared_balance_ngn: 0,
-        balance_usd: 0, cleared_balance_usd: 0, uncleared_balance_usd: 0
+        locked_balance_ngn: 0,
+        
+        balance_usd: 0,
+        cleared_balance_usd: 0,
+        uncleared_balance_usd: 0,
+        locked_balance_usd:  0,
       };
-      transactions.value = []; 
+      transactions.value = txnRes.data.data || [];
     } else {
       const [balRes, txnRes, accRes] = await Promise.all([
         api.get("/wallet/balances"),
@@ -340,41 +432,64 @@ const refreshData = async () => {
         api.get("/user/linked-accounts/index")
       ]);
 
-      balances.value = balRes.data.data;
+      const data = balRes.data.data;
+      balances.value = {
+        balance_ngn: data.balance_ngn ?? 0,
+        cleared_balance_ngn: data.cleared_balance_ngn ?? 0,
+        uncleared_balance_ngn: data.uncleared_balance_ngn ?? 0,
+        locked_balance_ngn: data.locked_balance_ngn ?? 0,
+        
+        balance_usd: data.balance_usd ?? 0,
+        cleared_balance_usd: data.cleared_balance_usd ?? 0,
+        uncleared_balance_usd: data.uncleared_balance_usd ?? 0,
+        locked_balance_usd: data.locked_balance_usd ?? 0,
+      };
       linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
       transactions.value = Array.isArray(txnRes.data) ? txnRes.data.slice(0, 10) : (txnRes.data.transactions ? txnRes.data.transactions.slice(0, 10) : []);
     }
   } catch (e) {
     console.error("Failed to refresh wallet data", e);
-     alert("Unable to load wallet data. Please check your connection and refresh the page.");
+    triggerNotification(false, 'Connection Error', 'Unable to load wallet data. Please refresh the page.');
+  } finally {
+    loading.value = false;
   }
 };
 
 // --- DEMO METHODS ---
 const refillDemo = async () => {
   loading.value = true;
+  actionType.value = "refill";
   try {
     await api.post('/demo/start', { amount: 100000 });
     await refreshData();
-    alert("Demo account refilled with ₦100,000");
+    triggerNotification(true, 'Refill Successful', 'Demo account refilled with ₦100,000.');
   } catch (e) {
-    alert("Failed to refill demo account");
+    console.error(e);
+    triggerNotification(false, 'Refill Failed', 'Failed to refill demo account.');
   } finally {
     loading.value = false;
+    actionType.value = "";
   }
 };
 
-const resetDemo = async () => {
-  if (!confirm("Are you sure you want to reset your demo account? All simulated trades will be erased.")) return;
+const promptResetDemo = () => {
+  showConfirmModal.value = true;
+};
+
+const executeResetDemo = async () => {
+  showConfirmModal.value = false;
   loading.value = true;
+  actionType.value = "reset";
   try {
     await api.post('/demo/reset');
     await refreshData();
-    alert("Demo account reset successfully.");
+    triggerNotification(true, 'Reset Successful', 'Demo account reset successfully.');
   } catch (e) {
-    alert("Failed to reset demo account");
+    console.error(e);
+    triggerNotification(false, 'Reset Failed', 'Failed to reset demo account.');
   } finally {
     loading.value = false;
+    actionType.value = "";
   }
 };
 
@@ -388,33 +503,44 @@ const openTransaction = (type) => {
   if (type === 'withdrawal') fetchLinkedAccountsFor(form.value.currency);
 };
 
-const openConvertModal = () => { 
-  message.value = ""; 
+const openConvertModal = () => {
+  message.value = "";
   amount.value = 0;
-  openConvert.value = true; 
+  openConvert.value = true;
 };
 
 const submitTransaction = async () => {
   if (form.value.amount <= 0) return;
   if (txnType.value === 'withdrawal' && !selectedAccountId.value) return;
   loading.value = true;
+  actionType.value = "submit";
 
   if (txnType.value === 'deposit') {
     try {
       const response = await api.post('/paystack/initiate', { amount: form.value.amount });
-      if (response.data.success) { window.location.href = response.data.data.authorization_url; return; }
-    } catch (e) { message.value = e.response?.data?.message || "Payment initiation failed"; loading.value = false; return; }
+      if (response.data.success) {
+        window.location.href = response.data.data.authorization_url;
+        return;
+      }
+      message.value = response.data.message || "Payment initiation failed";
+    } catch (e) {
+      message.value = e.response?.data?.message || "Payment initiation failed";
+    } finally {
+      loading.value = false;
+      actionType.value = "";
+    }
   } else {
     try {
       await api.post('/withdraw', { amount: form.value.amount, currency: form.value.currency, linked_account_id: selectedAccountId.value });
       message.value = "Successful!"; setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
-    } catch (e) { message.value = e.response?.data?.message || "Transaction failed"; } finally { loading.value = false; }
+    } catch (e) { message.value = e.response?.data?.message || "Transaction failed"; } finally { loading.value = false; actionType.value = ""; }
   }
 };
 
 const convertCurrency = async () => {
   if (amount.value <= 0) return;
   loading.value = true;
+  actionType.value = "convert";
   try {
     await api.post("/wallet/convert", {
       from: from.value,
@@ -430,6 +556,7 @@ const convertCurrency = async () => {
     message.value = e.response?.data?.message || "Conversion failed";
   } finally {
     loading.value = false;
+    actionType.value = "";
   }
 };
 
@@ -500,7 +627,7 @@ const closePaymentModal = () => {
 };
 
 const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
-   if (attempts >= maxAttempts) {
+  if (attempts >= maxAttempts) {
     console.warn('Max refresh attempts reached, balance may not have updated yet');
     return;
   }
@@ -510,7 +637,7 @@ const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
   const balanceUpdated = balances.value.balance_ngn !== previousBalance;
   const transactionsUpdated = transactions.value.length !== previousTxnCount;
 
-   if (balanceUpdated || transactionsUpdated) {
+  if (balanceUpdated || transactionsUpdated) {
     console.log('Payment data updated successfully');
     return;
   }
@@ -520,16 +647,19 @@ const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
 onMounted(() => {
   refreshData();
   checkPaymentResult();
-  
-  // Listen for the toggle switch and quietly fetch new data
-  window.addEventListener('trading-mode-changed', refreshData); 
+
+   // Listen for the toggle switch and quietly fetch new data
+  window.addEventListener('trading-mode-switching', handleModeSwitching);
+  // Listen for the actual fetch event
+  window.addEventListener('trading-mode-changed', refreshData);
 });
 
 onUnmounted(() => {
+  window.removeEventListener('trading-mode-switching', handleModeSwitching);
   window.removeEventListener('trading-mode-changed', refreshData);
 });
 
-watch(() => form.value.currency, (val) => { 
-  if (txnType.value === 'withdrawal') fetchLinkedAccountsFor(val); 
+watch(() => form.value.currency, (val) => {
+  if (txnType.value === 'withdrawal') fetchLinkedAccountsFor(val);
 });
 </script>

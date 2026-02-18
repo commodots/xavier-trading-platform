@@ -13,8 +13,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\ActivityLog;
 use App\Models\NewTransaction;
 use App\Models\Portfolio;
-use App\Services\Execution\NgxDummyAdapter;
-use App\Services\SettlementService;
+use Carbon\Carbon;
 
 class OmsController extends Controller
 {
@@ -30,41 +29,64 @@ class OmsController extends Controller
         ]);
 
         $user = Auth::user();
-        $USD_RATE = 1500;
-        $currency = "NGN"; // Assuming NGN is default unless trading GLOBAL
-
-        if ($request->market === "NGX") {
-            $units = floor($request->amount / $request->market_price);
-        } else {
-            // If trading Global, currency should be USD. Adjusting logic based on your setup.
-            $currency = "USD"; 
-            $units = floor($request->amount / $request->market_price);
-        }
-
+        $currency = $request->market === "NGX" ? "NGN" : "USD";
+        $units = floor($request->amount / $request->market_price);
         $actualCost = $units * $request->market_price;
 
         return DB::transaction(function () use ($request, $user, $currency, $units, $actualCost) {
             
-            // --- PRE-CHECK AND DEDUCT FUNDS/ASSETS ---
+            $wallet = $user->fxWallet($currency); 
+            $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
+
+            $holding = Portfolio::firstOrCreate(
+                ['user_id' => $user->id, 'symbol' => $request->symbol],
+                [
+                    'name' => $request->company,
+                    'category' => $request->market === 'NGX' ? 'local' : strtolower($request->market),
+                    'currency' => $currency,
+                    'market_price' => $request->market_price,
+                    'quantity' => 0,
+                    'avg_price' => 0,
+                    'cleared_quantity' => 0,
+                    'uncleared_quantity' => 0
+                ]
+            );
+
+            // --- T+0: PRE-CHECK AND LOCK FUNDS/ASSETS ---
             if ($request->side === 'buy') {
-                $wallet = $user->fxWallet($currency);
-                $clearedBalance = $currency === 'NGN' ? $wallet->ngn_cleared : $wallet->usd_cleared;
-                
-                if ($clearedBalance < $actualCost) {
+                if ($wallet->$clearedCol < $actualCost) {
                     return response()->json(["success" => false, "message" => "Insufficient {$currency} cleared balance"], 400);
                 }
 
-                // Actually deduct the money from cleared funds
-                $wallet->debit($actualCost, 'cleared');
+                // Lock Cash (Move from cleared to LOCKED - Outgoing money)
+                $wallet->decrement($clearedCol, $actualCost);
+                $wallet->increment('locked', $actualCost);
 
-            } else {
-                $holding = Portfolio::where('user_id', $user->id)->where('symbol', $request->symbol)->first();
-                if (!$holding || $holding->cleared_quantity < $units) {
+                //  Safely Update Portfolio (Quantity + Avg Price)
+                $currentQty = $holding->quantity;
+                $currentAvgPrice = $holding->avg_price;
+                $newTotalQty = $currentQty + $units;
+                $newAvgPrice = (($currentQty * $currentAvgPrice) + $actualCost) / $newTotalQty;
+
+                $holding->update([
+                    'quantity' => $newTotalQty,
+                    'uncleared_quantity' => $holding->uncleared_quantity + $units,
+                    'avg_price' => $newAvgPrice
+                ]);
+
+            } else { 
+                // SELL LOGIC
+                if ($holding->cleared_quantity < $units) {
                     return response()->json(["success" => false, "message" => "Insufficient cleared holdings to sell"], 400);
                 }
                 
-                // Deduct units from cleared_quantity immediately
+                // Lock Shares (Move from cleared to uncleared pending sale)
                 $holding->decrement('cleared_quantity', $units);
+                $holding->increment('uncleared_quantity', $units);
+
+                //Add incoming cash as UNCLEARED (Incoming money)
+                $wallet->increment($unclearedCol, $actualCost);
             }
 
             // Create Order
@@ -85,12 +107,14 @@ class OmsController extends Controller
                 "filled_quantity" => $units
             ]);
 
-            // Create trade record for settlement
-            $trade = Trade::create([
+            // Create trade record WITH SETTLEMENT STATUS AND DATE
+            Trade::create([
                 'order_id' => $order->id,
                 'price' => $request->market_price,
                 'quantity' => $units,
                 'fee' => 0,
+                'settlement_status' => 'pending',
+                'settlement_date' => Carbon::now()->addWeekdays(2)->toDateString(),
             ]);
 
             $transactionType = $request->market === 'CRYPTO'
@@ -114,15 +138,12 @@ class OmsController extends Controller
 
             return response()->json([
                 "success" => true,
-                "message" => "Order placed - settlement pending T+2",
+                "message" => "Order placed - settlement pending",
                 "data" => $order
             ]);
         });
     }
 
-    /**
-     * RESTORED: Fetch user's order history
-     */
     public function listOrders()
     {
         return response()->json([
@@ -157,34 +178,41 @@ class OmsController extends Controller
             $remainingRatio = $order->units > 0 ? ($remainingUnits / $order->units) : 0;
             $refundCashAmount = $order->amount * $remainingRatio;
 
-            if ($order->side === 'buy') {
-                $wallet = $user->fxWallet($order->currency);
+            $wallet = $user->fxWallet($order->currency);
+            $clearedCol = $order->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $unclearedCol = $order->currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
+            
+            $holding = Portfolio::where('user_id', $user->id)->where('symbol', $order->symbol)->lockForUpdate()->first();
 
+            if ($order->side === 'buy') {
+                // Unlock Funds (Move from LOCKED back to CLEARED)
                 if ($refundCashAmount > 0) {
-                    // Refund to 'cleared' column
-                    $wallet->credit($refundCashAmount, 'cleared');
+                    $wallet->decrement('locked', $refundCashAmount);
+                    $wallet->increment($clearedCol, $refundCashAmount);
+                }
+                // Discard incoming unfulfilled shares
+                if ($holding && $remainingUnits > 0) {
+                    $holding->decrement('quantity', $remainingUnits);
+                    $holding->decrement('uncleared_quantity', $remainingUnits);
                 }
                 $message = "Order canceled. Refunded " . $order->currency . " " . number_format($refundCashAmount, 2);
             } else {
-                $holding = Portfolio::where('user_id', $user->id)
-                    ->where('symbol', $order->symbol)
-                    ->lockForUpdate()
-                    ->first();
-
+                // Unlock Shares
                 if ($remainingUnits > 0 && $holding) {
-                    // Refund back to cleared_quantity
+                    $holding->decrement('uncleared_quantity', $remainingUnits);
                     $holding->increment('cleared_quantity', $remainingUnits);
+                }
+                // Discard incoming unfulfilled cash
+                if ($refundCashAmount > 0) {
+                    $wallet->decrement($unclearedCol, $refundCashAmount);
                 }
                 $message = "Order canceled. Returned " . number_format($remainingUnits, 6) . " " . $order->symbol . " to portfolio.";
             }
 
             $order->update(['status' => 'canceled']);
+            $order->trades()->where('settlement_status', 'pending')->update(['settlement_status' => 'canceled']);
 
-            return response()->json([
-                "success" => true,
-                "message" => $message, 
-                "data" => $order
-            ]);
+            return response()->json(["success" => true, "message" => $message, "data" => $order]);
         });
     }
 }

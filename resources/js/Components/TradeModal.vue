@@ -5,7 +5,7 @@
       <button @click="$emit('close')" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
 
       <h2 class="mb-4 text-xl font-semibold">
-        <span v-if="isDemo" class="text-yellow-500 font-bold mr-2">DEMO</span>
+        <span v-if="isDemo" class="mr-2 font-bold text-yellow-500">DEMO</span>
         {{ tradeStep === 1 ? 'Select Market' : tradeStep === 2 ? 'Select Ticker' : 'Trade ' + selectedTicker?.symbol }}
       </h2>
 
@@ -60,7 +60,7 @@
               }}</span>
           </div>
           <div class="text-sm font-medium text-gray-300">
-            Total {{ tradeAction === 'buy' ? 'Cost' : 'Value' }}: ₦{{ (nairaInput || 0).toLocaleString() }}
+            Total {{ tradeAction === 'buy' ? 'Cost' : 'Value' }}: ₦{{ (unitInput * selectedTicker?.price * (selectedTicker?.currency === 'USD' ? USD_RATE : 1)).toLocaleString() }}
           </div>
         </div>
 
@@ -105,7 +105,7 @@
         <button @click="handleTrade"
           :disabled="isProcessing || nairaInput <= 0 || (tradeAction === 'buy' && nairaInput > userBalance) || (tradeAction === 'sell' && unitInput > currentAssetHolding)"
           :class="isDemo ? 'from-yellow-600 to-orange-500' : 'from-[#0047AB] to-[#00D4FF]'"
-          class="w-full py-4 rounded-xl font-bold text-white bg-gradient-to-r transition-all disabled:opacity-50 disabled:grayscale">
+          class="w-full py-4 font-bold text-white transition-all rounded-xl bg-gradient-to-r disabled:opacity-50 disabled:grayscale">
           <span v-if="tradeAction === 'buy' && nairaInput > userBalance">Insufficient Wallet Balance</span>
           <span v-else-if="tradeAction === 'sell' && unitInput > currentAssetHolding">Insufficient Holdings</span>
           <span v-else>{{ isProcessing ? 'Processing Order...' : (isDemo ? 'Confirm DEMO ' : 'Confirm ') + tradeAction.toUpperCase() }}</span>
@@ -163,7 +163,23 @@ const userBalance = ref(0);
 const allHoldings = ref([]);
 const isDemo = ref(false);
 
-// Watch for modal opening with a specific ticker
+// function to reset the modal when closed
+const resetModalState = () => {
+  tradeStep.value = 1;
+  tradeAction.value = 'buy';
+  nairaInput.value = 0;
+  unitInput.value = 0;
+  selectedCategory.value = null;
+  selectedTicker.value = null;
+  showFeedback.value = false;
+};
+
+// Handle explicit close via the 'X' button
+const handleClose = () => {
+  resetModalState();
+  emit('close');
+};
+
 watch(() => props.show, (newVal) => {
   if (newVal) {
     fetchBalance(); // Re-fetch balance every time modal opens to ensure accuracy
@@ -175,16 +191,21 @@ watch(() => props.show, (newVal) => {
       tradeStep.value = 3;
       nairaInput.value = 0;
       unitInput.value = 0;
+      
       if (selectedCategory.value.id === 'NGX') {
-        fetchNgxPrices();
+        fetchNgxPrices(); 
       }
     } else {
       tradeStep.value = 1;
     }
+  } else {
+   
+    resetModalState();
   }
 });
 
 const fetchNgxPrices = async () => {
+ 
   if (!localTickers.value.NGX) return;
   for (let ticker of localTickers.value.NGX) {
     try {
@@ -205,15 +226,28 @@ const fetchBalance = async () => {
     if (isDemo.value) {
       // DEMO BALANCE FETCH
       const res = await api.get('/demo/portfolio');
-      userBalance.value = res.data.data?.balance || 0;
       
-      const demoHoldings = res.data.data?.holdings || {};
-      allHoldings.value = Object.entries(demoHoldings).map(([sym, details]) => ({
-        symbol: sym,
-        quantity: details.quantity,
-        cleared_quantity: details.quantity, // Demo trades clear instantly
-        uncleared_quantity: 0
-      }));
+      const demoData = res.data.data || res.data || {};
+      userBalance.value = demoData.wallet_balance || demoData.balance || 0;
+      
+      const demoHoldings = demoData.holdings || [];
+      
+      if (Array.isArray(demoHoldings)) {
+         allHoldings.value = demoHoldings.map(h => ({
+          symbol: h.symbol,
+          quantity: h.quantity,
+          cleared_quantity: h.quantity,
+          uncleared_quantity: 0
+        }));
+      } else {
+         allHoldings.value = Object.entries(demoHoldings).map(([sym, details]) => ({
+          symbol: sym,
+          quantity: details.quantity,
+          cleared_quantity: details.quantity,
+          uncleared_quantity: 0
+        }));
+      }
+      
     } else {
       // LIVE BALANCE FETCH
       const [portfolioRes, walletRes] = await Promise.all([
@@ -282,7 +316,7 @@ const currentAssetHolding = computed(() => {
   const isCrypto = selectedCategory.value?.id === 'CRYPTO';
 
   const availableQuantity = tradeAction.value === 'sell'
-    ? (holding?.cleared_quantity || 0)
+    ? (holding?.cleared_quantity || holding?.quantity || 0)
     : (holding?.quantity || 0);
 
   return holding ? (isCrypto ? availableQuantity : Math.floor(availableQuantity)) : 0;
@@ -310,12 +344,10 @@ const selectTicker = (t) => {
 const closeFeedback = () => {
   if (feedbackType.value === 'success') {
     emit('trade-success');
-    emit('close');
-    tradeStep.value = 1;
-    nairaInput.value = 0;
-    unitInput.value = 0;
+    handleClose(); 
+  } else {
+    showFeedback.value = false;
   }
-  showFeedback.value = false;
 };
 
 const handleTrade = async () => {
@@ -326,6 +358,7 @@ const handleTrade = async () => {
       let mType = 'local';
       if (selectedCategory.value.id === 'GLOBAL') mType = 'international';
       if (selectedCategory.value.id === 'CRYPTO') mType = 'crypto';
+      if (selectedCategory.value.id === 'FIXED_INCOME') mType = 'fixed_income';
 
       const payload = {
         symbol: selectedTicker.value.symbol,

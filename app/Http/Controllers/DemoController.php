@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Demo\DemoWalletService;
 use App\Services\Demo\DemoTradingService;
 use Illuminate\Http\Request;
+use App\Models\DemoOrder;
 use Illuminate\Support\Facades\Log;
 
 class DemoController extends Controller
@@ -40,12 +41,9 @@ class DemoController extends Controller
   {
     $request->validate(['amount' => 'required|numeric|min:1000']);
 
-    $wallet = $this->walletService->fund($request->user()->id, $request->amount);
-
-    return response()->json([
-      'success' => true,
-      'wallet' => $wallet
-    ]);
+    return response()->json(
+      $this->walletService->fund($request->user()->id, $request->amount)
+    );
   }
 
   /** Place a simulated trade in demo mode */
@@ -55,60 +53,53 @@ class DemoController extends Controller
       'symbol' => 'required|string',
       'market_type' => 'required|in:local,international,crypto',
       'type' => 'required|in:buy,sell',
-      'quantity' => 'required|integer|min:1'
+      'quantity' => 'required|numeric|min:0'
     ]);
 
-    try {
-      $order = $this->tradingService->executeTrade(
-        $request->user(),
-        $request->symbol,
-        $request->market_type,
-        $request->type,
-        $request->quantity
-      );
-      return response()->json([
-        'success' => true,
-        'data' => $order
-      ]);
-    } catch (\Exception $e) {
-      Log::error('Demo trade failed', ['error' => $e->getMessage()]);
-      return response()->json([
-        'success' => false,
-        'message' => $e->getMessage()
-      ], 400);
-    }
+    $order = $this->tradingService->executeTrade(
+      $request->user(),
+      $request->symbol,
+      $request->market_type,
+      $request->type,
+      $request->quantity
+    );
+
+    return response()->json($order);
   }
 
   /** Fetch user portfolio in demo mode */
   public function portfolio(Request $request)
-    {
-        $userId = $request->user()->id;
-        
-        $walletRepo = app(\App\Repositories\DemoWalletRepository::class);
-        $wallet = $walletRepo->findByUser($userId);
-        
-        $holdings = $this->tradingService->getPortfolio($userId);
+  {
+    $portfolioData = $this->tradingService->getPortfolio($request->user()->id);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'balance' => $wallet ? $wallet->balance : 0,
-                'equity' => $wallet ? $wallet->equity : 0,
-                'holdings' => $holdings
-            ]
-        ]);
-    }
+    return response()->json([
+      'success' => true,
+      'data' => $portfolioData
+    ]);
+  }
 
   /** Reset demo account (wallet + orders) */
   public function resetDemo(Request $request)
-    {
-        $userId = $request->user()->id;
-        $this->walletService->reset($userId);
-        app(\App\Repositories\DemoOrderRepository::class)->deleteUserOrders($userId);
+  {
+    $this->walletService->reset($request->user()->id);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Demo account reset successfully'
-        ]);
-    }
+    return response()->json(['message' => 'Demo reset successful']);
+  }
+
+  /** Fetch user transactions/orders in demo mode */
+  public function transactions(Request $request)
+  {
+
+    $orders = $this->tradingService->getPortfolio($request->user()->id);
+
+    $demoOrders = DemoOrder::where('user_id', $request->user()->id)
+      ->orderBy('created_at', 'desc')
+      ->limit(10)
+      ->get();
+
+    return response()->json([
+      'success' => true,
+      'data' => $demoOrders
+    ]);
+  }
 }

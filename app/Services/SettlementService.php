@@ -31,103 +31,53 @@ class SettlementService
             // Only fetch trades that haven't been processed yet
             $trades = $order->trades()->where('settlement_status', 'pending')->get();
 
-            Log::info("SettlementService: Found {$trades->count()} pending trades for order {$order->id}");
-
             foreach ($trades as $trade) {
-                $this->processTradeEntry($trade, $order);
+                $this->processTradeSettlement($trade, $order);
             }
         });
-
-        Log::info("SettlementService: settleOrder completed for order {$order->id}");
     }
 
-    /**
-     * Phase 1: Trade Entry (T+0)
-     * Moves funds/assets to "Uncleared" or "Locked" status.
-     */
-    private function processTradeEntry(Trade $trade, Order $order): void
+    private function processTradeSettlement(Trade $trade, Order $order): void
     {
         $totalValue = $trade->quantity * $trade->price;
-        $settlementDate = $this->calculateSettlementDate(Carbon::now(), 2);
+        $currency = $order->currency;
+        
+        $wallet = Wallet::where('user_id', $order->user_id)->where('currency', $currency)->firstOrFail();
+        $portfolio = Portfolio::where('user_id', $order->user_id)->where('symbol', $order->symbol)->firstOrFail();
+
+        $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+        $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
 
         if ($order->side === 'buy') {
-            $this->handleBuyEntry($order->user_id, $order->currency, $order->symbol, $trade);
-        } else {
-            $this->handleSellEntry($order->user_id, $order->currency, $order->symbol, $trade);
+            // SETTLE BUY: 
+            // Remove cash from LOCKED 
+            $wallet->decrement('locked', $totalValue);
+
+            //  Shares officially yours (Move from uncleared to cleared)
+            $portfolio->decrement('uncleared_quantity', $trade->quantity);
+            $portfolio->increment('cleared_quantity', $trade->quantity);
+
+        } else { 
+            // SETTLE SELL:
+            // Shares officially gone (Remove from uncleared & total)
+            $portfolio->decrement('uncleared_quantity', $trade->quantity);
+            $portfolio->decrement('quantity', $trade->quantity);
+
+            // Cash officially yours (Move from uncleared to cleared)
+            $wallet->decrement($unclearedCol, $totalValue);
+            $wallet->increment($clearedCol, $totalValue);
         }
 
+        // Mark the trade as settled
         $trade->update([
-            'settlement_status' => 'pending',
-            'settlement_date' => $settlementDate,
+            'settlement_status' => 'settled',
+            'settlement_date' => Carbon::now()->toDateString(),
         ]);
-    }
-
-    private function handleBuyEntry($userId, $currency, $symbol, Trade $trade): void
-    {
-        $totalValue = $trade->quantity * $trade->price;
-        $order = $trade->order;
-        $wallet = Wallet::where('user_id', $userId)->where('currency', $currency)->firstOrFail();
-
-        // 1. Move Cash to Locked (use currency-specific cleared balance)
-        if ($currency === 'NGN') {
-            $wallet->decrement('ngn_cleared', $totalValue);
-        } elseif ($currency === 'USD') {
-            $wallet->decrement('usd_cleared', $totalValue);
+        
+        // Mark order as filled if all trades are done
+        $pendingTradesCount = clone $order->trades()->where('settlement_status', 'pending')->count();
+        if ($pendingTradesCount === 0) {
+            $order->update(['status' => 'filled']);
         }
-        $wallet->increment('locked', $totalValue);
-
-        // 2. Update Portfolio with Uncleared Quantity
-        $portfolio = Portfolio::firstOrCreate(
-            ['user_id' => $userId, 'symbol' => $symbol],
-            [
-                'name' => $symbol,
-                'category' => 'local',
-                'currency' => $order->currency,
-                'market_price' => $trade->price,
-                'quantity' => 0,
-                'avg_price' => 0,
-                'cleared_quantity' => 0,
-                'uncleared_quantity' => 0
-            ]
-        );
-
-        // Update Weighted Average Price
-        $currentCost = $portfolio->quantity * $portfolio->avg_price;
-        $newTotalQty = $portfolio->quantity + $trade->quantity;
-        $newAvgPrice = ($currentCost + $totalValue) / $newTotalQty;
-
-        $portfolio->update([
-            'avg_price' => $newAvgPrice,
-            'quantity' => $newTotalQty,
-            'uncleared_quantity' => $portfolio->uncleared_quantity + $trade->quantity
-        ]);
-    }
-
-    private function handleSellEntry($userId, $currency, $symbol, Trade $trade): void
-    {
-        $totalValue = $trade->quantity * $trade->price;
-        $portfolio = Portfolio::where('user_id', $userId)->where('symbol', $symbol)->firstOrFail();
-
-        // 1. Move Assets to Uncleared (Locked for sale)
-        $portfolio->decrement('cleared_quantity', $trade->quantity);
-        $portfolio->increment('uncleared_quantity', $trade->quantity);
-
-        // 2. Wallet record (Profit is uncleared until T+2) - use currency-specific column
-        $wallet = Wallet::where('user_id', $userId)->where('currency', $currency)->firstOrFail();
-        if ($currency === 'NGN') {
-            $wallet->increment('ngn_uncleared', $totalValue);
-        } elseif ($currency === 'USD') {
-            $wallet->increment('usd_uncleared', $totalValue);
-        }
-    }
-
-    private function calculateSettlementDate(Carbon $date, int $days): string
-    {
-        $count = 0;
-        while ($count < $days) {
-            $date->addDay();
-            if ($date->isWeekday()) $count++;
-        }
-        return $date->toDateString();
     }
 }

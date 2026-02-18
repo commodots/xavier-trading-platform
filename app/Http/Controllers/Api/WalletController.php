@@ -27,10 +27,14 @@ class WalletController extends Controller
             'data' => [
                 'balance_ngn' => (float) (($ngnWallet?->ngn_cleared ?? 0) + ($ngnWallet?->ngn_uncleared ?? 0)),
                 'balance_usd' => (float) (($usdWallet?->usd_cleared ?? 0) + ($usdWallet?->usd_uncleared ?? 0)),
+
                 'cleared_balance_ngn' => (float) ($ngnWallet?->ngn_cleared ?? 0),
                 'uncleared_balance_ngn' => (float) ($ngnWallet?->ngn_uncleared ?? 0),
+                'locked_balance_ngn' => (float) ($ngnWallet?->locked ?? 0), 
+
                 'cleared_balance_usd' => (float) ($usdWallet?->usd_cleared ?? 0),
                 'uncleared_balance_usd' => (float) ($usdWallet?->usd_uncleared ?? 0),
+                'locked_balance_usd' => (float) ($usdWallet?->locked ?? 0),
             ],
         ]);
     }
@@ -110,7 +114,7 @@ class WalletController extends Controller
                     'type' => 'fx_conversion',
                     'amount' => $ngnAmount,
                     'currency' => 'NGN',
-                    'status' => 'pending', 
+                    'status' => 'pending',
                     'reference' => $txReference,
                     'meta' => [
                         'to_currency' => 'USD',
@@ -135,7 +139,7 @@ class WalletController extends Controller
         } catch (\Exception $e) {
             Log::error('Conversion failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
-            
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
