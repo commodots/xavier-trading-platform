@@ -75,9 +75,8 @@ class SettlementService
         ]);
         
         // Mark order as filled if all trades are done
-        $pendingTradesCount = clone $order->trades()->where('settlement_status', 'pending')->count();
-        if ($pendingTradesCount === 0) {
-            $order->update(['status' => 'filled']);
-        }
+       if ($order->trades()->where('settlement_status', 'pending')->count() === 0) {
+    $order->update(['status' => 'filled']);
+}
     }
 }

@@ -21,7 +21,7 @@ class PaystackController extends Controller
     }
 
     /**
-     * ✅ Initiate a Paystack transaction
+     *  Initiate a Paystack transaction
      */
     public function initiate(Request $request)
     {
@@ -30,9 +30,9 @@ class PaystackController extends Controller
         ]);
 
         $user = Auth::user();
-        $reference = 'xavier_' . uniqid(); // 🔥 Always unique
+        $reference = 'xavier_' . uniqid(); // Always unique
 
-        Log::info('💳 [Paystack:initiate] Request received', [
+        Log::info('[Paystack:initiate] Request received', [
             'user' => $user->email ?? 'guest',
             'amount' => $request->amount,
             'reference' => $reference,
@@ -51,7 +51,7 @@ class PaystackController extends Controller
             ]);
 
             if ($result['status'] === 'failed') {
-                Log::error('❌ Paystack:initiate failed', ['error' => $result]);
+                Log::error('Paystack:initiate failed', ['error' => $result]);
                 return response()->json([
                     'success' => false,
                     'message' => $result['message'] ?? 'Unable to initiate transaction.'
@@ -69,7 +69,7 @@ class PaystackController extends Controller
                 ]
             ]);
         } catch (\Throwable $e) {
-            Log::error('🔥 Paystack:initiate exception', [
+            Log::error('Paystack:initiate exception', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -82,22 +82,22 @@ class PaystackController extends Controller
     }
 
     /**
-     * ✅ Verify Paystack transaction and credit wallet
+     * Verify Paystack transaction and credit wallet
      */
     public function verify($reference)
     {
-        Log::info('🔍 [Paystack:verify] Checking transaction', ['reference' => $reference]);
+        Log::info('[Paystack:verify] Checking transaction', ['reference' => $reference]);
 
         try {
             $result = $this->paystackService->verifyPayment($reference);
 
-            Log::info('📡 [Paystack:verify] Response received', ['result' => $result]);
+            Log::info('[Paystack:verify] Response received', ['result' => $result]);
 
             if ($result['status'] === 'success') {
                 $userId = $result['metadata']['user_id'] ?? null;
 
                 if (!$userId) {
-                    Log::error('❌ [Paystack:verify] No user_id in metadata', [
+                    Log::error('[Paystack:verify] No user_id in metadata', [
                         'reference' => $reference,
                         'metadata' => $result['metadata']
                     ]);
@@ -110,7 +110,7 @@ class PaystackController extends Controller
                 $user = \App\Models\User::find($userId);
 
                 if (!$user) {
-                    Log::error('❌ [Paystack:verify] User not found', [
+                    Log::error('[Paystack:verify] User not found', [
                         'reference' => $reference,
                         'user_id' => $userId
                     ]);
@@ -124,7 +124,7 @@ class PaystackController extends Controller
                 $charge = ($result['fees'] ?? 0) / 100; // Get actual Paystack charge
                 $netAmount = $amount - $charge;
 
-                Log::info('💰 [Paystack:verify] Calculated amounts', [
+                Log::info('[Paystack:verify] Calculated amounts', [
                     'raw_amount' => $result['amount'],
                     'amount' => $amount,
                     'charge' => $charge,
@@ -136,7 +136,7 @@ class PaystackController extends Controller
                     ['balance' => 0, 'status' => 'active']
                 );
 
-                $wallet->increment('balance', $netAmount);
+                $wallet->credit($netAmount, 'cleared');
 
                 NewTransaction::create([
                     'user_id' => $userId,
@@ -148,7 +148,7 @@ class PaystackController extends Controller
                     'currency' => 'NGN'
                 ]);
 
-                Log::info('✅ [Paystack:verify] Wallet credited', [
+                Log::info('[Paystack:verify] Wallet credited', [
                     'user' => $user->email,
                     'amount' => $amount,
                     'charge' => $charge,
@@ -163,7 +163,7 @@ class PaystackController extends Controller
                 ]);
             }
 
-            Log::warning('⚠️ [Paystack:verify] Transaction verification failed', [
+            Log::warning('[Paystack:verify] Transaction verification failed', [
                 'reference' => $reference,
                 'status' => $result['data']['status'] ?? 'unknown'
             ]);
@@ -173,7 +173,7 @@ class PaystackController extends Controller
                 'message' => 'Transaction verification failed.'
             ], 400);
         } catch (\Throwable $e) {
-            Log::error('🔥 [Paystack:verify] Exception', [
+            Log::error('[Paystack:verify] Exception', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
             ]);
@@ -207,13 +207,13 @@ class PaystackController extends Controller
         $reference = $request->query('reference');
         $trxref = $request->query('trxref');
 
-        Log::info('🔄 [Paystack:redirect] User redirected after payment', [
+        Log::info('[Paystack:redirect] User redirected after payment', [
             'reference' => $reference,
             'trxref' => $trxref
         ]);
 
         if (!$reference) {
-            Log::warning('❌ [Paystack:redirect] No reference provided');
+            Log::warning('[Paystack:redirect] No reference provided');
             return redirect('/wallet?payment_error=no_reference');
         }
 
@@ -229,14 +229,14 @@ class PaystackController extends Controller
                 return redirect('/wallet?payment_success=' . $result['amount'] . '&reference=' . $reference);
             } else {
                 // Payment failed or pending
-                Log::warning('⚠️ [Paystack:redirect] Payment not successful', [
+                Log::warning('[Paystack:redirect] Payment not successful', [
                     'reference' => $reference,
                     'status' => $result['status']
                 ]);
                 return redirect('/wallet?payment_error=payment_failed');
             }
         } catch (\Throwable $e) {
-            Log::error('🔥 [Paystack:redirect] Exception during verification', [
+            Log::error('[Paystack:redirect] Exception during verification', [
                 'reference' => $reference,
                 'error' => $e->getMessage()
             ]);
@@ -249,7 +249,7 @@ class PaystackController extends Controller
      */
     private function handleWebhook(Request $request)
     {
-        Log::info('🔗 [Paystack:webhook] Webhook received', [
+        Log::info('[Paystack:webhook] Webhook received', [
             'headers' => $request->headers->all(),
             'body' => $request->all()
         ]);
@@ -260,7 +260,7 @@ class PaystackController extends Controller
             $secret = config('services.paystack.secret_key');
 
             if (!$this->verifyWebhookSignature($request->getContent(), $signature, $secret)) {
-                Log::warning('❌ [Paystack:webhook] Invalid signature', [
+                Log::warning('[Paystack:webhook] Invalid signature', [
                     'signature' => $signature
                 ]);
                 return response()->json(['error' => 'Invalid signature'], 400);
@@ -278,7 +278,7 @@ class PaystackController extends Controller
                 $charge = ($data['fees'] ?? 0) / 100; // Get actual Paystack charge
                 $netAmount = $amount - $charge;
 
-                Log::info('🔍 [Paystack:webhook] Processing charge.success', [
+                Log::info('[Paystack:webhook] Processing charge.success', [
                     'reference' => $reference,
                     'user_id' => $userId,
                     'raw_amount' => $data['amount'] ?? 0,
@@ -289,7 +289,7 @@ class PaystackController extends Controller
                 ]);
 
                 if (!$userId) {
-                    Log::error('❌ [Paystack:webhook] No user_id in metadata', [
+                    Log::error('[Paystack:webhook] No user_id in metadata', [
                         'reference' => $reference,
                         'metadata' => $data['metadata'] ?? []
                     ]);
@@ -299,7 +299,7 @@ class PaystackController extends Controller
                 $user = \App\Models\User::find($userId);
 
                 if (!$user) {
-                    Log::error('❌ [Paystack:webhook] User not found', [
+                    Log::error('[Paystack:webhook] User not found', [
                         'reference' => $reference,
                         'user_id' => $userId
                     ]);
@@ -309,7 +309,7 @@ class PaystackController extends Controller
                 // Check if transaction already processed (by webhook or redirect)
                 $existingTransaction = NewTransaction::where('reference', $reference)->first();
                 if ($existingTransaction) {
-                    Log::info('⚠️ [Paystack:webhook] Transaction already processed', [
+                    Log::info('[Paystack:webhook] Transaction already processed', [
                         'reference' => $reference,
                         'existing_transaction_id' => $existingTransaction->id
                     ]);
@@ -321,7 +321,7 @@ class PaystackController extends Controller
                     ['balance' => 0, 'status' => 'active']
                 );
 
-                Log::info('💰 [Paystack:webhook] Updating wallet', [
+                Log::info('[Paystack:webhook] Updating wallet', [
                     'user_id' => $userId,
                     'wallet_id' => $wallet->id,
                     'current_balance' => $wallet->balance,
@@ -332,7 +332,7 @@ class PaystackController extends Controller
 
                 $wallet->increment('balance', $netAmount);
 
-                Log::info('✅ [Paystack:webhook] Wallet balance updated', [
+                Log::info('[Paystack:webhook] Wallet balance updated', [
                     'new_balance' => $wallet->fresh()->balance
                 ]);
 
@@ -348,7 +348,7 @@ class PaystackController extends Controller
                 ]);
 
 
-                Log::info('✅ [Paystack:webhook] Transaction created', [
+                Log::info('[Paystack:webhook] Transaction created', [
                     'transaction_id' => $transaction->id,
                     'user' => $user->email,
                     'amount' => $amount,
@@ -358,9 +358,8 @@ class PaystackController extends Controller
             }
 
             return response()->json(['message' => 'Webhook processed'], 200);
-
         } catch (\Throwable $e) {
-            Log::error('🔥 [Paystack:webhook] Exception', [
+            Log::error('[Paystack:webhook] Exception', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -378,74 +377,54 @@ class PaystackController extends Controller
             $userId = $result['metadata']['user_id'] ?? null;
 
             if (!$userId) {
-                Log::error('❌ [Paystack:redirect] No user_id in metadata for immediate processing', [
-                    'reference' => $reference,
-                    'metadata' => $result['metadata'] ?? []
-                ]);
+                Log::error(' [Paystack:redirect] No user_id in metadata');
                 return;
             }
 
-            $user = \App\Models\User::find($userId);
+            DB::transaction(function () use ($result, $reference, $userId) {
+                // Check if transaction already processed using the meta JSON column
+                $existingTransaction = NewTransaction::where('meta->reference', $reference)->first();
+                if ($existingTransaction) {
+                    Log::info(' Transaction already processed', ['ref' => $reference]);
+                    return;
+                }
 
-            if (!$user) {
-                Log::error('❌ [Paystack:redirect] User not found for immediate processing', [
-                    'reference' => $reference,
-                    'user_id' => $userId
+                $wallet = Wallet::firstOrCreate(
+                    ['user_id' => $userId, 'currency' => 'NGN'],
+                    ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0, 'ngn_uncleared' => 0, 'locked' => 0]
+                );
+
+                $amount = $result['amount'] / 100; // Convert from kobo to NGN
+                $charge = ($result['fees'] ?? 0) / 100; // Get actual Paystack charge
+                $netAmount = $amount - $charge;
+
+                
+                DB::table('wallets')->where('id', $wallet->id)->update([
+                    'ngn_cleared' => DB::raw("ngn_cleared + " . $netAmount),
+                    'balance'     => DB::raw("balance + " . $netAmount)
                 ]);
-                return;
-            }
 
-            // Check if transaction already processed
-            $existingTransaction =NewTransaction::where('reference', $reference)->first();
-            if ($existingTransaction) {
-                Log::info('⚠️ [Paystack:redirect] Transaction already processed', [
-                    'reference' => $reference
-                ]);
-                return;
-            }
+                            // Record the transaction
 
-            $wallet = Wallet::firstOrCreate(
-                ['user_id' => $userId, 'currency' => 'NGN'],
-                ['balance' => 0, 'status' => 'active']
-            );
-
-            $amount = $result['amount'] / 100; // Convert from kobo to NGN
-            $charge = ($result['fees'] ?? 0) / 100; // Get actual Paystack charge
-            $netAmount = $amount - $charge;
-
-            Log::info('💰 [Paystack:redirect] Updating wallet immediately', [
-                'user_id' => $userId,
-                'wallet_id' => $wallet->id,
-                'current_balance' => $wallet->balance,
-                'raw_amount' => $result['amount'],
-                'amount' => $amount,
-                'charge' => $charge,
-                'net_amount' => $netAmount
-            ]);
-
-            $wallet->increment('balance', $netAmount);
-
-            // Record the transaction
-            $transaction =  NewTransaction::create([
+                NewTransaction::create([
                     'user_id' => $userId,
                     'amount' => $amount,
                     'type' => 'deposit',
                     'status' => 'completed',
                     'charge' => $charge,
                     'net_amount' => $netAmount,
-                    'currency' => 'NGN'
+                    'currency' => 'NGN',
+                    'meta' => [
+                        'reference' => $reference,
+                        'gateway' => 'paystack'
+                    ]
                 ]);
 
+                Log::info('[Paystack:redirect] Wallet credited successfully');
+            });
 
-            Log::info('✅ [Paystack:redirect] Wallet credited immediately', [
-                'transaction_id' => $transaction->id,
-                'user' => $user->email,
-                'amount' => $amount,
-                'reference' => $reference,
-                'new_balance' => $wallet->fresh()->balance,
-            ]);
         } catch (\Throwable $e) {
-            Log::error('🔥 [Paystack:redirect] Exception during immediate processing', [
+            Log::error('[Paystack:redirect] Exception processing payment', [
                 'reference' => $reference,
                 'error' => $e->getMessage()
             ]);
@@ -461,4 +440,3 @@ class PaystackController extends Controller
         return hash_equals($computedSignature, $signature);
     }
 }
-

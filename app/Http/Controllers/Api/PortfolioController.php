@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use App\Models\Transaction;
 use App\Models\Portfolio;
 
 class PortfolioController extends Controller
@@ -14,19 +12,26 @@ class PortfolioController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $FX_RATE = 1500; //fetch from an api later
+        $FX_RATE = 1500; // fetch from an api later
 
         $rawHoldings = Portfolio::where('user_id', $user->id)->get();
 
         $groupedHoldings = $rawHoldings->groupBy('symbol')->map(function ($items) use ($FX_RATE) {
             $first = $items->first();
-            $totalQuantity = $items->sum('quantity');
-            $clearedQuantity = $items->sum('cleared_quantity');
-            $unclearedQuantity = $items->sum('uncleared_quantity');
+            
+            // Calculate total quantities based on cleared + uncleared
+            $clearedQuantity = (float) $items->sum('cleared_quantity');
+            $unclearedQuantity = (float) $items->sum('uncleared_quantity');
+            $totalQuantity = $clearedQuantity + $unclearedQuantity;
 
-            // Formula: Sum(qty * price) / Total Qty
-            $totalCost = $items->sum(fn($i) => $i->quantity * $i->avg_price);
-            $weightedAvgPrice = $totalQuantity > 0 ? ($totalCost / $totalQuantity) : 0;
+            // Skip holdings with zero total quantity (e.g., fully sold off)
+            if ($totalQuantity <= 0) {
+                return null;
+            }
+
+            // Formula: Sum(qty * avg_price) / Total Qty
+            $totalCost = $items->sum(fn($i) => ($i->cleared_quantity + $i->uncleared_quantity) * $i->avg_price);
+            $weightedAvgPrice = $totalCost / $totalQuantity;
 
             $currentValueRaw = $totalQuantity * $first->market_price;
 
@@ -35,22 +40,17 @@ class PortfolioController extends Controller
             $multiplier = $isUsd ? $FX_RATE : 1;
 
             $isCrypto = strtolower($first->category) === 'crypto';
-            $calculatedTotal = $clearedQuantity + $unclearedQuantity;
-            $displayQuantity = $isCrypto ? $calculatedTotal : floor($calculatedTotal);
+            
+            $displayQuantity = $isCrypto ? $totalQuantity : floor($totalQuantity);
             $displayCleared = $isCrypto ? $clearedQuantity : floor($clearedQuantity);
             $displayUncleared = $isCrypto ? $unclearedQuantity : floor($unclearedQuantity);
 
-            // Skip holdings with zero total quantity
-            if ($totalQuantity <= 0) {
-                return null;
-            }
-
             return [
                 'symbol' => $first->symbol,
-                'name' => $first->name,
+                'name' => $first->name ?? $first->symbol,
                 'category' => $first->category,
                 'currency' => $first->currency,
-                'quantity' => $isCrypto ? $totalQuantity : floor($totalQuantity),
+                'quantity' => $displayQuantity,
                 'cleared_quantity' => $displayCleared,
                 'uncleared_quantity' => $displayUncleared,
                 'avg_price' => $weightedAvgPrice,
@@ -64,26 +64,22 @@ class PortfolioController extends Controller
         $ngnWallet = $user->wallet()->where('currency', 'NGN')->first();
         $usdWallet = $user->wallet()->where('currency', 'USD')->first();
 
-        $ngnBalance = $ngnWallet->balance ?? 0;
-        $usdBalance = $usdWallet->balance ?? 0;
+        $ngnBalance = $ngnWallet ? (float) $ngnWallet->ngn_cleared : 0;
+        $usdBalance = $usdWallet ? (float) $usdWallet->usd_cleared : 0;
 
         // Calculate Category Values (Converting USD assets to NGN for the Chart)
 
         $globalValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value');
-
         $globalValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value_ngn');
-
+        
         $ngxValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'local')->sum('total_value_ngn');
-
         $fixedIncomeValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'fixed_income')->sum('total_value_ngn');
-
-        $cryptoValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value_ngn');
-
+        
         $cryptoValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value');
+        $cryptoValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value_ngn');
 
         // Calculate Total Wallet Value in NGN
         $walletValueNgn = (float) ($ngnBalance + ($usdBalance * $FX_RATE));
-
 
         return response()->json([
             'success' => true,
@@ -92,62 +88,65 @@ class PortfolioController extends Controller
             'fixed_income_value' => $fixedIncomeValue,
             'global_stocks_value_usd' => $globalValueUsd,
             'global_stocks_value_ngn' => $globalValueNgn,
-            'crypto_value_ngn' => $cryptoValueNgn,
             'crypto_value_usd' => $cryptoValueUsd,
+            'crypto_value_ngn' => $cryptoValueNgn,
             'holdings' => $groupedHoldings,
             'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn + $fixedIncomeValue)
         ]);
     }
- public function performance(Request $request)
-{
-    $user = $request->user();
-    $category = $request->query('category', 'local');
-    $range = $request->query('range', '1W');
 
-    
-    $holdings = Portfolio::where('user_id', $user->id)
-        ->where('category', $category)
-        ->get();
+    public function performance(Request $request)
+    {
+        $user = $request->user();
+        $category = $request->query('category', 'local');
+        $range = $request->query('range', '1W');
 
-    $days = match($range) {
-        '1D' => 1,
-        '1W' => 7,
-        '1M' => 30,
-        default => 7
-    };
+        $holdings = Portfolio::where('user_id', $user->id)
+            ->where('category', $category)
+            ->get();
 
-    
-    $multiSeries = [];
-    $totalCurrentValue = 0;
+        $days = match($range) {
+            '1D' => 1,
+            '1W' => 7,
+            '1M' => 30,
+            default => 7
+        };
 
-    foreach ($holdings as $holding) {
-        $dataPoints = [];
-        $now = now();
+        $multiSeries = [];
+        $totalCurrentValue = 0;
 
-        for ($i = $days; $i >= 0; $i--) {
-            $date = $now->copy()->subDays($i);
-            
-            $historicalPrice = $holding->market_price * (1 - ($i * 0.005)); 
-            
-            $dataPoints[] = [
-                'x' => $date->timestamp * 1000,
-                'y' => round($holding->quantity * $historicalPrice, 2)
+        foreach ($holdings as $holding) {
+            $dataPoints = [];
+            $now = now();
+
+            for ($i = $days; $i >= 0; $i--) {
+                $date = $now->copy()->subDays($i);
+                
+                $historicalPrice = $holding->market_price * (1 - ($i * 0.005)); 
+                
+                
+                $totalQty = $holding->cleared_quantity + $holding->uncleared_quantity;
+                
+                $dataPoints[] = [
+                    'x' => $date->timestamp * 1000,
+                    'y' => round($totalQty * $historicalPrice, 2)
+                ];
+            }
+
+            $multiSeries[] = [
+                'name' => $holding->symbol,
+                'data' => $dataPoints
             ];
+
+            $totalQty = $holding->cleared_quantity + $holding->uncleared_quantity;
+            $totalCurrentValue += ($totalQty * $holding->market_price);
         }
 
-        $multiSeries[] = [
-            'name' => $holding->symbol,
-            'data' => $dataPoints
-        ];
-
-        $totalCurrentValue += ($holding->quantity * $holding->market_price);
+        return response()->json([
+            'success' => true,
+            'series' => $multiSeries, 
+            'total' => $totalCurrentValue,
+            'change' => 1.25 
+        ]);
     }
-
-    return response()->json([
-        'success' => true,
-        'series' => $multiSeries, 
-        'total' => $totalCurrentValue,
-        'change' => 1.25 
-    ]);
-}
 }

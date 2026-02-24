@@ -28,6 +28,17 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\PaystackWebhookController;
 use App\Http\Controllers\DemoController;
+
+// === ADVISORY CONTROLLERS ===
+use App\Http\Controllers\AdvisoryController;
+use App\Http\Controllers\PredictionController;
+use App\Http\Controllers\ModelPortfolioController; 
+use App\Http\Controllers\SubscriptionController;
+// Admin Advisory Controllers 
+use App\Http\Controllers\Admin\AdminSubscriptionController;
+use App\Http\Controllers\Admin\AdminAdvisoryController;
+use App\Http\Controllers\Admin\AdminModelPortfolioController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -74,19 +85,13 @@ Route::middleware('auth:sanctum')->get(
     '/market/candles',
     [MarketDataController::class, 'candles']
 );
+
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get(
-        '/markets/stocks/{symbol}/history',
-        [StockMarketController::class, 'history']
-    );
+    Route::get('/markets/stocks/{symbol}/history', [StockMarketController::class, 'history']);
+    Route::get('/markets/stocks/{symbol}/history', [\App\Http\Controllers\MarketDataController::class, 'stockHistory']);
 
-    Route::get('/markets/stocks/{symbol}/history', [
-        \App\Http\Controllers\MarketDataController::class,
-        'stockHistory',
-    ]);
-
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     /* Wallet */
@@ -99,7 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/verify/{reference}', [PaystackController::class, 'verify']);
     });
 
-    Route::get('/portfolio', [PortfolioController::class, 'index']);
+    Route::get('/portfolio', [PortfolioController::class, 'index']); 
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
 
     // Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
@@ -146,6 +151,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
 
+        // ==========================================
+        // === ADMIN ADVISORY CONTROLS ===
+        // ==========================================
+        Route::apiResource('/subscription-plans', AdminSubscriptionController::class);
+        Route::apiResource('/advisory-posts', AdminAdvisoryController::class);
+        Route::apiResource('/model-portfolios', AdminModelPortfolioController::class);
+        
+
         /* Users */
         Route::get('/users', [AdminController::class, 'users']);
         Route::get('/users/{id}', [AdminController::class, 'userDetail']);
@@ -181,7 +194,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services', [AdminServiceController::class, 'store']);
 
         Route::put('/services/{id}', [AdminServiceController::class, 'update']);
-        
         Route::patch('/services/{id}/toggle', [AdminServiceController::class, 'toggleService']);
         Route::get('/services/{id}/connections', [AdminServiceController::class, 'getConnections']);
         Route::post('/services/{id}/connections', [AdminServiceController::class, 'addConnection']);
@@ -211,7 +223,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // Manual settlement processing
         Route::post('/settlements/process', function () {
             \Illuminate\Support\Facades\Artisan::call('settlements:process');
-
             return response()->json(['message' => 'Settlements processed successfully.']);
         });
 
@@ -226,6 +237,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // FX Admin Dashboard metrics
         Route::get('/fx-dashboard', [\App\Http\Controllers\Admin\FxDashboardController::class, 'index']);
     });
+
     Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);
         Route::post('/kyc/submit', [KycController::class, 'submit']);
@@ -242,5 +254,25 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/notifications/show', [NotificationController::class, 'show']);
         Route::put('/notifications/update', [NotificationController::class, 'update']);
+
+        // === ADVISORY & SUBSCRIPTION MODULE ===
+        // 
+        Route::prefix('advisory')->group(function () {
+
+            // Free Routes (Visible to anyone logged in)
+            Route::get('/free-posts', [AdvisoryController::class, 'freePosts']);
+            Route::get('/plans', [SubscriptionController::class, 'plans']);
+            Route::post('/subscribe', [SubscriptionController::class, 'initializePayment']);
+            Route::get('/verify-payment', [SubscriptionController::class, 'verifyPayment']);
+            Route::post('/cancel', [SubscriptionController::class, 'cancelSubscription']);
+
+            //VIP Routes (Locked behind the 'subscribed' middleware)
+            Route::middleware('subscribed')->group(function () {
+                Route::get('/premium-posts', [AdvisoryController::class, 'premiumPosts']);
+                Route::get('/ai-picks', [PredictionController::class, 'topPicks']);
+                Route::get('/model-portfolios', [ModelPortfolioController::class, 'index']);
+                Route::post('/model-portfolios/{id}/copy', [ModelPortfolioController::class, 'copyPortfolio']);
+            });
+        });
     });
 });

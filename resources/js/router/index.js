@@ -26,6 +26,7 @@ import Support from "@/Pages/Support.vue";
 // OMS
 import Orders from "@/Pages/Orders.vue";
 import OrderDetails from "@/Pages/OrderDetails.vue";
+import Advisory from "@/Pages/Advisory.vue";
 
 // Admin
 import AdminUsers from "@/Pages/Admin/Users.vue";
@@ -38,6 +39,7 @@ import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
 import AdminReports from "@/Pages/Admin/Reports.vue";
 import AdminNotifications from "@/Pages/Admin/Notifications.vue";
 import AdminFxDashboard from "@/Pages/Admin/FxDashboard.vue";
+import AdminAdvisoryDashboard from "@/Pages/Admin/AdvisoryDashboard.vue";
 
 const routes = [
 
@@ -160,6 +162,12 @@ const routes = [
     component: OrderDetails,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/advisory",
+    name: "advisory",
+    component: Advisory,
+    meta: { requiresAuth: true },
+  },
 
   /* ----------------------------------------------
     ADMIN PAGES
@@ -243,7 +251,12 @@ const routes = [
     component: AdminFxDashboard,
     meta: { requiresAuth: true, adminOnly: true },
   },
-
+  {
+    path: "/admin/advisory-dashboard",
+    name: "admin-advisory-dashboard",
+    component: AdminAdvisoryDashboard,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
 ];
 
 /* --------------------------------------------------

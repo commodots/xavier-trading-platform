@@ -19,7 +19,7 @@
               + Deposit
             </button>
             <button @click="openTransaction('withdrawal')"
-              :disabled="(form.currency === 'NGN' && balances.cleared_balance_ngn <= 0) || (form.currency === 'USD' && balances.cleared_balance_usd <= 0)"
+              :disabled="(balances.cleared_balance_ngn <= 0 && balances.cleared_balance_usd <= 0)"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
               - Withdraw
             </button>
@@ -46,7 +46,8 @@
         </div>
       </div>
 
-      <div :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <div
+        :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-8 overflow-hidden">
           <div class="flex items-center gap-12" :class="isDemo ? '' : 'mb-6 border-b border-[#1f3348] pb-6'">
 
@@ -56,7 +57,8 @@
                 <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
                   {{ isDemo ? 'VIRTUAL WALLET BALANCE' : 'NGN WALLET' }}
                 </h2>
-                <div class="text-xl font-bold transition-colors" :class="isDemo ? 'text-yellow-400 text-3xl mt-1' : 'text-white'">
+                <div class="text-xl font-bold transition-colors"
+                  :class="isDemo ? 'text-yellow-400 text-3xl mt-1' : 'text-white'">
                   ₦{{ Number(balances.balance_ngn).toLocaleString() }}
                 </div>
 
@@ -98,7 +100,8 @@
         </div>
       </div>
 
-      <div :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <div
+        :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
           <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Simulated Trades' : 'Recent Transactions' }}</h2>
 
@@ -119,7 +122,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="t in transactions" :key="t.id" class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
+                <tr v-for="t in transactions" :key="t.id"
+                  class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
                   <td class="px-2 py-3 text-gray-400">{{ formatDate(t.created_at) }}</td>
                   <td class="px-2 capitalize">
                     <div class="font-medium">{{ t.type }}</div>
@@ -145,12 +149,18 @@
           <h2 class="mb-4 text-xl font-semibold capitalize">{{ txnType }} Funds</h2>
 
           <p class="mb-4 text-sm text-gray-400">
-            Current {{ form.currency }} Balance:
+            {{ txnType === 'withdrawal' ? 'Available to Withdraw:' : 'Current Balance:' }}
             <span class="font-bold text-white">
-              {{ form.currency === 'NGN' ? '₦' + Number(balances.balance_ngn).toLocaleString() : '$' +
-                Number(balances.balance_usd).toLocaleString() }}
+              {{ form.currency === 'NGN' ? '₦' + Number(balances.cleared_balance_ngn).toLocaleString() : '$' +
+                Number(balances.cleared_balance_usd).toLocaleString() }}
             </span>
           </p>
+
+          <div
+            v-if="txnType === 'withdrawal' && (form.currency === 'NGN' ? balances.uncleared_balance_ngn : balances.uncleared_balance_usd) > 0"
+            class="p-2 mb-4 text-[10px] bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-500">
+            You have pending settlements. These funds will be available for withdrawal in 2 business days.
+          </div>
 
           <form @submit.prevent="submitTransaction">
             <div class="space-y-4">
@@ -209,8 +219,8 @@
           <p class="mb-4 text-sm text-gray-400">
             Available to convert:
             <span class="font-bold text-white">
-              {{ from === 'NGN' ? '₦' + Number(balances.balance_ngn).toLocaleString() : '$' +
-                Number(balances.balance_usd).toLocaleString() }}
+              {{ from === 'NGN' ? '₦' + Number(balances.cleared_balance_ngn).toLocaleString() : '$' +
+                Number(balances.cleared_balance_usd).toLocaleString() }}
             </span>
           </p>
 
@@ -321,10 +331,10 @@ const apexchart = VueApexCharts;
 
 // --- State ---
 const isDemo = ref(false);
-const balances = ref({ 
-  balance_ngn: 0, balance_usd: 0, 
+const balances = ref({
+  balance_ngn: 0, balance_usd: 0,
   cleared_balance_ngn: 0, uncleared_balance_ngn: 0, locked_balance_ngn: 0,
-  cleared_balance_usd: 0, uncleared_balance_usd: 0, locked_balance_usd: 0 
+  cleared_balance_usd: 0, uncleared_balance_usd: 0, locked_balance_usd: 0
 });
 const transactions = ref([]);
 const message = ref("");
@@ -384,7 +394,7 @@ const triggerNotification = (success, title, msg) => {
 const handleModeSwitching = (e) => {
   isDemo.value = e.detail === 'demo';
   loading.value = true;
-  actionType.value = ""; 
+  actionType.value = "";
 };
 
 // --- API Methods ---
@@ -592,19 +602,35 @@ const combinedOptions = {
 };
 
 // Check for payment result parameters on page load
-const checkPaymentResult = () => {
+const checkPaymentResult = async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const paymentSuccess = urlParams.get('payment_success');
   const paymentError = urlParams.get('payment_error');
+  const reference = urlParams.get('reference');
 
-  if (paymentSuccess) {
-    const amount = parseFloat(paymentSuccess);
-    paymentResult.value = { success: true, message: 'Payment completed successfully!', amount: amount };
-    showPaymentModal.value = true;
+  if (paymentSuccess && reference) {
+    loading.value = true;
+    
+    try {
+      
+      await api.get(`/paystack/verify/${reference}`);
+      
+      const amount = parseFloat(paymentSuccess);
+      paymentResult.value = { success: true, message: 'Payment verified and wallet credited!', amount: amount };
+      showPaymentModal.value = true;
 
-    const newUrl = window.location.pathname;
-    window.history.replaceState({}, document.title, newUrl);
-    refreshWithRetry();
+      // 3. Clean the URL and refresh actual balances
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      await refreshData();
+    } catch (e) {
+      paymentResult.value = { success: false, message: 'Payment succeeded, but verification failed. Contact support.', amount: 0 };
+      showPaymentModal.value = true;
+    } finally {
+      loading.value = false;
+    }
+    
   } else if (paymentError) {
     let errorMessage = 'Payment failed. Please try again.';
     switch (paymentError) {
@@ -614,9 +640,7 @@ const checkPaymentResult = () => {
     }
     paymentResult.value = { success: false, message: errorMessage, amount: 0 };
     showPaymentModal.value = true;
-
-    const newUrl = window.location.pathname;
-    window.history.replaceState({}, document.title, newUrl);
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 };
 
@@ -648,7 +672,7 @@ onMounted(() => {
   refreshData();
   checkPaymentResult();
 
-   // Listen for the toggle switch and quietly fetch new data
+  // Listen for the toggle switch and quietly fetch new data
   window.addEventListener('trading-mode-switching', handleModeSwitching);
   // Listen for the actual fetch event
   window.addEventListener('trading-mode-changed', refreshData);

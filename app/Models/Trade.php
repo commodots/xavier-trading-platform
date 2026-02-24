@@ -1,8 +1,14 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
 
-class Trade extends Model {
-    protected $fillable = ['order_id','counterparty_order_id','price','quantity','fee','settlement_status','settlement_date','reference'];
-    public function order(){ return $this->belongsTo(Order::class); }
+class Trade extends Model
+{
+    protected $fillable = ['order_id', 'counterparty_order_id', 'price', 'quantity', 'fee', 'settlement_status', 'settlement_date', 'reference'];
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 }

@@ -41,6 +41,8 @@
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">TRADING</div>
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
+            <SidebarLink to="/advisory" :icon="Gem">Advisory <span class="italic text-gray-600">(Premium)</span></SidebarLink>
+            
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">ACCOUNT</div>
             <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
@@ -59,6 +61,8 @@
               Notifications</SidebarLink>
 
             <SidebarLink v-if="isAdmin" to="/admin/fx-dashboard" :icon="DollarSign">FX Dashboard</SidebarLink>
+
+            <SidebarLink v-if="isAdmin" to="/admin/advisory-dashboard" :icon="Newspaper">Advisory Content</SidebarLink>
 
             <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations
@@ -126,7 +130,7 @@ import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

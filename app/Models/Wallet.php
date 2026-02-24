@@ -33,44 +33,51 @@ class Wallet extends Model
         return $this->belongsTo(User::class);
     }
 
+    
     public function transactions()
     {
         return $this->hasMany(WalletTransaction::class);
     }
 
-    public function debit(float $amount, string $balanceType = 'balance'): self
+    public function getClearedBalance(): float
     {
-        if ($balanceType === 'uncleared') {
-            $col = $this->getUnclearedColumn();
-            $this->{$col} = ($this->{$col} ?? 0) - $amount;
-        } elseif ($balanceType === 'cleared') {
-            $col = $this->getClearedColumn();
-            $this->{$col} = ($this->{$col} ?? 0) - $amount;
-        } elseif ($balanceType === 'locked') {
-            $this->locked -= $amount;
+        return $this->currency === 'NGN' ? (float) $this->ngn_cleared : (float) $this->usd_cleared;
+    }
+
+    public function debit(float $amount, string $balanceType = 'cleared'): self
+    {
+        
+        if ($this->currency === 'NGN') {
+            if ($balanceType === 'cleared') $this->ngn_cleared = (float)$this->ngn_cleared - $amount;
+            if ($balanceType === 'uncleared') $this->ngn_uncleared = (float)$this->ngn_uncleared - $amount;
         } else {
-            $this->balance -= $amount;
+            if ($balanceType === 'cleared') $this->usd_cleared = (float)$this->usd_cleared - $amount;
+            if ($balanceType === 'uncleared') $this->usd_uncleared = (float)$this->usd_uncleared - $amount;
         }
 
+        if ($balanceType === 'locked') $this->locked = (float)$this->locked - $amount;
+
+        $this->balance = (float)$this->balance - $amount;
         $this->save();
+
         return $this;
     }
 
-    public function credit(float $amount, string $balanceType = 'balance'): self
+    public function credit(float $amount, string $balanceType = 'cleared'): self
     {
-        if ($balanceType === 'uncleared') {
-            $col = $this->getUnclearedColumn();
-            $this->{$col} = ($this->{$col} ?? 0) + $amount;
-        } elseif ($balanceType === 'cleared') {
-            $col = $this->getClearedColumn();
-            $this->{$col} = ($this->{$col} ?? 0) + $amount;
-        } elseif ($balanceType === 'locked') {
-            $this->locked += $amount;
+        if ($this->currency === 'NGN') {
+            if ($balanceType === 'cleared') $this->ngn_cleared = (float)$this->ngn_cleared + $amount;
+            if ($balanceType === 'uncleared') $this->ngn_uncleared = (float)$this->ngn_uncleared + $amount;
         } else {
-            $this->balance += $amount;
+            if ($balanceType === 'cleared') $this->usd_cleared = (float)$this->usd_cleared + $amount;
+            if ($balanceType === 'uncleared') $this->usd_uncleared = (float)$this->usd_uncleared + $amount;
         }
 
+        if ($balanceType === 'locked') $this->locked = (float)$this->locked + $amount;
+
+        $this->balance = (float)$this->balance + $amount;
         $this->save();
+
         return $this;
     }
 
@@ -80,19 +87,15 @@ class Wallet extends Model
     public function reserve(float $amount): self
     {
         $clearedCol = $this->getClearedColumn();
-
-        if (($this->{$clearedCol} ?? 0) < $amount) {
-            throw new \Exception("Insufficient {$this->currency} cleared balance to reserve {$amount}");
+        if ((float) $this->{$clearedCol} < $amount) {
+            throw new \Exception("Insufficient cleared funds.");
         }
 
-        // Deduct from specific currency cleared column, add to locked
-        $this->{$clearedCol} -= $amount;
-        $this->locked += $amount;
-        $this->save();
+        $this->decrement($clearedCol, $amount);
+        $this->increment('locked', $amount);
 
-        return $this;
+        return $this->fresh();
     }
-
     public function finalizeReservation(float $filledAmount): self
     {
         $this->locked -= $filledAmount;
@@ -125,7 +128,6 @@ class Wallet extends Model
     {
         return $this->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
     }
-
     protected function getUnclearedColumn(): string
     {
         return $this->currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
@@ -135,7 +137,7 @@ class Wallet extends Model
     {
         static::creating(function ($wallet) {
             if (empty($wallet->account_number)) {
-                $wallet->account_number = 'XAV'.str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
+                $wallet->account_number = 'XAV' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
             }
         });
     }

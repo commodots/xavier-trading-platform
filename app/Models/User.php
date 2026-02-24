@@ -46,6 +46,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'dob' => 'date',
     ];
 
+    protected $appends = ['has_active_subscription'];
+
     //  Relationship: One User has one Wallet
     public function wallet()
     {
@@ -90,15 +92,15 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function google2faSecret(): Attribute
     {
         return new Attribute(
-            get: fn ($value) => $value ? Crypt::decryptString($value) : null,
-            set: fn ($value) => Crypt::encryptString($value),
+            get: fn($value) => $value ? Crypt::decryptString($value) : null,
+            set: fn($value) => Crypt::encryptString($value),
         );
     }
 
     protected function profileImage(): Attribute
     {
         return new Attribute(
-            get: fn ($value) => $value ? asset('storage/'.$value) : asset('images/user.png'),
+            get: fn($value) => $value ? asset('storage/' . $value) : asset('images/user.png'),
         );
     }
 
@@ -133,14 +135,14 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get FX wallet for a currency
      */
-   
-public function fxWallet(string $currency)
-{
-    return $this->wallet()->firstOrCreate(
-        ['currency' => $currency],
-        ['ngn_cleared' => 0, 'ngn_uncleared' => 0, 'usd_cleared' => 0, 'usd_uncleared' => 0]
-    );
-}
+
+    public function fxWallet(string $currency)
+    {
+        return $this->wallet()->firstOrCreate(
+            ['currency' => $currency],
+            ['ngn_cleared' => 0, 'ngn_uncleared' => 0, 'usd_cleared' => 0, 'usd_uncleared' => 0]
+        );
+    }
 
     /**
      * Check if the user's email has been verified.
@@ -162,5 +164,24 @@ public function fxWallet(string $currency)
         $this->forceFill(['email_verified_at' => $this->freshTimestamp()])->save();
 
         return true;
+    }
+
+    /**
+     * Subscription service
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    // Helper method to check active status easily
+    public function hasActiveSubscription()
+    {
+        return $this->subscriptions()->where('expires_at', '>', now())->exists();
+    }
+
+    public function getHasActiveSubscriptionAttribute()
+    {
+        return $this->hasActiveSubscription();
     }
 }
