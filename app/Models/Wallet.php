@@ -99,6 +99,7 @@ class Wallet extends Model
     public function finalizeReservation(float $filledAmount): self
     {
         $this->locked -= $filledAmount;
+        $this->balance -= $filledAmount;
         $this->save();
 
         return $this;

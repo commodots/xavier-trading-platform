@@ -7,89 +7,101 @@ use App\Services\Demo\DemoWalletService;
 use App\Services\Demo\DemoTradingService;
 use Illuminate\Http\Request;
 use App\Models\DemoOrder;
+use Illuminate\Support\Facades\DB;
 
 class DemoController extends Controller
 {
-  protected $walletService;
-  protected $tradingService;
+    protected $walletService;
+    protected $tradingService;
 
-  public function __construct(
-    DemoWalletService $walletService,
-    DemoTradingService $tradingService
-  ) {
-    $this->walletService = $walletService;
-    $this->tradingService = $tradingService;
-  }
+    public function __construct(
+        DemoWalletService $walletService,
+        DemoTradingService $tradingService
+    ) {
+        $this->walletService = $walletService;
+        $this->tradingService = $tradingService;
+    }
 
-  public function switchMode(Request $request)
-  {
-    $request->validate(['mode' => 'required|in:live,demo']);
-    $user = $request->user();
-    $user->trading_mode = $request->mode;
-    $user->save();
+    public function switchMode(Request $request)
+    {
+        $request->validate(['mode' => 'required|in:live,demo']);
+        $user = $request->user();
+        $user->trading_mode = $request->mode;
+        $user->save();
 
-    return response()->json([
-      'message' => 'Trading mode switched successfully',
-      'mode' => $user->trading_mode
-    ]);
-  }
+        return response()->json([
+            'message' => 'Trading mode switched successfully',
+            'mode' => $user->trading_mode
+        ]);
+    }
 
-  /** Start or fund demo wallet with a trial amount */
-  public function startDemo(Request $request)
-  {
-    $request->validate(['amount' => 'required|numeric|min:1000']);
-    return response()->json($this->walletService->fund($request->user()->id, $request->amount));
-  }
+    public function startDemo(Request $request)
+    {
+        $request->validate(['amount' => 'required|numeric|min:1000']);
+        return response()->json($this->walletService->fund($request->user()->id, $request->amount));
+    }
 
-  /** Place a simulated trade in demo mode */
-  public function placeTrade(Request $request)
-  {
-    $request->validate([
-      'symbol' => 'required|string',
-      'market_type' => 'required|in:local,international,crypto,fixed_income',
-      'type' => 'required|in:buy,sell',
-      'amount' => 'required|numeric|min:0', 
-      'quantity' => 'required|numeric|min:0'
-    ]);
+    public function placeTrade(Request $request)
+    {
+        $request->validate([
+            'symbol' => 'required|string',
+            'market_type' => 'required|in:local,international,global,crypto,fixed_income',
+            'type' => 'required|in:buy,sell',
+            'amount' => 'required|numeric|min:0', 
+            'quantity' => 'required|numeric|min:0'
+        ]);
 
-    $order = $this->tradingService->executeTrade(
-      $request->user(),
-      $request->symbol,
-      $request->market_type,
-      $request->type,
-      $request->amount, 
-      $request->quantity 
-    );
+        return DB::transaction(function () use ($request) {
+            
+            // 1. Let the service handle the complex trading logic
+            $order = $this->tradingService->executeTrade(
+                $request->user(),
+                $request->symbol,
+                $request->market_type,
+                $request->type,
+                $request->amount, 
+                $request->quantity 
+            );
 
-    return response()->json($order);
-  }
+            // 2. Safety Refund check! If it failed, give the money back immediately.
+            if (in_array($order->status, ['failed', 'canceled', 'cancelled']) && $request->type === 'buy') {
+                $wallet = DB::table('demo_wallets')->where('user_id', $request->user()->id)->first();
+                if ($wallet) {
+                    DB::table('demo_wallets')
+                        ->where('user_id', $request->user()->id)
+                        ->increment('balance', $request->amount);
+                }
+            }
 
-  /** Fetch user portfolio in demo mode */
-  public function portfolio(Request $request)
-  {
-    $portfolioData = $this->tradingService->getPortfolio($request->user()->id);
+            return response()->json($order);
+        });
+    }
 
-    return response()->json([
-      'success' => true,
-      'data' => $portfolioData
-    ]);
-  }
+    public function portfolio(Request $request)
+    {
+        // 🌟 Reverted to the clean 1-liner! 
+        // The newly updated DemoTradingService now formats this perfectly for Vue.
+        $portfolioData = $this->tradingService->getPortfolio($request->user()->id);
 
-  /** Reset demo account (wallet + orders) */
-  public function resetDemo(Request $request)
-  {
-    $this->walletService->reset($request->user()->id);
-    return response()->json(['message' => 'Demo reset successful']);
-  }
+        return response()->json([
+            'success' => true,
+            'data' => $portfolioData
+        ]);
+    }
 
-  /** Fetch user transactions/orders in demo mode */
-  public function transactions(Request $request)
-  {
-    $demoOrders = DemoOrder::where('user_id', $request->user()->id)
-      ->orderBy('created_at', 'desc')
-      ->limit(10)
-      ->get();
+    public function resetDemo(Request $request)
+    {
+        $this->walletService->reset($request->user()->id);
+        return response()->json(['message' => 'Demo reset successful']);
+    }
 
-    return response()->json(['success' => true, 'data' => $demoOrders]);
-  }
+    public function transactions(Request $request)
+    {
+        $demoOrders = DemoOrder::where('user_id', $request->user()->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $demoOrders]);
+    }
 }

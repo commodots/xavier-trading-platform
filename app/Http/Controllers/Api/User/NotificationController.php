@@ -9,6 +9,29 @@ use App\Models\NotificationPreference;
 
 class NotificationController extends Controller
 {
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        
+        return response()->json([
+            'success' => true,
+            'unread_count' => $user->unreadNotifications->count(),
+            'notifications' => $user->notifications()->limit(20)->get() // Gets both read and unread
+        ]);
+    }
+    public function markAsRead($id, Request $request)
+    {
+        $notification = $request->user()->notifications()->where('id', $id)->first();
+        if ($notification) {
+            $notification->markAsRead();
+        }
+        return response()->json(['success' => true]);
+    }
+    public function markAllAsRead(Request $request)
+    {
+        $request->user()->unreadNotifications->markAsRead();
+        return response()->json(['success' => true]);
+    }
     /**
      * Get user notification settings
      */

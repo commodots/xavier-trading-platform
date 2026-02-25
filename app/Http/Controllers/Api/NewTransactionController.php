@@ -69,8 +69,12 @@ class NewTransactionController extends Controller
         // 3. Update the Wallet balance
         $wallet = Wallet::firstOrCreate(
             ['user_id' => $user->id, 'currency' => $currency],
-            ['balance' => 0]
+            ['balance' => 0, 'ngn_cleared' => 0, 'usd_cleared' => 0, 'locked' => 0]
         );
+
+        $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+        
+        $wallet->increment($clearedCol, $netAmount);
         $wallet->increment('balance', $netAmount);
 
         Log::info('Wallet balance incremented by ' . $netAmount . ' for user ' . $user->id);
@@ -152,8 +156,11 @@ class NewTransactionController extends Controller
                     ->lockForUpdate()
                     ->first();
 
-                if (!$wallet || $wallet->balance < $totalDeduction) {
-                    throw new \Exception("Insufficient {$request->currency} balance");
+                $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+                $available = $wallet ? $wallet->{$clearedCol} : 0;
+
+                if (!$wallet || $available < $totalDeduction) {
+                    throw new \Exception("Insufficient cleared {$request->currency} balance");
                 }
 
                 $txn = NewTransaction::create([
@@ -171,6 +178,7 @@ class NewTransactionController extends Controller
                     ]
                 ]);
 
+                $wallet->decrement($clearedCol, $totalDeduction);
                 $wallet->decrement('balance', $totalDeduction);
 
                 // Log the activity

@@ -8,19 +8,19 @@
             📑 My Orders
           </h1>
           <p class="text-sm text-gray-400">
-            {{ isDemo ? 'View and manage your simulated paper trades.' : 'View and manage all your investment orders.' }}
+            {{ isDemo ? 'View and manage your simulated paper trades.' : 'View and manage all your investment orders.'
+            }}
           </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <button @click="showTradeModal = true"
-            :class="[
-              'flex items-center gap-2 px-4 py-2 text-sm font-bold text-white transition-all rounded-lg shadow-lg',
-              isDemo ? 'bg-gradient-to-r from-yellow-600 to-orange-500 hover:opacity-90' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-            ]">
+          <button @click="showTradeModal = true" :class="[
+            'flex items-center gap-2 px-4 py-2 text-sm font-bold text-white transition-all rounded-lg shadow-lg',
+            isDemo ? 'bg-gradient-to-r from-yellow-600 to-orange-500 hover:opacity-90' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
+          ]">
             <span class="text-lg">+</span> {{ isDemo ? 'New Demo Trade' : 'New Trade' }}
           </button>
-          
+
           <div class="relative">
             <select v-model="filterMarket"
               class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500">
@@ -61,7 +61,8 @@
         </div>
 
         <div v-if="loading" class="flex items-center justify-center py-12">
-          <div class="w-8 h-8 border-b-2 border-blue-600 rounded-full animate-spin" :class="isDemo ? 'border-yellow-500' : 'border-blue-600'"></div>
+          <div class="w-8 h-8 border-b-2 border-blue-600 rounded-full animate-spin"
+            :class="isDemo ? 'border-yellow-500' : 'border-blue-600'"></div>
           <span class="ml-2 text-gray-400">Loading orders...</span>
         </div>
 
@@ -96,7 +97,7 @@
                 <td class="px-2 text-gray-300">{{ formatUnits(o.units, o.market) }}</td>
                 <td class="px-2 font-medium text-white">
                   {{ o.currency === 'USD' ? '$' : '₦' }}{{ Number(o.amount).toLocaleString(undefined,
-                    {minimumFractionDigits: 2}) }}
+                    { minimumFractionDigits: 2 }) }}
                 </td>
 
                 <td class="px-2">
@@ -158,14 +159,16 @@
       </div>
     </div>
 
-    <div v-if="showNotificationModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div v-if="showNotificationModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-sm relative border border-[#2A314A] text-center">
         <div class="mb-4 text-5xl">{{ notificationData.success ? '✅' : '❌' }}</div>
         <h2 class="mb-2 text-xl font-bold" :class="notificationData.success ? 'text-green-400' : 'text-red-400'">
           {{ notificationData.title }}
         </h2>
         <p class="mb-6 text-gray-400">{{ notificationData.message }}</p>
-        <button @click="showNotificationModal = false" class="w-full py-3 font-semibold text-white transition bg-gray-700 rounded-lg hover:bg-gray-600">
+        <button @click="showNotificationModal = false"
+          class="w-full py-3 font-semibold text-white transition bg-gray-700 rounded-lg hover:bg-gray-600">
           Close
         </button>
       </div>
@@ -219,7 +222,7 @@ const tickersData = ref({
     { symbol: 'MTNN', name: 'MTN Nigeria', price: 280, currency: 'NGN' }
   ],
   FIXED_INCOME: [
-    {symbol: 'FGNSB_2027', name:'FGN Savings Bond 2027', price: 1000.00, currency: 'NGN'},
+    { symbol: 'FGNSB_2027', name: 'FGN Savings Bond 2027', price: 1000.00, currency: 'NGN' },
     { symbol: 'CP_MTN_I', name: 'MTN Commercial Paper', price: 1000, currency: 'NGN' }
   ]
 });
@@ -229,8 +232,10 @@ const triggerNotification = (success, title, msg) => {
   showNotificationModal.value = true;
 };
 
-const handleTradeSuccess = () => {
+const handleTradeSuccess = async () => {
   showTradeModal.value = false;
+  
+  await new Promise(resolve => setTimeout(resolve, 800));
   loadOrders();
 };
 
@@ -242,17 +247,17 @@ async function loadOrders() {
     isDemo.value = userObj?.trading_mode === 'demo';
 
     const token = localStorage.getItem("xavier_token");
-    
-    
+
+
     const endpoint = isDemo.value ? "/demo/transactions" : "/orders";
-    
+
     const res = await api.get(endpoint, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    
+
     const rawOrders = res.data.data?.data || res.data.data || res.data || [];
-    
-    
+
+
     orders.value = rawOrders.map(o => {
       const marketRaw = (o.market || o.market_type || '').toUpperCase();
       // Map 'local' to 'NGX', 'international' to 'GLOBAL' for demo orders
@@ -260,10 +265,12 @@ async function loadOrders() {
       if (marketRaw === 'LOCAL') marketMapped = 'NGX';
       if (marketRaw === 'INTERNATIONAL') marketMapped = 'GLOBAL';
 
+      const actualUnits = o.quantity || o.units  || o.filled_quantity || 0;
+      
       return {
         ...o,
         market: marketMapped,
-        units: o.units || o.quantity || 0,
+        units: Number(actualUnits),
         amount: o.amount || o.total || 0,
         currency: o.currency || 'NGN', // Demo stores total deduct in NGN
         status: o.status === 'closed' ? 'filled' : o.status // Normalize demo 'closed' to live 'filled'
@@ -319,10 +326,10 @@ function formatDate(dateStr) {
 
 function formatUnits(units, market) {
   const num = Number(units);
-  if (market === 'CRYPTO') {
-    return num.toFixed(8).replace(/\.?0+$/, '');
+  if (market === 'CRYPTO' || market === 'GLOBAL' || market === 'INTERNATIONAL') {
+    return num.toFixed(4).replace(/\.?0+$/, ''); // Allow decimals for US Stocks
   } else {
-    return Math.floor(num).toString(); 
+    return Math.floor(num).toString();
   }
 }
 

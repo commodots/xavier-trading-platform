@@ -47,34 +47,31 @@ class WalletController extends Controller
         ]);
         
         $user = Auth::user();
+        $currency = strtoupper($request->currency);
         
-        $wallet = \App\Models\Wallet::where('user_id', $user->id)
-            ->where('currency', $request->currency)
-            ->first();
-
-        $clearedBalance = $request->currency === 'NGN' ? $wallet->ngn_cleared : $wallet->usd_cleared;
-
-        if (!$wallet || $clearedBalance < $request->amount) {
-            return response()->json(['message' => 'Insufficient cleared funds'], 400);
-        }
-
-        return DB::transaction(function () use ($request, $user) {
+        return DB::transaction(function () use ($request, $user, $currency) {
             
-            $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $wallet = \App\Models\Wallet::where('user_id', $user->id)
+                ->where('currency', $currency)
+                ->lockForUpdate()
+                ->first();
 
-            DB::table('wallets')
-                ->where('user_id', $user->id)
-                ->where('currency', $request->currency)
-                ->update([
-                    $clearedCol => DB::raw("$clearedCol - " . $request->amount),
-                    'balance'   => DB::raw("balance - " . $request->amount)
-                ]);
+            $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $clearedBalance = $wallet ? ($currency === 'NGN' ? $wallet->ngn_cleared : $wallet->usd_cleared) : 0;
+
+            if (!$wallet || $clearedBalance < $request->amount) {
+                return response()->json(['message' => 'Insufficient cleared funds'], 400);
+            }
+
+            // Update using Eloquent to ensure the model is updated correctly
+            $wallet->decrement($clearedCol, $request->amount);
+            $wallet->decrement('balance', $request->amount);
 
             NewTransaction::create([
                 'user_id' => $user->id,
                 'type' => 'withdrawal',
                 'amount' => $request->amount,
-                'currency' => $request->currency,
+                'currency' => $currency,
                 'status' => 'completed',
                 'charge' => 0,
                 'net_amount' => $request->amount,
@@ -94,30 +91,29 @@ class WalletController extends Controller
         ]);
 
         $user = Auth::user();
+        $currency = strtoupper($request->currency);
 
-        return DB::transaction(function () use ($request, $user) {
+        return DB::transaction(function () use ($request, $user, $currency) {
             
-            $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
 
             
-            \App\Models\Wallet::firstOrCreate(
-                ['user_id' => $user->id, 'currency' => $request->currency],
+            $wallet = \App\Models\Wallet::firstOrCreate(
+                ['user_id' => $user->id, 'currency' => $currency],
                 ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0, 'usd_cleared' => 0, 'locked' => 0]
             );
 
-            DB::table('wallets')
-                ->where('user_id', $user->id)
-                ->where('currency', $request->currency)
-                ->update([
-                    $clearedCol => DB::raw("$clearedCol + " . $request->amount),
-                    'balance'   => DB::raw("balance + " . $request->amount)
-                ]);
+            // Lock for update
+            $wallet = \App\Models\Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+
+            $wallet->increment($clearedCol, $request->amount);
+            $wallet->increment('balance', $request->amount);
 
             NewTransaction::create([
                 'user_id' => $user->id,
                 'type' => 'deposit',
                 'amount' => $request->amount,
-                'currency' => $request->currency,
+                'currency' => $currency,
                 'status' => 'completed',
                 'charge' => 0,
                 'net_amount' => $request->amount,
@@ -140,19 +136,27 @@ class WalletController extends Controller
 
             $validated = $request->validate([
                 'amount' => 'required|numeric|min:0.01',
+                'from' => 'sometimes|in:NGN,USD'
             ]);
 
-            $ngnAmount = (float) $validated['amount'];
+            $fromCurrency = $validated['from'] ?? 'NGN';
+            $toCurrency = $fromCurrency === 'NGN' ? 'USD' : 'NGN';
+            $amount = (float) $validated['amount'];
 
-            return DB::transaction(function () use ($user, $ngnAmount) {
-                $walletNgn = \App\Models\Wallet::where('user_id', $user->id)->where('currency', 'NGN')->first();
+            return DB::transaction(function () use ($user, $amount, $fromCurrency, $toCurrency) {
+                $sourceWallet = \App\Models\Wallet::where('user_id', $user->id)
+                    ->where('currency', $fromCurrency)
+                    ->lockForUpdate()
+                    ->first();
 
-                if (!$walletNgn || ($walletNgn->ngn_cleared ?? 0) < $ngnAmount) {
-                    return response()->json(['error' => 'Insufficient cleared NGN balance'], 400);
+                $clearedCol = $fromCurrency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+                
+                if (!$sourceWallet || ($sourceWallet->{$clearedCol} ?? 0) < $amount) {
+                    return response()->json(['error' => "Insufficient cleared $fromCurrency balance"], 400);
                 }
 
-                $rate = FxRate::where('from_currency', 'NGN')
-                    ->where('to_currency', 'USD')
+                $rate = FxRate::where('from_currency', $fromCurrency)
+                    ->where('to_currency', $toCurrency)
                     ->latest()
                     ->first();
 
@@ -160,41 +164,39 @@ class WalletController extends Controller
                     return response()->json(['error' => 'FX rate not configured'], 400);
                 }
 
-                $usdAmount = $ngnAmount / $rate->effective_rate;
+                // If NGN->USD, we divide by rate. If USD->NGN, we might multiply or divide depending on how rate is stored.
+                // Assuming rate is always "How much ToCurrency for 1 FromCurrency" (e.g. 1 NGN = 0.00065 USD)
+                $convertedAmount = $amount * $rate->effective_rate;
 
-                DB::table('wallets')
-                    ->where('user_id', $user->id)
-                    ->where('currency', 'NGN')
-                    ->update([
-                        'ngn_cleared' => DB::raw("ngn_cleared - " . $ngnAmount),
-                        'balance'     => DB::raw("balance - " . $ngnAmount)
-                    ]);
+                $sourceWallet->decrement($clearedCol, $amount);
+                $sourceWallet->decrement('balance', $amount);
 
-                \App\Models\Wallet::firstOrCreate(
-                    ['user_id' => $user->id, 'currency' => 'USD'],
+                $destWallet = \App\Models\Wallet::firstOrCreate(
+                    ['user_id' => $user->id, 'currency' => $toCurrency],
                     ['balance' => 0, 'status' => 'active', 'usd_cleared' => 0, 'usd_uncleared' => 0, 'locked' => 0]
                 );
 
-                DB::table('wallets')
-                    ->where('user_id', $user->id)
-                    ->where('currency', 'USD')
-                    ->update([
-                        'usd_uncleared' => DB::raw("usd_uncleared + " . $usdAmount),
-                        'balance'       => DB::raw("balance + " . $usdAmount)
-                    ]);
+                // Lock dest wallet
+                $destWallet = \App\Models\Wallet::where('id', $destWallet->id)->lockForUpdate()->first();
+
+                // Credits from conversion are usually uncleared initially? Or cleared? 
+                // Existing code used 'usd_uncleared'. Keeping consistency.
+                $destUnclearedCol = $toCurrency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
+                $destWallet->increment($destUnclearedCol, $convertedAmount);
+                $destWallet->increment('balance', $convertedAmount);
 
                 $txReference = 'FX-' . \Illuminate\Support\Str::uuid();
 
                 // Record conversion ledger entry
                 Ledger::create([
                     'user_id' => $user->id,
-                    'currency' => 'USD',
-                    'amount' => $usdAmount,
+                    'currency' => $toCurrency,
+                    'amount' => $convertedAmount,
                     'type' => 'FX_CONVERSION',
                     'status' => 'pending',
                     'reference' => $txReference,
                     'meta' => [
-                        'ngn_amount' => $ngnAmount,
+                        'source_amount' => $amount,
                         'locked_rate' => $rate->effective_rate,
                         'base_rate' => $rate->base_rate,
                     ],
@@ -222,28 +224,28 @@ class WalletController extends Controller
                 NewTransaction::create([
                     'user_id' => $user->id,
                     'type' => 'fx_conversion',
-                    'amount' => $ngnAmount,
-                    'currency' => 'NGN',
+                    'amount' => $amount,
+                    'currency' => $fromCurrency,
                     'status' => 'pending',
                     'meta' => [
                         'reference' => $txReference,
-                        'to_currency' => 'USD',
-                        'received_amount' => $usdAmount,
+                        'to_currency' => $toCurrency,
+                        'received_amount' => $convertedAmount,
                         'exchange_rate' => $rate->effective_rate,
-                        'note' => "Converted ₦" . number_format($ngnAmount, 2) . " to $" . number_format($usdAmount, 2)
+                        'note' => "Converted $fromCurrency " . number_format($amount, 2) . " to $toCurrency " . number_format($convertedAmount, 2)
                     ]
                 ]);
 
                 ActivityLog::log($user->id, 'fx_conversion_initiated', [
-                    'ngn_amount' => $ngnAmount,
-                    'usd_amount' => $usdAmount,
+                    'from_amount' => $amount,
+                    'to_amount' => $convertedAmount,
                     'rate' => $rate->effective_rate,
                 ]);
 
                 return response()->json([
                     'success' => true,
-                    'amount_usd' => $usdAmount,
-                    'ngn_debited' => $ngnAmount,
+                    'amount_received' => $convertedAmount,
+                    'amount_debited' => $amount,
                 ]);
             });
         } catch (\Exception $e) {

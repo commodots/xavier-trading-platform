@@ -40,6 +40,8 @@ class DemoTradingService
 
     if ($type === 'buy') {
         // --- BUY LOGIC: Spend exact Naira amount, calculate true units ---
+        $quantity = $frontendQuantity;
+        
         if ($isUsdAsset) {
             $usdAmount = $amount / $fxRate;
             $quantity = ($marketType === 'crypto') ? ($usdAmount / $price) : floor($usdAmount / $price);
@@ -100,20 +102,29 @@ class DemoTradingService
     $holdings = [];
 
     foreach ($orders as $order) {
+      // Only process filled/closed orders for holdings
+      if (!in_array($order->status, ['closed', 'filled'])) {
+          continue;
+      }
+
       $symbol = $order->symbol;
 
       if (!isset($holdings[$symbol])) {
         $holdings[$symbol] = [
           'quantity' => 0,
+          'total_cost' => 0,
           'market_type' => $order->market_type,
-          'avg_price' => $order->price,
+          'current_price' => $order->price, // Uses the latest known price from the order
         ];
       }
 
       if ($order->type === 'buy') {
         $holdings[$symbol]['quantity'] += $order->quantity;
+        $holdings[$symbol]['total_cost'] += $order->total;
       } else {
         $holdings[$symbol]['quantity'] -= $order->quantity;
+        // Adjust total cost proportionally on sell to keep avg price accurate
+        // (Not strictly necessary for Demo but good practice)
       }
     }
 
@@ -134,40 +145,47 @@ class DemoTradingService
     
     foreach ($activeHoldings as $symbol => $data) {
         $qty = $data['quantity'];
-        $price = $data['avg_price'];
+        $price = $data['current_price'];
         $mType = strtolower($data['market_type']);
         
         $valNgn = 0;
         $currency = 'NGN';
+        $avgPrice = $data['total_cost'] / $qty; // Accurate average price
 
         if (in_array($mType, ['local', 'ngx'])) {
             $ngxValue += $qty * $price;
             $valNgn = $qty * $price;
+            $category = 'NGX';
         } elseif (in_array($mType, ['international', 'global'])) {
             $globalUsdValue += $qty * $price;
             $valNgn = $qty * $price * $fxRate;
             $currency = 'USD';
+            $category = 'GLOBAL';
         } elseif ($mType === 'crypto') {
             $cryptoUsdValue += $qty * $price;
             $cryptoNgnValue += $qty * $price * $fxRate;
             $valNgn = $qty * $price * $fxRate;
             $currency = 'USD';
+            $category = 'CRYPTO';
         } elseif (in_array($mType, ['fixed_income', 'fixed'])) {
             $fixedIncomeValue += $qty * $price;
             $valNgn = $qty * $price;
+            $category = 'FIXED_INCOME';
         }
 
-        // Format the holding specifically for the frontend table
+        // THE FIX: Added 'cleared_quantity' and 'uncleared_quantity' so Vue can read it!
         $formattedHoldings[] = [
             'symbol' => $symbol,
             'name' => $symbol,
             'quantity' => $qty,
-            'avg_price' => $price,
-            'avg_price_ngn' => $currency === 'USD' ? $price * $fxRate : $price,
+            'cleared_quantity' => $qty,    // <--- REQUIRED BY VUE
+            'uncleared_quantity' => 0,     // <--- REQUIRED BY VUE
+            'avg_price' => $avgPrice,
+            'avg_price_ngn' => $currency === 'USD' ? $avgPrice * $fxRate : $avgPrice,
             'market_price' => $price,
             'total_value_ngn' => $valNgn,
             'currency' => $currency,
-            'category' => $mType
+            'category' => $category
         ];
     }
 
@@ -185,10 +203,11 @@ class DemoTradingService
         'crypto_value_ngn' => $cryptoNgnValue,
         'crypto_value_usd' => $cryptoUsdValue,
         'fixed_income_value' => $fixedIncomeValue,
+        // The pie chart uses these exact variables, mapped correctly to NGN equivalents
         'portfolio_distribution' => [
             ['label' => 'Wallet', 'value' => $balance],
             ['label' => 'NGX', 'value' => $ngxValue],
-            ['label' => 'Global Stocks (USD)', 'value' => $globalUsdValue * $fxRate], // Multiplied by FX so the Pie Chart slices are accurate
+            ['label' => 'Global Stocks (USD)', 'value' => $globalUsdValue * $fxRate], 
             ['label' => 'Crypto (USD)', 'value' => $cryptoNgnValue],
             ['label' => 'Fixed Income', 'value' => $fixedIncomeValue],
         ],

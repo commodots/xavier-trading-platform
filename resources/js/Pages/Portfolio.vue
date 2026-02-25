@@ -147,6 +147,8 @@ const handleModeSwitching = (e) => {
 const refreshPortfolio = async () => {
   loading.value = true;
   try {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
     const userStr = localStorage.getItem("user");
     const userObj = userStr ? JSON.parse(userStr) : null;
     isDemo.value = userObj?.trading_mode === 'demo';
@@ -177,9 +179,8 @@ const refreshPortfolio = async () => {
 
 function formatQuantity(quantity, category) {
   const num = Number(quantity);
-  
-  if (category?.toLowerCase() === 'crypto') {
-    return num.toFixed(8).replace(/\.?0+$/, ''); // Remove trailing zeros
+  if (category?.toLowerCase() === 'crypto' || category?.toLowerCase() === 'global') {
+    return num.toFixed(4).replace(/\.?0+$/, ''); 
   } else {
     return Math.floor(num).toString();
   }

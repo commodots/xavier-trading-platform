@@ -252,8 +252,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/linked-accounts/index', [LinkedAccountController::class, 'index']);
         Route::post('/linked-accounts/store', [LinkedAccountController::class, 'store']);
 
+        /*Notifications */
         Route::get('/notifications/show', [NotificationController::class, 'show']);
         Route::put('/notifications/update', [NotificationController::class, 'update']);
+        
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
         // === ADVISORY & SUBSCRIPTION MODULE ===
         // 

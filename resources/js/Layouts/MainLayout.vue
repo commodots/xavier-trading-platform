@@ -41,7 +41,7 @@
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">TRADING</div>
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
-            <SidebarLink to="/advisory" :icon="Gem">Advisory <span class="italic text-gray-600">(Premium)</span></SidebarLink>
+            <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
             
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">ACCOUNT</div>
@@ -115,7 +115,7 @@
           <DemoToggle :initialMode="user?.trading_mode || 'live'" />
         </div>
       </div>
-      <div class="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
+      <div class="flex-1 p-4 pb-20 overflow-y-auto md:p-6">
         <slot />
       </div>
 

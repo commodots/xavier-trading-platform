@@ -527,7 +527,7 @@ const submitTransaction = async () => {
 
   if (txnType.value === 'deposit') {
     try {
-      const response = await api.post('/paystack/initiate', { amount: form.value.amount });
+      const response = await api.post('/paystack/initiate', { amount: form.value.amount, currency: form.value.currency });
       if (response.data.success) {
         window.location.href = response.data.data.authorization_url;
         return;
