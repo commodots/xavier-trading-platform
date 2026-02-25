@@ -101,7 +101,7 @@
       <div v-if="user.has_active_subscription && !isInitialLoading" class="space-y-8 animate-fade-in">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
           
-          <div class="space-y-6 md:col-span-2">
+          <div :class="['transition-all duration-300 space-y-6', activeTab === 'vip' ? 'md:col-span-2' : 'md:col-span-3']">
             <div class="flex gap-8 border-b border-[#1f3348]">
               <button 
                 @click="activeTab = 'regular'" 
@@ -140,7 +140,7 @@
             </section>
           </div>
 
-          <div class="space-y-6 md:col-span-1">
+          <div v-if="activeTab === 'vip'" class="space-y-6 md:col-span-1 animate-fade-in">
             
             <section class="p-6 text-white bg-[#0F1724] border border-[#1f3348] shadow-md rounded-2xl">
               <div>

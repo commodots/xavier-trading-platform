@@ -101,8 +101,15 @@ const metrics = ref({
   totalVolume: 0, totalVolumeNgn: 0,
   currentRate: 0, currentMarkup: 0 
 });
+
 const chartOptions = ref({});
 const chartSeries = ref([]);
+
+// FX Rates form state
+const form = ref({ from_currency: 'NGN', to_currency: 'USD', base_rate: 0, markup_percent: 0 });
+const message = ref('');
+const messageType = ref('success');
+const loading = ref(false);
 
 const formatCurrency = (val) => {
   return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -113,6 +120,10 @@ const fetchMetrics = async () => {
     const res = await api.get('/admin/fx-dashboard');
     if (res.data && res.data.success) {
       metrics.value = res.data.data;
+      
+      // PREFILL THE FORM HERE
+      form.value.base_rate = metrics.value.currentRate || 0;
+      form.value.markup_percent = metrics.value.currentMarkup || 0;
       
       const daily = res.data.data.daily || { labels: [], data: [] };
       
@@ -130,7 +141,6 @@ const fetchMetrics = async () => {
         colors: ['#34D399'],
         xaxis: { 
           categories: daily.labels.map(l => {
-          
             const d = new Date(l);
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           }), 
@@ -154,12 +164,6 @@ const fetchMetrics = async () => {
 
 onMounted(fetchMetrics);
 
-// FX Rates form state
-const form = ref({ from_currency: 'NGN', to_currency: 'USD', base_rate: 0, markup_percent: 0 });
-const message = ref('');
-const messageType = ref('success');
-const loading = ref(false);
-
 async function submit() {
   loading.value = true;
   try {
@@ -167,8 +171,10 @@ async function submit() {
     if (res.data && res.data.success) {
       message.value = 'FX rate saved successfully';
       messageType.value = 'success';
-      form.value = { from_currency: 'NGN', to_currency: 'USD', base_rate: 0, markup_percent: 0 };
-      await fetchMetrics(); // Refresh data immediately
+      
+      // removed the manual reset to 0 here.
+      // fetchMetrics will automatically pull the fresh, newly saved values into the form.
+      await fetchMetrics(); 
     } else {
       message.value = 'Failed to save rate';
       messageType.value = 'error';
