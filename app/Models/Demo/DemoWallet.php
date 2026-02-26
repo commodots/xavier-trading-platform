@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Demo;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+
 
 class DemoWallet extends Model
 {
