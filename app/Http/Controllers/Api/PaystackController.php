@@ -88,6 +88,17 @@ class PaystackController extends Controller
     {
         Log::info('[Paystack:verify] Checking transaction', ['reference' => $reference]);
 
+        // Check if transaction already processed locally to avoid lag and double crediting
+        $existing = NewTransaction::where('meta->reference', $reference)->first();
+        if ($existing) {
+            Log::info('[Paystack:verify] Transaction already processed', ['reference' => $reference]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Wallet funded successfully!',
+                'balance' => Wallet::where('user_id', $existing->user_id)->where('currency', 'NGN')->value('balance')
+            ]);
+        }
+
         try {
             $result = $this->paystackService->verifyPayment($reference);
 
@@ -145,7 +156,11 @@ class PaystackController extends Controller
                     'status' => 'completed',
                     'charge' => $charge,
                     'net_amount' => $netAmount,
-                    'currency' => 'NGN'
+                    'currency' => 'NGN',
+                    'meta' => [
+                        'reference' => $reference,
+                        'gateway' => 'paystack'
+                    ]
                 ]);
 
                 Log::info('[Paystack:verify] Wallet credited', [
@@ -226,7 +241,7 @@ class PaystackController extends Controller
                 $this->processSuccessfulPayment($result, $reference);
 
                 // Redirect back to wallet with success info
-                return redirect('/wallet?payment_success=' . $result['amount'] . '&reference=' . $reference);
+                return redirect('/wallet?payment_success=' . ($result['amount'] / 100) . '&reference=' . $reference);
             } else {
                 // Payment failed or pending
                 Log::warning('[Paystack:redirect] Payment not successful', [
@@ -307,7 +322,7 @@ class PaystackController extends Controller
                 }
 
                 // Check if transaction already processed (by webhook or redirect)
-                $existingTransaction = NewTransaction::where('reference', $reference)->first();
+                $existingTransaction = NewTransaction::where('meta->reference', $reference)->first();
                 if ($existingTransaction) {
                     Log::info('[Paystack:webhook] Transaction already processed', [
                         'reference' => $reference,
@@ -344,7 +359,11 @@ class PaystackController extends Controller
                     'status' => 'completed',
                     'charge' => $charge,
                     'net_amount' => $netAmount,
-                    'currency' => 'NGN'
+                    'currency' => 'NGN',
+                    'meta' => [
+                        'reference' => $reference,
+                        'gateway' => 'paystack'
+                    ]
                 ]);
 
 

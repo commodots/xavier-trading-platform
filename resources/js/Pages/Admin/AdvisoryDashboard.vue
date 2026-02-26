@@ -357,7 +357,6 @@ onMounted(() => {
   fetchData();
 });
 
-// Using Promise.allSettled makes the page load dramatically faster by not waiting for slow endpoints to block fast ones
 const fetchData = async () => {
   isLoading.value = true;
   try {
@@ -370,7 +369,6 @@ const fetchData = async () => {
     if (results[0].status === 'fulfilled') plansList.value = results[0].value.data;
 
     if (results[1].status === 'fulfilled') {
-      // Add 'expanded: false' to each post for the 'See more' toggle UI
       postsList.value = results[1].value.data.map(post => ({ ...post, expanded: false }));
     }
 
@@ -454,6 +452,13 @@ const deleteItem = async (type, id) => {
 // --- SPECIFIC SUBMIT HANDLERS ---
 
 const submitPlan = async () => {
+  // Paystack Plan Code Validation
+  const codeRegex = /^PLN_[a-zA-Z0-9]+$/;
+  if (!codeRegex.test(planForm.value.paystack_plan_code)) {
+    showModalMessage('Invalid Plan Code', 'The Paystack Plan Code must start with "PLN_" followed by letters and numbers.', true);
+    return;
+  }
+
   isSubmittingPlan.value = true;
   try {
     if (isEditingPlan.value) {

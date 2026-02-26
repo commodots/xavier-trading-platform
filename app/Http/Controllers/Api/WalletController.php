@@ -186,6 +186,9 @@ class WalletController extends Controller
                 $destWallet->increment('balance', $convertedAmount);
 
                 $txReference = 'FX-' . \Illuminate\Support\Str::uuid();
+                
+                $ngnAmount = $fromCurrency === 'NGN' ? $amount : $convertedAmount;
+                $usdAmount = $fromCurrency === 'USD' ? $amount : $convertedAmount;
 
                 // Record conversion ledger entry
                 Ledger::create([
