@@ -3,23 +3,36 @@
 namespace App\Models\Demo;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Demo\DemoTrade;
 
 class DemoOrder extends Model
 {
-    protected $fillable = [
+   protected $fillable = [
         'user_id',
         'symbol',
-        'market_type',
+        'side',
         'type',
-        'quantity',
         'price',
-        'total',
-        'status'
+        'quantity',
+        'filled_quantity',
+        'status',
+        'source',
+        'market',
+        'currency',
+        'company',
+        'units',
+        'amount',
+        'market_price'
     ];
+    
 
     protected $casts = [
         'quantity' => 'integer',
         'price' => 'float',
-        'total' => 'float',
+        'amount' => 'float',
     ];
+
+    public function trades() {
+    return $this->hasMany(DemoTrade::class, 'order_id');
+}
 }

@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use App\Models\DemoOrder;
+use App\Models\Demo\DemoOrder;
 
 class DemoOrderRepository
 {

@@ -12,96 +12,93 @@ use App\Models\ActivityLog;
 use App\Models\TransactionType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Demo\DemoTransaction;
+use App\Models\Demo\DemoWallet;
 
 class NewTransactionController extends Controller
 {
-    public function index()
+    private function resolveModels($user)
     {
-        $transactions = NewTransaction::where('user_id', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc')
-            ->limit(8)
-            ->get();
+        $isDemo = $user->trading_mode === 'demo';
+        return (object) [
+            'isDemo' => $isDemo,
+            'wallet' => $isDemo ? new DemoWallet() : new Wallet(),
+            'transaction' => $isDemo ? new DemoTransaction() : new NewTransaction(),
+        ];
+    }
 
-        return response()->json($transactions);
+    public function index() {
+        $models = $this->resolveModels(auth()->user());
+        return response()->json(
+            $models->transaction->where('user_id', auth()->id())->latest()->limit(10)->get()
+        );
     }
 
     public function deposit(Request $request)
     {
-        $status = TransactionType::where('name', 'deposit')->first();
-        if ($status && !$status->active) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Deposits are temporarily disabled.'
-            ], 403);
-        }
-
         $request->validate([
             'amount' => 'required|numeric|min:1',
             'currency' => 'required|in:NGN,USD'
         ]);
 
         $user = auth()->user();
-        $currency = $request->currency;
+        $models = $this->resolveModels($user);
 
         Log::info('Deposit initiated for user ' . $user->id . ' with amount ' . $request->amount);
 
-        // 1. Create transaction record
-        $transaction = NewTransaction::create([
-            'user_id' => $user->id,
-            'type' => 'deposit',
-            'amount' => $request->amount,
-            'currency' => $request->currency,
-            'status' => 'completed',
-            'net_amount' => $request->amount
-        ]);
+        return DB::transaction(function () use ($user, $request, $models) {
+            $chargeConfig = TransactionCharge::where('transaction_type', 'deposit')->where('active', true)->first();
+            $charge = 0;
+            if ($chargeConfig) {
+                $charge = $chargeConfig->charge_type === 'percentage' 
+                    ? ($request->amount * $chargeConfig->value / 100)
+                    : $chargeConfig->value;
+            }
+            $netAmount = $request->amount - $charge;
 
-        Log::info('Transaction created with ID ' . $transaction->id);
+            if ($netAmount <= 0) {
+                return response()->json(['success' => false, 'message' => 'Deposit amount must be greater than the transaction charge.'], 422);
+            }
 
-        // 2. Calculate fee and update the record
-        $charge = TransactionCharge::calculate('deposit', $request->amount, $transaction);
-        $netAmount = $request->amount - $charge;
+            $transaction = $models->transaction->create([
+                'user_id' => $user->id,
+                'type' => 'deposit',
+                'amount' => $request->amount,
+                'currency' => $request->currency,
+                'status' => 'completed',
+                'net_amount' => $netAmount
+            ]);
 
-        $transaction->update(['net_amount' => $netAmount]);
+             Log::info('Transaction created with ID ' . $transaction->id);
+            $wallet = $models->wallet->firstOrCreate(
+                ['user_id' => $user->id, 'currency' => $request->currency]
+            );
 
-        Log::info('Transaction updated with net_amount ' . $netAmount);
+            $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $wallet->increment($clearedCol, $netAmount);
+            $wallet->increment('balance', $netAmount);
 
-        // 3. Update the Wallet balance
-        $wallet = Wallet::firstOrCreate(
-            ['user_id' => $user->id, 'currency' => $currency],
-            ['balance' => 0, 'ngn_cleared' => 0, 'usd_cleared' => 0, 'locked' => 0]
-        );
+            Log::info('Wallet balance incremented by ' . $netAmount . ' for user ' . $user->id);
 
-        $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
-        
-        $wallet->increment($clearedCol, $netAmount);
-        $wallet->increment('balance', $netAmount);
-
-        Log::info('Wallet balance incremented by ' . $netAmount . ' for user ' . $user->id);
-
-        try {
+            try {
             ActivityLog::create([
                 'user_id'    => $user->id,
                 'activity'   => 'Deposit',
-                'details'    => "Deposited {$request->amount} {$currency}. Net added to wallet: {$netAmount} after fees.",
+                'details'    => "Deposited {$request->amount} {$request->currency}. Net added to wallet: {$netAmount} after fees.",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
         } catch (\Throwable $e) {
         }
-
-        return response()->json([
-            'success' => true,
-            'details' => $transaction->fresh()
-        ]);
+            return response()->json([
+                'success' => true,
+                'details' => $transaction->fresh()
+            ]);
+        });
     }
 
     public function withdraw(Request $request)
     {
-        $status = TransactionType::where('name', 'withdrawal')->first();
-        if ($status && !$status->active) {
-            return response()->json(['success' => false, 'message' => 'Withdrawals are temporarily disabled.'], 403);
-        }
 
         $request->validate([
             'amount' => 'required|numeric|min:1',
@@ -111,47 +108,48 @@ class NewTransactionController extends Controller
 
         $user = auth()->user();
         $kyc = $user->kyc;
+        $models = $this->resolveModels($user);
 
-        // 1. Basic KYC Guard
-        if (!$kyc || $kyc->status !== 'verified' || $kyc->tier < 1) {
-            return response()->json(['success' => false, 'message' => 'Verified KYC is required for withdrawals.'], 403);
+        //KYC Guard (Only enforced for LIVE mode!)
+        if (!$models->isDemo) {
+            if (!$kyc || $kyc->status !== 'verified' || $kyc->tier < 1) {
+                return response()->json(['success' => false, 'message' => 'Verified KYC is required for live withdrawals.'], 403);
+            }
         }
 
-        // 2. Fetch global limit for this tier
-        $tierSettings = \App\Models\KycSetting::where('tier', $kyc->tier)->first();
+        $tierSettings = \App\Models\KycSetting::where('tier', $kyc->tier ?? 1)->first();
         $dailyLimit = $tierSettings ? $tierSettings->daily_limit : 0;
 
-        // 3. Calculate today's usage (summing amounts)
-        $todayWithdrawn = NewTransaction::where('user_id', $user->id)
+        $todayWithdrawn = $models->transaction->where('user_id', $user->id)
             ->where('type', 'withdrawal')
             ->whereIn('status', ['completed', 'pending'])
             ->whereDate('created_at', now())
             ->sum('amount');
 
-        if (($todayWithdrawn + $request->amount) > $dailyLimit) {
+        if (!$models->isDemo && ($todayWithdrawn + $request->amount) > $dailyLimit) {
             $remaining = max(0, $dailyLimit - $todayWithdrawn);
-            return response()->json([
-                'success' => false,
-                'message' => "Daily limit exceeded for " . ($tierSettings->tier_name ?? "Tier $kyc->tier") . ". Remaining: " . number_format($remaining, 2)
-            ], 403);
+            return response()->json(['success' => false, 'message' => "Daily limit exceeded. Remaining: " . number_format($remaining, 2)], 403);
         }
 
-        // 4. Ensure linked account belongs to user and currency rules
         $account = LinkedAccount::where('user_id', $user->id)->where('id', $request->linked_account_id)->firstOrFail();
 
-        // Banks must match the withdrawal currency; crypto wallets are universal
         if ($account->type === 'bank' && ($account->currency ?? '') !== $request->currency) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected bank account currency does not match withdrawal currency.'
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Selected bank account currency does not match withdrawal currency.'], 422);
         }
-        $chargeAmount = TransactionCharge::calculate('withdrawal', $request->amount, null);
+
+        $chargeConfig = TransactionCharge::where('transaction_type', 'withdrawal')->where('active', true)->first();
+        $chargeAmount = 0;
+        if ($chargeConfig) {
+            $chargeAmount = $chargeConfig->charge_type === 'percentage' 
+                ? ($request->amount * $chargeConfig->value / 100)
+                : $chargeConfig->value;
+        }
         $totalDeduction = $request->amount + $chargeAmount;
 
         try {
-            return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount) {
-                $wallet = Wallet::where('user_id', $user->id)
+            return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount, $models) {
+                
+                $wallet = $models->wallet->where('user_id', $user->id)
                     ->where('currency', $request->currency)
                     ->lockForUpdate()
                     ->first();
@@ -163,35 +161,34 @@ class NewTransactionController extends Controller
                     throw new \Exception("Insufficient cleared {$request->currency} balance");
                 }
 
-                $txn = NewTransaction::create([
+                $txn = $models->transaction->create([
                     'user_id' => $user->id,
                     'type' => 'withdrawal',
                     'amount' => $request->amount,
                     'currency' => $request->currency,
                     'charge' => $chargeAmount,
                     'net_amount' => $totalDeduction,
-                    'status' => 'pending',
+                    'status' => $models->isDemo ? 'completed' : 'pending', // Demo finishes instantly
                     'meta' => [
                         'bank' => $account->provider,
                         'acc_no' => $account->account_number,
-                        'acc_name' => $account->account_name
+                        'acc_name' => $account->account_name,
+                        'mode' => $user->trading_mode
                     ]
                 ]);
 
                 $wallet->decrement($clearedCol, $totalDeduction);
                 $wallet->decrement('balance', $totalDeduction);
 
-                // Log the activity
                 try {
                     ActivityLog::create([
                         'user_id'    => $user->id,
                         'activity'   => 'Withdrawal',
-                        'details'    => "Withdrew {$request->amount} {$request->currency} to {$account->provider}. Total deduction: {$totalDeduction}.",
+                        'details'    => "Withdrew {$request->amount} {$request->currency}. Total deduction: {$totalDeduction}.",
                         'ip_address' => request()->ip(),
                         'user_agent' => request()->userAgent(),
                     ]);
-                } catch (\Throwable $e) {
-                }
+                } catch (\Throwable $e) {}
 
                 return response()->json(['success' => true, 'details' => $txn->fresh()]);
             });

@@ -376,7 +376,8 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
                 2 => 'mid',
                 3 => 'full',
                 default => 'none'
-            }
+            },
+            'rejection_reason' => $request->status === 'rejected' ? $request->rejection_reason : null
         ]);
 
         $user = $kyc->user;
@@ -698,7 +699,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     }
     public function exportTransactions(Request $request)
     {
-        $query = Transaction::with('user');
+        $query = NewTransaction::with('user');
 
 
         if ($request->filled('type')) $query->where('type', $request->type);

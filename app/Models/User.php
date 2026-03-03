@@ -54,6 +54,14 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(\App\Models\Wallet::class);
     }
 
+    /**
+     * Get the demo wallets for the user.
+     */
+    public function demoWallet()
+    {
+        return $this->hasMany(\App\Models\Demo\DemoWallet::class);
+    }
+
     //  Relationship: One User has one KYC Record
     public function kyc()
     {

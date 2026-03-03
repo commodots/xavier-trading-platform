@@ -5,6 +5,8 @@ namespace App\Services\Demo;
 use App\Repositories\DemoWalletRepository;
 use App\Repositories\DemoOrderRepository;
 use App\Services\PriceService;
+use App\Models\Demo\DemoWallet;
+use Illuminate\Support\Facades\DB;
 
 class DemoTradingService
 {
@@ -22,196 +24,184 @@ class DemoTradingService
     $this->priceService = $priceService;
   }
 
-  public function executeTrade($user, $symbol, $marketType, $type, $amount, $frontendQuantity)
+  public function executeTrade($user, array $data)
   {
     if ($user->trading_mode !== 'demo') {
       throw new \Exception("Switch to demo mode first.");
     }
 
-    $wallet = $this->walletRepo->findByUser($user->id);
+    return DB::transaction(function () use ($user, $data) {
+      $symbol = $data['symbol'];
+      $market = $data['market'];
+      $type = $data['side'];
+      $amount = $data['amount'];
+      $price = $data['market_price'];
 
-    if (!$wallet) {
-      throw new \Exception("Demo wallet not funded. Please start your demo account first.");
-    }
+      $currency = ($market === "NGX" || $market === "local") ? "NGN" : "USD";
+      $wallet = $this->walletRepo->findByCurrency($user->id, $currency);
 
-    $price = $this->priceService->getCurrentPrice($symbol, $marketType);
-    $fxRate = 1500;
-    $isUsdAsset = in_array(strtolower($marketType), ['international', 'crypto', 'global']);
+      if (!$wallet) {
+        throw new \Exception("Demo {$currency} wallet not found.");
+      }
 
-    if ($type === 'buy') {
-        // --- BUY LOGIC: Spend exact Naira amount, calculate true units ---
-        $quantity = $frontendQuantity;
-        
-        if ($isUsdAsset) {
-            $usdAmount = $amount / $fxRate;
-            $quantity = ($marketType === 'crypto') ? ($usdAmount / $price) : floor($usdAmount / $price);
-        } else {
-            $quantity = ($marketType === 'crypto') ? ($amount / $price) : floor($amount / $price);
-        }
-        
-        if ($quantity <= 0) {
-             throw new \Exception("Amount is too low to purchase even 1 unit at current market price of {$price}.");
-        }
+      $quantity = ($market === 'CRYPTO') ? ($amount / $price) : floor($amount / $price);
 
-        // Re-calculate the final cost based on whole units (so it matches exactly)
-        $totalCost = $isUsdAsset ? ($quantity * $price * $fxRate) : ($quantity * $price);
+      if ($quantity <= 0) {
+        throw new \Exception("Amount too low to purchase units.");
+      }
 
-        if ($wallet->balance < $totalCost) {
-            throw new \Exception("Insufficient demo balance.");
+      $totalCost = $quantity * $price;
+      $clearedCol = ($currency === 'NGN') ? 'ngn_cleared' : 'usd_cleared';
+
+      if ($type === 'buy') {
+        if ($wallet->$clearedCol < $totalCost) {
+          throw new \Exception("Insufficient demo {$currency} balance.");
         }
 
-        $this->walletRepo->updateBalance($wallet, $wallet->balance - $totalCost);
+        // Update BOTH balance and cleared column to match Live logic
+        $wallet->decrement('balance', $totalCost);
+        $wallet->decrement($clearedCol, $totalCost);
+      } else {
+        // Sell verification logic (Simplified for readability)
+        $currentHolding = $this->calculateHoldings($user->id, $symbol);
 
-        return $this->orderRepo->create([
-            'user_id' => $user->id,
-            'symbol' => $symbol,
-            'market_type' => $marketType,
-            'type' => $type,
-            'quantity' => $quantity, 
-            'price' => $price,
-            'total' => $totalCost, 
-            'status' => 'closed'
-        ]);
+        if ($currentHolding < $quantity) {
+          throw new \Exception("Insufficient holdings. You have {$currentHolding} units.");
+        }
 
-    } else {
-        // --- SELL LOGIC: Sell exact units, receive true market value ---
-        $quantity = $frontendQuantity;
-        $totalValue = $isUsdAsset ? ($quantity * $price * $fxRate) : ($quantity * $price);
+        $wallet->increment('balance', $totalCost);
+        $wallet->increment($clearedCol, $totalCost);
+      }
 
-        $this->walletRepo->updateBalance($wallet, $wallet->balance + $totalValue);
-
-        return $this->orderRepo->create([
-            'user_id' => $user->id,
-            'symbol' => $symbol,
-            'market_type' => $marketType,
-            'type' => $type,
-            'quantity' => $quantity,
-            'price' => $price,
-            'total' => $totalValue,
-            'status' => 'closed'
-        ]);
-    }
+      return $this->orderRepo->create([
+        'user_id'      => $user->id,
+        'symbol'       => $symbol,
+        'market'       => $market,
+        'side'         => $type,
+        'type'         => 'market',
+        'quantity'     => $quantity,
+        'price'        => $price,
+        'amount'       => $totalCost,
+        'market_price' => $price,
+        'status'       => 'filled',
+        'currency'     => $currency,
+      ]);
+    });
   }
 
-
- public function getPortfolio($userId)
+  private function calculateHoldings($userId, $symbol)
   {
     $orders = $this->orderRepo->getUserOrders($userId);
-    $wallet = $this->walletRepo->findByUser($userId);
-
-    $holdings = [];
-
+    $total = 0;
     foreach ($orders as $order) {
-      // Only process filled/closed orders for holdings
-      if (!in_array($order->status, ['closed', 'filled'])) {
-          continue;
-      }
-
-      $symbol = $order->symbol;
-
-      if (!isset($holdings[$symbol])) {
-        $holdings[$symbol] = [
-          'quantity' => 0,
-          'total_cost' => 0,
-          'market_type' => $order->market_type,
-          'current_price' => $order->price, // Uses the latest known price from the order
-        ];
-      }
-
-      if ($order->type === 'buy') {
-        $holdings[$symbol]['quantity'] += $order->quantity;
-        $holdings[$symbol]['total_cost'] += $order->total;
-      } else {
-        $holdings[$symbol]['quantity'] -= $order->quantity;
-        // Adjust total cost proportionally on sell to keep avg price accurate
-        // (Not strictly necessary for Demo but good practice)
+      if ($order->symbol === $symbol && in_array($order->status, ['closed', 'filled'])) {
+        $order->side === 'buy' ? $total += $order->quantity : $total -= $order->quantity;
       }
     }
+    return $total;
+  }
 
-    $activeHoldings = array_filter($holdings, function ($holding) {
-      return $holding['quantity'] > 0;
-    });
-
-
-    $ngxValue = 0;
-    $globalUsdValue = 0;
-    $cryptoUsdValue = 0;
-    $cryptoNgnValue = 0;
-    $fixedIncomeValue = 0;
+  public function getPortfolio($userId)
+  {
+    $orders = $this->orderRepo->getUserOrders($userId);
+    $wallets = DemoWallet::where('user_id', $userId)->get();
     $fxRate = 1500;
 
-    $formattedHoldings = [];
+    $holdings = [];
+    foreach ($orders as $order) {
+      if (!in_array(strtolower($order->status), ['closed', 'filled'])) continue;
 
-    
-    foreach ($activeHoldings as $symbol => $data) {
-        $qty = $data['quantity'];
-        $price = $data['current_price'];
-        $mType = strtolower($data['market_type']);
-        
-        $valNgn = 0;
-        $currency = 'NGN';
-        $avgPrice = $data['total_cost'] / $qty; // Accurate average price
-
-        if (in_array($mType, ['local', 'ngx'])) {
-            $ngxValue += $qty * $price;
-            $valNgn = $qty * $price;
-            $category = 'NGX';
-        } elseif (in_array($mType, ['international', 'global'])) {
-            $globalUsdValue += $qty * $price;
-            $valNgn = $qty * $price * $fxRate;
-            $currency = 'USD';
-            $category = 'GLOBAL';
-        } elseif ($mType === 'crypto') {
-            $cryptoUsdValue += $qty * $price;
-            $cryptoNgnValue += $qty * $price * $fxRate;
-            $valNgn = $qty * $price * $fxRate;
-            $currency = 'USD';
-            $category = 'CRYPTO';
-        } elseif (in_array($mType, ['fixed_income', 'fixed'])) {
-            $fixedIncomeValue += $qty * $price;
-            $valNgn = $qty * $price;
-            $category = 'FIXED_INCOME';
-        }
-
-        // THE FIX: Added 'cleared_quantity' and 'uncleared_quantity' so Vue can read it!
-        $formattedHoldings[] = [
-            'symbol' => $symbol,
-            'name' => $symbol,
-            'quantity' => $qty,
-            'cleared_quantity' => $qty,    // <--- REQUIRED BY VUE
-            'uncleared_quantity' => 0,     // <--- REQUIRED BY VUE
-            'avg_price' => $avgPrice,
-            'avg_price_ngn' => $currency === 'USD' ? $avgPrice * $fxRate : $avgPrice,
-            'market_price' => $price,
-            'total_value_ngn' => $valNgn,
-            'currency' => $currency,
-            'category' => $category
+      $symbol = $order->symbol;
+      if (!isset($holdings[$symbol])) {
+        $holdings[$symbol] = [
+          'quantity'      => 0,
+          'total_cost'    => 0,
+          'market'        => strtoupper($order->market),
+          'current_price' => $order->price,
         ];
+      }
+
+      if (strtolower($order->side) === 'buy') {
+        $holdings[$symbol]['quantity']   += (float)$order->quantity;
+        $holdings[$symbol]['total_cost'] += (float)$order->amount;
+      } else {
+        $holdings[$symbol]['quantity']   -= (float)$order->quantity;
+      }
     }
 
-    $balance = $wallet ? (float) $wallet->balance : 0;
-    
-    // Total Equity = Cash Balance + Total Value of all stocks in NGN
-    $totalEquity = $balance + $ngxValue + ($globalUsdValue * $fxRate) + $cryptoNgnValue + $fixedIncomeValue;
+    $ngxValue = 0;
+    $globalValueNgn = 0;
+    $cryptoValueNgn = 0;
+    $fixedIncomeValue = 0;
+    $formattedHoldings = [];
 
-    // Return the new structure that perfectly matches the live API
+    foreach (array_filter($holdings, fn($h) => $h['quantity'] > 0) as $symbol => $data) {
+      $qty = $data['quantity'];
+      $price = $data['current_price'];
+      $mType = strtoupper($data['market']);
+      $avgPrice = $qty > 0 ? ($data['total_cost'] / $qty) : 0;
+      $totalVal = $qty * $price;
+
+      $isUsd = in_array($mType, ['INTERNATIONAL', 'GLOBAL', 'CRYPTO']);
+      $multiplier = $isUsd ? $fxRate : 1;
+      $valNgn = $totalVal * $multiplier;
+
+      // Track category sums for the chart
+      if (in_array($mType, ['LOCAL', 'NGX'])) {
+        $ngxValue += $valNgn;
+      } elseif (in_array($mType, ['INTERNATIONAL', 'GLOBAL'])) {
+        $globalValueNgn += $valNgn;
+      } elseif ($mType === 'CRYPTO') {
+        $cryptoValueNgn += $valNgn;
+      } elseif (in_array($mType, ['FIXED_INCOME', 'FIXED'])) {
+        $fixedIncomeValue += $valNgn;
+      }
+
+      $formattedHoldings[] = [
+        'symbol' => $symbol,
+        'name' => $symbol,
+        'quantity' => $qty,
+        'cleared_quantity' => $qty,
+        'uncleared_quantity' => 0,
+        'avg_price' => $avgPrice,
+        'market_price' => $price,
+        'total_value' => $totalVal,
+        'total_value_ngn' => $valNgn,
+        'avg_price_ngn' => $avgPrice * $multiplier,
+        'currency' => $isUsd ? 'USD' : 'NGN',
+        'category' => strtoupper($mType)
+      ];
+    }
+
+    $ngnWallet = $wallets->where('currency', 'NGN')->first();
+    $usdWallet = $wallets->where('currency', 'USD')->first();
+
+    // Use ngn_cleared for the dashboard "Cash" value
+    $ngnBal = (float)($ngnWallet->ngn_cleared ?? 0);
+    $usdBal = (float)($usdWallet->usd_cleared ?? 0);
+    $totalCashNgn = $ngnBal + ($usdBal * $fxRate);
+
+    // Total Equity = Cash Balance + Total Value of all stocks in NGN
+    $totalEquity = $totalCashNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn + $fixedIncomeValue;
+
     return [
-        'wallet_balance' => $balance,
-        'total_equity' => $totalEquity,
-        'ngx_value' => $ngxValue,
-        'global_stocks_value_usd' => $globalUsdValue,
-        'crypto_value_ngn' => $cryptoNgnValue,
-        'crypto_value_usd' => $cryptoUsdValue,
-        'fixed_income_value' => $fixedIncomeValue,
-        // The pie chart uses these exact variables, mapped correctly to NGN equivalents
-        'portfolio_distribution' => [
-            ['label' => 'Wallet', 'value' => $balance],
-            ['label' => 'NGX', 'value' => $ngxValue],
-            ['label' => 'Global Stocks (USD)', 'value' => $globalUsdValue * $fxRate], 
-            ['label' => 'Crypto (USD)', 'value' => $cryptoNgnValue],
-            ['label' => 'Fixed Income', 'value' => $fixedIncomeValue],
-        ],
-        'holdings' => $formattedHoldings
+      'success' => true,
+      'trading_mode' => 'demo',
+      'wallet_balance' => $totalCashNgn,
+      'total_equity' => $totalEquity,
+      'holdings' => $formattedHoldings,
+      'ngx_value' => $ngxValue,
+      'global_stocks_value_usd' => $globalValueNgn * $fxRate,
+      'crypto_value_ngn' => $cryptoValueNgn,
+      'crypto_value_usd' => $cryptoValueNgn * $fxRate,
+      'fixed_income_value' => $fixedIncomeValue,
+      'portfolio_distribution' => [
+        ['label' => 'Wallet', 'value' => $totalCashNgn],
+        ['label' => 'NGX', 'value' => $ngxValue],
+        ['label' => 'Global Stocks (USD)', 'value' => $globalValueNgn],
+        ['label' => 'Crypto (USD)', 'value' => $cryptoValueNgn],
+        ['label' => 'Fixed Income', 'value' => $fixedIncomeValue],
+      ]
     ];
   }
 }

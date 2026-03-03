@@ -82,12 +82,16 @@ class ModelPortfolioController extends Controller
                             ]
                         );
 
+                        // Recalculate average price before updating quantities
+                        $newTotalQuantity = $portfolioRecord->quantity + $quantity;
+                        $newAvgPrice = (($portfolioRecord->quantity * $portfolioRecord->avg_price) + $actualCost) / ($newTotalQuantity > 0 ? $newTotalQuantity : 1);
+
                         // Instantly increase their total and uncleared quantities
                         $portfolioRecord->increment('quantity', $quantity);
                         $portfolioRecord->increment('uncleared_quantity', $quantity);
 
                         // Update the average purchase price
-                        $portfolioRecord->update(['avg_price' => $price]);
+                        $portfolioRecord->update(['avg_price' => $newAvgPrice, 'market_price' => $price]);
 
                         $tradesExecuted++;
                     }

@@ -2,7 +2,7 @@
 
 namespace App\Models\Demo;
 
-use App\Models\DemoOrder;
+use App\Models\Demo\DemoOrder;
 use Illuminate\Database\Eloquent\Model;
 
 class DemoTrade extends Model

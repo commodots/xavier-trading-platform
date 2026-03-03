@@ -1,18 +1,17 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-1">
         <div>
-          <h1 class="text-2xl font-semibold">
-            <span v-if="isDemo" class="mr-2 font-bold text-yellow-500">DEMO</span>
-            💼 Wallet
+          <h1 class="flex items-center gap-2 text-2xl font-semibold" :class="isDemo ? 'text-yellow-500' : 'text-white'">
+            {{ isDemo ? 'Demo Wallet' : '💼 Wallet ' }}
           </h1>
           <p class="text-sm text-gray-400">
-            {{ isDemo ? 'Manage your simulated virtual funds' : 'Manage your NGN & USD balances' }}
+            {{ isDemo ? 'Manage Your Demo Wallet Balances - NGN & USD' : 'Manage Your Wallet Balances - NGN & USD' }}
           </p>
         </div>
 
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-2">
           <template v-if="!isDemo">
             <button @click="openTransaction('deposit')"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
@@ -28,59 +27,51 @@
               ⇄ Convert Currency
             </button>
           </template>
-
           <template v-else>
-            <button @click="refillDemo" :disabled="loading"
-              class="flex items-center gap-2 px-4 py-2 font-semibold text-yellow-500 transition border border-yellow-600 rounded-lg bg-yellow-600/20 hover:bg-yellow-600/40 disabled:opacity-50">
-              <span v-if="loading && actionType === 'refill'"
-                class="w-4 h-4 border-2 border-yellow-500 rounded-full animate-spin border-t-transparent"></span>
-              {{ loading && actionType === 'refill' ? 'Refilling...' : '+ Refill Virtual Funds' }}
-            </button>
-            <button @click="promptResetDemo" :disabled="loading"
-              class="flex items-center gap-2 px-4 py-2 font-semibold text-red-500 transition border border-red-600 rounded-lg bg-red-600/20 hover:bg-red-600/40 disabled:opacity-50">
-              <span v-if="loading && actionType === 'reset'"
-                class="w-4 h-4 border-2 border-red-500 rounded-full animate-spin border-t-transparent"></span>
-              {{ loading && actionType === 'reset' ? 'Resetting...' : 'Reset Demo Account' }}
-            </button>
+            <div class="flex gap-2 ml-1 l-3">
+              <button @click="refillDemo" :disabled="loading"
+                class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-yellow-500 transition border border-yellow-600 rounded-lg bg-yellow-600/10 hover:bg-yellow-600/20">
+                <span v-if="loading && actionType === 'refill'"
+                  class="w-3 h-3 border-2 border-yellow-500 rounded-full animate-spin border-t-transparent"></span>
+                Refill Virtual Funds
+              </button>
+              <button @click="promptResetDemo" :disabled="loading"
+                class="px-4 py-2 text-xs font-bold text-red-500 transition border border-red-600 rounded-lg bg-red-600/10 hover:bg-red-600/20">
+                Reset Demo Account
+              </button>
+            </div>
           </template>
         </div>
       </div>
 
-      <div
-        :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-8 overflow-hidden">
-          <div class="flex items-center gap-12" :class="isDemo ? '' : 'mb-6 border-b border-[#1f3348] pb-6'">
+      <div :class="loading && !actionType ? 'blur-sm animate-pulse' : ''" class="transition-all duration-300">
+        <div class="p-8 border rounded-xl" :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+          <div class="flex items-center gap-12 mb-6 border-b border-[#1f3348] pb-6">
 
             <div class="flex items-center gap-3">
               <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
               <div>
-                <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
-                  {{ isDemo ? 'VIRTUAL WALLET BALANCE' : 'NGN WALLET' }}
-                </h2>
-                <div class="text-xl font-bold transition-colors"
-                  :class="isDemo ? 'text-yellow-400 text-3xl mt-1' : 'text-white'">
+                <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">NGN WALLET</h2>
+                <div class="text-2xl font-bold transition-colors" :class="isDemo ? 'text-yellow-400' : 'text-white'">
                   ₦{{ Number(balances.balance_ngn).toLocaleString() }}
                 </div>
-
-                <template v-if="!isDemo">
-                  <div class="text-sm text-gray-400">
-                    Cleared Balance: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString() }}
-                  </div>
-                  <div class="text-sm text-yellow-400">
-                    Uncleared Balance: ₦{{ Number(balances.uncleared_balance_ngn).toLocaleString() }}
-                  </div>
-                  <div class="text-sm text-red-400" v-if="balances.locked_balance_ngn > 0">
-                    Locked (In Orders): ₦{{ Number(balances.locked_balance_ngn).toLocaleString() }}
-                  </div>
-                </template>
+                <div class="text-sm text-gray-400">
+                  Cleared Balance: ₦{{ Number(balances.cleared_balance_ngn).toLocaleString() }}
+                </div>
+                <div class="text-sm text-yellow-400">
+                  Uncleared Balance: ₦{{ Number(balances.uncleared_balance_ngn).toLocaleString() }}
+                </div>
+                <div class="text-sm text-red-400" v-if="balances.locked_balance_ngn > 0">
+                  Locked (In Orders): ₦{{ Number(balances.locked_balance_ngn).toLocaleString() }}
+                </div>
               </div>
             </div>
 
-            <div v-if="!isDemo" class="flex items-center gap-3 border-l border-[#1f3348] pl-12">
-              <div class="w-2 h-2 rounded-full bg-[#00D4FF]"></div>
+            <div class="flex items-center gap-3 border-l border-[#1f3348] pl-12">
+              <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
               <div>
                 <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
-                <div class="text-xl font-bold text-[#00D4FF]">${{ Number(balances.balance_usd).toLocaleString() }}</div>
+                <div class="text-xl font-bold" :class="isDemo ? 'text-yellow-400' : 'text-white'">${{ Number(balances.balance_usd).toLocaleString() }}</div>
                 <div class="text-sm text-gray-400">
                   Cleared Balance: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
                 </div>
@@ -94,7 +85,7 @@
             </div>
           </div>
 
-          <div v-if="!isDemo" class="h-[180px] -mx-4">
+          <div class="h-[180px] -mx-4">
             <apexchart type="line" height="100%" :options="combinedOptions" :series="combinedSeries" />
           </div>
         </div>
@@ -102,12 +93,11 @@
 
       <div
         :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-          <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Simulated Trades' : 'Recent Transactions' }}</h2>
+        <div class="p-5 border rounded-xl" :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+          <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Demo Transactions' : 'Recent Transactions' }}</h2>
 
           <div v-if="transactions.length === 0" class="py-10 text-center">
             <div class="font-medium text-gray-500">No recent {{ isDemo ? 'demo activity' : 'transactions' }}.</div>
-            <div class="mt-1 text-xs text-gray-600" v-if="isDemo">Your paper trades will appear here.</div>
           </div>
 
           <div v-else class="overflow-x-auto">
@@ -411,52 +401,34 @@ const fetchLinkedAccountsFor = async (currency) => {
 const refreshData = async () => {
   loading.value = true;
   try {
-    const userStr = localStorage.getItem("user");
-    const userObj = userStr ? JSON.parse(userStr) : null;
-    isDemo.value = userObj?.trading_mode === 'demo';
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    isDemo.value = user.trading_mode === 'demo';
 
-    if (isDemo.value) {
-      const [portfolioRes, txnRes] = await Promise.all([
-        api.get("/demo/portfolio"),
-        api.get("/demo/transactions")
-      ]);
+    const [balRes, txnRes] = await Promise.all([
+      api.get("/wallet/balances"),
+      api.get("/transactions?limit=10")
+    ]);
 
-      const demoData = portfolioRes.data.data || portfolioRes.data || {};
+    const data = balRes.data.data
+    balances.value = {
+      balance_ngn: data.balance_ngn ?? 0,
+      cleared_balance_ngn: data.cleared_balance_ngn ?? 0,
+      uncleared_balance_ngn: data.uncleared_balance_ngn ?? 0,
+      locked_balance_ngn: data.locked_balance_ngn ?? 0,
 
-      balances.value = {
-        balance_ngn: demoData.wallet_balance || demoData.balance || 0,
-        cleared_balance_ngn: 0,
-        uncleared_balance_ngn: 0,
-        locked_balance_ngn: 0,
-        
-        balance_usd: 0,
-        cleared_balance_usd: 0,
-        uncleared_balance_usd: 0,
-        locked_balance_usd:  0,
-      };
-      transactions.value = txnRes.data.data || [];
-    } else {
-      const [balRes, txnRes, accRes] = await Promise.all([
-        api.get("/wallet/balances"),
-        api.get("/transactions?limit=10"),
-        api.get("/user/linked-accounts/index")
-      ]);
+      balance_usd: data.balance_usd ?? 0,
+      cleared_balance_usd: data.cleared_balance_usd ?? 0,
+      uncleared_balance_usd: data.uncleared_balance_usd ?? 0,
+      locked_balance_usd: data.locked_balance_usd ?? 0,
+    };
 
-      const data = balRes.data.data;
-      balances.value = {
-        balance_ngn: data.balance_ngn ?? 0,
-        cleared_balance_ngn: data.cleared_balance_ngn ?? 0,
-        uncleared_balance_ngn: data.uncleared_balance_ngn ?? 0,
-        locked_balance_ngn: data.locked_balance_ngn ?? 0,
-        
-        balance_usd: data.balance_usd ?? 0,
-        cleared_balance_usd: data.cleared_balance_usd ?? 0,
-        uncleared_balance_usd: data.uncleared_balance_usd ?? 0,
-        locked_balance_usd: data.locked_balance_usd ?? 0,
-      };
+    if (!isDemo.value) {
+      const accRes = await api.get("/user/linked-accounts/index");
       linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
-      transactions.value = Array.isArray(txnRes.data) ? txnRes.data.slice(0, 10) : (txnRes.data.transactions ? txnRes.data.transactions.slice(0, 10) : []);
     }
+
+    transactions.value = Array.isArray(txnRes.data) ? txnRes.data.slice(0, 10) : (txnRes.data.transactions ? txnRes.data.transactions.slice(0, 10) : []);
+
   } catch (e) {
     console.error("Failed to refresh wallet data", e);
     triggerNotification(false, 'Connection Error', 'Unable to load wallet data. Please refresh the page.');
@@ -470,9 +442,9 @@ const refillDemo = async () => {
   loading.value = true;
   actionType.value = "refill";
   try {
-    await api.post('/demo/start', { amount: 100000 });
+    await api.post('/demo/start', { amount: 1000000 });
     await refreshData();
-    triggerNotification(true, 'Refill Successful', 'Demo account refilled with ₦100,000.');
+    triggerNotification(true, 'Refill Successful', 'Demo account refilled with ₦1,000,000.');
   } catch (e) {
     console.error(e);
     triggerNotification(false, 'Refill Failed', 'Failed to refill demo account.');
@@ -610,11 +582,11 @@ const checkPaymentResult = async () => {
 
   if (paymentSuccess && reference) {
     loading.value = true;
-    
+
     try {
-      
+
       await api.get(`/paystack/verify/${reference}`);
-      
+
       const amount = parseFloat(paymentSuccess);
       paymentResult.value = { success: true, message: 'Payment verified and wallet credited!', amount: amount };
       showPaymentModal.value = true;
@@ -622,7 +594,7 @@ const checkPaymentResult = async () => {
       // 3. Clean the URL and refresh actual balances
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       await refreshData();
     } catch (e) {
       paymentResult.value = { success: false, message: 'Payment succeeded, but verification failed. Contact support.', amount: 0 };
@@ -630,7 +602,7 @@ const checkPaymentResult = async () => {
     } finally {
       loading.value = false;
     }
-    
+
   } else if (paymentError) {
     let errorMessage = 'Payment failed. Please try again.';
     switch (paymentError) {

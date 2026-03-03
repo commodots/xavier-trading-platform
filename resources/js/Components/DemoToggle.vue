@@ -7,7 +7,7 @@
     <button @click="toggleMode"
       class="relative inline-flex items-center w-10 h-5 transition-colors rounded-full focus:outline-none"
       :class="isDemo ? 'bg-yellow-500' : 'bg-green-500'" :disabled="loading">
-      <span class="inline-block w-3 h-3 transition-transform transform bg-white rounded-full"
+      <span class="inline-block w-3 h-3 transition-transform transform bg-white rounded-full shadow-md"
         :class="isDemo ? 'translate-x-6' : 'translate-x-1'" />
     </button>
 
@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import api from '@/api';
 
 const props = defineProps({
@@ -43,32 +43,29 @@ const isDemo = ref(props.initialMode === 'demo');
 const loading = ref(false);
 
 const toggleMode = async () => {
+  if (loading.value) return;
+  
   const targetMode = isDemo.value ? 'live' : 'demo';
-  isDemo.value = targetMode === 'demo'; 
   loading.value = true;
-
-  window.dispatchEvent(new CustomEvent('trading-mode-switching', { detail: targetMode }));
 
   try {
     const res = await api.post('/switch-mode', { mode: targetMode });
 
-    if (res.data.message) {
-      if (isDemo.value) {
-        try {
-          await api.post('/demo/start', { amount: 100000 }); 
-        } catch (e) {}
-      }
+    if (res.data.success) {
+      // Update local visual state
+      isDemo.value = targetMode === 'demo';
 
-      let storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      storedUser.trading_mode = targetMode;
-      localStorage.setItem("user", JSON.stringify(storedUser));
+      // Update LocalStorage with the fresh user data from the backend
+      // This ensures balances (Wallet vs DemoWallet) are synced
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("trading_mode", targetMode);
 
-      // Broadcast a global event 
-      window.dispatchEvent(new Event('trading-mode-changed'));
+      // Broadcast the change to the rest of the app
+      window.dispatchEvent(new CustomEvent('trading-mode-changed', { 
+        detail: { mode: targetMode, user: res.data.user } 
+      }));
     }
   } catch (error) {
-    // Revert the toggle visually if the API fails
-    isDemo.value = !isDemo.value; 
     console.error("Failed to switch mode", error);
   } finally {
     loading.value = false;

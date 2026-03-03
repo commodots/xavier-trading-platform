@@ -5,11 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\UserKyc;
+use App\Models\KycProfile;
 use App\Models\SystemSetting;
 use App\Models\KycSetting;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use App\Models\ActivityLog;
 use App\Services\StaffPermissionService;
 
@@ -17,16 +15,17 @@ class ProfileController extends Controller
 {
     public function show(Request $request)
     {
-        $user = Auth::user()->load(['kyc', 'linkedAccounts']);
+        $user = Auth::user()->load(['kyc', 'linkedAccounts', 'wallet', 'demoWallet']);
         $user->name = $user->name ?: trim($user->first_name . ' ' . $user->last_name);
 
         // attach system base currency and tier-based daily_limit to the kyc payload so frontend can format limits
         $settings = SystemSetting::first();
         $baseCurrency = $settings->base_currency ?? 'NGN';
+        
         if ($user->kyc) {
             // determine tier (default to 1)
             $tier = (int) ($user->kyc->tier ?? 1);
-            $kycSetting = KycSetting::getByTier($tier);
+            $kycSetting = KycSetting::where('tier', $tier)->first();
             if ($kycSetting) {
                 $user->kyc->daily_limit = $kycSetting->daily_limit;
             }
@@ -35,12 +34,11 @@ class ProfileController extends Controller
 
         // Get the primary role (prefer non-admin roles for staff)
         $roleNames = $user->getRoleNames();
-        $primaryRole = $roleNames->reject(fn($r) => $r === 'admin')->first() ?? $roleNames->first() ?? $user->role ?? 'user';
+        $primaryRole = $roleNames->reject(fn($r) => $r === 'admin')->first() ?? $roleNames->first() ?? 'user';
         $user->role = $primaryRole;
 
         // Attach staff permissions if not admin
-        $isAdmin = $user->hasRole('admin');
-        if (!$isAdmin) {
+        if (!$user->hasRole('admin')) {
             $permissions = [];
             foreach (StaffPermissionService::CAPABILITIES as $cap) {
                 $permissions[$cap] = StaffPermissionService::roleHasCapability($user, $cap);
@@ -92,21 +90,28 @@ class ProfileController extends Controller
 
         $user = Auth::user();
 
-        $kyc = UserKyc::updateOrCreate(
+        $column = match ($r->id_type) {
+            'bvn' => 'bvn',
+            'nin' => 'nin',
+            'passport' => 'intl_passport',
+            'dl' => 'drivers_license',
+            'id_card' => 'national_id',
+            default => 'id_number'
+        };
+
+        $kyc = KycProfile::updateOrCreate(
             ['user_id' => $user->id],
             [
-                'provider' => 'dummy',
-                'id_type' => $r->id_type,
-                'id_value' => $r->id_value,
+                $column => $r->id_value,
                 'status' => 'pending'
             ]
         );
 
         if ($r->hasFile('photo')) {
-            $kyc->photo_path = $r->file('photo')->store('kyc/photos', 'public');
+            $kyc->photo = $r->file('photo')->store('kyc/photos', 'public');
         }
         if ($r->hasFile('document')) {
-            $kyc->document_path = $r->file('document')->store('kyc/docs', 'public');
+            $kyc->document = $r->file('document')->store('kyc/docs', 'public');
         }
         $kyc->save();
 
@@ -120,7 +125,21 @@ class ProfileController extends Controller
     public function getKyc(Request $r)
     {
         $user = Auth::user();
-        $kyc = UserKyc::where('user_id', $user->id)->first();
+        $kyc = KycProfile::where('user_id', $user->id)->first();
         return response()->json(['success' => true, 'data' => $kyc]);
+    }
+    public function switchMode(Request $request)
+    {
+        $user = Auth::user();
+        $mode = $request->mode === 'demo' ? 'demo' : 'live';
+        
+        $user->update(['trading_mode' => $mode]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Switched to " . strtoupper($mode) . " mode",
+            'trading_mode' => $mode,
+            'user' => $user->load(['wallet', 'demoWallet']) 
+        ]);
     }
 }

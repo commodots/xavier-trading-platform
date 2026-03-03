@@ -9,30 +9,34 @@ use App\Models\User;
 
 class TwoFactorController extends Controller
 {
-    protected $google2fa;
+    protected Google2FA $google2fa;
+
+    public function __construct()
+    {
+        $this->google2fa = new Google2FA();
+    }
 
     public function enable2FA(Request $request)
     {
         $user = $request->user();
-        $google2fa = new \PragmaRX\Google2FA\Google2FA();
-
-        $secret = $google2fa->generateSecretKey();
+ 
+        $secret = $this->google2fa->generateSecretKey();
 
         $user->google2fa_secret = $secret;
         $user->save();
 
-        $qrCodeUrl = $google2fa->getQRCodeUrl(
+        $qrCodeUrl = $this->google2fa->getQRCodeUrl(
             'Xavier Trading App',
             $user->email,
             $secret
         );
-$renderer = new \BaconQrCode\Renderer\Image\SvgImageBackEnd();
-    $writer = new \BaconQrCode\Writer(new \BaconQrCode\Renderer\ImageRenderer(
-        new \BaconQrCode\Renderer\RendererStyle\RendererStyle(200),
-        $renderer
-    ));
+        $renderer = new \BaconQrCode\Renderer\Image\SvgImageBackEnd();
+        $writer = new \BaconQrCode\Writer(new \BaconQrCode\Renderer\ImageRenderer(
+            new \BaconQrCode\Renderer\RendererStyle\RendererStyle(200),
+            $renderer
+        ));
 
-    $qrImage = $writer->writeString($qrCodeUrl);
+        $qrImage = $writer->writeString($qrCodeUrl);
 
         return response()->json([
             'success' => true,

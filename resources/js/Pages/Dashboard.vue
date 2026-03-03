@@ -195,10 +195,22 @@ const tickers = {
 
 // --- Logic ---
 const walletBalance = computed(() => (data.value?.wallet_balance ?? 0));
-const ngxValue = computed(() => (data.value?.ngx_value ?? 0));
-const fixedIncomeValue = computed(() => (data.value?.fixed_income_value ?? 0));
-const globalValueUSD = computed(() => (data.value?.global_stocks_value_usd ?? 0));
-const cryptoValueNGN = computed(() => (data.value?.crypto_value_ngn ?? 0));
+const ngxValue = computed(() => {
+  const item = data.value?.portfolio_distribution?.find(p => p.label === 'NGX');
+  return item ? item.value : 0;
+});
+const fixedIncomeValue = computed(() => {
+  const item = data.value?.portfolio_distribution?.find(p => p.label === 'Fixed Income');
+  return item ? item.value : 0;
+});
+const globalValueUSD = computed(() => {
+  const item = data.value?.portfolio_distribution?.find(p => p.label === 'Global');
+  return item ? item.value : 0;
+});
+const cryptoValueNGN = computed(() => {
+  const item = data.value?.portfolio_distribution?.find(p => p.label === 'Crypto');
+  return item ? item.value : 0;
+});
 const totalEquity = computed(() => data.value?.total_equity ?? 0);
 
 const perfSeries = ref([]);
@@ -249,28 +261,26 @@ const handleModeSwitching = (e) => {
 async function fetchDashboard() {
   loading.value = true;
   error.value = null;
+  
   try {
-    const userStr = localStorage.getItem("user");
-    const userObj = userStr ? JSON.parse(userStr) : null;
-    isDemo.value = userObj?.trading_mode === 'demo';
-
-    const pEndpoint = isDemo.value ? '/demo/portfolio' : '/portfolio';
-    const tEndpoint = isDemo.value ? '/demo/transactions' : '/transactions';
+   
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    isDemo.value = user.trading_mode === 'demo';
 
     const [portfolioResp, transResp] = await Promise.all([
-      api.get(pEndpoint),
-      api.get(tEndpoint)
+      api.get('/portfolio'), 
+      api.get('/transactions')
     ]); 
 
-    data.value = isDemo.value ? portfolioResp.data.data : portfolioResp.data;
-    
-    const rawTxns = isDemo.value ? transResp.data.data : transResp.data;
+    const responseData = portfolioResp.data.data || portfolioResp.data;
+data.value = responseData.data ? responseData.data : responseData;    
+    const rawTxns = transResp.data.data || transResp.data;
     transactions.value = Array.isArray(rawTxns) ? rawTxns : (rawTxns.transactions || []);
     
     if (data.value.portfolio_distribution) {
-      donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
-      donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
-    } else {
+  donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
+  donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
+} else {
       donutSeries.value = [
         Number(data.value.wallet_balance || 0),
         Number(data.value.ngx_value || 0),
@@ -293,8 +303,8 @@ async function fetchDashboard() {
     }
 
   } catch (e) {
-    console.error(e);
-    error.value = "Dashboard unavailable.";
+    console.error("Dashboard Load Error:", e);
+       error.value = "Dashboard unavailable.";
   } finally {
     loading.value = false;
   }

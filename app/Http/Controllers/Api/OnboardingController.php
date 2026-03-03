@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
-use App\Models\UserKyc;
 use App\Models\KycProfile;
 use App\Models\Wallet;
+use App\Models\Demo\DemoWallet;
 use App\Services\QoreidService;
 use Exception;
 use App\Http\Resources\UserResource;
 use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Http;
 
 class OnboardingController extends Controller
 {
@@ -51,19 +52,42 @@ class OnboardingController extends Controller
                 'dob' => $validated['dob'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'verified' => false, // Email not verified yet
+                'trading_mode' => 'live'
             ]);
 
-            // 💰 Step 3: Create Wallet for the user
-            $wallet = Wallet::create([
-                'user_id' => $user->id,
-                'account_number' => 'XAV' . rand(10000000, 99999999),
-                'balance' => 0.00,
-                'currency' => 'NGN',
-                'status' => 'active',
-            ]);
+            // 💰 Step 3: Create LIVE Wallet for the user
+            foreach (['NGN', 'USD'] as $curr) {
+                Wallet::create([
+                    'user_id' => $user->id,
+                    'account_number' => 'XAV' . rand(10000000, 99999999),
+                    'balance' => 0.00,
+                    'ngn_cleared' => 0.00,
+                    'ngn_uncleared' => 0.00,
+                    'usd_cleared' => 0.00,
+                    'usd_uncleared' => 0.00,
+                    'locked' => 0.00,
+                    'currency' => $curr,
+                    'status' => 'active',
+                ]);
+            }
+
+            // 💰 Create DEMO Wallet instantly so they can use demo mode immediately!
+            foreach (['NGN', 'USD'] as $curr) {
+                DemoWallet::create([
+                    'user_id' => $user->id,
+                    'account_number' => 'DEMO' . rand(10000000, 99999999),
+                    'balance' => ($curr === 'NGN') ? 1000000.00 : 0.00,
+                    'ngn_cleared' => ($curr === 'NGN') ? 1000000.00 : 0,
+                    'usd_cleared' => ($curr === 'USD') ? 0.00 : 0,
+                    'locked' => 0.00,
+                    'currency' => $curr,
+                    'status' => 'active',
+                ]);
+            }
 
             // 🔍 Step 4: Optional KYC verification (if user provided ID)
             $kycData = [];
+            $status = 'pending';
             if (!empty($validated['id_type']) && !empty($validated['id_value'])) {
                 // Attempt to verify identity via QoreID
                 $verification = QoreidService::verifyIdentity(
@@ -71,8 +95,8 @@ class OnboardingController extends Controller
                     $validated['id_value']
                 );
 
-
                 if (!empty($verification['success'])) {
+                    $status = 'verified';
                     $kycData = $verification['data'] ?? [];
 
                     // Save verified KYC profile
@@ -81,7 +105,7 @@ class OnboardingController extends Controller
                         'level' => $kycData['level'] ?? 'basic',
                         'tier' => $kycData['tier'] ?? 1,
                         'daily_limit' => $kycData['daily_limit'] ?? 0,
-                        'status' => 'verified',
+                        'status' => $status,
                         'bvn' => $kycData['bvn'] ?? null,
                         'nin' => $kycData['nin'] ?? null,
                         'intl_passport' => $kycData['intl_passport'] ?? null,
@@ -91,9 +115,23 @@ class OnboardingController extends Controller
                     // Save photo from KYC data if provided
                     if (!empty($kycData['photo'])) {
                         $photo = $kycData['photo'];
-                        if (str_starts_with($photo, 'data:image') || str_starts_with($photo, 'iVBOR')) {
+                        $photoContents = null;
+
+                        if (filter_var($photo, FILTER_VALIDATE_URL)) {
+                            try {
+                                $response = Http::get($photo);
+                                if ($response->successful()) {
+                                    $photoContents = $response->body();
+                                }
+                            } catch (\Exception $e) {
+                                // Could not download photo, continue without it
+                            }
+                        } elseif (str_starts_with($photo, 'data:image') || str_starts_with($photo, 'iVBOR')) {
+                            $photoContents = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $photo));
+                        }
+                        if ($photoContents) {
                             $photoPath = 'photos/' . uniqid('user_') . '.png';
-                            Storage::disk('public')->put($photoPath, base64_decode($photo));
+                            Storage::disk('public')->put($photoPath, $photoContents);
                             $user->update(['photo' => $photoPath]);
                         }
                     }
@@ -102,10 +140,10 @@ class OnboardingController extends Controller
                     // Create an empty KYC profile with pending status
                     KycProfile::create([
                         'user_id' => $user->id,
-                        'level' => 'none',
+                        'level' => ($status === 'verified') ? 'basic' : 'none',
                         'tier' => 1,
                         'daily_limit' => 0,
-                        'status' => 'pending',
+                        'status' => $status,
                     ]);
                 }
             } else {
@@ -121,28 +159,29 @@ class OnboardingController extends Controller
 
             DB::commit();
 
+
             try {
                 ActivityLog::create([
                     'user_id'    => $user->id,
                     'activity'   => 'Registration',
-                    'details'    => "New user registered: {$user->email}. Wallet generated and initial KYC processed.",
+                    'details'    => "New user registered: {$user->email}. Wallets generated and initial KYC processed.",
                     'ip_address' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ]);
             } catch (\Throwable $e) {
-                
             }
+
+
 
             // Generate authentication token
             $token = $user->createToken('xavier_token')->plainTextToken;
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Account created successfully',
                 'token' => $token,
                 'user' => new UserResource($user->load(['wallet', 'kyc'])),
             ], 201);
-
         } catch (Exception $e) {
             DB::rollBack();
 

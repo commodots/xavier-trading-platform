@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Demo\DemoWalletService;
 use App\Services\Demo\DemoTradingService;
 use Illuminate\Http\Request;
-use App\Models\DemoOrder;
+use App\Models\Demo\DemoOrder;
 use Illuminate\Support\Facades\DB;
 
 class DemoController extends Controller
@@ -45,26 +45,30 @@ class DemoController extends Controller
     {
         $request->validate([
             'symbol' => 'required|string',
-            'market_type' => 'required|in:local,international,global,crypto,fixed_income',
-            'type' => 'required|in:buy,sell',
-            'amount' => 'required|numeric|min:0', 
-            'quantity' => 'required|numeric|min:0'
+            'market_type' => 'required|string',
+            'side' => 'required|in:buy,sell',
+            'amount' => 'required|numeric|min:0',
+            'market_price' => 'required|numeric'
         ]);
 
         return DB::transaction(function () use ($request) {
-            
+
+            $tradeData = [
+                "symbol" => $request->symbol,
+                "market" => $request->market_type,
+                "side" => $request->side,
+                "amount" => $request->amount,
+                "market_price" => $request->market_price,
+            ];
+
             // 1. Let the service handle the complex trading logic
             $order = $this->tradingService->executeTrade(
                 $request->user(),
-                $request->symbol,
-                $request->market_type,
-                $request->type,
-                $request->amount, 
-                $request->quantity 
+                $tradeData
             );
 
             // 2. Safety Refund check! If it failed, give the money back immediately.
-            if (in_array($order->status, ['failed', 'canceled', 'cancelled']) && $request->type === 'buy') {
+            if (in_array($order->status, ['failed', 'canceled', 'cancelled']) && $request->side === 'buy') {
                 $wallet = DB::table('demo_wallets')->where('user_id', $request->user()->id)->first();
                 if ($wallet) {
                     DB::table('demo_wallets')

@@ -54,8 +54,7 @@ Route::post('/onboard', [OnboardingController::class, 'onboard']);
 Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
-Route::post('/2fa/verify', [TwoFactorController::class, 'verify']);
-
+Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA']);
 /* Paystack Webhook & Redirect */
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback']);
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
@@ -138,12 +137,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reports/generate', [ProfileController::class, 'generateReport']);
 
     /*Demo Mode Routes*/
-     Route::post('/switch-mode', [DemoController::class, 'switchMode']); // toggle live/demo
-    Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
-    Route::post('/demo/trade', [DemoController::class, 'placeTrade']);  // place demo trade
-    Route::get('/demo/portfolio', [DemoController::class, 'portfolio']); // view holdings
+Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
     Route::post('/demo/reset', [DemoController::class, 'resetDemo']);   // reset demo account
-    Route::get('/demo/transactions', [DemoController::class, 'transactions']); // view demo transactions
+    Route::post('/switch-mode', [ProfileController::class, 'switchMode']);
 
 
     /* Admin Routes */

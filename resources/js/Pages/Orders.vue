@@ -234,7 +234,7 @@ const triggerNotification = (success, title, msg) => {
 
 const handleTradeSuccess = async () => {
   showTradeModal.value = false;
-  
+
   await new Promise(resolve => setTimeout(resolve, 800));
   loadOrders();
 };
@@ -242,18 +242,10 @@ const handleTradeSuccess = async () => {
 async function loadOrders() {
   loading.value = true;
   try {
-    const userStr = localStorage.getItem("user");
-    const userObj = userStr ? JSON.parse(userStr) : null;
-    isDemo.value = userObj?.trading_mode === 'demo';
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    isDemo.value = user.trading_mode === 'demo';
 
-    const token = localStorage.getItem("xavier_token");
-
-
-    const endpoint = isDemo.value ? "/demo/transactions" : "/orders";
-
-    const res = await api.get(endpoint, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/orders');
 
     const rawOrders = res.data.data?.data || res.data.data || res.data || [];
 
@@ -265,15 +257,18 @@ async function loadOrders() {
       if (marketRaw === 'LOCAL') marketMapped = 'NGX';
       if (marketRaw === 'INTERNATIONAL') marketMapped = 'GLOBAL';
 
-      const actualUnits = o.quantity || o.units  || o.filled_quantity || 0;
+      const actualUnits = o.quantity || o.units || o.filled_quantity || 0;
       
+      let normalizedStatus = o.status;
+      if (['closed', 'completed', 'success'].includes(o.status)) normalizedStatus = 'filled';
+
       return {
         ...o,
         market: marketMapped,
         units: Number(actualUnits),
         amount: o.amount || o.total || 0,
         currency: o.currency || 'NGN', // Demo stores total deduct in NGN
-        status: o.status === 'closed' ? 'filled' : o.status // Normalize demo 'closed' to live 'filled'
+        status: normalizedStatus
       };
     });
 
@@ -288,9 +283,11 @@ async function loadOrders() {
 const filteredOrders = computed(() => {
   return orders.value.filter(o => {
     const matchesSearch = o.symbol.toLowerCase().includes(searchQuery.value.toLowerCase());
+
     const matchesMarket = filterMarket.value === "" || o.market === filterMarket.value;
+    
     const matchesStatus = statusFilter.value === "all" ||
-      (statusFilter.value === "active" && ["open", "pending_market", "partially_filled"].includes(o.status)) ||
+      (statusFilter.value === "active" && ["open", "pending", "pending_market", "partially_filled"].includes(o.status)) ||
       (statusFilter.value === "completed" && o.status === "filled") ||
       (statusFilter.value === "canceled" && ["canceled", "cancelled", "failed"].includes(o.status));
     return matchesSearch && matchesMarket && matchesStatus;
@@ -300,9 +297,11 @@ const filteredOrders = computed(() => {
 function beautifyStatus(s) {
   const statusMap = {
     'open': 'Pending',
+    'pending': 'Pending',
     'pending_market': 'Pending (Market)',
     'partially_filled': 'Partially Completed',
     'filled': 'Completed',
+    'completed': 'Completed',
     'canceled': 'Canceled',
     'failed': 'Failed'
   };
@@ -312,7 +311,7 @@ function beautifyStatus(s) {
 function statusClass(s) {
   if (['open', 'pending_market'].includes(s)) return 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
   if (s === 'partially_filled') return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-  if (s === 'filled') return 'bg-green-500/10 text-green-400 border border-green-500/20';
+  if (s === 'filled' || s === 'completed') return 'bg-green-500/10 text-green-400 border border-green-500/20';
   if (['canceled', 'cancelled', 'failed'].includes(s)) return 'bg-red-500/10 text-red-400 border border-red-500/20';
   return 'bg-gray-500/10 text-gray-400';
 }

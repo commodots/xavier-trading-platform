@@ -103,7 +103,8 @@ const chartSeries = ref([]);
 const chartOptions = ref({
   labels: ["Wallet", "NGX", "Global Stocks (USD)", "Crypto (USD)", "Fixed Income"],
   legend: { position: "bottom", labels: { colors: "#fff" } },
-  theme: { mode: "dark" }
+  theme: { mode: "dark" },
+  tooltip: { y: { formatter: (val) => `₦${Number(val).toLocaleString()}` } }
 });
 
 const showTradeModal = ref(false);
@@ -147,18 +148,13 @@ const handleModeSwitching = (e) => {
 const refreshPortfolio = async () => {
   loading.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const userStr = localStorage.getItem("user");
-    const userObj = userStr ? JSON.parse(userStr) : null;
-    isDemo.value = userObj?.trading_mode === 'demo';
+   const user = JSON.parse(localStorage.getItem("user") || "{}");
+    isDemo.value = user.trading_mode === 'demo';
 
-    // Set the endpoint dynamically
-    const endpoint = isDemo.value ? "/demo/portfolio" : "/portfolio";
-    const res = await api.get(endpoint);
+    const res = await api.get('/portfolio');
     
     // Extract data
-    const data = isDemo.value ? res.data.data : res.data;
+   const data = res.data.data || res.data;
 
     const wallet = Number(data.wallet_balance || 0);
     const ngx = Number(data.ngx_value || 0);
