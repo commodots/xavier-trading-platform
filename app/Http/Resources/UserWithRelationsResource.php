@@ -13,6 +13,7 @@ class UserWithRelationsResource extends JsonResource
             'first_name' => $this->first_name,
             'last_name'    => $this->last_name,
             'email'      => $this->email,
+            'trading_mode' => $this->trading_mode,
             'phone'     => $this->phone,
             'dob'        => $this->dob,
             'wallet'     => new WalletResource($this->whenLoaded('wallet')),

@@ -45,7 +45,7 @@ class DemoController extends Controller
     {
         $request->validate([
             'symbol' => 'required|string',
-            'market_type' => 'required|string',
+            'market' => 'required|string|in:NGX,GLOBAL,CRYPTO,FIXED_INCOME,LOCAL,INTERNATIONAL',           
             'side' => 'required|in:buy,sell',
             'amount' => 'required|numeric|min:0',
             'market_price' => 'required|numeric'
@@ -55,7 +55,7 @@ class DemoController extends Controller
 
             $tradeData = [
                 "symbol" => $request->symbol,
-                "market" => $request->market_type,
+                "market" => $request->market,
                 "side" => $request->side,
                 "amount" => $request->amount,
                 "market_price" => $request->market_price,

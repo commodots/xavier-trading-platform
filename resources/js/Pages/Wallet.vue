@@ -11,7 +11,7 @@
           </p>
         </div>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="flex gap-2">
           <template v-if="!isDemo">
             <button @click="openTransaction('deposit')"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
@@ -29,11 +29,15 @@
           </template>
           <template v-else>
             <div class="flex gap-2 ml-1 l-3">
+              <button @click="openConvertModal"
+                class="px-4 py-2 font-semibold text-white transition border border-yellow-600 rounded-lg hover:opacity-90 bg-yellow-600/20">
+                ⇄ Convert Currency
+              </button>
               <button @click="refillDemo" :disabled="loading"
                 class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-yellow-500 transition border border-yellow-600 rounded-lg bg-yellow-600/10 hover:bg-yellow-600/20">
                 <span v-if="loading && actionType === 'refill'"
                   class="w-3 h-3 border-2 border-yellow-500 rounded-full animate-spin border-t-transparent"></span>
-                Refill Virtual Funds
+                Refill Demo Account
               </button>
               <button @click="promptResetDemo" :disabled="loading"
                 class="px-4 py-2 text-xs font-bold text-red-500 transition border border-red-600 rounded-lg bg-red-600/10 hover:bg-red-600/20">
@@ -45,7 +49,8 @@
       </div>
 
       <div :class="loading && !actionType ? 'blur-sm animate-pulse' : ''" class="transition-all duration-300">
-        <div class="p-8 border rounded-xl" :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+        <div class="p-8 border rounded-xl"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="flex items-center gap-12 mb-6 border-b border-[#1f3348] pb-6">
 
             <div class="flex items-center gap-3">
@@ -71,7 +76,8 @@
               <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
               <div>
                 <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
-                <div class="text-xl font-bold" :class="isDemo ? 'text-yellow-400' : 'text-white'">${{ Number(balances.balance_usd).toLocaleString() }}</div>
+                <div class="text-xl font-bold" :class="isDemo ? 'text-yellow-400' : 'text-white'">${{
+                  Number(balances.balance_usd).toLocaleString() }}</div>
                 <div class="text-sm text-gray-400">
                   Cleared Balance: ${{ Number(balances.cleared_balance_usd).toLocaleString() }}
                 </div>
@@ -93,7 +99,8 @@
 
       <div
         :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="p-5 border rounded-xl" :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+        <div class="p-5 border rounded-xl"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Demo Transactions' : 'Recent Transactions' }}</h2>
 
           <div v-if="transactions.length === 0" class="py-10 text-center">
@@ -112,8 +119,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="t in transactions" :key="t.id"
-                  class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
+                <tr v-for="t in transactions" :key="t.id" @click="openTransactionDetails(t)"
+                  class="border-b border-[#1f3348] hover:bg-[#16213A] transition cursor-pointer">
                   <td class="px-2 py-3 text-gray-400">{{ formatDate(t.created_at) }}</td>
                   <td class="px-2 capitalize">
                     <div class="font-medium">{{ t.type }}</div>
@@ -202,7 +209,8 @@
       </div>
 
       <div v-if="openConvert" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
+        <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border"
+          :class="isDemo ? 'border-yellow-600' : 'border-[#2A314A]'">
           <button @click="openConvert = false" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
           <h2 class="mb-4 text-xl font-semibold">Convert Currency</h2>
 
@@ -234,8 +242,8 @@
               <div class="text-[9px] text-gray-500 italic mt-1">Rate: 1 NGN = 0.00065 USD</div>
             </div>
 
-            <button :disabled="loading"
-              class="w-full mt-5 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg font-semibold disabled:opacity-50">
+            <button :disabled="loading" class="w-full py-2 mt-5 font-semibold rounded-lg disabled:opacity-50"
+              :class="isDemo ? 'bg-yellow-600' : 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]'">
               {{ loading && actionType === 'convert' ? 'Converting...' : 'Convert Now' }}
             </button>
           </form>
@@ -306,7 +314,7 @@
           </button>
         </div>
       </div>
-
+      <TransactionDetailsModal :show="showDetailsModal" :txn="selectedTransaction" @close="showDetailsModal = false" />
     </div>
   </MainLayout>
 </template>
@@ -316,6 +324,7 @@ import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
+import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 
 const apexchart = VueApexCharts;
 
@@ -341,6 +350,9 @@ const showNotificationModal = ref(false);
 const txnType = ref("");
 const from = ref("NGN");
 const amount = ref(0);
+
+const selectedTransaction = ref(null);
+const showDetailsModal = ref(false);
 
 const notificationData = ref({ success: true, title: '', message: '' });
 const paymentResult = ref({ success: false, message: '', amount: 0 });
@@ -639,6 +651,25 @@ const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
   }
   setTimeout(() => refreshWithRetry(attempts + 1, maxAttempts), 2000);
 };
+
+async function openTransactionDetails(t) {
+ 
+  const localTxn = typeof t === 'object' ? t : transactions.value.find(t => t.id === t);
+
+  if (localTxn) {
+    selectedTransaction.value = { ...localTxn };
+    showDetailsModal.value = true;
+
+    
+    try {
+      const resp = await api.get(`/transactions/${localTxn.id}`);
+      
+      selectedTransaction.value = resp.data.data;
+    } catch (e) {
+      console.error("Background detail fetch failed", e);
+    }
+  }
+}
 
 onMounted(() => {
   refreshData();

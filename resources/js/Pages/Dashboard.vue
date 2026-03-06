@@ -1,5 +1,5 @@
 <template>
-  <MainLayout>
+  <MainLayout :isDemo="isDemo">
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <div>
@@ -14,11 +14,13 @@
             {{ isDemo ? '⇄ Demo Trade' : '⇄ Trade' }}
           </button>
           <div @click="$router.push({ name: 'wallet' })"
-            class="text-right hidden sm:block col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+            class="text-right hidden sm:block col-span-1 md:col-span-2 p-4 rounded-xl border border-[#1f3348] cursor-pointer transition-all active:scale-95"
+            :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60  hover:bg-[#1f3348]/40'">
             <div class="text-xs text-gray-400 transition-all">
               <span v-if="isDemo" class="mr-1 font-bold text-yellow-500">DEMO</span> Wallet Balance
             </div>
-            <div class="text-lg font-semibold transition-all duration-300" :class="[isDemo ? 'text-yellow-400' : 'text-white', loading ? 'blur-sm animate-pulse opacity-50' : '']">
+            <div class="text-lg font-semibold transition-all duration-300"
+              :class="[isDemo ? 'text-yellow-400' : 'text-white', loading ? 'blur-sm animate-pulse opacity-50' : '']">
               ₦{{ walletBalance.toLocaleString() }}
             </div>
           </div>
@@ -27,9 +29,11 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 transition-all duration-300 md:grid-cols-4 lg:grid-cols-6" :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none' : ''">
+      <div class="grid grid-cols-1 gap-4 transition-all duration-300 md:grid-cols-4 lg:grid-cols-6"
+        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none' : ''">
         <div @click="$router.push({ name: 'portfolio' })"
-          class="col-span-1 md:col-span-2 bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+          class="col-span-1 p-4 transition-all border cursor-pointer md:col-span-2 rounded-xl active:scale-95"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400 transition-all">
             <span v-if="isDemo" class="mr-1 font-bold text-yellow-500">DEMO</span> Total Portfolio Value
           </div>
@@ -38,40 +42,47 @@
           </div>
         </div>
         <div @click="$router.push({ name: 'ngx' })"
-          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+          class="p-4 transition-all border cursor-pointer rounded-xl active:scale-95"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">NGX</div>
           <div class="text-xl font-semibold">₦{{ ngxValue.toLocaleString() }}</div>
         </div>
         <div @click="$router.push({ name: 'global-stocks' })"
-          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+          class="p-4 transition-all border cursor-pointer rounded-xl active:scale-95"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">US Stocks</div>
           <div class="text-xl font-semibold">${{ globalValueUSD.toLocaleString() }}</div>
         </div>
         <div @click="$router.push({ name: 'crypto' })"
-          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+          class="p-4 rounded-xl border cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">Crypto</div>
           <div class="text-xl font-semibold">₦{{ cryptoValueNGN.toLocaleString() }}</div>
         </div>
         <div @click="$router.push({ name: 'fixed-income' })"
-          class="bg-[#111827]/60 p-4 rounded-xl border border-[#1f3348] cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95">
+          class="p-4 transition-all border cursor-pointer rounded-xl active:scale-95"
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">Fixed Income</div>
           <div class="text-xl font-semibold">₦{{ fixedIncomeValue.toLocaleString() }}</div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 transition-all duration-300 lg:grid-cols-3" :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none' : ''">
-        <div class="lg:col-span-2 bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
+      <div class="grid grid-cols-1 gap-6 transition-all duration-300 lg:grid-cols-3"
+        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none' : ''">
+        <div class="lg:col-span-2 bg-[#0F1724] p-4 rounded-xl border"
+          :class="isDemo ? 'border-yellow-600' : 'border-[#1f3348]'">
           <div class="mb-3 font-semibold">Performance</div>
           <apexchart type="line" height="260" :options="perfOptions" :series="perfSeries" />
         </div>
-        <div class="bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
+        <div class="bg-[#0F1724] p-4 rounded-xl border" :class="isDemo ? 'border-yellow-600' : 'border-[#1f3348]'">
           <div class="mb-2 font-semibold">Distribution</div>
           <apexchart type="donut" height="260" :options="donutOptions" :series="donutSeries" />
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 transition-all duration-300 lg:grid-cols-2" :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none' : ''">
-        <div class="bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
+      <div class="grid grid-cols-1 gap-6 transition-all duration-300 lg:grid-cols-2"
+        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none' : ''">
+        <div class="bg-[#0F1724] p-4 rounded-xl border" :class="isDemo ? 'border-yellow-600' : 'border-[#1f3348]'">
           <div class="flex items-center justify-between mb-3">
             <div class="font-semibold">Holdings</div>
             <div class="text-xs text-gray-400">Sort by value</div>
@@ -111,7 +122,7 @@
           </table>
         </div>
 
-        <div class="bg-[#0F1724] p-4 rounded-xl border border-[#1f3348]">
+        <div class="bg-[#0F1724] p-4 rounded-xl border" :class="isDemo ? 'border-yellow-600' : 'border-[#1f3348]'">
           <div class="flex items-center justify-between mb-3">
             <div class="font-semibold">Recent Transactions</div>
             <div class="text-xs text-gray-400">All activity</div>
@@ -121,8 +132,8 @@
             No recent activity.
           </div>
           <ul v-else class="space-y-2 text-sm text-gray-300">
-            <li v-for="t in transactions" :key="t.id || t.ref"
-              class="flex items-center justify-between p-2 rounded hover:bg-[#122033]">
+            <li v-for="t in transactions" :key="t.id || t.ref" @click="openTransactionDetails(t)"
+              class="flex items-center justify-between p-2 rounded hover:bg-[#122033] cursor-pointer transition-colors group">
               <div>
                 <div class="font-medium">{{ t.type }} — {{ t.currency || 'NGN' }}</div>
                 <div class="text-xs text-gray-400">
@@ -141,6 +152,7 @@
           </ul>
         </div>
       </div>
+      <TransactionDetailsModal :show="showDetailsModal" :txn="selectedTransaction" @close="showDetailsModal = false" />
     </div>
   </MainLayout>
 </template>
@@ -151,6 +163,7 @@ import api from "@/api";
 import VueApexCharts from "vue3-apexcharts";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
+import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 
 const apexchart = VueApexCharts;
 
@@ -160,7 +173,17 @@ const data = ref({});
 const transactions = ref([]);
 const error = ref(null);
 const showTradeModal = ref(false);
-const isDemo = ref(false);
+const selectedTransaction = ref(null);
+const showDetailsModal = ref(false);
+
+
+const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
+const isDemo = ref(getUser().trading_mode === 'demo');
+
+const syncModeWithStorage = () => {
+  const user = getUser();
+  isDemo.value = user.trading_mode === 'demo';
+};
 
 // Asset Data
 const assetCategories = [
@@ -195,22 +218,10 @@ const tickers = {
 
 // --- Logic ---
 const walletBalance = computed(() => (data.value?.wallet_balance ?? 0));
-const ngxValue = computed(() => {
-  const item = data.value?.portfolio_distribution?.find(p => p.label === 'NGX');
-  return item ? item.value : 0;
-});
-const fixedIncomeValue = computed(() => {
-  const item = data.value?.portfolio_distribution?.find(p => p.label === 'Fixed Income');
-  return item ? item.value : 0;
-});
-const globalValueUSD = computed(() => {
-  const item = data.value?.portfolio_distribution?.find(p => p.label === 'Global');
-  return item ? item.value : 0;
-});
-const cryptoValueNGN = computed(() => {
-  const item = data.value?.portfolio_distribution?.find(p => p.label === 'Crypto');
-  return item ? item.value : 0;
-});
+const ngxValue = computed(() => data.value?.ngx_value ?? 0);
+const fixedIncomeValue = computed(() => data.value?.fixed_income_value ?? 0);
+const globalValueUSD = computed(() => data.value?.global_stocks_value_usd ?? 0);
+const cryptoValueNGN = computed(() => data.value?.crypto_value_ngn ?? 0);
 const totalEquity = computed(() => data.value?.total_equity ?? 0);
 
 const perfSeries = ref([]);
@@ -251,36 +262,53 @@ function generateTrend(currentValue) {
   }
   return points;
 }
+async function openTransactionDetails(t) {
+  
+  const localTxn = typeof t === 'object' ? t : transactions.value.find(t => t.id === t);
 
+  if (localTxn) {
+    selectedTransaction.value = { ...localTxn };
+    showDetailsModal.value = true;
+
+    
+    try {
+      const resp = await api.get(`/transactions/${localTxn.id}`);
+      
+      selectedTransaction.value = resp.data.data;
+    } catch (e) {
+      console.error("Background detail fetch failed", e);
+    }
+  }
+}
 
 const handleModeSwitching = (e) => {
-  isDemo.value = e.detail === 'demo';
-  loading.value = true;
+  isDemo.value = (e.detail.mode === 'demo' || e.detail === 'demo');
+  fetchDashboard(); 
 };
 
 async function fetchDashboard() {
   loading.value = true;
   error.value = null;
-  
+
   try {
-   
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    isDemo.value = user.trading_mode === 'demo';
+
+    const currentMode = isDemo.value ? 'demo' : 'live';
 
     const [portfolioResp, transResp] = await Promise.all([
-      api.get('/portfolio'), 
-      api.get('/transactions')
-    ]); 
+      api.get(`/portfolio?mode=${currentMode}`),
+      api.get(`/transactions?mode=${currentMode}`)
+    ]);
 
-    const responseData = portfolioResp.data.data || portfolioResp.data;
-data.value = responseData.data ? responseData.data : responseData;    
+    const rawData = portfolioResp.data.data;
+    data.value = rawData.success ? rawData : rawData;
+
     const rawTxns = transResp.data.data || transResp.data;
     transactions.value = Array.isArray(rawTxns) ? rawTxns : (rawTxns.transactions || []);
-    
+
     if (data.value.portfolio_distribution) {
-  donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
-  donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
-} else {
+      donutSeries.value = data.value.portfolio_distribution.map(p => Number(p.value));
+      donutOptions.value.labels = data.value.portfolio_distribution.map(p => p.label);
+    } else {
       donutSeries.value = [
         Number(data.value.wallet_balance || 0),
         Number(data.value.ngx_value || 0),
@@ -304,19 +332,28 @@ data.value = responseData.data ? responseData.data : responseData;
 
   } catch (e) {
     console.error("Dashboard Load Error:", e);
-       error.value = "Dashboard unavailable.";
+    error.value = "Dashboard unavailable.";
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(() => {
-  fetchDashboard();
-  window.addEventListener('trading-mode-switching', handleModeSwitching);
-  
-  window.addEventListener('trading-mode-changed', fetchDashboard);
-});
+onMounted(async () => {
+  syncModeWithStorage(); 
+  await fetchDashboard();
 
+  window.addEventListener('trading-mode-switching', (e) => {
+    isDemo.value = (e.detail.mode === 'demo' || e.detail === 'demo');
+    fetchDashboard();
+  });
+
+  window.addEventListener('trading-mode-changed', () => {
+    syncModeWithStorage();
+    fetchDashboard();
+  });
+
+
+});
 onUnmounted(() => {
   window.removeEventListener('trading-mode-switching', handleModeSwitching);
   window.removeEventListener('trading-mode-changed', fetchDashboard);

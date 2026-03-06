@@ -9,7 +9,6 @@ use App\Models\Demo\DemoWallet;
 use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoLedger;
 
-
 class DemoWalletService
 {
     protected $walletRepo;
@@ -25,34 +24,50 @@ class DemoWalletService
 
     public function fund($userId, $amount)
     {
-        return $this->walletRepo->createOrUpdate($userId, [
-            'currency' => 'NGN', // Ensure currency is set
-            'balance' => $amount,
-            'ngn_cleared' => $amount, 
-            'equity' => $amount
-        ]);
+        return DB::transaction(function () use ($userId, $amount) {
+            $wallet = DemoWallet::updateOrCreate(
+                ['user_id' => $userId, 'currency' => 'NGN'],
+                ['status' => 'active'] 
+            );
+
+            $wallet->increment('balance', $amount);
+            $wallet->increment('ngn_cleared', $amount);
+
+            
+            DemoTransaction::create([
+                'user_id'    => $userId,
+                'type'       => 'deposit',
+                'amount'     => $amount,
+                'currency'   => 'NGN',
+                'status'     => 'completed',
+                'net_amount' => $amount,
+                'meta'       => [
+                    'note' => 'Demo Account Refill',
+                    'is_demo' => true
+                ]
+            ]);
+
+            return $wallet;
+        });
     }
 
     public function reset($userId)
-{
-    return \DB::transaction(function () use ($userId) {
-        // Wipe all simulated activity
-        $this->orderRepo->deleteUserOrders($userId);
-        
-        //Wipe all demo transactions and ledger entries
-       DemoTransaction::where('user_id', $userId)->delete();
-        DemoLedger::where('user_id', $userId)->delete();
+    {
+        return DB::transaction(function () use ($userId) {
+            
+            $this->orderRepo->deleteUserOrders($userId);
 
-        //Reset all wallets associated with this user
-        // We set all balance and cleared columns to 0
-        return DemoWallet::where('user_id', $userId)->update([
-            'balance' => 0,
-            'ngn_cleared' => 0,
-            'usd_cleared' => 0,
-            'ngn_uncleared' => 0,
-            'usd_uncleared' => 0,
-            'locked' => 0
-        ]);
-    });
-}
+            DemoTransaction::where('user_id', $userId)->delete();
+            DemoLedger::where('user_id', $userId)->delete();
+
+            return DemoWallet::where('user_id', $userId)->update([
+                'balance'       => 0,
+                'ngn_cleared'   => 0,
+                'usd_cleared'   => 0,
+                'ngn_uncleared' => 0,
+                'usd_uncleared' => 0,
+                'locked'        => 0
+            ]);
+        });
+    }
 }

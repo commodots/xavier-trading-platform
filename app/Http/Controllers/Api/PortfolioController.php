@@ -13,25 +13,31 @@ use App\Services\LiveTradingService;
 
 class PortfolioController extends Controller
 {
-    private function resolveModels($user)
-    {
-        $isDemo = $user->trading_mode === 'demo';
-        return (object) [
-            'portfolio' => $isDemo ? new DemoPortfolio() : new Portfolio(),
-        ];
-    }
+    private function resolveModels($user, $request = null)
+{
+    $requestedMode = $request ? $request->query('mode', $user->trading_mode) : $user->trading_mode;
+    $isDemo = $requestedMode === 'demo';
+    
+    return (object) [
+        'portfolio' => $isDemo ? new DemoPortfolio() : new Portfolio(),
+        'isDemo' => $isDemo 
+    ];
+}
 
    public function index(Request $request)
     {
         $user = $request->user();
 
+       $models = $this->resolveModels($user, $request);
+
         // Route to the appropriate service provider
-        $service = ($user->trading_mode === 'demo') 
+$service = $models->isDemo
             ? app(DemoTradingService::class) 
             : app(LiveTradingService::class);
 
         return response()->json([
             'success' => true,
+            'mode'    => $models->isDemo ? 'demo' : 'live',
             'data'    => $service->getPortfolio($user->id)
         ]);
     }
@@ -39,8 +45,7 @@ class PortfolioController extends Controller
     public function performance(Request $request)
     {
         $user = $request->user();
-        $models = $this->resolveModels($user);
-
+$models = $this->resolveModels($user, $request);
         $category = $request->query('category', 'local');
         $range = $request->query('range', '1W');
 

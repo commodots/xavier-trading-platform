@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, onMounted} from 'vue';
 import api from '@/api';
 
 const props = defineProps({
@@ -41,6 +41,13 @@ const props = defineProps({
 
 const isDemo = ref(props.initialMode === 'demo');
 const loading = ref(false);
+
+onMounted(() => {
+  const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  if (savedUser.trading_mode) {
+    isDemo.value = savedUser.trading_mode === 'demo';
+  }
+});
 
 const toggleMode = async () => {
   if (loading.value) return;

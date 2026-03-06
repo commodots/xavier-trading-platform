@@ -20,21 +20,26 @@ use App\Models\Ledger;
 class WalletController extends Controller
 {
     // THE DYNAMIC MODEL RESOLVER
-    private function resolveModels($user)
+    private function resolveModels(Request $request = null)
     {
-        $isDemo = $user->trading_mode === 'demo';
+        $user = Auth::user();
+
+        $mode = $request ? $request->query('mode', $user->trading_mode) : $user->trading_mode;
+        $isDemo = $mode === 'demo';
+
         return (object) [
             'isDemo' => $isDemo,
+            'mode' => $mode,
             'wallet' => $isDemo ? new DemoWallet() : new Wallet(),
             'transaction' => $isDemo ? new DemoTransaction() : new NewTransaction(),
             'ledger' => $isDemo ? new DemoLedger() : new Ledger(),
         ];
     }
 
-    public function balances()
+    public function balances(Request $request)
     {
         $user = Auth::user();
-        $models = $this->resolveModels($user);
+        $models = $this->resolveModels($request);
 
         $ngnWallet = $models->wallet->where('user_id', $user->id)->where('currency', 'NGN')->first();
         $usdWallet = $models->wallet->where('user_id', $user->id)->where('currency', 'USD')->first();
@@ -64,7 +69,7 @@ class WalletController extends Controller
 
         $user = Auth::user();
         $currency = strtoupper($request->currency);
-        $models = $this->resolveModels($user);
+        $models = $this->resolveModels($request);
 
         return DB::transaction(function () use ($request, $user, $currency, $models) {
 
@@ -91,7 +96,10 @@ class WalletController extends Controller
                 'status' => 'completed',
                 'charge' => 0,
                 'net_amount' => $request->amount,
-                'meta' => ['note' => 'User initiated withdrawal', 'mode' => $user->trading_mode]
+                'meta' => [
+                    'note' => 'User initiated withdrawal',
+                    'mode' => $models->mode
+                ]
             ]);
 
             return response()->json(['success' => true]);
@@ -107,7 +115,7 @@ class WalletController extends Controller
 
         $user = Auth::user();
         $currency = strtoupper($request->currency);
-        $models = $this->resolveModels($user);
+        $models = $this->resolveModels($request);
 
         return DB::transaction(function () use ($request, $user, $currency, $models) {
             $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
@@ -133,7 +141,7 @@ class WalletController extends Controller
                 'net_amount' => $request->amount,
                 'meta' => [
                     'reference' => 'XAV-' . strtoupper(bin2hex(random_bytes(4))),
-                    'mode' => $user->trading_mode
+                    'mode' => $models->mode
                 ]
             ]);
 
@@ -148,7 +156,7 @@ class WalletController extends Controller
     {
         try {
             $user = Auth::user();
-            $models = $this->resolveModels($user);
+            $models = $this->resolveModels($request);
 
             $validated = $request->validate([
                 'amount' => 'required|numeric|min:0.01',
@@ -223,7 +231,7 @@ class WalletController extends Controller
                         'source_amount' => $amount,
                         'source_currency' => $fromCurrency,
                         'locked_rate' => $rate->effective_rate,
-                        'mode' => $user->trading_mode
+                        'mode' => $models->mode
                     ],
                 ]);
 
@@ -238,7 +246,7 @@ class WalletController extends Controller
                         'to_currency' => $toCurrency,
                         'received_amount' => $convertedAmount,
                         'exchange_rate' => $rate->effective_rate,
-                        'mode' => $user->trading_mode
+                        'mode' => $models->mode
                     ]
                 ]);
 
@@ -277,7 +285,7 @@ class WalletController extends Controller
     public function recentTransactions(Request $request)
     {
         $user = $request->user();
-        $models = $this->resolveModels($user);
+        $models = $this->resolveModels($request);
 
         $transactions = $models->transaction->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')

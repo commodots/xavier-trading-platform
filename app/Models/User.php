@@ -192,4 +192,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasActiveSubscription();
     }
+    protected $attributes = [
+    'trading_mode' => 'live',
+];
 }

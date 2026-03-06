@@ -78,6 +78,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'trading_mode' => $user->trading_mode,
                 'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
                 'wallet' => $user->wallet ?? null,
                 'kyc' => $user->kyc ?? null,

@@ -32,7 +32,7 @@ use App\Http\Controllers\DemoController;
 // === ADVISORY CONTROLLERS ===
 use App\Http\Controllers\AdvisoryController;
 use App\Http\Controllers\PredictionController;
-use App\Http\Controllers\ModelPortfolioController; 
+use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\SubscriptionController;
 // Admin Advisory Controllers 
 use App\Http\Controllers\Admin\AdminSubscriptionController;
@@ -103,7 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/verify/{reference}', [PaystackController::class, 'verify']);
     });
 
-    Route::get('/portfolio', [PortfolioController::class, 'index']); 
+    Route::get('/portfolio', [PortfolioController::class, 'index']);
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
 
     // Route::get('/wallet/transactions', [WalletController::class, 'recentTransactions']);
@@ -132,12 +132,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [NewTransactionController::class, 'index']);
     Route::post('/deposit', [NewTransactionController::class, 'deposit']);
     Route::post('/withdraw', [NewTransactionController::class, 'withdraw']);
+    Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
 
     /* Reports */
     Route::post('/reports/generate', [ProfileController::class, 'generateReport']);
 
     /*Demo Mode Routes*/
-Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
+    Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
     Route::post('/demo/reset', [DemoController::class, 'resetDemo']);   // reset demo account
     Route::post('/switch-mode', [ProfileController::class, 'switchMode']);
 
@@ -153,7 +154,7 @@ Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo
         Route::apiResource('/subscription-plans', AdminSubscriptionController::class);
         Route::apiResource('/advisory-posts', AdminAdvisoryController::class);
         Route::apiResource('/model-portfolios', AdminModelPortfolioController::class);
-        
+
 
         /* Users */
         Route::get('/users', [AdminController::class, 'users']);
@@ -251,10 +252,10 @@ Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo
         /*Notifications */
         Route::get('/notifications/show', [NotificationController::class, 'show']);
         Route::put('/notifications/update', [NotificationController::class, 'update']);
-        
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
         // === ADVISORY & SUBSCRIPTION MODULE ===
         // 

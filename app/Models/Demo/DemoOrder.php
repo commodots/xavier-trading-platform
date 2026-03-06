@@ -7,7 +7,7 @@ use App\Models\Demo\DemoTrade;
 
 class DemoOrder extends Model
 {
-   protected $fillable = [
+    protected $fillable = [
         'user_id',
         'symbol',
         'side',
@@ -24,15 +24,17 @@ class DemoOrder extends Model
         'amount',
         'market_price'
     ];
-    
+
 
     protected $casts = [
-        'quantity' => 'integer',
+        'quantity'     => 'decimal:8',
         'price' => 'float',
         'amount' => 'float',
+        'market_price' => 'float',
     ];
 
-    public function trades() {
-    return $this->hasMany(DemoTrade::class, 'order_id');
-}
+    public function trades()
+    {
+        return $this->hasMany(DemoTrade::class, 'order_id');
+    }
 }

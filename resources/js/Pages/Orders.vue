@@ -54,9 +54,10 @@
           class="px-3 py-2 text-sm text-white transition rounded-lg">Canceled</button>
       </div>
 
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+      <div class="p-6 border rounded-xl"
+      :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold">{{ isDemo ? 'Simulated Order History' : 'Order History' }}</h2>
+          <h2 class="text-lg font-semibold">{{ isDemo ? 'Demo Order History' : 'Order History' }}</h2>
           <span class="text-xs text-gray-500">{{ filteredOrders.length }} orders found</span>
         </div>
 

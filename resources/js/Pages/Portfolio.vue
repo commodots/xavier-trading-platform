@@ -8,7 +8,8 @@
       <p class="text-sm text-gray-400">Your asset allocation & performance overview.</p>
 
       <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+        <div class="p-6 border rounded-xl"
+        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="text-sm text-gray-400">
             {{ isDemo ? 'Virtual Portfolio Value' : 'Total Portfolio Value' }}
           </div>
@@ -19,7 +20,8 @@
       </div>
 
       <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 relative">
+        <div class="relative p-6 border rounded-xl"
+        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold">Allocation Breakdown</h2>
             <button @click="showTradeModal = true" :class="[
@@ -36,7 +38,8 @@
       </div>
 
       <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+        <div class="p-6 border rounded-xl"
+        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-4 text-lg font-semibold">Your Holdings</h2>
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">

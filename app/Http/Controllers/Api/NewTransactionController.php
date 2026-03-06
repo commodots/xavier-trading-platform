@@ -17,22 +17,25 @@ use App\Models\Demo\DemoWallet;
 
 class NewTransactionController extends Controller
 {
-    private function resolveModels($user)
-    {
-        $isDemo = $user->trading_mode === 'demo';
-        return (object) [
-            'isDemo' => $isDemo,
-            'wallet' => $isDemo ? new DemoWallet() : new Wallet(),
-            'transaction' => $isDemo ? new DemoTransaction() : new NewTransaction(),
-        ];
-    }
+    private function resolveModels($user, Request $request = null)
+{
+    // Prioritize the query parameter, fallback to the user's saved mode
+    $mode = $request ? $request->query('mode', $user->trading_mode) : $user->trading_mode;
+    $isDemo = $mode === 'demo';
+    
+    return (object) [
+        'isDemo' => $isDemo,
+        'wallet' => $isDemo ? new DemoWallet() : new Wallet(),
+        'transaction' => $isDemo ? new DemoTransaction() : new NewTransaction(),
+    ];
+}
 
-    public function index() {
-        $models = $this->resolveModels(auth()->user());
-        return response()->json(
-            $models->transaction->where('user_id', auth()->id())->latest()->limit(10)->get()
-        );
-    }
+    public function index(Request $request) {
+    $models = $this->resolveModels(auth()->user(), $request);
+    return response()->json(
+        $models->transaction->where('user_id', auth()->id())->latest()->limit(10)->get()
+    );
+}
 
     public function deposit(Request $request)
     {
@@ -196,4 +199,20 @@ class NewTransactionController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
     }
+    public function show($id)
+{
+    $models = $this->resolveModels(auth()->user());
+    
+    // Find the transaction owned by this user
+    $transaction = $models->transaction
+        ->where('user_id', auth()->id())
+        ->where('id', $id)
+        ->first();
+
+    if (!$transaction) {
+        return response()->json(['message' => 'Transaction not found'], 404);
+    }
+
+    return response()->json(['success' => true, 'data' => $transaction]);
+}
 }

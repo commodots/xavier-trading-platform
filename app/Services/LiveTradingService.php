@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{Order, Wallet, Portfolio, Trade, User,};
+use App\Models\{Order, Wallet, Portfolio, Trade, User};
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\Demo\DemoWallet;
@@ -11,51 +11,69 @@ use App\Models\Demo\DemoOrder;
 
 class LiveTradingService
 {
+   
     public function executeTrade($user, array $data)
     {
         return DB::transaction(function () use ($user, $data) {
-            $marketMap = match ($data['market']) {
-                "NGX" => ['currency' => 'NGN', 'category' => 'local'],
-                "GLOBAL" => ['currency' => 'USD', 'category' => 'foreign'],
-                "CRYPTO" => ['currency' => 'USD', 'category' => 'crypto'],
-                "USD" => ['currency' => 'USD', 'category' => 'foreign'], // Fallback
-                default => throw new \InvalidArgumentException("Unsupported market type: {$data['market']}")
+            $marketMap = match (strtoupper($data['market'])) {
+                "NGX"          => ['currency' => 'NGN', 'category' => 'local'],
+                "GLOBAL", "USD" => ['currency' => 'USD', 'category' => 'foreign'],
+                "CRYPTO"       => ['currency' => 'USD', 'category' => 'crypto'],
+                "FIXED_INCOME" => ['currency' => 'NGN', 'category' => 'fixed_income'],
+                default        => throw new \InvalidArgumentException("Unsupported market: {$data['market']}")
             };
 
             $currency = $marketMap['currency'];
             $category = $marketMap['category'];
 
-            $units = floor($data['amount'] / $data['market_price']);
+            // Quantity & Cost Calculation
+            // We use 1500 as a placeholder; in production, fetch this from a Cache/Rate service
+            $FX_RATE = 1500; 
+            $priceInNaira = ($currency === 'USD') ? ($data['market_price'] * $FX_RATE) : $data['market_price'];
+            
+            
+            $units = ($category === 'crypto') 
+                ? ($data['amount'] / $priceInNaira) 
+                : floor($data['amount'] / $priceInNaira);
+
             if ($units <= 0) {
-                throw new \InvalidArgumentException("Invalid trade amount: must be greater than market price");
+                throw new \InvalidArgumentException("Trade amount is too low to purchase 1 unit.");
             }
+
             $actualCost = $units * $data['market_price'];
 
-            // Lock the wallet to prevent double-spending
-            $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->lockForUpdate()->firstOrFail();
+            
+            $wallet = Wallet::where('user_id', $user->id)
+                ->where('currency', $currency)
+                ->lockForUpdate() 
+                ->firstOrFail();
 
-            $holding = Portfolio::firstOrCreate(
+            $holding = Portfolio::lockForUpdate()->firstOrCreate(
                 ['user_id' => $user->id, 'symbol' => $data['symbol']],
                 [
                     'name' => $data['company'],
                     'currency' => $currency,
                     'category' => $category,
                     'quantity' => 0,
-                    'avg_price' => 0
+                    'avg_price' => 0,
+                    'market_price' => $data['market_price'],
+                    'cleared_quantity' => 0,
+                    'uncleared_quantity' => 0
                 ]
             );
 
-            $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $clearedCol = ($currency === 'NGN') ? 'ngn_cleared' : 'usd_cleared';
 
             if ($data['side'] === 'buy') {
                 if ($wallet->$clearedCol < $actualCost) {
-                    throw new \Exception("Insufficient cleared {$currency} balance");
+                    throw new \Exception("Insufficient cleared {$currency} balance.");
                 }
 
+               
                 $wallet->decrement($clearedCol, $actualCost);
                 $wallet->increment('locked', $actualCost);
 
-                // Math: (Current Value + New Value) / Total Quantity
+                
                 $totalQty = $holding->quantity + $units;
                 $newAvgPrice = (($holding->quantity * $holding->avg_price) + $actualCost) / $totalQty;
 
@@ -65,95 +83,74 @@ class LiveTradingService
                     'avg_price' => $newAvgPrice
                 ]);
             } else {
-                // Sell logic: check if user has enough "Cleared" stock to sell
+                // SELL LOGIC
                 if ($holding->cleared_quantity < $units) {
-                    throw new \Exception("Insufficient cleared holdings to sell");
+                    throw new \Exception("Insufficient cleared holdings to sell. Available: {$holding->cleared_quantity}");
                 }
 
                 $holding->decrement('cleared_quantity', $units);
-                $holding->decrement('quantity', $units); // Total holdings drop immediately
+                $holding->decrement('quantity', $units);
 
-                // Money goes to uncleared balance (T+2)
-                $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
+                // Proceeds go to 'uncleared' wallet balance for T+2
+                $unclearedCol = ($currency === 'NGN') ? 'ngn_uncleared' : 'usd_uncleared';
                 $wallet->increment($unclearedCol, $actualCost);
             }
 
-            $order = Order::create([...$data, 'user_id' => $user->id, 'status' => 'filled', 'units' => $units]);
-            $settlementDays = ($user->trading_mode === 'demo') ? 0 : 2;
+            $order = Order::create([
+                ...$data,
+                'user_id' => $user->id,
+                'status' => 'filled', 
+                'units' => $units,
+                'quantity' => $units
+            ]);
 
             Trade::create([
                 'order_id' => $order->id,
+                'user_id' => $user->id,
                 'price' => $data['market_price'],
                 'quantity' => $units,
-                'settlement_date' => Carbon::now()->addWeekdays($settlementDays)->toDateString(),
+                'side' => $data['side'],
+                'currency' => $currency,
+                'settlement_status' => 'pending',
+                'settlement_date' => Carbon::now()->addWeekdays(2)->toDateString(),
             ]);
 
             return $order;
         });
     }
 
+    
     public function getPortfolio($userId)
     {
         $FX_RATE = 1500;
+        $rawHoldings = Portfolio::where('user_id', $userId)->where('quantity', '>', 0)->get();
 
-        $user = User::find($userId); // Convert the ID to a User Object
-
-        // Determine which models to use based on the user's current mode
-        $isDemo = $user->trading_mode === 'demo';
-        $portfolioModel = $isDemo ? DemoOrder::class : Portfolio::class;
-        $walletModel = $isDemo ? DemoWallet::class : Wallet::class;
-
-        $rawHoldings = $portfolioModel::where('user_id', $userId)->where('quantity', '>', 0)->get();
-
-        $groupedHoldings = $rawHoldings->groupBy('symbol')->map(function ($items) use ($FX_RATE) {
-            $first = $items->first();
-
-
-            // Calculate total quantities based on cleared + uncleared
-            $clearedQuantity = (float) $items->sum('cleared_quantity');
-            $unclearedQuantity = (float) $items->sum('uncleared_quantity');
-            $totalQuantity = $clearedQuantity + $unclearedQuantity;
-
-            // Skip holdings with zero total quantity (e.g., fully sold off)
-            if ($totalQuantity <= 0) {
-                return null;
-            }
-
-            // Formula: Sum(qty * avg_price) / Total Qty
-            $totalCost = $items->sum(fn($i) => ($i->cleared_quantity + $i->uncleared_quantity) * $i->avg_price);
-            $weightedAvgPrice = $totalCost / $totalQuantity;
-
-            $currentValueRaw = $totalQuantity * $first->market_price;
-
-            // Determine if we need to convert this specific row to NGN
-            $isUsd = ($first->currency === 'USD' || $first->category === 'foreign' || $first->category === 'crypto');
+        $groupedHoldings = $rawHoldings->map(function ($holding) use ($FX_RATE) {
+            $isUsd = in_array($holding->currency, ['USD']) || in_array($holding->category, ['foreign', 'crypto']);
             $multiplier = $isUsd ? $FX_RATE : 1;
-
-            $isCrypto = strtolower($first->category) === 'crypto';
-
-            $displayQuantity = $isCrypto ? $totalQuantity : floor($totalQuantity);
-            $displayCleared = $isCrypto ? $clearedQuantity : floor($clearedQuantity);
-            $displayUncleared = $isCrypto ? $unclearedQuantity : floor($unclearedQuantity);
-
+            
+            $currentValue = $holding->quantity * $holding->market_price;
 
             return [
-                'symbol' => $first->symbol,
-                'name' => $first->name ?? $first->symbol,
-                'category' => $first->category,
-                'currency' => $first->currency,
-                'quantity' => $displayQuantity,
-                'cleared_quantity' => $displayCleared,
-                'uncleared_quantity' => $displayUncleared,
-                'avg_price' => $weightedAvgPrice,
-                'market_price' => $first->market_price,
-                'total_value' => $currentValueRaw,
-                'avg_price_ngn' => (float) ($weightedAvgPrice * $multiplier),
-                'total_value_ngn' => (float) ($currentValueRaw * $multiplier),
+                'symbol' => $holding->symbol,
+                'name' => $holding->name,
+                'category' => $holding->category,
+                'currency' => $holding->currency,
+                'quantity' => (float) $holding->quantity,
+                'cleared_quantity' => (float) $holding->cleared_quantity,
+                'uncleared_quantity' => (float) $holding->uncleared_quantity,
+                'avg_price' => (float) $holding->avg_price,
+                'market_price' => (float) $holding->market_price,
+                'total_value' => $currentValue,
+                'total_value_ngn' => $currentValue * $multiplier,
+                'gain_loss' => ($holding->market_price - $holding->avg_price) * $holding->quantity,
             ];
-        })->filter()->values();
+        });
 
-        $ngnWallet = $walletModel::where('user_id', $userId)->where('currency', 'NGN')->first();
-        $usdWallet = $walletModel::where('user_id', $userId)->where('currency', 'USD')->first();
+        // Fetch Wallet Balances
+        $wallets = Wallet::where('user_id', $userId)->get();
+        $ngnWallet = $wallets->where('currency', 'NGN')->first();
+        $usdWallet = $wallets->where('currency', 'USD')->first();
 
         $ngnBalance = $ngnWallet ? (float) $ngnWallet->ngn_cleared : 0;
         $usdBalance = $usdWallet ? (float) $usdWallet->usd_cleared : 0;
@@ -186,11 +183,11 @@ class LiveTradingService
             'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn + $fixedIncomeValue),
             'portfolio_distribution' => [
         ['label' => 'Wallet', 'value' => $walletValueNgn],
-        ['label' => 'NGX', 'value' => $ngxValue],
-        ['label' => 'Global', 'value' => $globalValueNgn],
-        ['label' => 'Crypto', 'value' => $cryptoValueNgn],
+                ['label' => 'NGX', 'value' => $ngxValue],
+                ['label' => 'Global', 'value' => $globalValueNgn],
+                ['label' => 'Crypto', 'value' => $cryptoValueNgn],
         ['label' => 'Fixed Income', 'value' => $fixedIncomeValue],
-    ]
+            ]
         ];
     }
 }

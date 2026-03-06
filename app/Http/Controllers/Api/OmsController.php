@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -8,6 +9,9 @@ use App\Services\Demo\DemoTradingService;
 use App\Models\Demo\{DemoWallet, DemoTransaction, DemoLedger, DemoOrder, DemoPortfolio};
 use App\Models\{NewTransaction, Wallet, Ledger, Order, Portfolio};
 use Illuminate\Support\Facades\DB;
+use Exception;
+use Illuminate\Support\Facades\Log;
+
 class OmsController extends Controller
 {
     private function resolveModels($user)
@@ -26,7 +30,7 @@ class OmsController extends Controller
     public function placeOrder(Request $request)
     {
         $data = $request->validate([
-            "market" => "required|in:NGX,GLOBAL,CRYPTO",
+            "market" => "required|in:NGX,GLOBAL,CRYPTO,FIXED_INCOME",
             "symbol" => "required",
             "company" => "required",
             "market_price" => "required|numeric",
@@ -35,31 +39,31 @@ class OmsController extends Controller
         ]);
 
         $user = auth()->user();
-        
-        $service = ($user->trading_mode === 'demo') 
-            ? app(DemoTradingService::class) 
+
+        $data['market'] = strtoupper($data['market']);
+
+        $service = ($user->trading_mode === 'demo')
+            ? app(DemoTradingService::class)
             : app(LiveTradingService::class);
 
         try {
             $order = $service->executeTrade($user, $data);
             return response()->json(["success" => true, "data" => $order]);
         } catch (\Exception $e) {
+            \Log::error("Trade Failed: " . $e->getMessage());
             return response()->json(["success" => false, "message" => $e->getMessage()], 400);
         }
     }
 
-    public function listOrders()
+    public function listOrders(Request $request)
     {
         $user = auth()->user();
-        $models = $this->resolveModels($user);
+        $models = $this->resolveModels($user, $request);
 
         $orderClass = $models->order;
-
         return response()->json([
             "success" => true,
-            "data" => $orderClass::where('user_id', $user->id)
-                ->orderByDesc('id')
-                ->get()
+            "data" => $orderClass::where('user_id', $user->id)->orderByDesc('id')->get()
         ]);
     }
 
@@ -67,13 +71,13 @@ class OmsController extends Controller
     {
         $user = auth()->user();
         $models = $this->resolveModels($user);
-        
+
         $orderClass = $models->order;
         $walletClass = $models->wallet;
         $portfolioClass = $models->portfolio;
 
         return DB::transaction(function () use ($id, $user, $orderClass, $walletClass, $portfolioClass) {
-            
+
             $order = $orderClass::where('id', $id)
                 ->where('user_id', $user->id)
                 ->lockForUpdate()
@@ -88,18 +92,20 @@ class OmsController extends Controller
                 return response()->json(["success" => false, "message" => "This order is already {$order->status}."], 400);
             }
 
-            $filledUnits = $order->filled_quantity ?? 0;
-            $remainingUnits = $order->units - $filledUnits;
-            $remainingRatio = $order->units > 0 ? ($remainingUnits / $order->units) : 0;
-            $refundCashAmount = $order->amount * $remainingRatio;
+            $filledUnits = (float) ($order->filled_quantity ?? 0);
+            $totalUnits = (float) $order->units;
+            $remainingUnits = $totalUnits - $filledUnits;
 
-            
+            $costPerUnit = (float) $order->price;
+            $refundCashAmount = $remainingUnits * $costPerUnit;
+
+
             $wallet = $walletClass::where('user_id', $user->id)->where('currency', $order->currency)->lockForUpdate()->first();
-            
+
             $clearedCol = $order->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
             $unclearedCol = $order->currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
-            
-           
+
+
             $holding = $portfolioClass::where('user_id', $user->id)->where('symbol', $order->symbol)->lockForUpdate()->first();
 
             if ($order->side === 'buy') {
@@ -110,6 +116,15 @@ class OmsController extends Controller
                 if ($holding && $remainingUnits > 0) {
                     $holding->decrement('quantity', $remainingUnits);
                     $holding->decrement('uncleared_quantity', $remainingUnits);
+                } else {
+                    // Sell Order Cancellation: Return the assets to the user
+                    if ($remainingUnits > 0 && $holding) {
+                        $holding->decrement('uncleared_quantity', $remainingUnits);
+                        $holding->increment('cleared_quantity', $remainingUnits);
+                    }
+                    if ($refundCashAmount > 0 && $wallet) {
+                        $wallet->decrement($unclearedCol, $refundCashAmount);
+                    }
                 }
                 $message = "Order canceled. Refunded " . $order->currency . " " . number_format($refundCashAmount, 2);
             } else {
@@ -124,7 +139,7 @@ class OmsController extends Controller
             }
 
             $order->update(['status' => 'canceled']);
-            
+
             $order->trades()->where('settlement_status', 'pending')->update(['settlement_status' => 'canceled']);
 
             return response()->json(["success" => true, "message" => $message, "data" => $order]);
