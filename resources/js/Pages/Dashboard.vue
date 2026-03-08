@@ -57,7 +57,7 @@
           class="p-4 rounded-xl border cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">Crypto</div>
-          <div class="text-xl font-semibold">₦{{ cryptoValueNGN.toLocaleString() }}</div>
+          <div class="text-xl font-semibold">${{ cryptoValueUSD.toLocaleString() }}</div>
         </div>
         <div @click="$router.push({ name: 'fixed-income' })"
           class="p-4 transition-all border cursor-pointer rounded-xl active:scale-95"
@@ -221,7 +221,7 @@ const walletBalance = computed(() => (data.value?.wallet_balance ?? 0));
 const ngxValue = computed(() => data.value?.ngx_value ?? 0);
 const fixedIncomeValue = computed(() => data.value?.fixed_income_value ?? 0);
 const globalValueUSD = computed(() => data.value?.global_stocks_value_usd ?? 0);
-const cryptoValueNGN = computed(() => data.value?.crypto_value_ngn ?? 0);
+const cryptoValueUSD = computed(() => data.value?.crypto_value_usd ?? 0);
 const totalEquity = computed(() => data.value?.total_equity ?? 0);
 
 const perfSeries = ref([]);
