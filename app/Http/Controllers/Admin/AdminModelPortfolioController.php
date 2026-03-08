@@ -54,4 +54,46 @@ class AdminModelPortfolioController extends Controller
             return response()->json(['error' => 'Failed to create portfolio: ' . $e->getMessage()], 400);
         }
     }
+    public function update(Request $request, $id)
+{
+    $request->validate([
+        'name' => 'required|string',
+        'description' => 'required|string',
+        'risk_profile' => 'required|in:conservative,balanced,aggressive',
+        'starting_value' => 'required|numeric',
+        'is_premium' => 'boolean',
+        'stocks' => 'required|array|min:1',
+        'stocks.*.symbol' => 'required|string',
+        'stocks.*.allocation' => 'required|numeric|min:1|max:100'
+    ]);
+
+    try {
+        $portfolio = ModelPortfolio::findOrFail($id);
+
+        DB::transaction(function () use ($request, $portfolio) {
+            $portfolio->update([
+                'name' => $request->name,
+                'description' => $request->description,
+                'risk_profile' => $request->risk_profile,
+                'starting_value' => $request->starting_value,
+                'is_premium' => $request->is_premium ?? true,
+            ]);
+
+            
+            $portfolio->stocks()->delete();
+
+            foreach ($request->stocks as $stock) {
+                $portfolio->stocks()->create([
+                    'symbol' => $stock['symbol'],
+                    'allocation_percentage' => $stock['allocation']
+                ]);
+            }
+        });
+
+        return response()->json(['message' => 'Model Portfolio updated successfully!']);
+
+    } catch (Exception $e) {
+        return response()->json(['error' => 'Update failed: ' . $e->getMessage()], 400);
+    }
+}
 }

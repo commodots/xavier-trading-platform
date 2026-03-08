@@ -47,4 +47,22 @@ class AdminAdvisoryController extends Controller
         AdvisoryPost::findOrFail($id)->delete();
         return response()->json(['message' => 'Post deleted successfully']);
     }
+    public function update(Request $request, $id)
+{
+    $validated = $request->validate([
+        'title' => 'required|string',
+        'content' => 'required|string',
+        'market_type' => 'required|in:local,international,crypto',
+        'risk_level' => 'required|in:low,medium,high',
+        'is_premium' => 'boolean'
+    ]);
+
+    $post = AdvisoryPost::findOrFail($id);
+    $post->update($validated);
+
+    return response()->json([
+        'message' => 'Advisory post updated successfully!',
+        'data' => $post
+    ]);
+}
 }

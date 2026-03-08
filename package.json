@@ -21,6 +21,7 @@
     "dependencies": {
         "apexcharts": "^5.3.6",
         "chart.js": "^4.5.1",
+        "html2pdf.js": "^0.14.0",
         "lucide-vue-next": "^0.548.0",
         "vue-router": "^4.6.3",
         "vue3-apexcharts": "^1.10.0"

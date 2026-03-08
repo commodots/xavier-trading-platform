@@ -5,22 +5,19 @@ namespace App\Services;
 use App\Models\{Order, Wallet, Portfolio, Trade, User};
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use App\Models\Demo\DemoWallet;
-use App\Models\Demo\DemoOrder;
-
 
 class LiveTradingService
 {
-   
+    
     public function executeTrade($user, array $data)
     {
         return DB::transaction(function () use ($user, $data) {
             $marketMap = match (strtoupper($data['market'])) {
-                "NGX"          => ['currency' => 'NGN', 'category' => 'local'],
+                "NGX"           => ['currency' => 'NGN', 'category' => 'local'],
                 "GLOBAL", "USD" => ['currency' => 'USD', 'category' => 'foreign'],
-                "CRYPTO"       => ['currency' => 'USD', 'category' => 'crypto'],
-                "FIXED_INCOME" => ['currency' => 'NGN', 'category' => 'fixed_income'],
-                default        => throw new \InvalidArgumentException("Unsupported market: {$data['market']}")
+                "CRYPTO"        => ['currency' => 'USD', 'category' => 'crypto'],
+                "FIXED_INCOME"  => ['currency' => 'NGN', 'category' => 'fixed_income'],
+                default         => throw new \InvalidArgumentException("Unsupported market: {$data['market']}")
             };
 
             $currency = $marketMap['currency'];
@@ -30,7 +27,6 @@ class LiveTradingService
             // We use 1500 as a placeholder; in production, fetch this from a Cache/Rate service
             $FX_RATE = 1500; 
             $priceInNaira = ($currency === 'USD') ? ($data['market_price'] * $FX_RATE) : $data['market_price'];
-            
             
             $units = ($category === 'crypto') 
                 ? ($data['amount'] / $priceInNaira) 
@@ -42,13 +38,15 @@ class LiveTradingService
 
             $actualCost = $units * $data['market_price'];
 
-            
             $wallet = Wallet::where('user_id', $user->id)
                 ->where('currency', $currency)
                 ->lockForUpdate() 
                 ->firstOrFail();
 
-            $holding = Portfolio::lockForUpdate()->firstOrCreate(
+            $holding = Portfolio::where('user_id', $user->id)
+                ->where('symbol', $data['symbol'])
+                ->lockForUpdate()
+                ->firstOrCreate(
                 ['user_id' => $user->id, 'symbol' => $data['symbol']],
                 [
                     'name' => $data['company'],
@@ -69,11 +67,9 @@ class LiveTradingService
                     throw new \Exception("Insufficient cleared {$currency} balance.");
                 }
 
-               
                 $wallet->decrement($clearedCol, $actualCost);
                 $wallet->increment('locked', $actualCost);
 
-                
                 $totalQty = $holding->quantity + $units;
                 $newAvgPrice = (($holding->quantity * $holding->avg_price) + $actualCost) / $totalQty;
 
@@ -83,7 +79,6 @@ class LiveTradingService
                     'avg_price' => $newAvgPrice
                 ]);
             } else {
-                // SELL LOGIC
                 if ($holding->cleared_quantity < $units) {
                     throw new \Exception("Insufficient cleared holdings to sell. Available: {$holding->cleared_quantity}");
                 }
@@ -121,73 +116,69 @@ class LiveTradingService
 
     
     public function getPortfolio($userId)
-    {
-        $FX_RATE = 1500;
-        $rawHoldings = Portfolio::where('user_id', $userId)->where('quantity', '>', 0)->get();
+{
+    $user = User::findOrFail($userId);
+    $FX_RATE = 1500;
+    $rawHoldings = Portfolio::where('user_id', $userId)->where('quantity', '>', 0)->get();
 
-        $groupedHoldings = $rawHoldings->map(function ($holding) use ($FX_RATE) {
-            $isUsd = in_array($holding->currency, ['USD']) || in_array($holding->category, ['foreign', 'crypto']);
-            $multiplier = $isUsd ? $FX_RATE : 1;
-            
-            $currentValue = $holding->quantity * $holding->market_price;
-
-            return [
-                'symbol' => $holding->symbol,
-                'name' => $holding->name,
-                'category' => $holding->category,
-                'currency' => $holding->currency,
-                'quantity' => (float) $holding->quantity,
-                'cleared_quantity' => (float) $holding->cleared_quantity,
-                'uncleared_quantity' => (float) $holding->uncleared_quantity,
-                'avg_price' => (float) $holding->avg_price,
-                'market_price' => (float) $holding->market_price,
-                'total_value' => $currentValue,
-                'total_value_ngn' => $currentValue * $multiplier,
-                'gain_loss' => ($holding->market_price - $holding->avg_price) * $holding->quantity,
-            ];
-        });
-
-        // Fetch Wallet Balances
-        $wallets = Wallet::where('user_id', $userId)->get();
-        $ngnWallet = $wallets->where('currency', 'NGN')->first();
-        $usdWallet = $wallets->where('currency', 'USD')->first();
-
-        $ngnBalance = $ngnWallet ? (float) $ngnWallet->ngn_cleared : 0;
-        $usdBalance = $usdWallet ? (float) $usdWallet->usd_cleared : 0;
-
-        // Calculate Category Values (Converting USD assets to NGN for the Chart)
-
-        $globalValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value');
-        $globalValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value_ngn');
-
-        $ngxValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'local')->sum('total_value_ngn');
-        $fixedIncomeValue = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'fixed_income')->sum('total_value_ngn');
-
-        $cryptoValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value');
-        $cryptoValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value_ngn');
-
-        // Calculate Total Wallet Value in NGN
-        $walletValueNgn = (float) ($ngnBalance + ($usdBalance * $FX_RATE));
+    $groupedHoldings = $rawHoldings->map(function ($holding) use ($FX_RATE) {
+        $isUsdAsset = in_array($holding->category, ['foreign', 'crypto']);
+        
+        $currentValue = $holding->quantity * $holding->market_price;
+        
+        // Calculate NGN equivalent for total equity tracking
+        $totalValueNgn = $isUsdAsset ? ($currentValue * $FX_RATE) : $currentValue;
+        
+        // Calculate Average Price in NGN for P/L consistency in the table
+        $avgPriceNgn = $isUsdAsset ? ($holding->avg_price * $FX_RATE) : $holding->avg_price;
 
         return [
-            'success' => true,
-            'trading_mode' => $user->trading_mode,
-            'wallet_balance' => $walletValueNgn,
-            'ngx_value' => $ngxValue,
-            'fixed_income_value' => $fixedIncomeValue,
-            'global_stocks_value_usd' => $globalValueUsd,
-            'global_stocks_value_ngn' => $globalValueNgn,
-            'crypto_value_usd' => $cryptoValueUsd,
-            'crypto_value_ngn' => $cryptoValueNgn,
-            'holdings' => $groupedHoldings,
-            'total_equity' => ($walletValueNgn + $ngxValue + $globalValueNgn + $cryptoValueNgn + $fixedIncomeValue),
-            'portfolio_distribution' => [
-        ['label' => 'Wallet', 'value' => $walletValueNgn],
-                ['label' => 'NGX', 'value' => $ngxValue],
-                ['label' => 'Global', 'value' => $globalValueNgn],
-                ['label' => 'Crypto', 'value' => $cryptoValueNgn],
-        ['label' => 'Fixed Income', 'value' => $fixedIncomeValue],
-            ]
+            'symbol' => $holding->symbol,
+            'name' => $holding->name,
+            'category' => $holding->category,
+            'currency' => $holding->currency,
+            'quantity' => (float) $holding->quantity,
+            'cleared_quantity' => (float) $holding->cleared_quantity,
+            'uncleared_quantity' => (float) $holding->uncleared_quantity,
+            'avg_price' => (float) $holding->avg_price,
+            'avg_price_ngn' => (float) $avgPriceNgn,
+            'market_price' => (float) $holding->market_price,
+            'total_value' => $currentValue, 
+            'total_value_ngn' => $totalValueNgn,
+            'gain_loss' => ($holding->market_price - $holding->avg_price) * $holding->quantity,
         ];
-    }
+    });
+
+    $wallets = Wallet::where('user_id', $userId)->get();
+    $ngnBalance = (float) ($wallets->where('currency', 'NGN')->first()->ngn_cleared ?? 0);
+    $usdBalance = (float) ($wallets->where('currency', 'USD')->first()->usd_cleared ?? 0);
+
+
+    $globalValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'foreign')->sum('total_value');
+    $cryptoValueUsd = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'crypto')->sum('total_value');
+    $ngxValueNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'local')->sum('total_value');
+    $fixedIncomeNgn = (float) $groupedHoldings->filter(fn($h) => $h['category'] === 'fixed_income')->sum('total_value');
+
+    $walletValueNgn = $ngnBalance + ($usdBalance * $FX_RATE);
+    $totalEquityNgn = $walletValueNgn + $ngxValueNgn + ($globalValueUsd * $FX_RATE) + ($cryptoValueUsd * $FX_RATE) + $fixedIncomeNgn;
+
+    return [
+        'success' => true,
+        'trading_mode' => $user->trading_mode,
+        'wallet_balance' => $walletValueNgn,
+        'ngx_value' => $ngxValueNgn,
+        'fixed_income_value' => $fixedIncomeNgn,
+        'global_stocks_value_usd' => $globalValueUsd, 
+        'crypto_value_usd' => $cryptoValueUsd,       
+        'holdings' => $groupedHoldings,
+        'total_equity' => $totalEquityNgn,
+        'portfolio_distribution' => [
+            ['label' => 'Wallet', 'value' => $walletValueNgn / $FX_RATE], 
+            ['label' => 'NGX', 'value' => $ngxValueNgn / $FX_RATE],
+            ['label' => 'Global', 'value' => $globalValueUsd],
+            ['label' => 'Crypto', 'value' => $cryptoValueUsd],
+            ['label' => 'Fixed Income', 'value' => $fixedIncomeNgn / $FX_RATE],
+        ]
+    ];
+}
 }

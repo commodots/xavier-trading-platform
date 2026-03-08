@@ -26,7 +26,7 @@ use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\PaystackWebhookController;
+use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\DemoController;
 
 // === ADVISORY CONTROLLERS ===
