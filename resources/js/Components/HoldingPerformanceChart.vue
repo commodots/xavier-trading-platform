@@ -1,8 +1,8 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 mb-6">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+    <div class="flex flex-col justify-between gap-4 mb-4 md:flex-row md:items-center">
       <div>
-        <h2 class="text-sm font-semibold tracking-wider text-gray-400 uppercase">{{ title }} Portfolio Performance</h2>
+        <h2 class="text-sm font-semibold tracking-wider text-gray-400 uppercase">{{ title }} Performance</h2>
         <div class="text-2xl font-bold text-white">
           {{ currencySymbol }}{{ totalValue.toLocaleString() }}
           <span :class="isPositive ? 'text-green-400' : 'text-red-400'" class="ml-2 text-sm font-medium">

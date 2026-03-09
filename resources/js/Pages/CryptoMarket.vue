@@ -1,74 +1,68 @@
 <template>
   <MainLayout>
-    <div>
-      <div class="flex justify-between items-center mb-6">
+    <div class="space-y-6">
+      <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">₿ Crypto Market</h1>
-        <input v-model="search" type="text" placeholder="Search crypto..."
-          class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-0 outline-none" />
+        <div class="relative">
+          <input v-model="search" type="text" placeholder="Search crypto..."
+            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-64 transition-all" />
+        </div>
       </div>
 
-      <HoldingPerformanceChart title="Crypto" currencySymbol="₦" :seriesData="portfolioData" :totalValue="totalValue"
-        :percentageChange="changePercent" :loading="isGraphLoading" @rangeChange="fetchPortfolioPerformance" />
-
-      <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="text-gray-400 border-b border-[#1f3348]">
-            <tr>
-              <th class="py-3 px-4 text-left">Symbol</th>
-              <th class="text-left">Name</th>
-              <th class="text-right">Price (₦)</th>
-              <th class="text-right">24h Change</th>
-              <th class="text-right">Market Cap</th>
-              <th class="text-right">Trend</th>
-              <th class="text-center" colspan="2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="coin in filteredCoins" :key="coin.symbol"
-              class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
-              <td class="py-3 px-4 font-medium">{{ coin.symbol }}</td>
-              <td>{{ coin.name }}</td>
-              <td class="text-right">{{ coin.price.toLocaleString() }}</td>
-              <td :class="coin.change >= 0 ? 'text-green-400 text-right' : 'text-red-400 text-right'">
-                {{ coin.change }}%
-              </td>
-              <td class="text-right">{{ coin.marketcap.toLocaleString() }}</td>
-              <td class="text-right w-32">
-                <apexchart type="line" height="40" :options="sparkOptions" :series="[{ data: coin.spark }]" />
-              </td>
-              <td class="text-center px-1">
-                <button 
-                @click="openDetails(coin)"
-                  class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
-                  Details
-                </button>
-              </td>
-              <td class="text-center px-1">
-                <button 
-                @click="openTrade(coin)"
-                  class="bg-[#00D4FF]/20 text-[#00D4FF] px-3 py-1 rounded-md hover:bg-[#00D4FF]/30 transition">
-                  Trade
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <MarketDetailsModal 
-      :isOpen="isModalOpen" 
-      :item="selectedItem" 
-      :currencySymbol="'₦'"
-        @close="isModalOpen = false" />
-
-      <TradeModal 
-        :show="showTradeModal" 
-        :tickers="tradeTickers" 
-        :assetCategories="assetCategories"
-        :initialTicker="selectedTradeCoin"
-        @close="showTradeModal = false"
-        @trade-success="fetchPortfolioPerformance" 
+      <HoldingPerformanceChart 
+        title="Your Crypto Holdings" 
+        currencySymbol="$" 
+        :seriesData="portfolioData" 
+        :totalValue="totalValue"
+        :percentageChange="changePercent" 
+        :loading="isGraphLoading" 
+        @rangeChange="fetchPortfolioPerformance" 
       />
+
+      <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
+        <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
+          <h2 class="font-semibold text-gray-200">Market Assets</h2>
+          <span class="text-xs text-gray-500">Live Prices</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-gray-400 border-b border-[#1f3348] bg-[#0B121D]">
+              <tr>
+                <th class="px-6 py-4 font-medium text-left">Symbol</th>
+                <th class="font-medium text-left">Name</th>
+                <th class="font-medium text-right">Price (₦)</th>
+                <th class="font-medium text-right">24h Change</th>
+                <th class="font-medium text-right">Market Cap</th>
+                <th class="px-6 font-medium text-right">Trend</th>
+                <th class="font-medium text-center" colspan="2">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#1f3348]">
+              <tr v-for="coin in filteredCoins" :key="coin.symbol" class="hover:bg-[#16213A] transition">
+                <td class="px-6 py-4 font-bold text-[#F7931A]">{{ coin.symbol }}</td>
+                <td class="text-gray-300">{{ coin.name }}</td>
+                <td class="font-mono font-semibold text-right text-white">{{ coin.price.toLocaleString() }}</td>
+                <td class="text-right" :class="coin.change >= 0 ? 'text-green-400' : 'text-red-400'">
+                  {{ coin.change >= 0 ? '+' : '' }}{{ coin.change }}%
+                </td>
+                <td class="text-right text-gray-400">₦{{ (coin.marketcap / 1e9).toFixed(2) }}B</td>
+                <td class="w-32 px-6 text-right">
+                  <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: coin.spark }]" />
+                </td>
+                <td class="px-2 text-center">
+                  <button @click="openDetails(coin)" class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md hover:bg-[#2d4a66] transition text-xs">Details</button>
+                </td>
+                <td class="px-2 pr-6 text-center">
+                  <button @click="openTrade(coin)" class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">Trade</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currencySymbol="₦" @close="isModalOpen = false" />
+      <TradeModal :show="showTradeModal" :tickers="tradeTickers" :assetCategories="assetCategories" :initialTicker="selectedTradeCoin" @close="showTradeModal = false" @trade-success="fetchPortfolioPerformance" />
     </div>
   </MainLayout>
 </template>
@@ -76,7 +70,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
-import VueApexCharts from "vue3-apexcharts";
+import apexchart from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import TradeModal from "@/Components/TradeModal.vue";
@@ -84,50 +78,16 @@ import api from "@/api";
 
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
-
-// Trade Modal State
 const showTradeModal = ref(false);
 const selectedTradeCoin = ref(null);
-const assetCategories = [
-  { id: 'CRYPTO', name: 'Cryptocurrency (USD)', description: 'Bitcoin & Digital Assets' }
-];
-
-const openDetails = (item) => {
-  selectedItem.value = item;
-  isModalOpen.value = true;
-};
-
-const openTrade = (coin) => {
- 
-  selectedTradeCoin.value = { ...coin, currency: 'NGN' }; 
-  showTradeModal.value = true;
-};
-
+const search = ref("");
+const isGraphLoading = ref(false);
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
-const isGraphLoading = ref(false);
 
-const fetchPortfolioPerformance = async (range = '1W') => {
-  isGraphLoading.value = true;
-  try {
-    const response = await api.get(`/portfolio/history`, {
-      params: { category: 'crypto', range }
-    });
+const assetCategories = [{ id: 'CRYPTO', name: 'Cryptocurrency', description: 'Digital Assets' }];
 
-    portfolioData.value = response.data.series;
-    totalValue.value = response.data.total;
-    changePercent.value = response.data.change;
-  } catch (e) {
-    console.error('Failed to fetch crypto history', e);
-  } finally {
-    isGraphLoading.value = false;
-  }
-};
-
-onMounted(() => fetchPortfolioPerformance());
-
-const search = ref("");
 const coins = ref([
   { symbol: "BTC", name: "Bitcoin", price: 24761904, change: 2.4, marketcap: 900000000000, spark: [24000000, 24300000, 24500000, 24650000, 24761904] },
   { symbol: "ETH", name: "Ethereum", price: 1550000, change: -1.2, marketcap: 380000000000, spark: [1580000, 1570000, 1560000, 1555000, 1550000] },
@@ -135,26 +95,33 @@ const coins = ref([
   { symbol: "SOL", name: "Solana", price: 155000, change: 3.1, marketcap: 68000000000, spark: [150000, 152000, 153000, 154000, 155000] },
 ]);
 
-const tradeTickers = computed(() => ({
-  CRYPTO: coins.value.map(c => ({ ...c, currency: 'NGN' }))
-}));
-
-const filteredCoins = computed(() =>
-  coins.value.filter(c =>
-    c.name.toLowerCase().includes(search.value.toLowerCase()) ||
-    c.symbol.toLowerCase().includes(search.value.toLowerCase())
-  )
-);
-
 const sparkOptions = {
   chart: { toolbar: { show: false }, sparkline: { enabled: true } },
   stroke: { curve: "smooth", width: 2 },
   colors: ["#00D4FF"],
-  tooltip: { enabled: false },
-  grid: { show: false },
+  tooltip: { enabled: false }
 };
-</script>
 
-<script>
-export default { components: { apexchart: VueApexCharts } };
+const tradeTickers = computed(() => ({
+  CRYPTO: coins.value.map(c => ({ ...c, currency: 'NGN' }))
+}));
+
+const filteredCoins = computed(() => 
+  coins.value.filter(c => c.name.toLowerCase().includes(search.value.toLowerCase()) || c.symbol.toLowerCase().includes(search.value.toLowerCase()))
+);
+
+const fetchPortfolioPerformance = async (range = '1W') => {
+  isGraphLoading.value = true;
+  try {
+    const response = await api.get(`/portfolio/history`, { params: { category: 'crypto', range } });
+    portfolioData.value = response.data.series;
+    totalValue.value = response.data.total;
+    changePercent.value = response.data.change;
+  } catch (e) { console.error(e); } finally { isGraphLoading.value = false; }
+};
+
+const openDetails = (item) => { selectedItem.value = item; isModalOpen.value = true; };
+const openTrade = (coin) => { selectedTradeCoin.value = { ...coin, currency: 'NGN' }; showTradeModal.value = true; };
+
+onMounted(() => fetchPortfolioPerformance());
 </script>
