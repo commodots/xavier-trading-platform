@@ -69,7 +69,8 @@ class AdminControlsToggleTest extends TestCase
 
     $response = $this->actingAs($user)->postJson('/api/deposit', [
         'amount' => 5000,
-        'currency' => 'NGN'
+        'currency' => 'NGN',
+        'linked_account_id' => 1,
     ]);
 
     $response->assertStatus(403);

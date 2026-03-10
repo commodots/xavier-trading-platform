@@ -29,9 +29,12 @@ class DemoController extends Controller
         $user->trading_mode = $request->mode;
         $user->save();
 
+        $modeLabel = strtoupper($request->mode);
+
         return response()->json([
-            'message' => 'Trading mode switched successfully',
-            'mode' => $user->trading_mode
+            'success' => true,
+            'message' => "Switched to {$modeLabel} mode",
+            'trading_mode' => $user->trading_mode
         ]);
     }
 

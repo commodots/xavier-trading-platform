@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'subscribed' => \App\Http\Middleware\CheckSubscription::class,
+            'advisory.access' => \App\Http\Middleware\CheckAdvisoryAccess::class,
         ]);
 
         // --- API Middleware Stack ---

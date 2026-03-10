@@ -48,6 +48,18 @@ class SettlementTest extends TestCase
             'price' => 10.00,
             'quantity' => 10,
         ]);
+        Portfolio::create([
+            'user_id' => $user->id,
+            'symbol' => 'ZENITH',
+            'name' => 'Zenith Bank',
+            'category' => 'local',
+            'currency' => 'NGN',
+            'market_price' => 10.00,
+            'quantity' => 0,
+            'cleared_quantity' => 0,
+            'uncleared_quantity' => 0,
+            'avg_price' => 10.00,
+        ]);
 
         app(SettlementService::class)->settleOrder($order);
 

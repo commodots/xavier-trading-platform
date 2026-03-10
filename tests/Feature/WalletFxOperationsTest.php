@@ -36,6 +36,7 @@ class WalletFxOperationsTest extends TestCase
     {
         $this->wallet->debit(100, 'balance');
 
+        $this->wallet->reserve(400);
         $this->wallet->refresh();
         $this->assertEquals(900, $this->wallet->balance);
     }

@@ -17,7 +17,7 @@ use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\SystemSettingsController;
+use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
@@ -140,6 +140,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /*Demo Mode Routes*/
     Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
     Route::post('/demo/reset', [DemoController::class, 'resetDemo']);   // reset demo account
+    Route::post('/demo/trade', [DemoController::class, 'placeTrade']);  // place a demo trade
     Route::post('/switch-mode', [ProfileController::class, 'switchMode']);
 
 
@@ -181,7 +182,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /* Settings */
         Route::get('/settings', [SystemSettingsController::class, 'get']);
-        Route::post('/settings', [SystemSettingsController::class, 'update']);
+        Route::post('/settings/update', [SystemSettingsController::class, 'update']);
 
         /* Stats */
         Route::get('/stats', [AdminController::class, 'stats']);
@@ -261,7 +262,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // 
         Route::prefix('advisory')->group(function () {
 
-            // Free Routes (Visible to anyone logged in)
+        Route::post('/activate-trial', [AdvisoryController::class, 'activateTrial']);    
+        // Free Routes (Visible to anyone logged in)
             Route::get('/free-posts', [AdvisoryController::class, 'freePosts']);
             Route::get('/plans', [SubscriptionController::class, 'plans']);
             Route::post('/subscribe', [SubscriptionController::class, 'initializePayment']);
@@ -269,12 +271,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/cancel', [SubscriptionController::class, 'cancelSubscription']);
 
             //VIP Routes (Locked behind the 'subscribed' middleware)
-            Route::middleware('subscribed')->group(function () {
+            Route::middleware('advisory.access')->group(function () {
                 Route::get('/premium-posts', [AdvisoryController::class, 'premiumPosts']);
                 Route::get('/ai-picks', [PredictionController::class, 'topPicks']);
                 Route::get('/model-portfolios', [ModelPortfolioController::class, 'index']);
                 Route::post('/model-portfolios/{id}/copy', [ModelPortfolioController::class, 'copyPortfolio']);
             });
         });
+    });
+
+    Route::middleware(['auth', 'advisory.access'])->group(function () {
+        Route::get('/advisory', [AdvisoryController::class, 'index'])->name('advisory.index');
+        Route::get('/advisory/vip', [AdvisoryController::class, 'vip'])->name('advisory.vip');
     });
 });

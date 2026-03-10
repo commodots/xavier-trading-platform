@@ -35,7 +35,7 @@ class SettlementService
                     Log::info("SettlementService: Trade {$trade->id} settled successfully for order {$order->id}");
                 } catch (\Exception $e) {
                     Log::error("SettlementService: Error settling trade {$trade->id} for order {$order->id}: " . $e->getMessage());
-                    throw $e; 
+                    throw $e;
                 }
             }
         });
@@ -81,12 +81,11 @@ class SettlementService
             'settlement_status' => 'settled',
             'settlement_date' => Carbon::now()->toDateString(),
         ]);
-        
+
         // Mark order as filled if all trades are done
         if ($order->trades()->where('settlement_status', 'pending')->count() === 0) {
             $order->update(['status' => 'filled']);
         }
     }
-}      if ($order->trades()->where('settlement_status', 'pending')->count() === 0) {
-    $order->update(['status' => 'filled']);
 }
+

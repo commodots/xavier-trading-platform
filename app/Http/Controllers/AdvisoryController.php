@@ -32,4 +32,23 @@ class AdvisoryController extends Controller
 
         return response()->json(['success' => true, 'data' => $posts]);
     }
+ public function activateTrial(Request $request) {
+    $user = $request->user();
+    
+    //Check if user already used a trial
+    if ($user->trial_started_at) {
+        return response()->json(['success' => false, 'message' => 'Trial already used.'], 403);
+    }
+
+    // Fetch the duration from SystemSettings
+    $settings = \App\Models\SystemSetting::first();
+    $days = $settings ? $settings->trial_days : 3; // Fallback to 3 if setting is missing
+
+    // Set the expiry based on the Admin's setting
+    $user->trial_started_at = now();
+    $user->trial_expires_at = now()->addDays($days);
+    $user->save();
+
+    return response()->json(['success' => true]);
+}
 }

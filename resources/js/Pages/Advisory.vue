@@ -36,26 +36,20 @@
           <div class="relative p-8 overflow-y-auto">
             <span class="block mb-2 text-xs font-bold tracking-wider text-blue-600 uppercase">{{ activePost.market_type }}</span>
             <h2 class="mb-4 text-3xl font-bold text-gray-900">{{ activePost.title }}</h2>
-            <div :class="['text-gray-700 leading-relaxed text-lg', !user.has_active_subscription ? 'max-h-48 overflow-hidden relative' : '']">
+            <div :class="['text-gray-700 leading-relaxed text-lg', !(user.has_active_subscription || user.on_trial) ? 'max-h-48 overflow-hidden relative' : '']">
               {{ activePost.content }}
-              <div v-if="!user.has_active_subscription" class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent"></div>
+              <div v-if="!(user.has_active_subscription || user.on_trial)" class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent"></div>
             </div>
-            <div v-if="!user.has_active_subscription" class="flex flex-col items-center justify-center mt-6">
+            <div v-if="!(user.has_active_subscription || user.on_trial)" class="flex flex-col items-center justify-center mt-6">
               <button @click="scrollToPricing" class="px-8 py-3 font-bold text-white transition bg-blue-600 rounded-full shadow-lg hover:bg-blue-700">View Plans to Read More</button>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="isVerifying || isInitialLoading" class="fixed inset-0 z-50 flex flex-col items-center justify-center text-white bg-gray-900/90 backdrop-blur-sm">
-        <div class="w-16 h-16 mb-4 border-t-4 border-blue-500 rounded-full animate-spin"></div>
-        <h2 class="text-2xl font-bold">{{ isVerifying ? 'Verifying Payment...' : 'Loading Advisory...' }}</h2>
-      </div>
-
       <div class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-bold text-white">Xavier Advisory</h1>
         <div class="flex items-center gap-4">
-          
           <div class="relative">
             <button @click="showNotifications = !showNotifications" class="relative p-2 text-gray-600 transition bg-white border rounded-full shadow-sm hover:bg-gray-50">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,11 +66,8 @@
                 <button v-if="unreadCount > 0" @click="markAllAsRead" class="text-xs font-bold text-blue-600 hover:text-blue-800">Mark all as read</button>
               </div>
               <div class="overflow-y-auto max-h-80">
-                <div v-if="notifications.length === 0" class="p-6 text-sm text-center text-gray-500">
-                  No new notifications.
-                </div>
-                <div v-for="notif in notifications" :key="notif.id" 
-                     @click="handleNotificationClick(notif)"
+                <div v-if="notifications.length === 0" class="p-6 text-sm text-center text-gray-500">No new notifications.</div>
+                <div v-for="notif in notifications" :key="notif.id" @click="handleNotificationClick(notif)"
                      :class="['p-4 border-b border-gray-50 cursor-pointer transition hover:bg-gray-50', !notif.read_at ? 'bg-blue-50/30' : '']">
                   <div class="flex items-start gap-3">
                     <div :class="['w-2 h-2 mt-2 rounded-full flex-shrink-0', !notif.read_at ? 'bg-blue-500' : 'bg-gray-300']"></div>
@@ -95,146 +86,152 @@
             <span class="flex items-center gap-2 px-4 py-1.5 text-sm font-bold text-blue-800 bg-blue-100 rounded-full shadow-sm">👑 VIP Active</span>
             <button @click="showCancelModal = true" class="text-sm font-semibold text-gray-400 underline transition hover:text-red-500">Cancel Plan</button>
           </template>
+          <template v-else-if="user.on_trial">
+            <div class="flex flex-col items-end">
+              <span class="flex items-center gap-2 px-4 py-1.5 text-sm font-bold text-amber-800 bg-amber-100 rounded-full shadow-sm">⏳ Trial Access</span>
+              <span class="text-[10px] font-bold text-amber-500 mt-1 uppercase tracking-tighter">Expires in: {{ trialCountdown }}</span>
+            </div>
+          </template>
         </div>
       </div>
 
-      <div v-if="user.has_active_subscription && !isInitialLoading" class="space-y-8 animate-fade-in">
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-          
-          <div :class="['transition-all duration-300 space-y-6', activeTab === 'vip' ? 'md:col-span-2' : 'md:col-span-3']">
-            <div class="flex gap-8 border-b border-[#1f3348]">
-              <button 
-                @click="activeTab = 'regular'" 
-                :class="['pb-3 text-xl font-bold transition', activeTab === 'regular' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']"
-              >
-                Regular
-              </button>
-              <button 
-                @click="activeTab = 'vip'" 
-                :class="['pb-3 text-xl font-bold transition', activeTab === 'vip' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']"
-              >
-                VIP
-              </button>
+      <div class="relative min-h-[400px]">
+        
+        <div v-if="isVerifying || isInitialLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center text-white bg-gray-900/90 backdrop-blur-sm rounded-xl">
+          <div class="w-16 h-16 mb-4 border-t-4 border-blue-500 rounded-full animate-spin"></div>
+          <h2 class="text-2xl font-bold">{{ isVerifying ? 'Verifying Payment...' : 'Loading Advisory...' }}</h2>
+        </div>
+
+        <div v-if="(user.has_active_subscription || user.on_trial) && !isInitialLoading" class="space-y-8 animate-fade-in">
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div :class="['transition-all duration-300 space-y-6', activeTab === 'vip' ? 'md:col-span-2' : 'md:col-span-3']">
+              <div class="flex gap-8 border-b border-[#1f3348]">
+                <button @click="activeTab = 'regular'" :class="['pb-3 text-xl font-bold transition', activeTab === 'regular' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']">Regular</button>
+                <button @click="activeTab = 'vip'" :class="['pb-3 text-xl font-bold transition', activeTab === 'vip' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']">VIP</button>
+              </div>
+
+              <section v-if="activeTab === 'regular'" class="p-6 border shadow-sm bg-[#0F1724] border-[#1f3348] rounded-xl animate-fade-in">
+                <div v-for="post in freePosts" :key="post.id" @click="openPost(post)" class="relative pb-4 mb-4 border-b border-gray-200 cursor-pointer last:border-0 group">
+                  <div v-if="isPostUnread(post.id)" class="absolute left-[-16px] top-2 w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <h3 class="text-lg font-semibold text-gray-300 transition group-hover:text-blue-600">{{ post.title }}</h3>
+                  <p class="mt-1 text-gray-500 line-clamp-2">{{ post.content }}</p>
+                  <span class="block mt-1 text-xs font-bold text-blue-500 transition-opacity opacity-0 group-hover:opacity-100">See more...</span>
+                </div>
+              </section>
+
+              <section v-if="activeTab === 'vip'" class="p-6 bg-[#0F1724] border-[#1f3348] border shadow-sm rounded-xl animate-fade-in">
+                <div v-for="post in premiumPosts" :key="post.id" @click="openPost(post)" class="relative pb-4 mb-6 border-b cursor-pointer last:border-0 group">
+                  <div v-if="isPostUnread(post.id)" class="absolute left-[-16px] top-2 w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <h3 class="text-xl font-bold text-gray-300 transition group-hover:text-blue-600">{{ post.title }}</h3>
+                  <p class="mt-1 text-gray-600 line-clamp-2">{{ post.content }}</p>
+                  <span class="block mt-2 font-bold text-blue-500 transition-opacity opacity-0 group-hover:opacity-100">See more...</span>
+                </div>
+              </section>
             </div>
 
-            <section v-if="activeTab === 'regular'" class="p-6 border shadow-sm bg-[#0F1724] border-[#1f3348] rounded-xl animate-fade-in">
-              <div v-for="post in freePosts" :key="post.id" @click="openPost(post)" class="relative pb-4 mb-4 border-b border-gray-200 cursor-pointer last:border-0 group">
-                <div v-if="isPostUnread(post.id)" class="absolute left-[-16px] top-2 w-2 h-2 bg-blue-500 rounded-full"></div>
-                <h3 class="text-lg font-semibold text-gray-300 transition group-hover:text-blue-600">{{ post.title }}</h3>
-                <p class="mt-1 text-gray-500 line-clamp-2">
-                  {{ post.content }}
-                </p>
-                <span class="block mt-1 text-xs font-bold text-blue-500 transition-opacity opacity-0 group-hover:opacity-100">See more...</span>
-              </div>
-            </section>
-
-            <section v-if="activeTab === 'vip'" class="p-6 bg-[#0F1724] border-[#1f3348] border shadow-sm rounded-xl animate-fade-in">
-              <div v-for="post in premiumPosts" :key="post.id" @click="openPost(post)" class="relative pb-4 mb-6 border-b cursor-pointer last:border-0 group">
-                <div v-if="isPostUnread(post.id)" class="absolute left-[-16px] top-2 w-2 h-2 bg-blue-500 rounded-full"></div>
-                <h3 class="text-xl font-bold text-gray-300 transition group-hover:text-blue-600">{{ post.title }}</h3>
-                <p class="mt-1 text-gray-600 line-clamp-2">
-                  {{ post.content }}
-                </p>
-                <span class="block mt-2 font-bold text-blue-500 transition-opacity opacity-0 group-hover:opacity-100">See more...</span>
-              </div>
-            </section>
-          </div>
-
-          <div v-if="activeTab === 'vip'" class="space-y-6 md:col-span-1 animate-fade-in">
-            
-            <section class="p-6 text-white bg-[#0F1724] border border-[#1f3348] shadow-md rounded-2xl">
-              <div>
+            <div v-if="activeTab === 'vip'" class="space-y-6 md:col-span-1 animate-fade-in">
+              <section class="p-6 text-white bg-[#0F1724] border border-[#1f3348] shadow-md rounded-2xl">
                 <div>
                   <h2 class="text-lg font-bold">What are Model Portfolios?</h2>
                   <p class="mt-1 text-sm text-blue-50 text-balance">
                     These are "Investment Blueprints" curated by our team. Instead of picking stocks one-by-one, you can <strong>Copy Trade</strong> a whole basket. Our engine automatically buys each stock in the blueprint based on your budget.
                   </p>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            <section>
-              <h2 class="pb-2 mb-4 text-xl font-black text-white">Model Portfolios</h2>
-              <div class="grid grid-cols-1 gap-6 text-gray-600">
-                <div v-for="portfolio in portfolios" :key="portfolio.id" class="relative flex flex-col p-6 transition bg-white border border-gray-100 shadow-sm rounded-2xl hover:shadow-lg">
-                  <h3 class="mb-1 text-xl font-black text-gray-900">{{ portfolio.name }}</h3>
-                  <p class="mb-4 text-xs font-bold tracking-widest text-gray-400 uppercase">{{ portfolio.risk_profile }} Strategy</p>
-                  <div class="mb-6 space-y-3">
-                    <div v-for="stock in portfolio.stocks" :key="stock.id" class="space-y-1">
-                      <div class="flex justify-between text-xs font-bold text-gray-700">
-                        <span>{{ stock.symbol }}</span><span>{{ stock.allocation_percentage }}%</span>
+              <section>
+                <h2 class="pb-2 mb-4 text-xl font-black text-white">Model Portfolios</h2>
+                <div class="grid grid-cols-1 gap-6 text-gray-600">
+                  <div v-for="portfolio in portfolios" :key="portfolio.id" class="relative flex flex-col p-6 transition bg-white border border-gray-100 shadow-sm rounded-2xl hover:shadow-lg">
+                    <h3 class="mb-1 text-xl font-black text-gray-900">{{ portfolio.name }}</h3>
+                    <p class="mb-4 text-xs font-bold tracking-widest text-gray-400 uppercase">{{ portfolio.risk_profile }} Strategy</p>
+                    <div class="mb-6 space-y-3">
+                      <div v-for="stock in portfolio.stocks" :key="stock.id" class="space-y-1">
+                        <div class="flex justify-between text-xs font-bold text-gray-700">
+                          <span>{{ stock.symbol }}</span><span>{{ stock.allocation_percentage }}%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500" :style="{ width: stock.allocation_percentage + '%' }"></div></div>
                       </div>
-                      <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500" :style="{ width: stock.allocation_percentage + '%' }"></div></div>
+                    </div>
+                    <div class="flex items-center gap-2 pt-4 mt-auto border-t">
+                      <input type="number" v-model="copyAmounts[portfolio.id]" placeholder="Budget (₦)" class="w-full px-4 py-2 text-sm border rounded-lg outline-none focus:border-blue-500" />
+                      <button @click="copyPortfolio(portfolio.id)" :disabled="processingPortfolioId === portfolio.id" class="px-5 py-2 text-sm font-bold text-white bg-gray-900 rounded-lg hover:bg-blue-600 disabled:opacity-50">
+                        <span v-if="processingPortfolioId === portfolio.id">Copying...</span>
+                        <span v-else>Copy</span>
+                      </button>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2 pt-4 mt-auto border-t">
-                    <input type="number" v-model="copyAmounts[portfolio.id]" placeholder="Budget (₦)" class="w-full px-4 py-2 text-sm border rounded-lg outline-none focus:border-blue-500" />
-                    <button @click="copyPortfolio(portfolio.id)" :disabled="processingPortfolioId === portfolio.id" class="px-5 py-2 text-sm font-bold text-white bg-gray-900 rounded-lg hover:bg-blue-600 disabled:opacity-50">
-                      <span v-if="processingPortfolioId === portfolio.id">Copying...</span>
-                      <span v-else>Copy</span>
+                </div>
+              </section>
+
+              <section class="p-6 text-white bg-gray-900 shadow-2xl rounded-2xl">
+                <h2 class="pb-4 mb-4 text-xl font-black border-b border-gray-800">🤖 AI Top Picks</h2>
+                <ul class="space-y-3">
+                  <li v-for="pick in aiPicks" :key="pick.symbol" class="flex items-center justify-between p-4 bg-gray-800 rounded-xl">
+                    <span class="text-xl font-black">{{ pick.symbol }}</span>
+                    <span class="px-2 py-1 text-xs font-black text-green-400 rounded-md bg-green-400/10">{{ pick.confidence }}%</span>
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!isInitialLoading" class="space-y-8 animate-fade-in">
+          <section v-if="!user.on_trial && !user.trial_started_at" class="p-8 text-center border shadow-sm bg-[#0F1724] border-[#1f3348] rounded-2xl">
+    <h2 class="text-2xl font-bold text-white">Experience Xavier VIP Free</h2>
+    <p class="mt-2 text-white">Get 3 full days of AI stock picks and model portfolios. No credit card required.</p>
+    <button 
+      @click="startTrial" 
+      :disabled="isActivatingTrial"
+      class="px-10 py-3 mt-6 font-bold text-white transition transform rounded-full bg-amber-600 hover:bg-amber-700 hover:scale-105 disabled:opacity-50"
+    >
+      {{ isActivatingTrial ? 'Activating...' : 'Start My 3-Day Free Trial' }}
+    </button>
+  </section>
+          
+          <section>
+            <h2 class="pb-2 mb-4 text-xl font-bold text-gray-800 border-b">Free Market Outlook</h2>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div v-for="post in freePosts" :key="post.id" @click="openPost(post)" class="relative p-5 transition bg-white border rounded-lg shadow-sm cursor-pointer hover:shadow-md group">
+                <div v-if="isPostUnread(post.id)" class="absolute w-2 h-2 bg-blue-500 rounded-full left-2 top-6"></div>
+                <span class="block mb-1 ml-2 text-xs font-bold text-gray-400 uppercase">{{ post.market_type }}</span>
+                <h3 class="ml-2 text-lg font-bold text-gray-800 group-hover:text-blue-600">{{ post.title }}</h3>
+                <p class="mt-2 ml-2 text-sm text-gray-600 line-clamp-3">{{ post.content }}</p>
+                <p class="mt-4 ml-2 text-xs font-bold text-blue-500 opacity-0 group-hover:opacity-100">See more &rarr;</p>
+              </div>
+            </div>
+          </section>
+          
+          <div id="pricing-section" class="relative overflow-hidden bg-gray-900 shadow-xl rounded-xl min-h-[500px] flex items-center justify-center">
+            <div class="absolute inset-0 p-8 grid grid-cols-1 md:grid-cols-2 gap-8 opacity-20 blur-[3px] pointer-events-none select-none">
+              <div v-for="i in 2" :key="i"><div class="w-32 h-8 mb-4 bg-gray-600 rounded"></div><div v-for="j in 3" :key="j" class="h-16 mb-2 bg-gray-700 rounded"></div></div>
+            </div>
+            <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-[2px]"></div>
+            <div class="relative z-10 w-full max-w-4xl p-6 py-12 mx-auto text-center">
+              <div class="p-8 bg-white shadow-2xl rounded-2xl">
+                <h2 class="text-2xl font-bold text-gray-900">Unlock VIP Advisory</h2>
+                <p class="max-w-lg mx-auto mt-2 mb-8 text-gray-600">Get instant access to AI Stock Scoring and Model Portfolios.</p>
+                <div class="flex flex-wrap justify-center gap-4">
+                  <div v-for="plan in plans" :key="plan.id" class="flex flex-col w-64 p-6 text-left border border-gray-200 rounded-xl bg-gray-50 hover:border-blue-400">
+                    <h3 class="font-bold text-gray-800">{{ plan.name }}</h3>
+                    <p class="my-3 text-3xl font-black text-blue-600">₦{{ Number(plan.price).toLocaleString() }}</p>
+                    <button v-if="showSubscribeBtn" @click="subscribe(plan.id)" :disabled="processingPlanId === plan.id" class="w-full py-2 mt-auto font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                      {{ processingPlanId === plan.id ? 'Processing...' : 'Subscribe Now' }}
                     </button>
                   </div>
                 </div>
               </div>
-            </section>
-
-            <section class="p-6 text-white bg-gray-900 shadow-2xl rounded-2xl">
-              <h2 class="pb-4 mb-4 text-xl font-black border-b border-gray-800">🤖 AI Top Picks</h2>
-              <ul class="space-y-3">
-                <li v-for="pick in aiPicks" :key="pick.symbol" class="flex items-center justify-between p-4 bg-gray-800 rounded-xl">
-                  <span class="text-xl font-black">{{ pick.symbol }}</span>
-                  <span class="px-2 py-1 text-xs font-black text-green-400 rounded-md bg-green-400/10">{{ pick.confidence }}%</span>
-                </li>
-              </ul>
-            </section>
-
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="!isInitialLoading" class="space-y-8 animate-fade-in">
-        <section>
-          <h2 class="pb-2 mb-4 text-xl font-bold text-gray-800 border-b">Free Market Outlook</h2>
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div v-for="post in freePosts" :key="post.id" @click="openPost(post)" class="relative p-5 transition bg-white border rounded-lg shadow-sm cursor-pointer hover:shadow-md group">
-              <div v-if="isPostUnread(post.id)" class="absolute w-2 h-2 bg-blue-500 rounded-full left-2 top-6"></div>
-              <span class="block mb-1 ml-2 text-xs font-bold text-gray-400 uppercase">{{ post.market_type }}</span>
-              <h3 class="ml-2 text-lg font-bold text-gray-800 group-hover:text-blue-600">{{ post.title }}</h3>
-              <p class="mt-2 ml-2 text-sm text-gray-600 line-clamp-3">{{ post.content }}</p>
-              <p class="mt-4 ml-2 text-xs font-bold text-blue-500 opacity-0 group-hover:opacity-100">See more &rarr;</p>
-            </div>
-          </div>
-        </section>
-
-        <div id="pricing-section" class="relative overflow-hidden bg-gray-900 shadow-xl rounded-xl min-h-[500px] flex items-center justify-center">
-          <div class="absolute inset-0 p-8 grid grid-cols-1 md:grid-cols-2 gap-8 opacity-20 blur-[3px] pointer-events-none select-none">
-            <div v-for="i in 2" :key="i"><div class="w-32 h-8 mb-4 bg-gray-600 rounded"></div><div v-for="j in 3" :key="j" class="h-16 mb-2 bg-gray-700 rounded"></div></div>
-          </div>
-          <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-[2px]"></div>
-          <div class="relative z-10 w-full max-w-4xl p-6 py-12 mx-auto text-center">
-            <div class="p-8 bg-white shadow-2xl rounded-2xl">
-              <h2 class="text-2xl font-bold text-gray-900">Unlock VIP Advisory</h2>
-              <p class="max-w-lg mx-auto mt-2 mb-8 text-gray-600">Get instant access to AI Stock Scoring and Model Portfolios.</p>
-              <div class="flex flex-wrap justify-center gap-4">
-                <div v-for="plan in plans" :key="plan.id" class="flex flex-col w-64 p-6 text-left border border-gray-200 rounded-xl bg-gray-50 hover:border-blue-400">
-                  <h3 class="font-bold text-gray-800">{{ plan.name }}</h3>
-                  <p class="my-3 text-3xl font-black text-blue-600">₦{{ Number(plan.price).toLocaleString() }}</p>
-                  <button v-if="showSubscribeBtn" @click="subscribe(plan.id)" :disabled="processingPlanId === plan.id" class="w-full py-2 mt-auto font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                    {{ processingPlanId === plan.id ? 'Processing...' : 'Subscribe Now' }}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
@@ -243,29 +240,22 @@ const route = useRoute();
 const router = useRouter();
 
 // State
-const user = ref({ has_active_subscription: false });
+const user = ref({ 
+    has_active_subscription: false,
+    on_trial: false,
+    trial_expires_at: null
+});
 const plans = ref([]);
 const freePosts = ref([]);
 const premiumPosts = ref([]);
 const portfolios = ref([]);
 const aiPicks = ref([]);
 const copyAmounts = ref({});
-
-// Added missing state for tabs
 const activeTab = ref('regular');
-
-// Notification State
 const showNotifications = ref(false);
 const notifications = ref([]);
 const unreadCount = ref(0);
-
-// Feedback State
 const feedback = ref({ show: false, title: '', message: '', type: 'success' });
-const showFeedback = (title, message, type = 'success') => {
-  feedback.value = { show: true, title, message, type };
-};
-
-// UI State
 const isInitialLoading = ref(true); 
 const showSubscribeBtn = ref(false);
 const activePost = ref(null);
@@ -274,86 +264,128 @@ const showCancelModal = ref(false);
 const isCancelling = ref(false);
 const processingPlanId = ref(null);
 const processingPortfolioId = ref(null); 
+const isActivatingTrial = ref(false);
+
+const startTrial = async () => {
+  isActivatingTrial.value = true;
+  try {
+    
+    const res = await api.post('/user/advisory/activate-trial');
+    
+    if (res.data.success) {
+      showFeedback('Trial Started!', 'You now have 3 days of VIP access.', 'success');
+      // Refresh all data to unlock the premium sections immediately
+      user.value.on_trial = true;
+      
+      await fetchAllData(); 
+    }
+  } catch (error) {
+    showFeedback('Error', error.response?.data?.message || 'Could not start trial.', 'error');
+  } finally {
+    isActivatingTrial.value = false;
+  }
+};
+
+// Countdown logic
+const trialCountdown = ref('00:00:00');
+let timerInterval = null;
+
+const updateCountdown = () => {
+  if (!user.value.trial_expires_at) return;
+  
+  const end = new Date(user.value.trial_expires_at).getTime();
+  const now = new Date().getTime();
+  const diff = end - now;
+
+  if (diff <= 0) {
+    trialCountdown.value = 'Expired';
+    if (user.value.on_trial) {
+        user.value.on_trial = false;
+        fetchAllData(); 
+    }
+    clearInterval(timerInterval);
+    return;
+  }
+
+  
+  // (diff / milliseconds_in_an_hour)
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  trialCountdown.value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const showFeedback = (title, message, type = 'success') => {
+  feedback.value = { show: true, title, message, type };
+};
 
 onMounted(async () => {
   await fetchAllData();
-  
   setTimeout(() => { showSubscribeBtn.value = true; }, 1500);
-
   if (route.query.reference && route.query.plan_id) {
     handlePaymentVerification(route.query.reference, route.query.plan_id);
   }
+  
+  timerInterval = setInterval(updateCountdown, 1000);
 });
 
-// --- API Methods ---
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval);
+});
+
 const fetchAllData = async () => {
   isInitialLoading.value = true;
   try {
     const profileRes = await api.get('/user/profile/show');
-    user.value.has_active_subscription = !!profileRes.data?.data?.has_active_subscription;
+    const userData = profileRes.data?.data;
+    
+    user.value = {
+        has_active_subscription: !!userData?.has_active_subscription,
+        on_trial: !!userData?.on_trial,
+        trial_expires_at: userData?.trial_expires_at
+    };
+
+    updateCountdown();
 
     const requests = [
-      api.get('/user/advisory/plans'),
-      api.get('/user/advisory/free-posts'),
-      api.get('/user/notifications')
+        api.get('/user/advisory/plans'), 
+        api.get('/user/advisory/free-posts'), 
+        api.get('/user/notifications')
     ];
 
-    if (user.value.has_active_subscription) {
-      requests.push(api.get('/user/advisory/premium-posts'));
-      requests.push(api.get('/user/advisory/model-portfolios'));
-      requests.push(api.get('/user/advisory/ai-picks'));
+    if (user.value.has_active_subscription || user.value.on_trial) {
+      requests.push(api.get('/user/advisory/premium-posts'), api.get('/user/advisory/model-portfolios'), api.get('/user/advisory/ai-picks'));
     }
 
     const results = await Promise.allSettled(requests);
-
     if (results[0].status === 'fulfilled') plans.value = results[0].value.data.data || results[0].value.data;
     if (results[1].status === 'fulfilled') freePosts.value = results[1].value.data.data;
-    
     if (results[2].status === 'fulfilled') {
       notifications.value = results[2].value.data.notifications || [];
       unreadCount.value = results[2].value.data.unread_count || 0;
     }
-
-    if (user.value.has_active_subscription) {
-      if (results[3].status === 'fulfilled') premiumPosts.value = results[3].value.data.data;
-      if (results[4].status === 'fulfilled') portfolios.value = results[4].value.data.data;
-      if (results[5].status === 'fulfilled') aiPicks.value = results[5].value.data.data;
+    if (user.value.has_active_subscription || user.value.on_trial) {
+      if (results[3]?.status === 'fulfilled') premiumPosts.value = results[3].value.data.data;
+      if (results[4]?.status === 'fulfilled') portfolios.value = results[4].value.data.data;
+      if (results[5]?.status === 'fulfilled') aiPicks.value = results[5].value.data.data;
     }
-
-  } catch (e) {
-    console.error("Failed to load dashboard data", e);
-  } finally {
-    isInitialLoading.value = false;
-  }
+  } catch (e) { console.error(e); } finally { isInitialLoading.value = false; }
 };
 
-// --- Post & Notification Logic ---
-const isPostUnread = (postId) => {
-  return notifications.value.some(n => n.data.post_id === postId && !n.read_at);
-};
-
+const isPostUnread = (postId) => notifications.value.some(n => n.data.post_id === postId && !n.read_at);
 const openPost = (post) => {
   activePost.value = post;
-  
   const relatedNotif = notifications.value.find(n => n.data.post_id === post.id && !n.read_at);
-  if (relatedNotif) {
-    handleNotificationClick(relatedNotif, false); 
-  }
+  if (relatedNotif) handleNotificationClick(relatedNotif, false); 
 };
-
-const closePostModal = () => {
-  activePost.value = null;
-};
-
+const closePostModal = () => { activePost.value = null; };
 const handleNotificationClick = async (notif, shouldOpenModal = true) => {
   showNotifications.value = false;
-  
   if (shouldOpenModal) {
-    const postId = notif.data.post_id;
-    const post = [...freePosts.value, ...premiumPosts.value].find(p => p.id === postId);
+    const post = [...freePosts.value, ...premiumPosts.value].find(p => p.id === notif.data.post_id);
     if (post) activePost.value = post;
   }
-
   if (!notif.read_at) {
     try {
       await api.post(`/user/notifications/${notif.id}/read`);
@@ -362,7 +394,6 @@ const handleNotificationClick = async (notif, shouldOpenModal = true) => {
     } catch (e) { console.error(e); }
   }
 };
-
 const markAllAsRead = async () => {
   try {
     await api.post('/user/notifications/read-all');
@@ -370,20 +401,14 @@ const markAllAsRead = async () => {
     unreadCount.value = 0;
   } catch (e) { console.error(e); }
 };
-
-// --- Action Methods ---
 const handlePaymentVerification = async (reference, planId) => {
   isVerifying.value = true;
   try {
     const res = await api.get(`/user/advisory/verify-payment?reference=${reference}&plan_id=${planId}`);
-    if (res.data.success) {
-      await fetchAllData();
-      router.replace('/advisory');
-    }
+    if (res.data.success) { await fetchAllData(); router.replace('/advisory'); }
   } catch (error) { showFeedback('Error', 'Verification failed.', 'error'); }
   finally { isVerifying.value = false; }
 };
-
 const subscribe = async (planId) => {
   processingPlanId.value = planId;
   try {
@@ -392,7 +417,6 @@ const subscribe = async (planId) => {
   } catch (error) { showFeedback('Error', 'Payment failed.', 'error'); }
   finally { processingPlanId.value = null; }
 };
-
 const confirmCancelSubscription = async () => {
   isCancelling.value = true;
   try {
@@ -404,16 +428,10 @@ const confirmCancelSubscription = async () => {
   } catch (error) { showFeedback('Error', 'Cancel failed.', 'error'); }
   finally { isCancelling.value = false; }
 };
-
 const copyPortfolio = async (portfolioId) => {
   const amount = copyAmounts.value[portfolioId];
-  if (!amount || amount < 5000) {
-    showFeedback('Budget Too Low', 'Minimum amount is ₦5,000.', 'error');
-    return;
-  }
-  
+  if (!amount || amount < 5000) return showFeedback('Budget Too Low', 'Minimum amount is ₦5,000.', 'error');
   processingPortfolioId.value = portfolioId; 
-  
   try {
     await api.post(`/user/advisory/model-portfolios/${portfolioId}/copy`, { amount });
     router.push('/orders'); 
@@ -422,17 +440,12 @@ const copyPortfolio = async (portfolioId) => {
     processingPortfolioId.value = null; 
   }
 };
-
-const scrollToPricing = () => {
-  activePost.value = null;
-  document.getElementById('pricing-section')?.scrollIntoView({ behavior: 'smooth' });
-};
+const scrollToPricing = () => { activePost.value = null; document.getElementById('pricing-section')?.scrollIntoView({ behavior: 'smooth' }); };
 </script>
 
 <style scoped>
 .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
 .animate-fade-in-up { animation: fadeInUp 0.4s ease-out; }
-
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>

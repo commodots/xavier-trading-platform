@@ -39,6 +39,11 @@
           : 'text-gray-400 pb-2'">
           Staff Access
         </button>
+        <button v-if="isAdmin || hasCapability('manage_system_settings')" @click="activeTab = 'trial-period-toggle'" :class="activeTab === 'trial-period-toggle'
+          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
+          : 'text-gray-400 pb-2'">
+          Trial Period Toggle
+        </button>
 
       </div>
 
@@ -54,6 +59,7 @@
           <KycSettings v-if="activeTab === 'kyc-settings'"/>
           <PlatformEarnings v-if="activeTab === 'platform-earnings'"/>
           <StaffAccess v-if="activeTab === 'staff-access'"/>
+          <TrialPeriodToggle v-if="activeTab === 'trial-period-toggle'"/>
         </div>
       </div>
     </div>
@@ -70,6 +76,7 @@ import TransactionCharges from "./TransactionCharges.vue";
 import KycSettings from "./KycSettings.vue";
 import PlatformEarnings from "./PlatformEarnings.vue";
 import StaffAccess from "./StaffAccess.vue";
+import TrialPeriodToggle from "./TrialPeriodToggle.vue";
 import api from "@/lib/axios";
 
 // Load user from localStorage
@@ -96,14 +103,25 @@ const loading = ref(true);
 const fetchPermissions = async () => {
   try {
     const profileRes = await api.get('/user/profile/show');
-    const currentUser = profileRes.data.data;
+    const currentUser = profileRes.data.data || {};
+    if (!currentUser || !currentUser.permissions) {
+      throw new Error('Failed to fetch user permissions');
+    }
     userPermissions.value = currentUser.permissions || {};
     // Update localStorage
-    let storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
     storedUser.permissions = userPermissions.value;
     localStorage.setItem("user", JSON.stringify(storedUser));
   } catch (e) {
     console.error('Failed to fetch permissions', e);
+    if (e instanceof Error) {
+      // Handle any specific error types here
+    } else {
+      throw e;
+    }
+  } finally {
+    // Ensure userPermissions is always defined
+    userPermissions.value = userPermissions.value || {};
   }
 };
 

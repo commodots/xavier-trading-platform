@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -38,14 +38,17 @@ class SystemSettingsController extends Controller
 
     public function update(Request $request)
     {
-        $settings = SystemSetting::first();
+        $validated = $request->validate([
+            'trial_days' => 'required|integer|min:0',
+            'trading_fee' => 'numeric',
+            'withdrawal_fee' => 'numeric',
+            'base_currency' => 'string|max:3',
+            'company_name' => 'string|max:255',
+            'support_email' => 'email',
+            ]);
 
-        if (!$settings) {
-            $settings = new SystemSetting();
-        }
-
-        $settings->fill($request->all());
-        $settings->save();
+        $settings = SystemSetting::firstOrCreate([]);
+        $settings->update($validated);
 
         return response()->json([
             'success' => true,

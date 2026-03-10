@@ -44,6 +44,7 @@ class KycControlPanelTest extends TestCase
             'status' => 'pending'
         ]);
 
+        $kyc = KycProfile::factory()->create(['id' => 1]); 
         $resp = $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/kycs/{$kyc->id}/review", [
                 'status' => 'verified',

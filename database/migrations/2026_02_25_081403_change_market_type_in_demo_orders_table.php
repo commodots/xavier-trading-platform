@@ -7,23 +7,25 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('demo_orders', function (Blueprint $table) {
-            DB::statement("ALTER TABLE demo_orders MODIFY COLUMN market_type VARCHAR(50)");
+            // This was changed just for testing purposes
+            $table->string('market_type', 50)->change();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('demo_orders', function (Blueprint $table) {
-            DB::statement("ALTER TABLE demo_orders MODIFY COLUMN market_type ENUM('local', 'international')");
+            //  SQLite doesn't support ENUM 
+            // so we use the driver check here 
+            if (DB::getDriverName() === 'sqlite') {
+                $table->string('market_type')->change();
+            } else {
+                // MySQL will execute this
+                $table->enum('market_type', ['local', 'international'])->change();
+            }
         });
     }
 };

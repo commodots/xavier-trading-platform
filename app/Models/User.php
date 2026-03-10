@@ -31,6 +31,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'next_of_kin_email',
         'kyc_status',
         'trading_mode',
+        'trial_started_at',
+        'trial_expires_at',
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -43,11 +45,12 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'trial_started_at' => 'datetime',
+        'trial_expires_at' => 'datetime',
         'dob' => 'date',
     ];
 
-    protected $appends = ['has_active_subscription'];
-
+    protected $appends = ['has_active_subscription', 'on_trial', 'trial_days_left'];
     //  Relationship: One User has one Wallet
     public function wallet()
     {
@@ -193,6 +196,35 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasActiveSubscription();
     }
     protected $attributes = [
-    'trading_mode' => 'live',
-];
+        'trading_mode' => 'live',
+    ];
+    public function onTrial(): bool
+    {
+        if (!$this->trial_expires_at) return false;
+        return now()->lessThan($this->trial_expires_at);
+    }
+
+    public function getOnTrialAttribute()
+    {
+        return $this->onTrial();
+    }
+
+    // Accessor for trial_days_left
+    public function getTrialDaysLeftAttribute()
+    {
+        if (!$this->trial_expires_at) {
+            $settings = \App\Models\SystemSetting::first();
+            return (int)($settings->trial_days ?? 3);
+        }
+
+        // This gives a real-time diff in days
+        $diff = now()->diffInDays($this->trial_expires_at, false);
+        return max(0, (int)$diff);
+    }
+    public function getTrialExpiresAtAttribute($value)
+    {
+        if (!$value) return null;
+        // This converts the DB time to something like "2026-03-13T12:00:00Z"
+        return \Carbon\Carbon::parse($value)->toIso8601String();
+    }
 }
