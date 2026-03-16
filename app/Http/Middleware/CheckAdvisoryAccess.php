@@ -8,30 +8,40 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckAdvisoryAccess
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, string $requiredTier = 'regular'): Response
     {
         $user = $request->user();
 
-        //Check if user is logged in
         if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
-
-        // Allow if user is an admin/staff
+ 
+        // Admins always get through
         if ($user->hasRole('admin')) {
             return $next($request);
         }
-
-        // Check Trial or Subscription status
-        if ($user->onTrial() || $user->hasActiveSubscription()) {
-            return $next($request);
+ 
+        // Basic check: Does the user have any active subscription or trial?
+        // The hasActiveSubscription() method on the User model already includes trials.
+        if (!$user->hasActiveSubscription()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Please start a trial or subscribe.',
+            ], 403);
         }
-
-        // If they fail both, block access
-        return response()->json([
-            'success' => false,
-            'message' => 'Trial expired. Please subscribe to access advisory content.',
-            'trial_expired' => true
-        ], 403);
+ 
+        // Tier check: Does the user's current tier meet the required tier for the route?
+        if ($requiredTier === 'premium') {
+            // The `current_tier` accessor on the User model handles all the logic.
+            $userTier = $user->current_tier;
+ 
+                        if ($userTier !== 'premium') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This feature requires a VIP subscription.',
+                ], 403);
+            }
+        }
+        return $next($request);
     }
 }

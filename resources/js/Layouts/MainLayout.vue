@@ -11,7 +11,7 @@
       'w-64 border-r flex flex-col justify-between transition-all duration-300',
       currentView === 'user' ? 'bg-[#111827] border-[#1F2A44]' : 'bg-[#1a253b] border-[#4d69aa]',
       sidebarOpen ? 'translate-x-0' : '-translate-x-64',
-      'md:translate-x-0 fixed md:static inset-y-0 left-0 z-50'
+      'md:translate-x-0 fixed md:sticky md:top-0 md:h-screen inset-y-0 left-0 z-50 overflow-y-auto'
     ]">
       <div>
         <div class="flex items-center justify-center py-6">

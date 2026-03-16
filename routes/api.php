@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\AdminModelPortfolioController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\CheckSubscription;
 
 /*
 |--------------------------------------------------------------------------
@@ -261,27 +262,29 @@ Route::middleware('auth:sanctum')->group(function () {
         // === ADVISORY & SUBSCRIPTION MODULE ===
         // 
         Route::prefix('advisory')->group(function () {
-
-        Route::post('/activate-trial', [AdvisoryController::class, 'activateTrial']);    
-        // Free Routes (Visible to anyone logged in)
-            Route::get('/free-posts', [AdvisoryController::class, 'freePosts']);
+            // Public/Guest-level (Note: Plans should be accessible to see pricing)
             Route::get('/plans', [SubscriptionController::class, 'plans']);
-            Route::post('/subscribe', [SubscriptionController::class, 'initializePayment']);
-            Route::get('/verify-payment', [SubscriptionController::class, 'verifyPayment']);
-            Route::post('/cancel', [SubscriptionController::class, 'cancelSubscription']);
 
-            //VIP Routes (Locked behind the 'subscribed' middleware)
-            Route::middleware('advisory.access')->group(function () {
-                Route::get('/premium-posts', [AdvisoryController::class, 'premiumPosts']);
-                Route::get('/ai-picks', [PredictionController::class, 'topPicks']);
-                Route::get('/model-portfolios', [ModelPortfolioController::class, 'index']);
-                Route::post('/model-portfolios/{id}/copy', [ModelPortfolioController::class, 'copyPortfolio']);
+            // --- PROTECTED ROUTES ---
+            Route::middleware('auth:sanctum')->group(function () {
+                Route::post('/activate-trial', [AdvisoryController::class, 'activateTrial']);
+                Route::post('/subscribe', [SubscriptionController::class, 'initializePayment']);
+                Route::get('/verify-payment', [SubscriptionController::class, 'verifyPayment']);
+                Route::post('/cancel', [SubscriptionController::class, 'cancelSubscription']);
+
+                // Tier 1: Regular Access
+                Route::middleware('advisory.access:regular')->group(function () {
+                    Route::get('/regular-posts', [AdvisoryController::class, 'regularPosts']);
+                });
+
+                // Tier 2: premium Access
+                Route::middleware('advisory.access:premium')->group(function () {
+                    Route::get('/premium-posts', [AdvisoryController::class, 'premiumPosts']);
+                    Route::get('/ai-picks', [PredictionController::class, 'topPicks']);
+                    Route::get('/model-portfolios', [ModelPortfolioController::class, 'index']);
+                    Route::post('/model-portfolios/{id}/copy', [ModelPortfolioController::class, 'copyPortfolio']);
+                });
             });
         });
-    });
-
-    Route::middleware(['auth', 'advisory.access'])->group(function () {
-        Route::get('/advisory', [AdvisoryController::class, 'index'])->name('advisory.index');
-        Route::get('/advisory/vip', [AdvisoryController::class, 'vip'])->name('advisory.vip');
     });
 });

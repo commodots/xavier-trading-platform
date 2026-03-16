@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ModelPortfolio;
 use App\Models\Order;
 use App\Models\Portfolio;
+use App\Models\Wallet;
 use App\Services\PriceService;
 use App\Services\Execution\NgxDummyAdapter;
 use Illuminate\Http\Request;
@@ -30,7 +31,10 @@ class ModelPortfolioController extends Controller
         try {
             DB::transaction(function () use ($portfolio, $intendedAmount, $user) {
 
-                $wallet = $user->fxWallet('NGN');
+                //Lock the wallet row to prevent race conditions (double spending)
+                // We first ensure the wallet exists via fxWallet, then lock it.
+                $walletId = $user->fxWallet('NGN')->id;
+                $wallet = Wallet::where('id', $walletId)->lockForUpdate()->first();
 
                 //Lock the funds (moves from ngn_cleared to locked)
                 $wallet->reserve($intendedAmount);

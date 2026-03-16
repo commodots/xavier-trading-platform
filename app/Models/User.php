@@ -24,15 +24,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'phone',
         'dob',
         'password',
-        'email_verified_at',
         'country',
         'next_of_kin',
         'next_of_kin_phone',
         'next_of_kin_email',
-        'kyc_status',
-        'trading_mode',
-        'trial_started_at',
-        'trial_expires_at',
+        'trading_mode'
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -45,12 +41,18 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'trial_started_at' => 'datetime',
-        'trial_expires_at' => 'datetime',
         'dob' => 'date',
     ];
 
-    protected $appends = ['has_active_subscription', 'on_trial', 'trial_days_left'];
+    protected $appends = [
+        'has_active_subscription',
+        'on_trial',
+        'trial_days_left',
+        'trial_expires_at',
+        'current_tier',
+        'has_used_regular',
+        'has_used_premium',
+    ];
     //  Relationship: One User has one Wallet
     public function wallet()
     {
@@ -188,7 +190,10 @@ class User extends Authenticatable implements MustVerifyEmail
     // Helper method to check active status easily
     public function hasActiveSubscription()
     {
-        return $this->subscriptions()->where('expires_at', '>', now())->exists();
+        return $this->subscriptions()
+            ->where('expires_at', '>', now())
+            ->whereIn('status', ['active', 'trial'])
+            ->exists();
     }
 
     public function getHasActiveSubscriptionAttribute()
@@ -198,10 +203,26 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $attributes = [
         'trading_mode' => 'live',
     ];
+
+    /**
+     * Helper to get the current active trial subscription, cached for the request.
+     */
+    public function trialSubscription()
+    {
+        // Using a dynamic property to cache the result for the current request
+        if (!isset($this->_trialSubscription)) {
+            $this->_trialSubscription = $this->subscriptions()
+                ->where('status', 'trial')
+                ->where('expires_at', '>', now())
+                ->latest('expires_at')
+                ->first();
+        }
+        return $this->_trialSubscription;
+    }
+
     public function onTrial(): bool
     {
-        if (!$this->trial_expires_at) return false;
-        return now()->lessThan($this->trial_expires_at);
+        return (bool) $this->trialSubscription();
     }
 
     public function getOnTrialAttribute()
@@ -209,22 +230,59 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->onTrial();
     }
 
-    // Accessor for trial_days_left
     public function getTrialDaysLeftAttribute()
     {
-        if (!$this->trial_expires_at) {
-            $settings = \App\Models\SystemSetting::first();
-            return (int)($settings->trial_days ?? 3);
+        if ($trial = $this->trialSubscription()) {
+            $diff = now()->diffInDays($trial->expires_at, false);
+            return max(0, (int)$diff);
         }
 
-        // This gives a real-time diff in days
-        $diff = now()->diffInDays($this->trial_expires_at, false);
-        return max(0, (int)$diff);
+        // If not on an active trial, return the default from settings
+        $settings = \App\Models\SystemSetting::first();
+        return (int)($settings->trial_days ?? 7);
     }
-    public function getTrialExpiresAtAttribute($value)
+
+    public function getTrialExpiresAtAttribute()
     {
-        if (!$value) return null;
-        // This converts the DB time to something like "2026-03-13T12:00:00Z"
-        return \Carbon\Carbon::parse($value)->toIso8601String();
+        return $this->trialSubscription()?->expires_at?->toIso8601String();
+    }
+
+    public function getCurrentTierAttribute(): ?string
+    {
+        // Fetch all active subscriptions (Trial OR Paid)
+        // This ensures that if a user has a long-term Regular plan but starts a Premium trial,
+        // the system correctly identifies them as Premium.
+        $activeSubs = $this->subscriptions()
+            ->where('expires_at', '>', now())
+            ->whereIn('status', ['active', 'trial'])
+            ->with('plan')
+            ->get();
+
+        if ($activeSubs->isEmpty()) {
+            return null;
+        }
+
+        // If ANY active subscription is Premium, the user is Premium.
+        return $activeSubs->contains(fn($s) => $s->plan?->tier === 'premium')
+            ? 'premium'
+            : 'regular';
+    }
+    public function getHasUsedRegularAttribute(): bool
+    {
+        return $this->subscriptions()
+            ->whereHas('plan', fn($q) => $q->where('tier', 'regular'))
+            ->whereIn('status', ['trial', 'expired', 'cancelled'])
+            ->exists();
+    }
+
+    /**
+     * Check if the user has ever used a premium/VIP trial.
+     */
+    public function getHasUsedPremiumAttribute(): bool
+    {
+        return $this->subscriptions()
+            ->whereHas('plan', fn($q) => $q->where('tier', 'premium'))
+            ->whereIn('status', ['trial', 'expired', 'cancelled'])
+            ->exists();
     }
 }

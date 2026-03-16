@@ -16,6 +16,7 @@ class SubscriptionPlan extends Model
         'duration_days',
         'features',
         'paystack_plan_code',
+        'tier'
     ];
 
     

@@ -32,55 +32,69 @@ class PaystackWebhookController extends Controller
     }
 
     private function handleSuccessfulPayment(array $data): void
-    {
-        $reference = $data['reference'];
+{
+    $reference = $data['reference'];
 
-        
-        if (
-            Ledger::where('reference', $reference)->exists() || 
-            NewTransaction::where('meta->reference', $reference)->exists()
-        ) {
-            Log::info('Paystack webhook: Duplicate reference ignored', ['ref' => $reference]);
-            return;
-        }
+    // Idempotency Check
+    if (Ledger::where('reference', $reference)->exists() || 
+        NewTransaction::where('meta->reference', $reference)->exists()) {
+        Log::info('Paystack webhook: Duplicate reference ignored', ['ref' => $reference]);
+        return;
+    }
 
-        DB::transaction(function () use ($data, $reference) {
-            $user = User::where('email', $data['customer']['email'])->first();
-            if (!$user) return;
+    DB::transaction(function () use ($data, $reference) {
+        $user = User::where('email', $data['customer']['email'])->first();
+        if (!$user) return;
 
-            $amount = $data['amount'] / 100;
+        $amount = $data['amount'] / 100;
+        $planCode = $data['plan']['plan_code'] ?? null;
+        $type = 'FUND'; // Default type
+
+        if ($planCode) {
+            // Handle Subscription Logic
+            $plan = \App\Models\SubscriptionPlan::where('paystack_plan_code', $planCode)->first();
             
-        
+            if ($plan) {
+                $user->update([
+                    'subscription_tier' => $plan->tier,
+                    'subscription_expires_at' => now()->addDays($plan->duration_days),
+                ]);
+                $type = 'SUBSCRIPTION';
+            }
+        } else {
+            // Handle Regular Wallet Funding
             $wallet = \App\Models\Wallet::firstOrCreate(
                 ['user_id' => $user->id, 'currency' => 'NGN'],
                 ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0, 'ngn_uncleared' => 0, 'locked' => 0]
             );
-
             $wallet->credit($amount, 'cleared');
+            $type = 'FUND';
+        }
 
-            Ledger::create([
-                'user_id' => $user->id,
-                'currency' => 'NGN',
-                'amount' => $amount,
-                'type' => 'FUND',
-                'status' => 'completed',
-                'reference' => $reference,
-                'meta' => $data,
-            ]);
+        // Record Ledger Entry
+        Ledger::create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'amount' => $amount,
+            'type' => $type,
+            'status' => 'completed',
+            'reference' => $reference,
+            'meta' => $data,
+        ]);
 
-            
-            $metaData = $data;
-            $metaData['reference'] = $reference;
+        // Record Transaction Entry
+        $metaData = $data;
+        $metaData['reference'] = $reference;
 
-            NewTransaction::create([
-                'user_id' => $user->id,
-                'currency' => 'NGN',
-                'amount' => $amount,
-                'net_amount' => $amount, 
-                'type' => 'deposit', 
-                'status' => 'completed',
-                'meta' => $metaData, 
-            ]);
-        });
-    }
+        NewTransaction::create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'amount' => $amount,
+            'net_amount' => $amount, 
+            'type' => ($type === 'SUBSCRIPTION') ? 'subscription' : 'deposit', 
+            'status' => 'completed',
+            'meta' => $metaData, 
+        ]);
+    });
+}
 }

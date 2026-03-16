@@ -32,7 +32,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user()
+                    ? new \App\Http\Resources\UserWithRelationsResource($request->user()->loadMissing('wallet', 'kyc'))
+                    : null,
             ],
         ];
     }

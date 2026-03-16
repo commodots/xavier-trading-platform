@@ -27,7 +27,7 @@ class UserWithRelationsResource extends JsonResource
             // Trial Logic 
             'has_active_subscription' => $this->has_active_subscription,
             'on_trial'                => $this->on_trial, 
-            'trial_started_at'        => $this->trial_started_at,
+            'tier'                    => $this->current_tier,
             'trial_expires_at'        => $this->trial_expires_at, 
             'trial_days_left'         => $this->trial_days_left,
 

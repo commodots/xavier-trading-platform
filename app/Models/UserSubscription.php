@@ -7,13 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 class UserSubscription extends Model
 {
     protected $fillable = [
-        'user_id', 
-        'subscription_plan_id', 
-        'expires_at', 
-        'paystack_subscription_code'
+        'user_id',
+        'subscription_plan_id',
+        'starts_at',
+        'expires_at',
+        'paystack_subscription_code',
+        'status'
     ];
 
     protected $casts = [
+        'starts_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
 
@@ -25,5 +28,9 @@ class UserSubscription extends Model
     public function plan()
     {
         return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
+    }
+    public function isVip(): bool
+    {
+        return $this->plan->tier === 'vip';
     }
 }

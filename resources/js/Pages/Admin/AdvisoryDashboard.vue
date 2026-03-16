@@ -148,9 +148,10 @@
               <div class="flex items-center p-3 space-x-3 bg-gray-900 border border-gray-700 rounded-lg">
                 <input type="checkbox" v-model="portfolioForm.is_premium" id="port_premium"
                   class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-600 focus:ring-offset-gray-900" />
-                <label for="port_premium" class="font-bold text-blue-400 cursor-pointer">Premium VIP Only</label>
+                <label for="port_premium" class="font-bold text-blue-400 cursor-pointer">Premium Only</label>
               </div>
-              <textarea v-model="portfolioForm.description" placeholder="Enter a detailed description of the portfolio strategy"
+              <textarea v-model="portfolioForm.description"
+                placeholder="Enter a detailed description of the portfolio strategy"
                 class="p-3 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none md:col-span-2 focus:border-blue-500"
                 required></textarea>
             </div>
@@ -239,11 +240,15 @@
           <h2 class="mb-6 text-xl font-bold text-white">
             <span class="text-blue-500">{{ isEditingPlan ? 'Edit' : 'Create New' }}</span> Subscription Plan
           </h2>
-          
+
           <div class=" p-4 mb-6 text-sm text-yellow-200 border border-yellow-700 rounded-lg bg-yellow-900/30">
             <div>
               <strong class="block mb-1 font-bold text-yellow-400">Important Note on Plan Creation</strong>
-              Creating a plan here only updates the internal database. You must also create the exact same plan inside your <a href="https://dashboard.paystack.com/#/plans" target="_blank" class="font-bold underline hover:text-white">Paystack Dashboard</a> and paste the generated <strong>Plan Code</strong> (e.g., <code class="px-1 text-xs bg-yellow-900 rounded">PLN_xxxxx</code>) below to ensure billing works.
+              Creating a plan here only updates the internal database. You must also create the exact same plan inside
+              your <a href="https://dashboard.paystack.com/#/plans" target="_blank"
+                class="font-bold underline hover:text-white">Paystack Dashboard</a> and paste the generated <strong>Plan
+                Code</strong> (e.g., <code class="px-1 text-xs bg-yellow-900 rounded">PLN_xxxxx</code>) below to ensure
+              billing works.
             </div>
           </div>
 
@@ -251,15 +256,29 @@
             <input v-model="planForm.name" placeholder="Enter plan name (e.g., Premium Quarterly)"
               class="p-3 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
               required />
-            <input v-model="planForm.price" type="number" placeholder="Enter plan price in Naira"
+
+            <select v-model="planForm.tier"
               class="p-3 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
-              required />
+              required>
+              <option value="" disabled selected>Select Tier</option>
+              <option value="regular">Regular</option>
+              <option value="premium">Premium (VIP)</option>
+            </select>
+
+            <div class="relative">
+              <span class="absolute text-gray-500 left-3 top-3">₦</span>
+              <input :value="formattedPrice" @input="handlePriceInput" placeholder="Price (e.g. 50,000)"
+                class="w-full p-3 pl-8 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
+                required />
+            </div>
+
             <input v-model="planForm.duration_days" type="number" placeholder="Enter duration in days"
               class="p-3 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
               required />
+
             <input v-model="planForm.paystack_plan_code" placeholder="Enter Paystack Plan Code (e.g., PLN_12345)"
-              class="p-3 text-yellow-500 bg-gray-900 border rounded-lg outline-none border-yellow-900/50 focus:border-yellow-500"
-              required />
+              class="p-3 text-yellow-500 bg-gray-900 border rounded-lg outline-none border-yellow-900/50 focus:border-yellow-500"/>
+
             <textarea v-model="planForm.features" placeholder="Enter plan features, separated by commas"
               class="p-3 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none md:col-span-2 focus:border-blue-500"></textarea>
 
@@ -267,16 +286,19 @@
               <button type="submit" :disabled="isSubmittingPlan"
                 class="px-8 py-3 font-bold text-white transition bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 min-w-[180px]">
                 <span v-if="isSubmittingPlan">
-                  {{ isEditingPlan ? 'Updating plan...' : 'Creating plan...' }}
+                  {{ isEditingPlan ? 'Updating Plan...' : 'Creating Plan...' }}
                 </span>
                 <span v-else>
                   {{ isEditingPlan ? 'Update Plan' : 'Create Plan' }}
                 </span>
               </button>
+
               <button v-if="isEditingPlan" type="button" @click="cancelEdit('plan')" :disabled="isSubmittingPlan"
-                class="px-6 py-3 font-bold text-gray-300 transition border border-gray-600 rounded-lg hover:bg-gray-800 disabled:opacity-50">Cancel
-                Edit</button>
+                class="px-6 py-3 font-bold text-gray-300 transition border border-gray-600 rounded-lg hover:bg-gray-800 disabled:opacity-50">
+                Cancel Edit
+              </button>
             </div>
+
           </form>
         </div>
 
@@ -345,13 +367,41 @@ const isEditingPortfolio = ref(false);
 const editingPortfolioId = ref(null);
 
 // Forms
-const planForm = ref({ name: '', price: '', duration_days: null, features: '', paystack_plan_code: '' });
-const postForm = ref({ title: '', content: '', market_type: '', risk_level: '', is_premium: false });
+const planForm = ref({
+  name: '',
+  tier: '',
+  price: '',
+  duration_days: null,
+  features: '',
+  paystack_plan_code: ''
+});
+
+const postForm = ref({
+  title: '',
+  content: '',
+  market_type: '',
+  risk_level: '',
+  is_premium: false
+});
+
 const portfolioForm = ref({ name: '', description: '', risk_profile: '', starting_value: null, is_premium: false, stocks: [{ symbol: '', allocation: null }] });
 
 const totalAllocation = computed(() => {
   return portfolioForm.value.stocks.reduce((sum, stock) => sum + Number(stock.allocation || 0), 0);
 });
+
+const formattedPrice = computed(() => {
+  if (!planForm.value.price) return '';
+  return planForm.value.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+});
+
+const handlePriceInput = (e) => {
+  // Remove everything except numbers
+  const rawValue = e.target.value.replace(/,/g, '');
+  if (!isNaN(rawValue)) {
+    planForm.value.price = rawValue;
+  }
+};
 
 onMounted(() => {
   fetchData();
@@ -415,8 +465,16 @@ const editItem = (type, item) => {
 
 const cancelEdit = (type) => {
   if (type === 'plan') {
-    isEditingPlan.value = false; editingPlanId.value = null;
-    planForm.value = { name: '', price: '', duration_days: null, features: '', paystack_plan_code: '' };
+    isEditingPlan.value = false;
+    editingPlanId.value = null;
+    planForm.value = {
+      name: '',
+      tier: '',
+      price: '',
+      duration_days: null,
+      features: '',
+      paystack_plan_code: ''
+    };
   } else if (type === 'post') {
     isEditingPost.value = false; editingPostId.value = null;
     postForm.value = { title: '', content: '', market_type: '', risk_level: '', is_premium: false };
@@ -452,13 +510,7 @@ const deleteItem = async (type, id) => {
 // --- SPECIFIC SUBMIT HANDLERS ---
 
 const submitPlan = async () => {
-  // Paystack Plan Code Validation
-  const codeRegex = /^PLN_[a-zA-Z0-9]+$/;
-  if (!codeRegex.test(planForm.value.paystack_plan_code)) {
-    showModalMessage('Invalid Plan Code', 'The Paystack Plan Code must start with "PLN_" followed by letters and numbers.', true);
-    return;
-  }
-
+  
   isSubmittingPlan.value = true;
   try {
     if (isEditingPlan.value) {

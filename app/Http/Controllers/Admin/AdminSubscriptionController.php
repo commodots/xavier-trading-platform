@@ -17,6 +17,7 @@ class AdminSubscriptionController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string',
+            'tier' => 'required|in:regular,premium',
             'price' => 'required|numeric',
             'duration_days' => 'required|integer',
             'features' => 'nullable|string',
@@ -34,6 +35,7 @@ class AdminSubscriptionController extends Controller
         
         $validated = $request->validate([
             'name' => 'sometimes|string',
+            'tier' => 'sometimes|in:regular,premium',
             'price' => 'sometimes|numeric',
             'duration_days' => 'sometimes|integer',
             'features' => 'nullable|string',
