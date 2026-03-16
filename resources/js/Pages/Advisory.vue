@@ -93,7 +93,8 @@
               <div v-for="plan in plans" :key="plan.id"
                 class="w-full bg-[#111827] p-8 rounded-3xl border border-blue-500 transition-all group flex flex-col">
                 <h3 class="text-xl font-bold text-white">{{ plan.name }}</h3>
-                <p class="my-4 text-4xl font-black text-blue-500">₦{{ plan.price.toLocaleString() }}</p>
+                <p class="my-4 text-4xl font-black text-blue-500">₦{{ Number(plan.price).toLocaleString() }}</p>
+                <p class="mb-2 text-blue-400 italic">Duration: {{plan.duration_days}} days</p>
                 <ul class="mb-8 space-y-4 text-sm text-gray-400">
                   <li v-for="feature in getFeaturesList(plan.features)" :key="feature" class="flex items-center gap-3">
                     <span

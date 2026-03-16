@@ -339,7 +339,7 @@ import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
 
 // Tabs & Global Loading State
-const activeTab = ref('Plans');
+const activeTab = ref('Posts');
 const isLoading = ref(true);
 
 // Specific Submitting States
