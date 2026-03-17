@@ -3,21 +3,10 @@
 
     <!-- Avatar + Basic Data -->
     <div class="flex items-center space-x-4">
-      <img :src="user.avatar ?? '/images/user.png'"
-        @click="showSourceOptions = !showSourceOptions"
-        class="object-cover w-20 h-20 border border-gray-600 rounded-full cursor-pointer" />
-
-      <div v-if="showSourceOptions" class="text-sm border border-gray-600 p-3 rounded bg-[#1e293b] space-y-2 animate-fadeIn">
-         <p class="text-xs text-gray-400">Upload profile picture from:</p>
-         <div class="flex gap-3">
-            <button @click="openPicker('file')" class="font-bold text-blue-400 hover:underline">Device</button>
-            <button @click="openPicker('camera')" class="font-bold text-blue-400 hover:underline">Camera</button>
-            <button @click="showSourceOptions = false" class="text-xs text-gray-500 hover:text-white">Cancel</button>
-         </div>
+      <div class="relative">
+        <img :src="user.avatar ?? '/images/user.png'"
+          class="object-cover w-20 h-20 border border-gray-600 rounded-full" />
       </div>
-
-      <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="handleUpload" />
-      <input type="file" ref="cameraInput" class="hidden" accept="image/*" capture="user" @change="handleUpload" />
 
       <div>
         <h2 class="text-lg font-semibold">{{ user.name }}</h2>
@@ -25,6 +14,9 @@
         <p class="text-sm text-gray-400">{{ user.phone }}</p>
       </div>
     </div>
+    <p class="text-xs text-gray-500 -mt-4 ml-24">
+      Your profile picture is set during KYC and cannot be changed.
+    </p>
 
     <!-- Edit form -->
     <form @submit.prevent="updateProfile" class="space-y-4">
@@ -82,9 +74,6 @@ const props = defineProps({
 
 const emit = defineEmits(['refresh']);
 const processing = ref(false);
-const showSourceOptions = ref(false);
-const fileInput = ref(null);
-const cameraInput = ref(null);
 
 const form = reactive({
   first_name: "",
@@ -110,33 +99,6 @@ watch(() => props.user, (newUser) => {
   }
 }, { immediate: true, deep: true });
 
-const openPicker = (source) => {
-  showSourceOptions.value = false;
-  if (source === 'camera') {
-    cameraInput.value.click();
-  } else {
-    fileInput.value.click();
-  }
-};
-
-const handleUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const fd = new FormData();
-  fd.append('avatar', file);
-
-  processing.value = true;
-  try {
-    await api.post("/user/profile/avatar", fd);
-    emit('refresh'); 
-  } catch (error) {
-    console.error("Avatar upload failed", error);
-  } finally {
-    processing.value = false;
-  }
-};
-
 const updateProfile = async () => {
   processing.value = true;
   try {
@@ -153,12 +115,5 @@ const updateProfile = async () => {
 <style>
 .input {
   @apply w-full bg-transparent border border-gray-600 rounded-lg px-3 py-2 text-sm;
-}
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-in-out;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateX(-5px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 </style>

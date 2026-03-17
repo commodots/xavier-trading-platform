@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -23,6 +24,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'phone',
         'dob',
+        'gender',
+        'address',
+        'profile_image',
+        'kyc_note',
         'password',
         'country',
         'next_of_kin',
@@ -52,6 +57,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'current_tier',
         'has_used_regular',
         'has_used_premium',
+        'avatar',
     ];
     //  Relationship: One User has one Wallet
     public function wallet()
@@ -110,10 +116,16 @@ class User extends Authenticatable implements MustVerifyEmail
         );
     }
 
+    public function getAvatarAttribute()
+    {
+        // This will automatically use the profileImage accessor to get the full URL.
+        return $this->profile_image;
+    }
+
     protected function profileImage(): Attribute
     {
         return new Attribute(
-            get: fn($value) => $value ? asset('storage/' . $value) : asset('images/user.png'),
+            get: fn($value) => $value ? Storage::url($value) : asset('images/user.png'),
         );
     }
 

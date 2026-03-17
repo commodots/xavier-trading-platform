@@ -32,6 +32,7 @@ class OnboardingController extends Controller
             'dob' => 'nullable|date',
             'id_type' => 'nullable|in:bvn,vnin',
             'id_value' => 'nullable|string|max:20',
+            'profile_image' => 'nullable|image|max:10240',
         ]);
 
         $nameInput = $request->input('name');
@@ -54,6 +55,12 @@ class OnboardingController extends Controller
                 'verified' => false, // Email not verified yet
                 'trading_mode' => 'live'
             ]);
+
+            if ($request->hasFile('profile_image')) {
+                $path = $request->file('profile_image')->store('avatars', 'public');
+                $user->profile_image = $path;
+                $user->save();
+            }
 
             // 💰 Step 3: Create LIVE Wallet for the user
             foreach (['NGN', 'USD'] as $curr) {
@@ -132,7 +139,14 @@ class OnboardingController extends Controller
                         if ($photoContents) {
                             $photoPath = 'photos/' . uniqid('user_') . '.png';
                             Storage::disk('public')->put($photoPath, $photoContents);
-                            $user->update(['photo' => $photoPath]);
+
+                            // If an avatar hasn't been set by the user's selfie upload,
+                            // use the photo from the KYC provider as the avatar.
+                            if (!$user->getAttributeValue('profile_image')) {
+                                // Use direct assignment to bypass mass assignment protection
+                                $user->profile_image = $photoPath;
+                                $user->save();
+                            }
                         }
                     }
                 } else {
