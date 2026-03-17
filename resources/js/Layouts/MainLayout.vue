@@ -250,10 +250,20 @@ const toggleAccountMode = () => {
   }
 };
 
-const logout = () => {
-  localStorage.removeItem("xavier_token");
-  localStorage.removeItem("user");
-  localStorage.removeItem("active_view");
-  router.push("/login");
+const logout = async () => {
+  try {
+    // Tell Laravel to delete the token
+    await api.post('/logout'); 
+  } catch (e) {
+    console.error("Backend logout failed, clearing local state anyway.");
+  } finally {
+    //Clear all local data
+    localStorage.removeItem("xavier_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("active_view");
+
+    // Redirect to landing page
+    router.push("/");
+  }
 };
 </script>

@@ -280,7 +280,7 @@ const submit = async () => {
 
     localStorage.setItem("xavier_token", res.data.token);
     localStorage.setItem("user", JSON.stringify(res.data.user));
-    router.push("/dashboard");
+    router.push("/welcome");
   } catch (err) {
     console.error("Registration failed:", err);
     alert(err.response?.data?.message || "Registration failed. Please try again.");

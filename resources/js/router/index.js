@@ -8,8 +8,11 @@ import ForgotPassword from "@/Pages/Auth/ForgotPassword.vue";
 import ResetPassword from "@/Pages/Auth/ResetPassword.vue";
 import VerifyEmail from "@/Pages/Auth/VerifyEmail.vue";
 
+//Landing page
+import LandingPage from "@/Pages/LandingPage.vue";
 
 // Main User Pages
+import Welcome from "@/Pages/Welcome.vue";
 import Dashboard from "@/Pages/Dashboard.vue";
 import Wallet from "@/Pages/Wallet.vue";
 import Transactions from "@/Pages/Transactions.vue";
@@ -46,7 +49,7 @@ const routes = [
   /* ----------------------------------------------
      PUBLIC ROUTES
   ------------------------------------------------*/
-  { path: "/", redirect: "/login" },
+{ path: "/", name: "landing-page", component: LandingPage },
   { path: "/login", name: "login", component: Login },
   { path: "/register", name: "register", component: Register },
   { path: "/forgot-password", name: "forgot-password", component: ForgotPassword },
@@ -55,6 +58,13 @@ const routes = [
   /* ----------------------------------------------
      USER AUTH PAGES
   ------------------------------------------------*/
+  
+  {
+    path: "/welcome",
+    name: "welcome",
+    component: Welcome,
+    meta: { requiresAuth: true },
+  },
   {
     path: "/dashboard",
     name: "dashboard",
@@ -285,6 +295,10 @@ router.beforeEach((to, from, next) => {
   // Require login
   if (to.meta.requiresAuth && !token) {
     return next("/login");
+  }
+
+  if (to.path === '/' && token) {
+    return next('/dashboard');
   }
 
 

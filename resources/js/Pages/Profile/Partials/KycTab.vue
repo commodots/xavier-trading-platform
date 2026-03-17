@@ -14,29 +14,44 @@
       </div>
     </div>
 
-    <div v-if="!kyc?.status || showUpgradeForm" class="animate-fadeIn">
+    <div v-if="!kyc || (kyc.status === 'pending' && kyc.level === 'none') || kyc.status === 'rejected' || showUpgradeForm" class="animate-fadeIn">
+      <!-- Message for upgrading -->
       <div v-if="showUpgradeForm" class="flex items-center justify-between p-3 mb-4 border border-blue-800 rounded bg-blue-900/20">
         <p class="text-xs text-blue-300">Upgrade to Full Verification by providing your NIN and ID Document.</p>
         <button @click="showUpgradeForm = false" class="text-xs text-gray-400 hover:text-white">Cancel</button>
       </div>
-      <KycForm @success="handleRefresh" :initial="kyc" />
+
+      <!-- Message for rejection -->
+      <div v-if="kyc?.status === 'rejected'" class="p-4 mb-4 text-red-400 border border-red-700 rounded bg-red-900/20">
+        <p class="text-xs font-bold tracking-widest uppercase">&#10060; Verification Rejected</p>
+        <p class="mt-1 text-sm text-gray-300">{{ kyc.rejection_reason || 'The documents provided were invalid.' }}</p>
+      </div>
+
+      <!-- Message for initial submission -->
+      <div v-if="!kyc || (kyc.status === 'pending' && kyc.level === 'none')" class="p-3 mb-4 border rounded-lg bg-blue-500/10 border-blue-500/30">
+        <p class="text-xs leading-tight text-blue-300">
+          Complete your identity verification to unlock all features.
+        </p>
+      </div>
+
+      <KycForm @success="handleRefresh" :initial="kyc ? { ...kyc } : null" />
     </div>
 
     <div v-else-if="kyc.status === 'pending'" class="p-6 text-center border border-yellow-700/50 rounded-xl bg-yellow-900/10">
       <div class="mb-2 text-3xl">&#x231B;</div>
-      <h3 class="font-bold text-yellow-400 uppercase text-xs tracking-widest">Verification Pending</h3>
+      <h3 class="text-xs font-bold tracking-widest text-yellow-400 uppercase">Verification Pending</h3>
       <p class="mt-1 text-sm text-gray-400">Our team is currently reviewing your documents.</p>
     </div>
 
     <div v-else-if="kyc.status === 'approved' || kyc.status === 'verified'" class="space-y-4">
       <div class="p-6 text-center border border-green-700/50 rounded-xl bg-green-900/10">
         <div class="mb-2 text-3xl">&#9989;</div>
-        <h3 class="font-bold text-green-400 uppercase text-xs tracking-widest">Identity Verified</h3>
-        <p class="mt-1 text-sm text-gray-400">Level: <span class="capitalize text-white">{{ kyc.level }}</span></p>
+        <h3 class="text-xs font-bold tracking-widest text-green-400 uppercase">Identity Verified</h3>
+        <p class="mt-1 text-sm text-gray-400">Level: <span class="text-white capitalize">{{ kyc.level }}</span></p>
         
         <button v-if="kyc.level === 'basic'" 
           @click="showUpgradeForm = true"
-          class="px-4 py-2 mt-4 text-xs font-bold transition bg-blue-600 rounded hover:bg-blue-700 text-white">
+          class="px-4 py-2 mt-4 text-xs font-bold text-white transition bg-blue-600 rounded hover:bg-blue-700">
           Upgrade to Full Tier
         </button>
       </div>
@@ -44,7 +59,7 @@
       <div class="grid gap-3 pt-6 border-t border-gray-800">
         <p class="flex justify-between text-sm">
           <span class="text-gray-500">Daily Withdrawal Limit:</span>
-          <span class="text-green-400 font-bold">{{ formatCurrency(kyc.daily_limit) }}</span>
+          <span class="font-bold text-green-400">{{ formatCurrency(kyc.daily_limit) }}</span>
         </p>
         <p class="flex justify-between text-sm">
           <span class="text-gray-500">ID Type:</span>
@@ -61,16 +76,6 @@
       </div>
     </div>
 
-    <div v-else-if="kyc.status === 'rejected'" class="space-y-4">
-      <div class="p-4 text-red-400 border border-red-700 rounded bg-red-900/20">
-        <p class="font-bold uppercase text-xs tracking-widest">&#10060; Verification Rejected</p>
-        <p class="mt-1 text-sm text-gray-300">{{ kyc.rejection_reason || 'The documents provided were invalid.' }}</p>
-      </div>
-      <div class="pt-4">
-        <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase">Resubmit your documents</h4>
-        <KycForm @success="handleRefresh" />
-      </div>
-    </div>
   </div>
 </template>
 
