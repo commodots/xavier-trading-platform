@@ -3,8 +3,8 @@
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-semibold">Dashboard</h1>
-          <p class="text-sm text-gray-400">Overview of your portfolio</p>
+          <h1 class="text-2xl font-semibold">Hi, {{ userName }}</h1>
+          <p class="text-sm text-gray-400">Here's your dashboard with an overview of your portfolio.</p>
         </div>
         <div class="flex items-center gap-4">
           <button @click="showTradeModal = true" :class="[
@@ -177,12 +177,16 @@ const selectedTransaction = ref(null);
 const showDetailsModal = ref(false);
 
 
-const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
-const isDemo = ref(getUser().trading_mode === 'demo');
+const getUser = () => JSON.parse(localStorage.getItem('user') || '{}'); 
+const user = ref(getUser());
+const isDemo = ref(user.value.trading_mode === 'demo');
+
+const userName = computed(() => user.value.name  || 'User');
 
 const syncModeWithStorage = () => {
-  const user = getUser();
-  isDemo.value = user.trading_mode === 'demo';
+  const updatedUser = getUser();
+  user.value = updatedUser;
+  isDemo.value = updatedUser.trading_mode === 'demo';
 };
 
 // Asset Data

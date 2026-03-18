@@ -84,17 +84,17 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <div class="p-8 overflow-y-auto md:p-12 w-full">
+          <div class="w-full p-8 overflow-y-auto md:p-12">
             <div class="mb-10 text-center">
               <h2 class="mb-2 text-4xl font-black text-white">Choose Your Plan</h2>
               <p class="text-gray-400">Secure your spot for long-term growth and premium insights.</p>
             </div>
-            <div class="flex flex-col lg:flex-row gap-6">
+            <div class="flex flex-col gap-6 lg:flex-row">
               <div v-for="plan in plans" :key="plan.id"
                 class="w-full bg-[#111827] p-8 rounded-3xl border border-blue-500 transition-all group flex flex-col">
                 <h3 class="text-xl font-bold text-white">{{ plan.name }}</h3>
                 <p class="my-4 text-4xl font-black text-blue-500">₦{{ Number(plan.price).toLocaleString() }}</p>
-                <p class="mb-2 text-blue-400 italic">Duration: {{plan.duration_days}} days</p>
+                <p class="mb-2 italic text-blue-400">Duration: {{plan.duration_days}} days</p>
                 <ul class="mb-8 space-y-4 text-sm text-gray-400">
                   <li v-for="feature in getFeaturesList(plan.features)" :key="feature" class="flex items-center gap-3">
                     <span
@@ -105,7 +105,7 @@
                   </li>
                 </ul>
                 <button @click="subscribe(plan.id)" :disabled="processingPlanId === plan.id"
-                  class="w-full py-4 mt-auto font-bold text-white transition bg-blue-600 rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-900/20">
+                  class="w-full py-4 mt-auto font-bold text-white transition bg-blue-600 shadow-lg rounded-2xl hover:bg-blue-700 shadow-blue-900/20">
                   {{ processingPlanId === plan.id ? 'Processing...' : 'Subscribe Now' }}
                 </button>
               </div>
@@ -131,14 +131,14 @@
             </button>
 
             <div v-if="showNotifications"
-              class="fixed right-4 left-4 top-20 sm:absolute sm:right-0 sm:left-auto sm:top-full sm:w-80 mt-2 origin-top-right bg-white rounded-xl shadow-2xl z-50 border border-gray-200 animate-fade-in-up text-left">
-              <div class="p-3 flex justify-between items-center border-b">
+              class="fixed z-50 mt-2 text-left origin-top-right bg-white border border-gray-200 shadow-2xl right-4 left-4 top-20 sm:absolute sm:right-0 sm:left-auto sm:top-full sm:w-80 rounded-xl animate-fade-in-up">
+              <div class="flex items-center justify-between p-3 border-b">
                 <h3 class="font-bold text-gray-800">Notifications</h3>
                 <button v-if="unreadCount > 0" @click="markAllAsRead"
-                  class="text-xs text-blue-600 font-semibold hover:underline">Mark all as read</button>
+                  class="text-xs font-semibold text-blue-600 hover:underline">Mark all as read</button>
               </div>
-              <div class="max-h-96 overflow-y-auto">
-                <div v-if="notifications.length === 0" class="text-center text-gray-500 py-12">
+              <div class="overflow-y-auto max-h-96">
+                <div v-if="notifications.length === 0" class="py-12 text-center text-gray-500">
                   <p class="text-sm">You have no notifications.</p>
                 </div>
                 <div v-else>
@@ -150,8 +150,8 @@
                         :class="['w-2 h-2 rounded-full mt-1.5 flex-shrink-0', !notif.read_at ? 'bg-blue-500' : 'bg-gray-300']">
                       </div>
                       <div class="flex-1">
-                        <p class="text-sm text-gray-700 leading-tight">{{ notif.data.message }}</p>
-                        <p class="text-xs text-gray-400 mt-1">{{ new Date(notif.created_at).toLocaleString() }}</p>
+                        <p class="text-sm leading-tight text-gray-700">{{ notif.data.message }}</p>
+                        <p class="mt-1 text-xs text-gray-400">{{ new Date(notif.created_at).toLocaleString() }}</p>
                       </div>
                     </div>
                   </a>
@@ -182,7 +182,7 @@
         <div v-else>
           <div v-if="(user.has_active_subscription || user.on_trial)" class="space-y-8 animate-fade-in">
             <div class="flex flex-col gap-6">
-              <div class="transition-all duration-300 space-y-6">
+              <div class="space-y-6 transition-all duration-300">
                 <div class="flex gap-8 border-b border-[#1f3348]">
                   <button @click="activeTab = 'regular'"
                     :class="['pb-3 text-xl font-bold transition-all', activeTab === 'regular' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']">Regular</button>
@@ -193,7 +193,7 @@
                 <div class="min-h-[200px]">
                   <div v-if="activeTab === 'regular'"
                     class="p-6 border bg-[#0F1724] border-[#1f3348] rounded-xl space-y-4">
-                    <div v-if="regularPosts.length === 0" class="text-center text-gray-500 py-10">
+                    <div v-if="regularPosts.length === 0" class="py-10 text-center text-gray-500">
                       No regular posts available.
                     </div>
                     <div v-for="post in regularPosts" :key="post.id" @click="openPost(post)"
@@ -204,16 +204,16 @@
                   </div>
 
                   <div v-if="activeTab === 'premium'">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      <div class="lg:col-span-2 space-y-6">
+                    <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                      <div class="space-y-6 lg:col-span-2">
                         <div class="p-6 border bg-[#0F1724] border-[#1f3348] rounded-xl">
-                          <h3 class="text-2xl font-bold text-white mb-6">Premium Posts</h3>
-                          <div v-if="premiumPosts.length === 0" class="text-gray-500 text-center py-8">
+                          <h3 class="mb-6 text-2xl font-bold text-white">Premium Posts</h3>
+                          <div v-if="premiumPosts.length === 0" class="py-8 text-center text-gray-500">
                             No premium insights posted recently.
                           </div>
                           <div v-else class="space-y-4">
                             <div v-for="post in premiumPosts" :key="post.id" @click="openPost(post)"
-                              class="p-4 transition border border-blue-900/30 rounded-lg cursor-pointer hover:bg-blue-900/10">
+                              class="p-4 transition border rounded-lg cursor-pointer border-blue-900/30 hover:bg-blue-900/10">
                               <div class="flex items-center gap-2 mb-1">
                                 <span
                                   class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded font-black uppercase">Premium</span>
@@ -321,7 +321,7 @@
                 </p>
                 <div v-if="!user.has_active_subscription && !user.on_trial">
                   <button v-if="!user.has_used_regular" @click="startTrial('regular')" :disabled="isActivatingTrial"
-                    class="w-full py-4 mt-auto font-bold text-gray-900 bg-white rounded-xl hover:bg-gray-100 transition shadow-lg disabled:opacity-50">
+                    class="w-full py-4 mt-auto font-bold text-gray-900 transition bg-white shadow-lg rounded-xl hover:bg-gray-100 disabled:opacity-50">
                     <span v-if="isActivatingTrial">Starting...</span>
                     <span v-else>Start Regular Trial</span>
                   </button>
@@ -347,7 +347,7 @@
                 }} days.
                 </p>
                 <button @click="startTrial('premium')" :disabled="isActivatingTrial || user.has_used_premium"
-                  class="w-full py-4 mt-auto font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                  class="w-full py-4 mt-auto font-bold text-white transition-colors bg-amber-600 rounded-xl hover:bg-amber-500 disabled:opacity-50">
                   <span v-if="isActivatingTrial">Starting...</span>
                   <span v-else-if="user.has_used_premium">Premium Trial Used</span>
                   <span v-else>Start Premium Trial</span></button>
@@ -368,7 +368,7 @@
                 <h3 class="mb-2 text-2xl font-bold text-white">Want to skip trials? <br> Subscribe now!</h3>
                 <p class="mb-8 text-sm text-gray-400">Skip the trial and secure your spot for long-term growth.</p>
                 <button @click="showPricingModal = true"
-                  class="w-full py-4 mt-auto font-bold text-white transition bg-blue-600 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20">
+                  class="w-full py-4 mt-auto font-bold text-white transition bg-blue-600 shadow-lg rounded-xl hover:bg-blue-700 shadow-blue-500/20">
                   View Subscription Details
                 </button>
               </div>
