@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
+use App\Models\LinkedAccount;
 use App\Models\User;
 use App\Models\TransactionType;
 
@@ -35,6 +36,14 @@ class AdminControlsToggleTest extends TestCase
     public function test_users_cannot_withdraw_when_service_is_disabled(): void
     {
         $user = User::factory()->create();
+        $account = LinkedAccount::create([
+            'user_id' => $user->id,
+            'provider' => 'test-bank',
+            'account_number' => '1234567890',
+            'account_name' => 'Test User',
+            'is_verified' => true,
+            'type' => 'bank',
+        ]);
 
         // 1. Setup: Disable the withdrawal service in the database
         TransactionType::create([
@@ -46,7 +55,8 @@ class AdminControlsToggleTest extends TestCase
         // 2. Action: Try to withdraw
         $response = $this->actingAs($user)->postJson('/api/withdraw', [
             'amount'   => 1000,
-            'currency' => 'NGN'
+            'currency' => 'NGN',
+            'linked_account_id' => $account->id
         ]);
 
         // 3. Assertion: It should fail because the service is off
@@ -67,7 +77,8 @@ class AdminControlsToggleTest extends TestCase
         'category' => 'funding', 
         'active' => false]);
 
-    $response = $this->actingAs($user)->postJson('/api/deposit', [
+    $response = $this->actingAs($user)->postJson('/api/deposit', 
+    [
         'amount' => 5000,
         'currency' => 'NGN',
         'linked_account_id' => 1,

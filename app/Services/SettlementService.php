@@ -41,7 +41,7 @@ class SettlementService
         });
     }
 
-    private function processTradeSettlement(Trade $trade, Order $order): void
+    public function processTradeSettlement(Trade $trade, Order $order): void
     {
         $totalValue = $trade->quantity * $trade->price;
         $currency = $order->currency;
@@ -59,6 +59,7 @@ class SettlementService
             if ($order->side === 'buy') {
                 // SETTLE BUY:
                 // Remove cash from LOCKED
+                $wallet->decrement('balance', $totalValue);
                 $wallet->decrement('locked', $totalValue);
                 //  Shares officially yours (Move from uncleared to cleared)
                 $portfolio->decrement('uncleared_quantity', $trade->quantity);
@@ -88,4 +89,3 @@ class SettlementService
         }
     }
 }
-

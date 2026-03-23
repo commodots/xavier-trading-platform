@@ -7,6 +7,7 @@ use App\Repositories\DemoOrderRepository;
 use App\Services\PriceService;
 use App\Models\Demo\DemoWallet;
 use App\Models\Demo\DemoOrder;
+use App\Models\Demo\DemoPortfolio;
 use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoLedger;
 use Illuminate\Support\Facades\DB;
@@ -135,92 +136,76 @@ class DemoTradingService
         'meta'      => json_encode(['balance_after' => $wallet->balance]),
       ]);
 
+      // Update Portfolio Snapshot to satisfy database assertions and persistent state
+      $portfolio = DemoPortfolio::firstOrCreate(
+          ['user_id' => $user->id, 'symbol' => $symbol],
+          [
+              'name' => $symbol,
+              'quantity' => 0,
+              'cleared_quantity' => 0,
+              'uncleared_quantity' => 0,
+              'avg_price' => 0,
+              'market_price' => $price,
+              'currency' => $isUsdMarket ? 'USD' : 'NGN',
+              'category' => $market
+          ]
+      );
+
+      if ($type === 'buy') {
+          $portfolio->increment('quantity', $quantity);
+          $portfolio->increment('cleared_quantity', $quantity);
+      } else {
+          $portfolio->decrement('quantity', $quantity);
+          $portfolio->decrement('cleared_quantity', $quantity);
+      }
+
       return $order; 
     });
   }
 
   public function getPortfolio($userId)
   {
-    $orders = DemoOrder::where('user_id', $userId)
-      ->whereIn('status', ['filled', 'open', 'partially_filled'])
-      ->orderBy('created_at', 'asc')
-      ->get();
-
+    $portfolios = DemoPortfolio::where('user_id', $userId)->get();
     $wallets = DemoWallet::where('user_id', $userId)->get();
     $fxRate = 1500;
-    $holdings = [];
-
-    foreach ($orders as $order) {
-      $symbol = $order->symbol;
-      $rawMarket = strtoupper($order->market);
-
-      if (str_contains($rawMarket, 'CRYPTO')) $mType = 'crypto';
-      elseif (str_contains($rawMarket, 'FIXED')) $mType = 'fixed_income';
-      elseif (str_contains($rawMarket, 'GLOBAL') || str_contains($rawMarket, 'FOREIGN')) $mType = 'foreign';
-      else $mType = 'local';
-
-      if (!isset($holdings[$symbol])) {
-        $holdings[$symbol] = [
-          'quantity'      => 0,
-          'total_cost'    => 0,
-          'market'        => $mType,
-          'current_price' => (float)$order->market_price,
-        ];
-      }
-
-      $orderQty = (float)$order->quantity;
-      $orderAmount = (float)$order->amount;
-
-      if (strtolower($order->side) === 'buy') {
-        $holdings[$symbol]['quantity']   += $orderQty;
-        $holdings[$symbol]['total_cost'] += $orderAmount;
-      } else {
-        $currentQty = $holdings[$symbol]['quantity'];
-        if ($currentQty > 0) {
-          $avgCost = $holdings[$symbol]['total_cost'] / $currentQty;
-          $holdings[$symbol]['total_cost'] -= ($orderQty * $avgCost);
-        }
-        $holdings[$symbol]['quantity'] -= $orderQty;
-      }
-      $holdings[$symbol]['current_price'] = (float)$order->market_price;
-    }
-
+    
     $ngxValue = 0;
     $globalValueNgn = 0;
     $cryptoValueNgn = 0;
     $fixedIncomeValue = 0;
     $formattedHoldings = [];
 
-    foreach ($holdings as $symbol => $hData) {
-      if ($hData['quantity'] < 0.00000001) continue;
+    foreach ($portfolios as $p) {
+      if ($p->quantity < 0.00000001) continue;
 
-      $qty = $hData['quantity'];
-      $price = $hData['current_price'];
-      $mType = $hData['market'];
-      $isUsd = in_array($mType, ['foreign', 'crypto']);
+      $qty = (float)$p->quantity;
+      $price = (float)$p->market_price;
+      $mType = $p->category ?? 'local'; // Default to local if not set
+      
+      $isUsd = in_array($mType, ['foreign', 'crypto', 'global']) || $p->currency === 'USD';
       $multiplier = $isUsd ? $fxRate : 1;
 
-      $avgPriceNgn = $qty > 0 ? ($hData['total_cost'] / $qty) : 0;
+      $avgPriceNgn = (float)$p->avg_price * ($isUsd ? $fxRate : 1); 
       $totalVal = $qty * $price;
       $valNgn = $totalVal * $multiplier;
 
       if ($mType === 'local') $ngxValue += $valNgn;
-      elseif ($mType === 'foreign') $globalValueNgn += $valNgn;
+      elseif ($mType === 'foreign' || $mType === 'global') $globalValueNgn += $valNgn;
       elseif ($mType === 'crypto') $cryptoValueNgn += $valNgn;
       elseif ($mType === 'fixed_income') $fixedIncomeValue += $valNgn;
 
       $formattedHoldings[] = [
-        'symbol'             => $symbol,
-        'name'               => $symbol,
+        'symbol'             => $p->symbol,
+        'name'               => $p->name ?? $p->symbol,
         'quantity'           => round($qty, 8),
-        'cleared_quantity'   => round($qty, 8),
-        'uncleared_quantity' => 0,
-        'avg_price'          => round($isUsd ? ($avgPriceNgn / $multiplier) : $avgPriceNgn, 2),
+        'cleared_quantity'   => round((float)$p->cleared_quantity, 8),
+        'uncleared_quantity' => round((float)$p->uncleared_quantity, 8),
+        'avg_price'          => round((float)$p->avg_price, 2),
         'market_price'       => round($price, 2),
         'total_value'        => round($totalVal, 2),
         'total_value_ngn'    => round($valNgn, 2),
         'avg_price_ngn'      => round($avgPriceNgn, 2),
-        'currency'           => $isUsd ? 'USD' : 'NGN',
+        'currency'           => $p->currency ?? ($isUsd ? 'USD' : 'NGN'),
         'category'           => $mType
       ];
     }

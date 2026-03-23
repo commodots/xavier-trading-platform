@@ -44,9 +44,10 @@ class KycControlPanelTest extends TestCase
             'status' => 'pending'
         ]);
 
-        $kyc = KycProfile::factory()->create(['id' => 1]); 
+       
+        
         $resp = $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/admin/kycs/{$kyc->id}/review", [
+            ->postJson("/api/admin/kycs/{$user->id}/review", [
                 'status' => 'verified',
                 'tier' => 3,
                 'daily_limit' => 999999999
@@ -76,7 +77,7 @@ class KycControlPanelTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/admin/kycs/{$kyc->id}/review", [
+            ->postJson("/api/admin/kycs/{$user->id}/review", [
                 'status' => 'verified',
                 'tier' => 3,
                 'daily_limit' => 999999999
@@ -116,7 +117,7 @@ class KycControlPanelTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/admin/kycs/{$kyc->id}/review", [
+            ->postJson("/api/admin/kycs/{$user->id}/review", [
                 'status' => 'verified',
                 'daily_limit' => 999999999
             ])

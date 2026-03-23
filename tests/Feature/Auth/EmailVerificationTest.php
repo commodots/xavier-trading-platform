@@ -23,23 +23,29 @@ class EmailVerificationTest extends TestCase
     }
 
     public function test_email_can_be_verified(): void
-    {
-        $user = User::factory()->unverified()->create();
+{
+    // Setup the unverified user
+    $user = User::factory()->unverified()->create();
 
-        Event::fake();
+    // ONLY fake the Verified event
+    Event::fake([Verified::class]);
 
-        $verificationUrl = URL::temporarySignedRoute(
-            'verification.verify',
-            now()->addMinutes(60),
-            ['id' => $user->id, 'hash' => sha1($user->email)]
-        );
+    // Generate the URL exactly how the notification would
+    $verificationUrl = URL::temporarySignedRoute(
+        'verification.verify',
+        now()->addMinutes(60),
+        ['id' => $user->id, 'hash' => sha1($user->getEmailForVerification())]
+    );
 
-        $response = $this->actingAs($user)->get($verificationUrl);
+    // Act
+    $response = $this->actingAs($user)->get($verificationUrl);
 
-        Event::assertDispatched(Verified::class);
-        $this->assertTrue($user->fresh()->hasVerifiedEmail());
-        $response->assertRedirect(route('dashboard', absolute: false).'?verified=1');
-    }
+    //Assertions
+    Event::assertDispatched(Verified::class);
+    
+    $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    $response->assertRedirect(route('dashboard', absolute: false).'?verified=1');
+}
 
     public function test_email_is_not_verified_with_invalid_hash(): void
     {

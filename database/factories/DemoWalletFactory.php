@@ -20,11 +20,14 @@ class DemoWalletFactory extends Factory
     {
         return [
             'user_id' => \App\Models\User::factory(),
-            'currency' => 'NGN',
-            'balance' => 1000000,
-            'cleared_balance' => 1000000,
-            'uncleared_balance' => 0,
-            'locked' => 0,
+            'balance_ngn' => 1000000,
+            'ngn_cleared' => 1000000,
+            'ngn_uncleared' => 0,
+            'ngn_locked' => 0,
+            'balance_usd' => 10000,
+            'usd_cleared' => 10000,
+            'usd_uncleared' => 0,
+            'usd_locked' => 0,
         ];
     }
 }

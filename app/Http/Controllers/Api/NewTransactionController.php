@@ -39,6 +39,12 @@ class NewTransactionController extends Controller
 
     public function deposit(Request $request)
     {
+        // Check if the deposit service is active
+        $depositService = TransactionType::where('name', 'deposit')->first();
+        if ($depositService && !$depositService->active) {
+            return response()->json(['success' => false, 'message' => 'Deposits are temporarily disabled.'], 403);
+        }
+
         $request->validate([
             'amount' => 'required|numeric|min:1',
             'currency' => 'required|in:NGN,USD'
@@ -102,6 +108,11 @@ class NewTransactionController extends Controller
 
     public function withdraw(Request $request)
     {
+        // Check if the withdrawal service is active
+        $withdrawalService = TransactionType::where('name', 'withdrawal')->first();
+        if ($withdrawalService && !$withdrawalService->active) {
+            return response()->json(['success' => false, 'message' => 'Withdrawals are temporarily disabled.'], 403);
+        }
 
         $request->validate([
             'amount' => 'required|numeric|min:1',

@@ -22,9 +22,9 @@ class SettlementTest extends TestCase
             'user_id' => $user->id,
             'currency' => 'NGN',
             'balance' => 10000.00,
-            'cleared_balance' => 10000.00,
-            'uncleared_balance' => 0.00,
-            'locked' => 0.00,
+            'ngn_cleared' => 9900.00,
+            'ngn_uncleared' => 0.00,
+            'locked' => 100.00,
         ]);
 
         $order = Order::create([
@@ -55,22 +55,23 @@ class SettlementTest extends TestCase
             'category' => 'local',
             'currency' => 'NGN',
             'market_price' => 10.00,
-            'quantity' => 0,
+            'quantity' => 10,
             'cleared_quantity' => 0,
-            'uncleared_quantity' => 0,
+            'uncleared_quantity' => 10,
             'avg_price' => 10.00,
         ]);
 
-        app(SettlementService::class)->settleOrder($order);
+        app(SettlementService::class)->processTradeSettlement($trade, $order);
 
         $wallet->refresh();
         $portfolio = Portfolio::where('user_id', $user->id)->where('symbol', 'ZENITH')->first();
 
-        $this->assertEquals(9900.00, $wallet->cleared_balance);
-        $this->assertEquals(100.00, $wallet->locked);
+        $this->assertEquals(9900.00, $wallet->ngn_cleared);
+        $this->assertEquals(0.00, $wallet->locked);
+        $this->assertEquals(9900.00, $wallet->balance);
         $this->assertNotNull($portfolio);
-        $this->assertEquals(10, $portfolio->uncleared_quantity);
-        $this->assertEquals(0, $portfolio->cleared_quantity);
+        $this->assertEquals(0, $portfolio->uncleared_quantity);
+        $this->assertEquals(10, $portfolio->cleared_quantity);
     }
 
     public function test_sell_order_adds_uncleared_balance(): void
@@ -80,8 +81,8 @@ class SettlementTest extends TestCase
             'user_id' => $user->id,
             'currency' => 'NGN',
             'balance' => 10000.00,
-            'cleared_balance' => 10000.00,
-            'uncleared_balance' => 0.00,
+            'ngn_cleared' => 10000.00,
+            'ngn_uncleared' => 50.00,
             'locked' => 0.00,
         ]);
 
@@ -93,8 +94,8 @@ class SettlementTest extends TestCase
             'currency' => 'NGN',
             'market_price' => 10.00,
             'quantity' => 10,
-            'cleared_quantity' => 10,
-            'uncleared_quantity' => 0,
+            'cleared_quantity' => 5,
+            'uncleared_quantity' => 5,
             'avg_price' => 10.00,
         ]);
 
@@ -120,14 +121,16 @@ class SettlementTest extends TestCase
             'quantity' => 5,
         ]);
 
-        app(SettlementService::class)->settleOrder($order);
+        app(SettlementService::class)->processTradeSettlement($trade, $order);
 
         $wallet->refresh();
         $portfolio = Portfolio::where('user_id', $user->id)->where('symbol', 'ZENITH')->first();
 
-        $this->assertEquals(50.00, $wallet->uncleared_balance);
-        $this->assertEquals(5, $portfolio->cleared_quantity);
-        $this->assertEquals(5, $portfolio->uncleared_quantity);
+        $this->assertEquals(0.00, $wallet->ngn_uncleared);
+        $this->assertEquals(10050.00, $wallet->ngn_cleared);
+        $this->assertEquals(5, $portfolio->cleared_quantity); // Unchanged
+        $this->assertEquals(0, $portfolio->uncleared_quantity);
+        $this->assertEquals(5, $portfolio->quantity);
     }
 
     public function test_settlement_command_processes_pending_trades(): void
@@ -136,9 +139,9 @@ class SettlementTest extends TestCase
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency' => 'NGN',
-            'balance' => 9900.00, // Cleared + uncleared
-            'cleared_balance' => 9900.00,
-            'uncleared_balance' => 0.00,
+            'balance' => 10000.00, // Total equity: Cleared (9900) + Locked (100)
+            'ngn_cleared' => 9900.00,
+            'ngn_uncleared' => 0.00,
             'locked' => 100.00,
         ]);
 
@@ -188,7 +191,7 @@ class SettlementTest extends TestCase
         $trade->refresh();
 
         // Assertions
-        $this->assertEquals(9900.00, $wallet->cleared_balance); // Cash spent, locked removed
+        $this->assertEquals(9900.00, $wallet->ngn_cleared); // Cash spent, locked removed
         $this->assertEquals(0.00, $wallet->locked);
         $this->assertEquals(9900.00, $wallet->balance);
 

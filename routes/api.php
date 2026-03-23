@@ -193,9 +193,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services', [AdminServiceController::class, 'store']);
 
         Route::put('/services/{id}', [AdminServiceController::class, 'update']);
-        Route::patch('/services/{id}/toggle', [AdminServiceController::class, 'toggleService']);
-        Route::get('/services/{id}/connections', [AdminServiceController::class, 'getConnections']);
-        Route::post('/services/{id}/connections', [AdminServiceController::class, 'addConnection']);
+        Route::patch('/services/{service}/toggle', [AdminServiceController::class, 'toggleService']);
+        Route::get('/services/{service}/connections', [AdminServiceController::class, 'getConnections']);
+        Route::post('/services/{service}/connection', [AdminServiceController::class, 'addConnection']);
         Route::put('/service-connections/{id}', [AdminServiceController::class, 'updateConnection']);
         Route::get('/services/{id}/config', [AdminServiceController::class, 'getConfig']);
         Route::put('/services/{id}/config', [AdminServiceController::class, 'updateConfig']);

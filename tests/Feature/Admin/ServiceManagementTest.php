@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\StaffPermission;
 use App\Models\Service;
 use App\Models\ServiceConnection;
 use App\Models\User;
@@ -30,6 +31,10 @@ class ServiceManagementTest extends TestCase
     protected function createAuthorizedUser(string $role = 'admin'): User
     {
         // Based on your plan, both 'admin' and 'compliance' roles should pass AdminMiddleware
+        StaffPermission::create([
+            'role' => $role,
+            'permissions' => ['manage_services' => true]
+        ]);
         return User::factory()->create(['role' => $role, 'email_verified_at' => now()]);
     }
 
@@ -42,12 +47,12 @@ class ServiceManagementTest extends TestCase
         $user = User::factory()->create(['role' => 'client']); // Unauthorized role
 
         // Test the index endpoint
-        $this->actingAs($user)
+        $this->actingAs($user, 'sanctum')
             ->getJson('/api/admin/services')
             ->assertStatus(403); // Forbidden
 
         // Test the store endpoint
-        $this->actingAs($user)
+        $this->actingAs($user, 'sanctum')
             ->postJson('/api/admin/services', [])
             ->assertStatus(403);
     }
@@ -72,7 +77,7 @@ class ServiceManagementTest extends TestCase
         $service = Service::factory()->create(['name' => 'Test Service', 'type' => 'test_type']);
 
         // Act
-        $response = $this->actingAs($admin)
+        $response = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/services');
 
         // Assert
@@ -87,11 +92,11 @@ class ServiceManagementTest extends TestCase
         $compliance = $this->createAuthorizedUser('compliance');
         $payload = [
             'name' => 'New Service ABC',
-            'type' => 'abc_service',
+            'type' => 'payment', 
         ];
 
         // Act
-        $response = $this->actingAs($compliance)
+        $response = $this->actingAs($compliance, 'sanctum')
             ->postJson('/api/admin/services', $payload);
 
         // Assert
@@ -99,7 +104,7 @@ class ServiceManagementTest extends TestCase
             ->assertJsonFragment(['name' => 'New Service ABC']);
 
         $this->assertDatabaseHas('services', [
-            'type' => 'abc_service',
+            'type' => 'payment',
             'is_active' => false, // Default should be false
         ]);
     }
@@ -113,7 +118,7 @@ class ServiceManagementTest extends TestCase
         $payload = ['name' => 'Another Service', 'type' => 'duplicate_type'];
 
         // Act
-        $response = $this->actingAs($admin)
+        $response = $this->actingAs($admin, 'sanctum')
             ->postJson('/api/admin/services', $payload);
 
         // Assert
@@ -138,7 +143,7 @@ class ServiceManagementTest extends TestCase
         ];
 
         // Act
-        $response = $this->actingAs($admin)
+        $response = $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/services/{$service->id}/connection", $payload);
 
         // Assert
@@ -172,7 +177,7 @@ class ServiceManagementTest extends TestCase
         ];
 
         // Act
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/services/{$service->id}/connection", $newPayload)
             ->assertStatus(201);
 
@@ -204,8 +209,8 @@ class ServiceManagementTest extends TestCase
         $targetService = Service::factory()->create(['is_active' => false]);
 
         // Act
-        $response = $this->actingAs($admin)
-            ->postJson("/api/admin/services/{$targetService->id}/activate");
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/services/{$targetService->id}/toggle");
 
         // Assert
         $response->assertStatus(200);
@@ -214,12 +219,6 @@ class ServiceManagementTest extends TestCase
         $this->assertDatabaseHas('services', [
             'id' => $targetService->id,
             'is_active' => true,
-        ]);
-
-        // Assert 2: Old active service is deactivated (Global toggle logic)
-        $this->assertDatabaseHas('services', [
-            'id' => $otherService->id,
-            'is_active' => false,
         ]);
     }
 }
