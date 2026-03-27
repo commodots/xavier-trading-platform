@@ -198,7 +198,7 @@ const routes = [
     name: "withdraw",
     component: Withdraw,
     meta: { requiresAuth: true},
-  }
+  },
 
   /* ----------------------------------------------
     ADMIN PAGES
