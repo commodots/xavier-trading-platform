@@ -25,7 +25,8 @@ import Profile from "@/Pages/Profile/Index.vue";
 import Settings from "@/Pages/Settings.vue";
 import Reports from "@/Pages/Reports.vue";
 import Support from "@/Pages/Support.vue";
-
+import Withdraw from "@/Pages/Crypto/Withdraw.vue";
+import Deposit from "@/Pages/Crypto/Deposit.vue";
 // OMS
 import Orders from "@/Pages/Orders.vue";
 import OrderDetails from "@/Pages/OrderDetails.vue";
@@ -186,6 +187,18 @@ const routes = [
     component: Trading,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/crypto/deposit",
+    name: "deposit",
+    component: Deposit,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/crypto/withdraw",
+    name: "withdraw",
+    component: Withdraw,
+    meta: { requiresAuth: true},
+  }
 
   /* ----------------------------------------------
     ADMIN PAGES

@@ -9,12 +9,12 @@
         </div>
         <div class="flex gap-3">
           <button
-            @click="$inertia.visit('/crypto/deposit')"
+            @click="depositNav"
            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             + Deposit
           </button>
           <button
-            @click="$inertia.visit('/crypto/withdraw')"
+            @click="withdrawNav"
             class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             - Withdraw
           </button>
@@ -344,4 +344,11 @@ onMounted(() => {
   fetchData();
   setInterval(fetchData, 10000); // Refresh every 10 seconds
 });
+
+const withdrawNav = () => {
+  router.push('/crypto/withdraw')
+}
+const depositNav =() => {
+  router.push('/crypro/deposit')
+}
 </script>
