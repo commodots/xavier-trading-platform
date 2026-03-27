@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
@@ -7,11 +8,11 @@ class IdentityVerificationService
 {
     public static function verify($idType, $idValue)
     {
-        $token = env('QOREID_API_KEY');
+        $token = config('services.qoreid.api_key');
         $response = null;
 
         if ($idType === 'bvn') {
-            $url = env('BVN_PROVIDER_URL') . '/' . $idValue;
+            $url = config('services.qoreid.base_url').'/v1/ng/identities/bvn/'.$idValue;
             $response = Http::withHeaders([
                 'Authorization' => "Bearer $token",
                 'Accept' => 'application/json',
@@ -24,12 +25,12 @@ class IdentityVerificationService
             $response = Http::withHeaders([
                 'Authorization' => "Bearer $token",
                 'Accept' => 'application/json',
-                'Content-Type' => 'application/json'
+                'Content-Type' => 'application/json',
             ])->post($url, $payload);
         } else {
             return [
                 'success' => false,
-                'message' => "Unsupported ID type: $idType"
+                'message' => "Unsupported ID type: $idType",
             ];
         }
 
@@ -43,7 +44,7 @@ class IdentityVerificationService
 
         return [
             'success' => false,
-            'message' => 'Verification failed: ' . ($response->json('message') ?? $response->body()),
+            'message' => 'Verification failed: '.($response->json('message') ?? $response->body()),
         ];
     }
 }

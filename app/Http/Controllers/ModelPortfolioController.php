@@ -6,17 +6,19 @@ use App\Models\ModelPortfolio;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\Wallet;
-use App\Services\PriceService;
 use App\Services\Execution\NgxDummyAdapter;
+use App\Services\PriceService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Exception;
+use Illuminate\Support\Facades\Log;
 
 class ModelPortfolioController extends Controller
 {
     public function index()
     {
         $portfolios = ModelPortfolio::with('stocks')->get();
+
         return response()->json(['success' => true, 'data' => $portfolios]);
     }
 
@@ -31,12 +33,12 @@ class ModelPortfolioController extends Controller
         try {
             DB::transaction(function () use ($portfolio, $intendedAmount, $user) {
 
-                //Lock the wallet row to prevent race conditions (double spending)
+                // Lock the wallet row to prevent race conditions (double spending)
                 // We first ensure the wallet exists via fxWallet, then lock it.
                 $walletId = $user->fxWallet('NGN')->id;
                 $wallet = Wallet::where('id', $walletId)->lockForUpdate()->first();
 
-                //Lock the funds (moves from ngn_cleared to locked)
+                // Lock the funds (moves from ngn_cleared to locked)
                 $wallet->reserve($intendedAmount);
 
                 $tradesExecuted = 0;
@@ -48,23 +50,23 @@ class ModelPortfolioController extends Controller
                     $actualCost = $quantity * $price;
 
                     if ($quantity > 0) {
-                        //Create the Order
+                        // Create the Order
                         $order = Order::create([
-                            'user_id'      => $user->id,
-                            'symbol'       => $stock->symbol,
-                            'side'         => 'buy',
-                            'type'         => 'market',
-                            'quantity'     => $quantity,
-                            'units'        => $quantity,
-                            'price'        => $price,
+                            'user_id' => $user->id,
+                            'symbol' => $stock->symbol,
+                            'side' => 'buy',
+                            'type' => 'market',
+                            'quantity' => $quantity,
+                            'units' => $quantity,
+                            'price' => $price,
                             'market_price' => $price,
-                            'status'       => 'open',
-                            'amount'       => $actualCost,
-                            'currency'     => 'NGN',
-                            'market_type'  => 'local'
+                            'status' => 'open',
+                            'amount' => $actualCost,
+                            'currency' => 'NGN',
+                            'market_type' => 'local',
                         ]);
 
-                        //Send to Execution Engine
+                        // Send to Execution Engine
                         $execution = app(NgxDummyAdapter::class)->send($order);
 
                         if ($execution['status'] !== 'accepted') {
@@ -82,7 +84,7 @@ class ModelPortfolioController extends Controller
                                 'category' => 'local',
                                 'currency' => 'NGN',
                                 'avg_price' => $price,
-                                'market_price' => $price
+                                'market_price' => $price,
                             ]
                         );
 
@@ -102,19 +104,21 @@ class ModelPortfolioController extends Controller
                 }
 
                 if ($tradesExecuted === 0) {
-                    throw new Exception("Amount is too low to purchase any full shares.");
+                    throw new Exception('Amount is too low to purchase any full shares.');
                 }
             });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Portfolio copied successfully!'
+                'message' => 'Portfolio copied successfully!',
             ]);
         } catch (Exception $e) {
+            Log::error('Copy portfolio failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
+                'message' => 'Unable to copy portfolio at this time.',
+            ], 500);
         }
     }
 }

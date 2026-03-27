@@ -1,6 +1,9 @@
-<?php 
-use App\Services\Stocks\Contracts\StockBroker;
+<?php
+
+namespace App\Http\Controllers;
+
 use App\Services\Stocks\Contracts\MarketDataProvider;
+use App\Services\Stocks\Contracts\StockBroker;
 
 class StockController extends Controller
 {

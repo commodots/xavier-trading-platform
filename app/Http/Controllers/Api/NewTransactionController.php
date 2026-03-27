@@ -3,63 +3,65 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\NewTransaction;
-use App\Models\Wallet;
-use App\Models\LinkedAccount;
-use Illuminate\Http\Request;
-use App\Models\TransactionCharge;
 use App\Models\ActivityLog;
-use App\Models\TransactionType;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoWallet;
+use App\Models\LinkedAccount;
+use App\Models\NewTransaction;
+use App\Models\TransactionCharge;
+use App\Models\TransactionType;
+use App\Models\Wallet;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NewTransactionController extends Controller
 {
-    private function resolveModels($user, Request $request = null)
-{
-    // Prioritize the query parameter, fallback to the user's saved mode
-    $mode = $request ? $request->query('mode', $user->trading_mode) : $user->trading_mode;
-    $isDemo = $mode === 'demo';
-    
-    return (object) [
-        'isDemo' => $isDemo,
-        'wallet' => $isDemo ? new DemoWallet() : new Wallet(),
-        'transaction' => $isDemo ? new DemoTransaction() : new NewTransaction(),
-    ];
-}
+    private function resolveModels($user, ?Request $request = null)
+    {
+        // Prioritize the query parameter, fallback to the user's saved mode
+        $mode = $request ? $request->query('mode', $user->trading_mode) : $user->trading_mode;
+        $isDemo = $mode === 'demo';
 
-    public function index(Request $request) {
-    $models = $this->resolveModels(auth()->user(), $request);
-    return response()->json(
-        $models->transaction->where('user_id', auth()->id())->latest()->limit(10)->get()
-    );
-}
+        return (object) [
+            'isDemo' => $isDemo,
+            'wallet' => $isDemo ? new DemoWallet : new Wallet,
+            'transaction' => $isDemo ? new DemoTransaction : new NewTransaction,
+        ];
+    }
+
+    public function index(Request $request)
+    {
+        $models = $this->resolveModels(auth()->user(), $request);
+
+        return response()->json(
+            $models->transaction->where('user_id', auth()->id())->latest()->limit(10)->get()
+        );
+    }
 
     public function deposit(Request $request)
     {
         // Check if the deposit service is active
         $depositService = TransactionType::where('name', 'deposit')->first();
-        if ($depositService && !$depositService->active) {
+        if ($depositService && ! $depositService->active) {
             return response()->json(['success' => false, 'message' => 'Deposits are temporarily disabled.'], 403);
         }
 
         $request->validate([
             'amount' => 'required|numeric|min:1',
-            'currency' => 'required|in:NGN,USD'
+            'currency' => 'required|in:NGN,USD',
         ]);
 
         $user = auth()->user();
         $models = $this->resolveModels($user);
 
-        Log::info('Deposit initiated for user ' . $user->id . ' with amount ' . $request->amount);
+        Log::info('Deposit initiated for user '.$user->id.' with amount '.$request->amount);
 
         return DB::transaction(function () use ($user, $request, $models) {
             $chargeConfig = TransactionCharge::where('transaction_type', 'deposit')->where('active', true)->first();
             $charge = 0;
             if ($chargeConfig) {
-                $charge = $chargeConfig->charge_type === 'percentage' 
+                $charge = $chargeConfig->charge_type === 'percentage'
                     ? ($request->amount * $chargeConfig->value / 100)
                     : $chargeConfig->value;
             }
@@ -75,10 +77,10 @@ class NewTransactionController extends Controller
                 'amount' => $request->amount,
                 'currency' => $request->currency,
                 'status' => 'completed',
-                'net_amount' => $netAmount
+                'net_amount' => $netAmount,
             ]);
 
-             Log::info('Transaction created with ID ' . $transaction->id);
+            Log::info('Transaction created with ID '.$transaction->id);
             $wallet = $models->wallet->firstOrCreate(
                 ['user_id' => $user->id, 'currency' => $request->currency]
             );
@@ -87,21 +89,22 @@ class NewTransactionController extends Controller
             $wallet->increment($clearedCol, $netAmount);
             $wallet->increment('balance', $netAmount);
 
-            Log::info('Wallet balance incremented by ' . $netAmount . ' for user ' . $user->id);
+            Log::info('Wallet balance incremented by '.$netAmount.' for user '.$user->id);
 
             try {
-            ActivityLog::create([
-                'user_id'    => $user->id,
-                'activity'   => 'Deposit',
-                'details'    => "Deposited {$request->amount} {$request->currency}. Net added to wallet: {$netAmount} after fees.",
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-        } catch (\Throwable $e) {
-        }
+                ActivityLog::create([
+                    'user_id' => $user->id,
+                    'activity' => 'Deposit',
+                    'details' => "Deposited {$request->amount} {$request->currency}. Net added to wallet: {$netAmount} after fees.",
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            } catch (\Throwable $e) {
+            }
+
             return response()->json([
                 'success' => true,
-                'details' => $transaction->fresh()
+                'details' => $transaction->fresh(),
             ]);
         });
     }
@@ -110,23 +113,29 @@ class NewTransactionController extends Controller
     {
         // Check if the withdrawal service is active
         $withdrawalService = TransactionType::where('name', 'withdrawal')->first();
-        if ($withdrawalService && !$withdrawalService->active) {
+        if ($withdrawalService && ! $withdrawalService->active) {
             return response()->json(['success' => false, 'message' => 'Withdrawals are temporarily disabled.'], 403);
         }
 
         $request->validate([
             'amount' => 'required|numeric|min:1',
             'currency' => 'required|in:NGN,USD',
-            'linked_account_id' => 'required|exists:linked_accounts,id'
+            'linked_account_id' => 'required|exists:linked_accounts,id',
+            'withdrawal_otp' => 'required|string',
         ]);
+
+        $expectedOtp = env('WITHDRAWAL_OTP', '123456');
+        if ($request->input('withdrawal_otp') !== $expectedOtp) {
+            return response()->json(['success' => false, 'message' => 'Invalid withdrawal OTP.'], 403);
+        }
 
         $user = auth()->user();
         $kyc = $user->kyc;
         $models = $this->resolveModels($user);
 
-        //KYC Guard (Only enforced for LIVE mode!)
-        if (!$models->isDemo) {
-            if (!$kyc || $kyc->status !== 'verified' || $kyc->tier < 1) {
+        // KYC Guard (Only enforced for LIVE mode!)
+        if (! $models->isDemo) {
+            if (! $kyc || $kyc->status !== 'verified' || $kyc->tier < 1) {
                 return response()->json(['success' => false, 'message' => 'Verified KYC is required for live withdrawals.'], 403);
             }
         }
@@ -140,9 +149,10 @@ class NewTransactionController extends Controller
             ->whereDate('created_at', now())
             ->sum('amount');
 
-        if (!$models->isDemo && ($todayWithdrawn + $request->amount) > $dailyLimit) {
+        if (! $models->isDemo && ($todayWithdrawn + $request->amount) > $dailyLimit) {
             $remaining = max(0, $dailyLimit - $todayWithdrawn);
-            return response()->json(['success' => false, 'message' => "Daily limit exceeded. Remaining: " . number_format($remaining, 2)], 403);
+
+            return response()->json(['success' => false, 'message' => 'Daily limit exceeded. Remaining: '.number_format($remaining, 2)], 403);
         }
 
         $account = LinkedAccount::where('user_id', $user->id)->where('id', $request->linked_account_id)->firstOrFail();
@@ -154,7 +164,7 @@ class NewTransactionController extends Controller
         $chargeConfig = TransactionCharge::where('transaction_type', 'withdrawal')->where('active', true)->first();
         $chargeAmount = 0;
         if ($chargeConfig) {
-            $chargeAmount = $chargeConfig->charge_type === 'percentage' 
+            $chargeAmount = $chargeConfig->charge_type === 'percentage'
                 ? ($request->amount * $chargeConfig->value / 100)
                 : $chargeConfig->value;
         }
@@ -162,7 +172,7 @@ class NewTransactionController extends Controller
 
         try {
             return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount, $models) {
-                
+
                 $wallet = $models->wallet->where('user_id', $user->id)
                     ->where('currency', $request->currency)
                     ->lockForUpdate()
@@ -171,7 +181,7 @@ class NewTransactionController extends Controller
                 $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
                 $available = $wallet ? $wallet->{$clearedCol} : 0;
 
-                if (!$wallet || $available < $totalDeduction) {
+                if (! $wallet || $available < $totalDeduction) {
                     throw new \Exception("Insufficient cleared {$request->currency} balance");
                 }
 
@@ -187,8 +197,8 @@ class NewTransactionController extends Controller
                         'bank' => $account->provider,
                         'acc_no' => $account->account_number,
                         'acc_name' => $account->account_name,
-                        'mode' => $user->trading_mode
-                    ]
+                        'mode' => $user->trading_mode,
+                    ],
                 ]);
 
                 $wallet->decrement($clearedCol, $totalDeduction);
@@ -196,34 +206,38 @@ class NewTransactionController extends Controller
 
                 try {
                     ActivityLog::create([
-                        'user_id'    => $user->id,
-                        'activity'   => 'Withdrawal',
-                        'details'    => "Withdrew {$request->amount} {$request->currency}. Total deduction: {$totalDeduction}.",
+                        'user_id' => $user->id,
+                        'activity' => 'Withdrawal',
+                        'details' => "Withdrew {$request->amount} {$request->currency}. Total deduction: {$totalDeduction}.",
                         'ip_address' => request()->ip(),
                         'user_agent' => request()->userAgent(),
                     ]);
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
 
                 return response()->json(['success' => true, 'details' => $txn->fresh()]);
             });
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+            Log::error('Withdrawal transaction failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['success' => false, 'message' => 'Unable to complete withdrawal request at this time.'], 500);
         }
     }
+
     public function show($id)
-{
-    $models = $this->resolveModels(auth()->user());
-    
-    // Find the transaction owned by this user
-    $transaction = $models->transaction
-        ->where('user_id', auth()->id())
-        ->where('id', $id)
-        ->first();
+    {
+        $models = $this->resolveModels(auth()->user());
 
-    if (!$transaction) {
-        return response()->json(['message' => 'Transaction not found'], 404);
+        // Find the transaction owned by this user
+        $transaction = $models->transaction
+            ->where('user_id', auth()->id())
+            ->where('id', $id)
+            ->first();
+
+        if (! $transaction) {
+            return response()->json(['message' => 'Transaction not found'], 404);
+        }
+
+        return response()->json(['success' => true, 'data' => $transaction]);
     }
-
-    return response()->json(['success' => true, 'data' => $transaction]);
-}
 }

@@ -88,12 +88,21 @@ const changePercent = ref(0);
 
 const assetCategories = [{ id: 'CRYPTO', name: 'Cryptocurrency', description: 'Digital Assets' }];
 
-const coins = ref([
-  { symbol: "BTC", name: "Bitcoin", price: 24761904, change: 2.4, marketcap: 900000000000, spark: [24000000, 24300000, 24500000, 24650000, 24761904] },
-  { symbol: "ETH", name: "Ethereum", price: 1550000, change: -1.2, marketcap: 380000000000, spark: [1580000, 1570000, 1560000, 1555000, 1550000] },
-  { symbol: "BNB", name: "Binance Coin", price: 435000, change: 0.8, marketcap: 67000000000, spark: [430000, 432000, 433000, 434500, 435000] },
-  { symbol: "SOL", name: "Solana", price: 155000, change: 3.1, marketcap: 68000000000, spark: [150000, 152000, 153000, 154000, 155000] },
-]);
+const coins = ref([]);
+
+const fetchCoins = async () => {
+  try {
+    const res = await api.get('/market/crypto');
+    coins.value = (res.data.data || []).map(item => ({
+      ...item,
+      change: item.change ?? 0,
+      marketcap: item.marketcap ?? 0,
+      spark: item.spark ?? [item.price, item.price, item.price],
+    }));
+  } catch (e) {
+    console.error(e);
+  }
+};
 
 const sparkOptions = {
   chart: { toolbar: { show: false }, sparkline: { enabled: true } },
@@ -121,7 +130,13 @@ const fetchPortfolioPerformance = async (range = '1W') => {
 };
 
 const openDetails = (item) => { selectedItem.value = item; isModalOpen.value = true; };
-const openTrade = (coin) => { selectedTradeCoin.value = { ...coin, currency: 'NGN' }; showTradeModal.value = true; };
+const openTrade = (coin) => { 
+  // Navigate directly to trading page instead of opening modal
+  window.location.href = '/trading';
+};
 
-onMounted(() => fetchPortfolioPerformance());
+onMounted(() => {
+  fetchPortfolioPerformance();
+  fetchCoins();
+});
 </script>

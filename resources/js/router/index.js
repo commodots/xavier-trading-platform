@@ -30,6 +30,7 @@ import Support from "@/Pages/Support.vue";
 import Orders from "@/Pages/Orders.vue";
 import OrderDetails from "@/Pages/OrderDetails.vue";
 import Advisory from "@/Pages/Advisory.vue";
+import Trading from "@/Pages/Trading.vue";
 
 // Admin
 import AdminUsers from "@/Pages/Admin/Users.vue";
@@ -43,6 +44,7 @@ import AdminReports from "@/Pages/Admin/Reports.vue";
 import AdminNotifications from "@/Pages/Admin/Notifications.vue";
 import AdminFxDashboard from "@/Pages/Admin/FxDashboard.vue";
 import AdminAdvisoryDashboard from "@/Pages/Admin/AdvisoryDashboard.vue";
+import AdminCryptoSettings from "@/Pages/Admin/AdminCryptoSettings.vue";
 
 const routes = [
 
@@ -178,6 +180,12 @@ const routes = [
     component: Advisory,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/trading",
+    name: "trading",
+    component: Trading,
+    meta: { requiresAuth: true },
+  },
 
   /* ----------------------------------------------
     ADMIN PAGES
@@ -265,6 +273,12 @@ const routes = [
     path: "/admin/advisory-dashboard",
     name: "admin-advisory-dashboard",
     component: AdminAdvisoryDashboard,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/crypto-settings",
+    name: "admin-crypto-settings",
+    component: AdminCryptoSettings,
     meta: { requiresAuth: true, adminOnly: true },
   },
 ];

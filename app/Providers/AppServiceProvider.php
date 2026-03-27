@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Models\KycProfile;
-use App\Models\User;
 use App\Observers\KycProfileObserver;
 use App\Services\Stocks\Contracts\MarketDataProvider;
 use App\Services\Stocks\Contracts\StockBroker;
@@ -21,13 +20,24 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(\App\Services\BvnService::class);
 
-        $this->app->bind(StockBroker::class, function () {
-            return new MockDriveWealthService;
-        });
+        if ($this->app->environment('local', 'testing')) {
+            $this->app->bind(StockBroker::class, function () {
+                return new MockDriveWealthService;
+            });
 
-        $this->app->bind(MarketDataProvider::class, function () {
-            return new MockPolygonService;
-        });
+            $this->app->bind(MarketDataProvider::class, function () {
+                return new MockPolygonService;
+            });
+        } else {
+            // Production services should be configured in another provider or via Environment-specific bindings.
+            $this->app->bind(StockBroker::class, function () {
+                throw new \RuntimeException('StockBroker not configured for production');
+            });
+
+            $this->app->bind(MarketDataProvider::class, function () {
+                throw new \RuntimeException('MarketDataProvider not configured for production');
+            });
+        }
     }
 
     /**
@@ -36,6 +46,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
         KycProfile::observe(KycProfileObserver::class);
+
+        \App\Models\User::observe(\App\Observers\UserObserver::class);
     }
 }

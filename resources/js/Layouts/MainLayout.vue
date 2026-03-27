@@ -40,9 +40,10 @@
             <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income Market</SidebarLink>
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">TRADING</div>
+            <SidebarLink to="/trading" :icon="ShoppingCart">Trading</SidebarLink>
             <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
             <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
-            
+
 
             <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">ACCOUNT</div>
             <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
@@ -63,6 +64,9 @@
             <SidebarLink v-if="isAdmin" to="/admin/fx-dashboard" :icon="DollarSign">FX Dashboard</SidebarLink>
 
             <SidebarLink v-if="isAdmin" to="/admin/advisory-dashboard" :icon="Newspaper">Advisory Content</SidebarLink>
+
+            <SidebarLink v-if="isAdmin" to="/admin/crypto-settings" :icon="Bitcoin">Crypto Settings</SidebarLink>
+
 
             <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations
@@ -104,8 +108,7 @@
     </aside>
 
     <main class="flex-1 p-6 overflow-y-auto bg-[#0B132B]">
-      <div
-        class="flex items-center justify-between p-1 md:px-6 bg-[#0B132B]/95 backdrop-blur z-30 sticky top-0">
+      <div class="flex items-center justify-between p-1 md:px-6 bg-[#0B132B]/95 backdrop-blur z-30 sticky top-0">
         <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white " @click="sidebarOpen = !sidebarOpen">
           ☰
         </button>
@@ -253,7 +256,7 @@ const toggleAccountMode = () => {
 const logout = async () => {
   try {
     // Tell Laravel to delete the token
-    await api.post('/logout'); 
+    await api.post('/logout');
   } catch (e) {
     console.error("Backend logout failed, clearing local state anyway.");
   } finally {

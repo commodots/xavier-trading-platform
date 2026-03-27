@@ -2,24 +2,23 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\CryptoAddress;
 use App\Models\User;
-use App\Models\CryptoTrade;
+use Illuminate\Database\Seeder;
 
 class CryptoSeeder extends Seeder
 {
     public function run(): void
     {
-        $coins = ['BTC', 'ETH', 'SOL', 'BNB', 'DOGE'];
-
-        User::all()->each(function ($user) use ($coins) {
-            foreach (range(1, 5) as $i) {
-                CryptoTrade::create([
+        // Create crypto addresses for existing users
+        User::all()->each(function ($user) {
+            if (! $user->cryptoAddresses()->where('blockchain', 'TRON')->exists()) {
+                // For demo, create fake address 
+                CryptoAddress::create([
                     'user_id' => $user->id,
-                    'coin' => fake()->randomElement($coins),
-                    'amount' => fake()->randomFloat(4, 0.001, 1.5),
-                    'price' => fake()->randomFloat(2, 100, 90000),
-                    'type' => fake()->randomElement(['buy', 'sell']),
+                    'blockchain' => 'TRON',
+                    'address' => 'T'.strtoupper(substr(md5($user->id.'tron'), 0, 34)),
+                    'private_key' => encrypt('demo_private_key_'.$user->id), // Fake for demo
                 ]);
             }
         });

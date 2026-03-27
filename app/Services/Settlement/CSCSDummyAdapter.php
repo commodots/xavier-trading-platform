@@ -3,7 +3,7 @@
 namespace App\Services\Settlement;
 
 use App\Models\Order;
-use App\Models\Portfolio; 
+use App\Models\Portfolio;
 use Illuminate\Support\Facades\DB;
 
 class CSCSDummyAdapter
@@ -20,17 +20,18 @@ class CSCSDummyAdapter
             $user = $order->user;
 
             if ($order->side === 'buy') {
-                // Use the data from the order to populate the portfolio if it's new
-                Portfolio::updateOrCreate(
-                    ['user_id' => $user->id, 'symbol' => $order->symbol],
-                    [
-                        'name' => $order->name ?? $order->symbol, 
-                        'category' => $order->category ?? 'local',
-                        'quantity' => DB::raw("quantity + {$order->quantity}"),
-                        'avg_price' => $order->price, // Simplified: Real logic would involve weighted average
-                        'currency' => $order->currency ?? 'NGN',
-                    ]
-                );
+                $portfolio = Portfolio::firstOrNew([
+                    'user_id' => $user->id,
+                    'symbol' => $order->symbol,
+                ]);
+
+                $portfolio->name = $order->name ?? $order->symbol;
+                $portfolio->category = $order->category ?? 'local';
+                $portfolio->currency = $order->currency ?? 'NGN';
+                $portfolio->avg_price = $order->price;
+                $portfolio->quantity = ($portfolio->quantity ?? 0) + $order->quantity;
+
+                $portfolio->save();
             } else {
                 // For 'sell', decrement
                 Portfolio::where('user_id', $user->id)
@@ -42,7 +43,7 @@ class CSCSDummyAdapter
                 'status' => 'settled',
                 'mode' => 'dummy',
                 'settlement_date' => now()->toDateString(),
-                'message' => 'Portfolio updated successfully'
+                'message' => 'Portfolio updated successfully',
             ];
         });
     }

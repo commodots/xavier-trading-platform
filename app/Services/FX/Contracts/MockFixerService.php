@@ -1,8 +1,6 @@
 <?php
 
-namespace App\Services\FX\Mock;
-
-use App\Services\FX\Contracts\ExchangeRateProvider;
+namespace App\Services\FX\Contracts;
 
 class MockFixerService implements ExchangeRateProvider
 {
@@ -24,7 +22,7 @@ class MockFixerService implements ExchangeRateProvider
 
     public function convert(string $from, string $to, float $amount): float
     {
-        if (!isset($this->rates[$from], $this->rates[$to])) {
+        if (! isset($this->rates[$from], $this->rates[$to])) {
             return 0;
         }
 

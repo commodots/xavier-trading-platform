@@ -1,10 +1,16 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAdvisoryController;
+use App\Http\Controllers\Admin\AdminModelPortfolioController;
+use App\Http\Controllers\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Admin\FxReconciliationController;
+use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\Admin\TransactionChargeController;
+use App\Http\Controllers\AdvisoryController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminServiceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CryptoWebhookController;
 use App\Http\Controllers\Api\DummyCscsController;
 use App\Http\Controllers\Api\DummyNgxController;
 use App\Http\Controllers\Api\KycController;
@@ -15,30 +21,27 @@ use App\Http\Controllers\Api\NewTransactionController;
 use App\Http\Controllers\Api\OmsController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PaystackController;
+use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Admin\SystemSettingsController;
+use App\Http\Controllers\Api\TradeController;
+use App\Http\Controllers\Api\CryptoController;
 use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\TwoFactorController;
+
 use App\Http\Controllers\Api\User\LinkedAccountController;
 use App\Http\Controllers\Api\User\NotificationController;
 use App\Http\Controllers\Api\User\SecurityController;
+
+// === ADVISORY CONTROLLERS ===
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\DemoController;
-
-// === ADVISORY CONTROLLERS ===
-use App\Http\Controllers\AdvisoryController;
-use App\Http\Controllers\PredictionController;
+// Admin Advisory Controllers
 use App\Http\Controllers\ModelPortfolioController;
+use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
-// Admin Advisory Controllers 
-use App\Http\Controllers\Admin\AdminSubscriptionController;
-use App\Http\Controllers\Admin\AdminAdvisoryController;
-use App\Http\Controllers\Admin\AdminModelPortfolioController;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\CheckSubscription;
@@ -49,16 +52,17 @@ use App\Http\Middleware\CheckSubscription;
 |--------------------------------------------------------------------------
 */
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
 Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
-Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA']);
+Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA'])->middleware('throttle:5,1');
 /* Paystack Webhook & Redirect */
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback']);
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
+Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
 
 Route::prefix('dummy')->group(function () {
     Route::prefix('ngx')->group(function () {
@@ -91,7 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/markets/stocks/{symbol}/history', [StockMarketController::class, 'history']);
     Route::get('/markets/stocks/{symbol}/history', [\App\Http\Controllers\MarketDataController::class, 'stockHistory']);
 
-    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     /* Wallet */
@@ -130,6 +134,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders', [OmsController::class, 'listOrders']);
     Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
 
+    /* Trading */
+    Route::post('/trade/open', [TradeController::class, 'open']);
+    Route::post('/trade/close/{id}', [TradeController::class, 'close']);
+    Route::get('/trades', [TradeController::class, 'index']);
+
+    /* Crypto */
+    Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
+    Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw']);
+
     Route::get('/transactions', [NewTransactionController::class, 'index']);
     Route::post('/deposit', [NewTransactionController::class, 'deposit']);
     Route::post('/withdraw', [NewTransactionController::class, 'withdraw']);
@@ -138,12 +151,11 @@ Route::middleware('auth:sanctum')->group(function () {
     /* Reports */
     Route::post('/reports/generate', [ProfileController::class, 'generateReport']);
 
-    /*Demo Mode Routes*/
+    /* Demo Mode Routes */
     Route::post('/demo/start', [DemoController::class, 'startDemo']);   // fund demo wallet
     Route::post('/demo/reset', [DemoController::class, 'resetDemo']);   // reset demo account
     Route::post('/demo/trade', [DemoController::class, 'placeTrade']);  // place a demo trade
     Route::post('/switch-mode', [ProfileController::class, 'switchMode']);
-
 
     /* Admin Routes */
     Route::middleware('admin')->prefix('admin')->group(function () {
@@ -156,7 +168,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/subscription-plans', AdminSubscriptionController::class);
         Route::apiResource('/advisory-posts', AdminAdvisoryController::class);
         Route::apiResource('/model-portfolios', AdminModelPortfolioController::class);
-
 
         /* Users */
         Route::get('/users', [AdminController::class, 'users']);
@@ -222,6 +233,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Manual settlement processing
         Route::post('/settlements/process', function () {
             \Illuminate\Support\Facades\Artisan::call('settlements:process');
+
             return response()->json(['message' => 'Settlements processed successfully.']);
         });
 
@@ -251,7 +263,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/linked-accounts/index', [LinkedAccountController::class, 'index']);
         Route::post('/linked-accounts/store', [LinkedAccountController::class, 'store']);
 
-        /*Notifications */
+        /* Notifications */
         Route::get('/notifications/show', [NotificationController::class, 'show']);
         Route::put('/notifications/update', [NotificationController::class, 'update']);
 
@@ -260,7 +272,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
         // === ADVISORY & SUBSCRIPTION MODULE ===
-        // 
+        //
         Route::prefix('advisory')->group(function () {
             // Public/Guest-level (Note: Plans should be accessible to see pricing)
             Route::get('/plans', [SubscriptionController::class, 'plans']);

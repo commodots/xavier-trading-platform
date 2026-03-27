@@ -38,6 +38,11 @@
           :subtitle="'Today'"
            @click="$router.push({ name: 'admin-fx-dashboard' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+
+        <MetricCard v-if="hasRole('manager')"
+          title="₿ Crypto Settings" :value="'Configure'" icon="Settings"
+          @click="$router.push({ name: 'admin-crypto-settings' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
       </div>
 
       <div :class="chartGridClasses">

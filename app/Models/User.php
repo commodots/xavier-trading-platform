@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -33,7 +33,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'next_of_kin',
         'next_of_kin_phone',
         'next_of_kin_email',
-        'trading_mode'
+        'bank_name',
+        'bank_account',
+        'bvn',
+        'nin',
+        'trading_mode',
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -59,6 +63,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'has_used_premium',
         'avatar',
     ];
+
     //  Relationship: One User has one Wallet
     public function wallet()
     {
@@ -111,8 +116,8 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function google2faSecret(): Attribute
     {
         return new Attribute(
-            get: fn($value) => $value ? Crypt::decryptString($value) : null,
-            set: fn($value) => Crypt::encryptString($value),
+            get: fn ($value) => $value ? Crypt::decryptString($value) : null,
+            set: fn ($value) => Crypt::encryptString($value),
         );
     }
 
@@ -125,7 +130,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function profileImage(): Attribute
     {
         return new Attribute(
-            get: fn($value) => $value ? Storage::url($value) : asset('images/user.png'),
+            get: fn ($value) => $value ? Storage::url($value) : asset('images/user.png'),
         );
     }
 
@@ -160,7 +165,6 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get FX wallet for a currency
      */
-
     public function fxWallet(string $currency)
     {
         return $this->wallet()->firstOrCreate(
@@ -212,6 +216,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasActiveSubscription();
     }
+
     protected $attributes = [
         'trading_mode' => 'live',
     ];
@@ -222,13 +227,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function trialSubscription()
     {
         // Using a dynamic property to cache the result for the current request
-        if (!isset($this->_trialSubscription)) {
+        if (! isset($this->_trialSubscription)) {
             $this->_trialSubscription = $this->subscriptions()
                 ->where('status', 'trial')
                 ->where('expires_at', '>', now())
                 ->latest('expires_at')
                 ->first();
         }
+
         return $this->_trialSubscription;
     }
 
@@ -246,12 +252,14 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         if ($trial = $this->trialSubscription()) {
             $diff = now()->diffInDays($trial->expires_at, false);
-            return max(0, (int)$diff);
+
+            return max(0, (int) $diff);
         }
 
         // If not on an active trial, return the default from settings
         $settings = \App\Models\SystemSetting::first();
-        return (int)($settings->trial_days ?? 7);
+
+        return (int) ($settings->trial_days ?? 7);
     }
 
     public function getTrialExpiresAtAttribute()
@@ -275,14 +283,15 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         // If ANY active subscription is Premium, the user is Premium.
-        return $activeSubs->contains(fn($s) => $s->plan?->tier === 'premium')
+        return $activeSubs->contains(fn ($s) => $s->plan?->tier === 'premium')
             ? 'premium'
             : 'regular';
     }
+
     public function getHasUsedRegularAttribute(): bool
     {
         return $this->subscriptions()
-            ->whereHas('plan', fn($q) => $q->where('tier', 'regular'))
+            ->whereHas('plan', fn ($q) => $q->where('tier', 'regular'))
             ->whereIn('status', ['trial', 'expired', 'cancelled'])
             ->exists();
     }
@@ -293,8 +302,24 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getHasUsedPremiumAttribute(): bool
     {
         return $this->subscriptions()
-            ->whereHas('plan', fn($q) => $q->where('tier', 'premium'))
+            ->whereHas('plan', fn ($q) => $q->where('tier', 'premium'))
             ->whereIn('status', ['trial', 'expired', 'cancelled'])
             ->exists();
+    }
+
+    /**
+     * Relationship: One User can have multiple Crypto Addresses (BTC, TRC20, etc.)
+     */
+    public function cryptoAddresses()
+    {
+        return $this->hasMany(\App\Models\CryptoAddress::class);
+    }
+
+    /**
+     * Helper to get the user's primary TRON address for USDT deposits.
+     */
+    public function tronAddress()
+    {
+        return $this->cryptoAddresses()->where('blockchain', 'TRON')->first();
     }
 }

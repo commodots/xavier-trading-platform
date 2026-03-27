@@ -3,19 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
+use App\Models\ActivityLog;
+use App\Models\Demo\DemoWallet;
+use App\Models\KycProfile;
+use App\Models\User;
+use App\Models\Wallet;
+use App\Services\QoreidService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
-use App\Models\User;
-use App\Models\KycProfile;
-use App\Models\Wallet;
-use App\Models\Demo\DemoWallet;
-use App\Services\QoreidService;
-use Exception;
-use App\Http\Resources\UserResource;
-use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class OnboardingController extends Controller
 {
@@ -53,7 +54,7 @@ class OnboardingController extends Controller
                 'dob' => $validated['dob'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'verified' => false, // Email not verified yet
-                'trading_mode' => 'live'
+                'trading_mode' => 'live',
             ]);
 
             if ($request->hasFile('profile_image')) {
@@ -66,7 +67,7 @@ class OnboardingController extends Controller
             foreach (['NGN', 'USD'] as $curr) {
                 Wallet::create([
                     'user_id' => $user->id,
-                    'account_number' => 'XAV' . rand(10000000, 99999999),
+                    'account_number' => 'XAV'.rand(10000000, 99999999),
                     'balance' => 0.00,
                     'ngn_cleared' => 0.00,
                     'ngn_uncleared' => 0.00,
@@ -82,7 +83,7 @@ class OnboardingController extends Controller
             foreach (['NGN', 'USD'] as $curr) {
                 DemoWallet::create([
                     'user_id' => $user->id,
-                    'account_number' => 'DEMO' . rand(10000000, 99999999),
+                    'account_number' => 'DEMO'.rand(10000000, 99999999),
                     'balance' => ($curr === 'NGN') ? 1000000.00 : 0.00,
                     'ngn_cleared' => ($curr === 'NGN') ? 1000000.00 : 0,
                     'usd_cleared' => ($curr === 'USD') ? 0.00 : 0,
@@ -95,14 +96,14 @@ class OnboardingController extends Controller
             // 🔍 Step 4: Optional KYC verification (if user provided ID)
             $kycData = [];
             $status = 'pending';
-            if (!empty($validated['id_type']) && !empty($validated['id_value'])) {
+            if (! empty($validated['id_type']) && ! empty($validated['id_value'])) {
                 // Attempt to verify identity via QoreID
                 $verification = QoreidService::verifyIdentity(
                     $validated['id_type'],
                     $validated['id_value']
                 );
 
-                if (!empty($verification['success'])) {
+                if (! empty($verification['success'])) {
                     $status = 'verified';
                     $kycData = $verification['data'] ?? [];
 
@@ -120,7 +121,7 @@ class OnboardingController extends Controller
                     ]);
 
                     // Save photo from KYC data if provided
-                    if (!empty($kycData['photo'])) {
+                    if (! empty($kycData['photo'])) {
                         $photo = $kycData['photo'];
                         $photoContents = null;
 
@@ -137,12 +138,12 @@ class OnboardingController extends Controller
                             $photoContents = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $photo));
                         }
                         if ($photoContents) {
-                            $photoPath = 'photos/' . uniqid('user_') . '.png';
+                            $photoPath = 'photos/'.uniqid('user_').'.png';
                             Storage::disk('public')->put($photoPath, $photoContents);
 
                             // If an avatar hasn't been set by the user's selfie upload,
                             // use the photo from the KYC provider as the avatar.
-                            if (!$user->getAttributeValue('profile_image')) {
+                            if (! $user->getAttributeValue('profile_image')) {
                                 // Use direct assignment to bypass mass assignment protection
                                 $user->profile_image = $photoPath;
                                 $user->save();
@@ -173,19 +174,16 @@ class OnboardingController extends Controller
 
             DB::commit();
 
-
             try {
                 ActivityLog::create([
-                    'user_id'    => $user->id,
-                    'activity'   => 'Registration',
-                    'details'    => "New user registered: {$user->email}. Wallets generated and initial KYC processed.",
+                    'user_id' => $user->id,
+                    'activity' => 'Registration',
+                    'details' => "New user registered: {$user->email}. Wallets generated and initial KYC processed.",
                     'ip_address' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ]);
             } catch (\Throwable $e) {
             }
-
-
 
             // Generate authentication token
             $token = $user->createToken('xavier_token')->plainTextToken;
@@ -194,15 +192,16 @@ class OnboardingController extends Controller
                 'success' => true,
                 'message' => 'Account created successfully',
                 'token' => $token,
-                'user' => new UserResource($user->load(['wallet', 'kyc'])),
+                'user' => new UserResource($user->load(['wallet', 'kyc', 'cryptoAddresses'])),
             ], 201);
         } catch (Exception $e) {
             DB::rollBack();
+            Log::error('User onboarding failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+                'message' => 'Unable to create account right now. Please try again later.',
+            ], 500);
         }
     }
 }

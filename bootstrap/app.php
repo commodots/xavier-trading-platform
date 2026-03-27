@@ -1,17 +1,17 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Illuminate\Routing\Middleware\SubstituteBindings;
-use Illuminate\Console\Scheduling\Schedule;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        api: __DIR__ . '/../routes/api.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -28,12 +28,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'subscribed' => \App\Http\Middleware\CheckSubscription::class,
             'advisory.access' => \App\Http\Middleware\CheckAdvisoryAccess::class,
+            'rate-limit-sensitive' => \App\Http\Middleware\RateLimitSensitiveOperations::class,
         ]);
 
         // --- API Middleware Stack ---
         $middleware->api(prepend: [
             EnsureFrontendRequestsAreStateful::class, // Sanctum for SPA/token auth
             SubstituteBindings::class,                // Enables route model binding
+        ]);
+        $middleware->validateCsrfTokens(except: [
+            'api/crypto/webhook'
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
@@ -44,7 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->appendOutputTo(storage_path('logs/settlements.log'));
 
         $schedule->job(new \App\Jobs\UpdatePortfolioPerformance)
-            ->dailyAt('00:00') 
+            ->dailyAt('00:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/portfolio_performance.log'));
     })

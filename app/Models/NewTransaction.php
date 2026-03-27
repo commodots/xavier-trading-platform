@@ -10,15 +10,15 @@ class NewTransaction extends Model
     protected $table = 'new_transactions_table';
 
     protected $fillable = [
-        'user_id', 'type', 'amount', 'currency', 
-        'charge', 'net_amount', 'status', 'meta'
+        'user_id', 'type', 'amount', 'currency',
+        'charge', 'net_amount', 'status', 'tx_hash', 'confirmations', 'meta',
     ];
 
     protected $casts = [
-        'meta' => 'array', 
+        'meta' => 'array',
         'created_at' => 'datetime',
     ];
-    
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');

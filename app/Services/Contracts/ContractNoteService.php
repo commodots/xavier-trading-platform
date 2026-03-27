@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Contracts\ContractNotes;
+namespace App\Services\Contracts;
 
 use App\Models\Order;
 

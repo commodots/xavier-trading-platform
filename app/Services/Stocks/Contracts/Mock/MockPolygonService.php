@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Stocks\Mock;
+namespace App\Services\Stocks\Contracts\Mock;
 
 use App\Services\Stocks\Contracts\MarketDataProvider;
 

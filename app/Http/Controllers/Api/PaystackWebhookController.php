@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Ledger;
 use App\Models\NewTransaction;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,87 +16,115 @@ class PaystackWebhookController extends Controller
 {
     public function handle(Request $request)
     {
-        // Verify signature
-        $signature = hash_hmac('sha512', $request->getContent(), config('services.paystack.secret_key'));
+        // Secure Signature Validation
+        $signature = $request->header('x-paystack-signature');
+        $computedSignature = hash_hmac('sha512', $request->getContent(), config('services.paystack.secret_key'));
 
-        if (! hash_equals($signature, $request->header('x-paystack-signature', ''))) {
-            Log::warning('Invalid Paystack signature', ['headers' => $request->headers->all()]);
+        if (! $signature || ! hash_equals($computedSignature, $signature)) {
+            Log::warning('Paystack Webhook: Invalid Signature Attempt', [
+                'ip' => $request->ip(),
+                'header' => $signature,
+            ]);
+
             return response()->json(['error' => 'Invalid signature'], 401);
         }
 
-        $event = $request->all();
+        $payload = $request->all();
+        $event = $payload['event'] ?? '';
 
-        if (($event['event'] ?? '') === 'charge.success') {
-            $this->handleSuccessfulPayment($event['data'] ?? []);
+        //  Route Events
+        switch ($event) {
+            case 'charge.success':
+                $this->handleSuccessfulPayment($payload['data'] ?? []);
+                break;
+
+                
+            default:
+                Log::info('Paystack Webhook: Unhandled event ignored', ['event' => $event]);
+                break;
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()->json(['status' => 'ok'], 200);
     }
 
     private function handleSuccessfulPayment(array $data): void
-{
-    $reference = $data['reference'];
+    {
+        $reference = $data['reference'] ?? null;
 
-    // Idempotency Check
-    if (Ledger::where('reference', $reference)->exists() || 
-        NewTransaction::where('meta->reference', $reference)->exists()) {
-        Log::info('Paystack webhook: Duplicate reference ignored', ['ref' => $reference]);
-        return;
-    }
-
-    DB::transaction(function () use ($data, $reference) {
-        $user = User::where('email', $data['customer']['email'])->first();
-        if (!$user) return;
-
-        $amount = $data['amount'] / 100;
-        $planCode = $data['plan']['plan_code'] ?? null;
-        $type = 'FUND'; // Default type
-
-        if ($planCode) {
-            // Handle Subscription Logic
-            $plan = \App\Models\SubscriptionPlan::where('paystack_plan_code', $planCode)->first();
-            
-            if ($plan) {
-                $user->update([
-                    'subscription_tier' => $plan->tier,
-                    'subscription_expires_at' => now()->addDays($plan->duration_days),
-                ]);
-                $type = 'SUBSCRIPTION';
-            }
-        } else {
-            // Handle Regular Wallet Funding
-            $wallet = \App\Models\Wallet::firstOrCreate(
-                ['user_id' => $user->id, 'currency' => 'NGN'],
-                ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0, 'ngn_uncleared' => 0, 'locked' => 0]
-            );
-            $wallet->credit($amount, 'cleared');
-            $type = 'FUND';
+        if (! $reference) {
+            return;
         }
 
-        // Record Ledger Entry
-        Ledger::create([
-            'user_id' => $user->id,
-            'currency' => 'NGN',
-            'amount' => $amount,
-            'type' => $type,
-            'status' => 'completed',
-            'reference' => $reference,
-            'meta' => $data,
-        ]);
+        // Idempotency Check (Prevent double funding)
+        $exists = Ledger::where('reference', $reference)->exists() ||
+                 NewTransaction::where('meta->reference', $reference)->exists();
 
-        // Record Transaction Entry
-        $metaData = $data;
-        $metaData['reference'] = $reference;
+        if ($exists) {
+            Log::info('Paystack Webhook: Duplicate reference ignored', ['ref' => $reference]);
 
-        NewTransaction::create([
-            'user_id' => $user->id,
-            'currency' => 'NGN',
-            'amount' => $amount,
-            'net_amount' => $amount, 
-            'type' => ($type === 'SUBSCRIPTION') ? 'subscription' : 'deposit', 
-            'status' => 'completed',
-            'meta' => $metaData, 
-        ]);
-    });
-}
+            return;
+        }
+
+        DB::transaction(function () use ($data, $reference) {
+            $user = User::where('email', $data['customer']['email'])->first();
+            if (! $user) {
+                Log::error('Paystack Webhook: User not found', ['email' => $data['customer']['email']]);
+
+                return;
+            }
+
+            $amount = $data['amount'] / 100; // Convert Kobo to Naira
+            $planCode = $data['plan']['plan_code'] ?? null;
+            $type = 'FUND';
+
+            // Logic: Subscription vs. Regular Funding
+            if ($planCode) {
+                $plan = SubscriptionPlan::where('paystack_plan_code', $planCode)->first();
+
+                if ($plan) {
+                    $user->update([
+                        'subscription_tier' => $plan->tier,
+                        'subscription_expires_at' => now()->addDays($plan->duration_days),
+                    ]);
+                    $type = 'SUBSCRIPTION';
+                }
+            } else {
+                $wallet = Wallet::firstOrCreate(
+                    ['user_id' => $user->id, 'currency' => 'NGN'],
+                    ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0]
+                );
+
+                // Assuming your Wallet model has a credit method
+                $wallet->increment('ngn_cleared', $amount);
+                $type = 'FUND';
+            }
+
+            // Audit Trail: Create Ledger & Transaction record
+            Ledger::create([
+                'user_id' => $user->id,
+                'currency' => 'NGN',
+                'amount' => $amount,
+                'type' => $type,
+                'status' => 'completed',
+                'reference' => $reference,
+                'meta' => $data,
+            ]);
+
+            NewTransaction::create([
+                'user_id' => $user->id,
+                'currency' => 'NGN',
+                'amount' => $amount,
+                'net_amount' => $amount,
+                'type' => ($type === 'SUBSCRIPTION') ? 'subscription' : 'deposit',
+                'status' => 'completed',
+                'meta' => array_merge($data, ['reference' => $reference]),
+            ]);
+
+            Log::info('Paystack Webhook: Payment processed successfully', [
+                'user_id' => $user->id,
+                'type' => $type,
+                'ref' => $reference,
+            ]);
+        });
+    }
 }

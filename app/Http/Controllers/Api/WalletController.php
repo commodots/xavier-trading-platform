@@ -4,23 +4,22 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Demo\DemoLedger;
+use App\Models\Demo\DemoTransaction;
+use App\Models\Demo\DemoWallet;
 use App\Models\FxRate;
+use App\Models\Ledger;
+use App\Models\NewTransaction;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\Demo\DemoWallet;
-use App\Models\Demo\DemoTransaction;
-use App\Models\Demo\DemoLedger;
-use App\Models\NewTransaction;
-use App\Models\Wallet;
-use App\Models\Ledger;
-
 
 class WalletController extends Controller
 {
     // THE DYNAMIC MODEL RESOLVER
-    private function resolveModels(Request $request = null)
+    private function resolveModels(?Request $request = null)
     {
         $user = Auth::user();
 
@@ -30,9 +29,9 @@ class WalletController extends Controller
         return (object) [
             'isDemo' => $isDemo,
             'mode' => $mode,
-            'wallet' => $isDemo ? new DemoWallet() : new Wallet(),
-            'transaction' => $isDemo ? new DemoTransaction() : new NewTransaction(),
-            'ledger' => $isDemo ? new DemoLedger() : new Ledger(),
+            'wallet' => $isDemo ? new DemoWallet : new Wallet,
+            'transaction' => $isDemo ? new DemoTransaction : new NewTransaction,
+            'ledger' => $isDemo ? new DemoLedger : new Ledger,
         ];
     }
 
@@ -64,15 +63,39 @@ class WalletController extends Controller
     {
         $request->validate([
             'amount' => 'required|numeric|min:500',
-            'currency' => 'required'
+            'currency' => 'required',
         ]);
 
         $user = Auth::user();
         $currency = strtoupper($request->currency);
         $models = $this->resolveModels($request);
 
-        return DB::transaction(function () use ($request, $user, $currency, $models) {
+        // PCI/PSD2: Verify user passed SCA (2FA + email verified)
+        if (! \App\Services\Compliance\PciPsd2Compliance::canProcessPayment($user, $request->amount)) {
+            return response()->json([
+                'success' => false,
+                'message' => '2FA verification required for withdrawals over NGN 1M. Please enable 2FA in settings.',
+            ], 403);
+        }
 
+        // PCI/PSD2: Check daily withdrawal limit
+        $dailyLimit = \App\Services\Compliance\PciPsd2Compliance::getDailyTransactionLimit($user, 'withdrawal');
+        if ($request->amount > $dailyLimit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Daily withdrawal limit exceeded. Remaining: NGN '.number_format($dailyLimit, 2),
+            ], 422);
+        }
+
+        // PSD2: Detect suspicious activity
+        if (\App\Services\Compliance\PciPsd2Compliance::isSuspiciousActivity($user, [
+            'type' => 'withdrawal',
+            'amount' => $request->amount,
+        ])) {
+            // Log but allow (can be flagged by compliance team asynchronously)
+        }
+
+        return DB::transaction(function () use ($request, $user, $currency, $models) {
             $wallet = $models->wallet->where('user_id', $user->id)
                 ->where('currency', $currency)
                 ->lockForUpdate()
@@ -81,7 +104,7 @@ class WalletController extends Controller
             $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
             $clearedBalance = $wallet ? ($currency === 'NGN' ? $wallet->ngn_cleared : $wallet->usd_cleared) : 0;
 
-            if (!$wallet || $clearedBalance < $request->amount) {
+            if (! $wallet || $clearedBalance < $request->amount) {
                 return response()->json(['message' => 'Insufficient cleared funds'], 400);
             }
 
@@ -98,8 +121,14 @@ class WalletController extends Controller
                 'net_amount' => $request->amount,
                 'meta' => [
                     'note' => 'User initiated withdrawal',
-                    'mode' => $models->mode
-                ]
+                    'mode' => $models->mode,
+                ],
+            ]);
+
+            // PCI-DSS: Audit log for all payment operations
+            \App\Services\Compliance\PciPsd2Compliance::logPaymentOperation($user, 'withdrawal', [
+                'amount' => $request->amount,
+                'currency' => $currency,
             ]);
 
             return response()->json(['success' => true]);
@@ -110,7 +139,7 @@ class WalletController extends Controller
     {
         $request->validate([
             'amount' => 'required|numeric|min:100',
-            'currency' => 'required|in:NGN,USD'
+            'currency' => 'required|in:NGN,USD',
         ]);
 
         $user = Auth::user();
@@ -140,14 +169,14 @@ class WalletController extends Controller
                 'charge' => 0,
                 'net_amount' => $request->amount,
                 'meta' => [
-                    'reference' => 'XAV-' . strtoupper(bin2hex(random_bytes(4))),
-                    'mode' => $models->mode
-                ]
+                    'reference' => 'XAV-'.strtoupper(bin2hex(random_bytes(4))),
+                    'mode' => $models->mode,
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully deposited " . number_format($request->amount, 2)
+                'message' => 'Successfully deposited '.number_format($request->amount, 2),
             ]);
         });
     }
@@ -160,7 +189,7 @@ class WalletController extends Controller
 
             $validated = $request->validate([
                 'amount' => 'required|numeric|min:0.01',
-                'from' => 'sometimes|in:NGN,USD'
+                'from' => 'sometimes|in:NGN,USD',
             ]);
 
             $fromCurrency = $validated['from'] ?? 'NGN';
@@ -175,7 +204,7 @@ class WalletController extends Controller
 
                 $clearedCol = $fromCurrency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
 
-                if (!$sourceWallet || ($sourceWallet->{$clearedCol} ?? 0) < $amount) {
+                if (! $sourceWallet || ($sourceWallet->{$clearedCol} ?? 0) < $amount) {
                     return response()->json(['error' => "Insufficient cleared $fromCurrency balance"], 400);
                 }
 
@@ -184,7 +213,7 @@ class WalletController extends Controller
                     ->latest()
                     ->first();
 
-                if (!$rate) {
+                if (! $rate) {
                     return response()->json(['error' => 'FX rate not configured'], 400);
                 }
 
@@ -204,7 +233,6 @@ class WalletController extends Controller
 
                 $status = $isDemo ? 'completed' : 'pending';
 
-
                 $sourceWallet->decrement($clearedCol, $amount);
                 $sourceWallet->decrement('balance', $amount);
 
@@ -218,7 +246,7 @@ class WalletController extends Controller
                 $destWallet->increment($destCol, $convertedAmount);
                 $destWallet->increment('balance', $convertedAmount);
 
-                $txReference = 'FX-' . \Illuminate\Support\Str::uuid();
+                $txReference = 'FX-'.\Illuminate\Support\Str::uuid();
 
                 $models->ledger->create([
                     'user_id' => $user->id,
@@ -231,7 +259,7 @@ class WalletController extends Controller
                         'source_amount' => $amount,
                         'source_currency' => $fromCurrency,
                         'locked_rate' => $rate->effective_rate,
-                        'mode' => $models->mode
+                        'mode' => $models->mode,
                     ],
                 ]);
 
@@ -246,8 +274,8 @@ class WalletController extends Controller
                         'to_currency' => $toCurrency,
                         'received_amount' => $convertedAmount,
                         'exchange_rate' => $rate->effective_rate,
-                        'mode' => $models->mode
-                    ]
+                        'mode' => $models->mode,
+                    ],
                 ]);
 
                 ActivityLog::log($user->id, 'fx_conversion_initiated', [
@@ -255,16 +283,18 @@ class WalletController extends Controller
                     'to_amount' => $convertedAmount,
                     'rate' => $rate->effective_rate,
                 ]);
+
                 return response()->json([
                     'success' => true,
                     'amount_received' => $convertedAmount,
                     'amount_debited' => $amount,
-                    'status' => $status
+                    'status' => $status,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('Conversion failed', ['error' => $e->getMessage()]);
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error('Conversion failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['error' => 'Currency conversion failed. Please try again later.'], 500);
         }
     }
 
@@ -279,6 +309,7 @@ class WalletController extends Controller
         } elseif ($currency === 'USD') {
             return (float) (($w?->usd_cleared ?? 0) + ($w?->usd_uncleared ?? 0));
         }
+
         return 0;
     }
 

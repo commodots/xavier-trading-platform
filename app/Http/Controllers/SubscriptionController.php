@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubscriptionPlan;
-use App\Models\UserSubscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -18,8 +17,8 @@ class SubscriptionController extends Controller
             'data' => SubscriptionPlan::all(),
             // Pass the setting here so the frontend can show "Start 7-Day Trial"
             'trial_settings' => [
-                'days' => (int) $days
-            ]
+                'days' => (int) $days,
+            ],
         ]);
     }
 
@@ -28,12 +27,12 @@ class SubscriptionController extends Controller
         $request->validate(['plan_id' => 'required|exists:subscription_plans,id']);
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
 
-        $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
+        $response = Http::withToken(config('services.paystack.secret_key'))
             ->post('https://api.paystack.co/transaction/initialize', [
                 'email' => $request->user()->email,
                 'amount' => $plan->price * 100,
                 'plan' => $plan->paystack_plan_code,
-                'callback_url' => env('FRONTEND_URL') . '/advisory?plan_id=' . $plan->id,
+                'callback_url' => config('app.url').'/advisory?plan_id='.$plan->id,
             ]);
 
         return $response->json();
@@ -43,11 +42,11 @@ class SubscriptionController extends Controller
     {
         $request->validate([
             'reference' => 'required',
-            'plan_id'   => 'required|exists:subscription_plans,id',
+            'plan_id' => 'required|exists:subscription_plans,id',
         ]);
 
         $reference = $request->reference;
-        $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
+        $response = Http::withToken(config('services.paystack.secret_key'))
             ->get("https://api.paystack.co/transaction/verify/{$reference}");
 
         if ($response->successful() && $response['data']['status'] === 'success') {
@@ -65,9 +64,9 @@ class SubscriptionController extends Controller
                 'subscription_plan_id' => $plan->id,
                 'starts_at' => now(),
                 'expires_at' => now()->addDays($plan->duration_days),
-                'status'                     => 'active',
-                //Store the Subscription Code (SUB_...) for managing recurring billing, not the Auth Code.
-                'paystack_subscription_code' => $response['data']['subscription_code'] ?? null
+                'status' => 'active',
+                // Store the Subscription Code (SUB_...) for managing recurring billing, not the Auth Code.
+                'paystack_subscription_code' => $response['data']['subscription_code'] ?? null,
             ]);
 
             return response()->json(['success' => true, 'message' => 'Subscription Activated!']);
@@ -75,16 +74,17 @@ class SubscriptionController extends Controller
 
         return response()->json(['success' => false, 'message' => 'Verification failed'], 400);
     }
+
     public function cancelSubscription(Request $request)
     {
         $user = $request->user();
         // Find the current, active subscription to cancel.
         $localSub = $user->subscriptions()
-        ->whereIn('status', ['active', 'trial']) // Target active or trial
-        ->latest()
-        ->first();
+            ->whereIn('status', ['active', 'trial']) // Target active or trial
+            ->latest()
+            ->first();
 
-        if (!$localSub) {
+        if (! $localSub) {
             return response()->json(['success' => false, 'message' => 'No active subscription found.'], 404);
         }
 
@@ -92,7 +92,7 @@ class SubscriptionController extends Controller
         if ($localSub->paystack_subscription_code) {
             // To disable a subscription, we need both the code and an email token.
             // We can get the token by fetching the specific subscription from Paystack.
-            $paystackSubResponse = Http::withToken(env('PAYSTACK_SECRET_KEY'))
+            $paystackSubResponse = Http::withToken(config('services.paystack.secret_key'))
                 ->get("https://api.paystack.co/subscription/{$localSub->paystack_subscription_code}");
 
             if ($paystackSubResponse->successful()) {
@@ -101,10 +101,10 @@ class SubscriptionController extends Controller
 
                 if ($emailToken) {
                     // Now, tell Paystack to permanently disable the correct subscription.
-                    Http::withToken(env('PAYSTACK_SECRET_KEY'))
+                    Http::withToken(config('services.paystack.secret_key'))
                         ->post('https://api.paystack.co/subscription/disable', [
                             'code' => $localSub->paystack_subscription_code,
-                            'token' => $emailToken
+                            'token' => $emailToken,
                         ]);
                 }
             }
@@ -114,7 +114,7 @@ class SubscriptionController extends Controller
         // This preserves the user's subscription history for analytics.
         $localSub->update([
             'status' => 'cancelled',
-            'expires_at' => now()
+            'expires_at' => now(),
         ]);
 
         return response()->json(['success' => true, 'message' => 'Subscription cancelled.']);

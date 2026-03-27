@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\FxRate;
+use App\Models\SystemSetting;
 use App\Models\TransactionCharge;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class WalletFunctionsTest extends TestCase
@@ -60,13 +62,12 @@ class WalletFunctionsTest extends TestCase
     {
         $user = User::factory()->create();
 
-       
         FxRate::create([
             'from_currency' => 'NGN',
             'to_currency' => 'USD',
             'base_rate' => 1500, // e.g., 1500 NGN to 1 USD
             'markup_percent' => 1.0,
-            'effective_rate' => 1515.0
+            'effective_rate' => 1515.0,
         ]);
 
         $ngnWallet = Wallet::create([
@@ -100,5 +101,64 @@ class WalletFunctionsTest extends TestCase
         // Assert: Check USD balance increased
         $usdWallet->refresh();
         $this->assertGreaterThan(0, $usdWallet->usd_uncleared);
+    }
+
+    public function test_crypto_market_uses_live_api(): void
+    {
+        Http::fake([
+            'api.coingecko.com/api/v3/simple/price*' => Http::response([
+                'bitcoin' => ['usd' => 65000],
+                'ethereum' => ['usd' => 3200],
+                'tether' => ['usd' => 1],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $response = $this->actingAs($user)->getJson('/api/market/crypto');
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.0.symbol', 'BTC');
+        $response->assertJsonPath('data.0.price', 65000);
+    }
+
+    public function test_trade_open_and_close_flow(): void
+    {
+        SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
+
+        $user = User::factory()->create();
+        Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
+
+        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+
+        $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
+        $openRes->assertStatus(200)->assertJson(['success' => true]);
+
+        $tradeId = $openRes->json('data.id');
+        $this->assertDatabaseHas('trades', ['id' => $tradeId, 'status' => 'open']);
+        $this->assertDatabaseHas('new_transactions_table', ['user_id' => $user->id, 'type' => 'buy_crypto']);
+
+        $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
+        $closeRes->assertStatus(200)->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('trades', ['id' => $tradeId, 'status' => 'closed']);
+    }
+
+    public function test_crypto_webhook_deposits_and_wallet_increase(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 0, 'usd_uncleared' => 0, 'balance' => 0, 'locked' => 0]);
+        $address = \App\Models\CryptoAddress::create(['user_id' => $user->id, 'blockchain' => 'TRON', 'address' => 'TGW1']);
+
+        $payload = ['data' => ['item' => ['address' => 'TGW1', 'amount' => 10, 'transactionHash' => 'X123', 'confirmations' => 3]]];
+
+        config(['services.crypto.webhook_secret' => 'test-webhook-secret']);
+
+        $response = $this->postJson('/api/crypto/webhook', $payload, ['X-Cryptoapi-Signature' => 'test-webhook-secret']);
+        $response->assertStatus(200);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('new_transactions_table', ['user_id' => $user->id, 'type' => 'deposit', 'amount' => 10, 'currency' => 'USDT']);
+        $wallet->refresh();
+        $this->assertEquals(10, $wallet->usd_cleared);
     }
 }

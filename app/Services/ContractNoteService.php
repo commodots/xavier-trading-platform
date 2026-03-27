@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\ContractNote;
+namespace App\Services;
 
 use App\Models\Trade;
 

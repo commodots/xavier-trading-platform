@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Factories\Demo;
+namespace Database\Factories;
 
 use App\Models\Demo\DemoWallet;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class DemoWalletFactory extends Factory
 {
     protected $model = DemoWallet::class;
+
     /**
      * Define the model's default state.
      *

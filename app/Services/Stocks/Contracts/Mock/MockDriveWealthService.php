@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Stocks\Mock;
+namespace App\Services\Stocks\Contracts\Mock;
 
 use App\Services\Stocks\Contracts\StockBroker;
 use Illuminate\Support\Str;
@@ -10,7 +10,7 @@ class MockDriveWealthService implements StockBroker
     public function buy(array $data): array
     {
         return [
-            'order_id' => 'DW_' . Str::random(8),
+            'order_id' => 'DW_'.Str::random(8),
             'symbol' => $data['symbol'],
             'side' => 'buy',
             'quantity' => $data['quantity'],
@@ -23,7 +23,7 @@ class MockDriveWealthService implements StockBroker
     public function sell(array $data): array
     {
         return [
-            'order_id' => 'DW_' . Str::random(8),
+            'order_id' => 'DW_'.Str::random(8),
             'symbol' => $data['symbol'],
             'side' => 'sell',
             'quantity' => $data['quantity'],
