@@ -9,7 +9,7 @@
 
     <aside :class="[
       'w-64 border-r flex flex-col justify-between transition-all duration-300',
-      currentView === 'user' ? 'bg-[#111827] border-[#1F2A44]' : 'bg-[#1a253b] border-[#4d69aa]',
+      currentView === 'user' ? 'bg-gradient-to-b from-[#0B132B] to-[#111827] border-[#1F2A44]' : 'bg-[#1a253b] border-[#4d69aa]',
       sidebarOpen ? 'translate-x-0' : '-translate-x-64',
       'md:translate-x-0 fixed md:sticky md:top-0 md:h-screen inset-y-0 left-0 z-50 overflow-y-auto'
     ]">
@@ -28,28 +28,61 @@
         <nav class="px-4 mt-4 space-y-1 text-sm">
 
           <div v-if="currentView === 'user'">
-            <div class="px-3 mt-4 mb-1 text-xs tracking-wider text-gray-500 uppercase">OVERVIEW</div>
-            <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
-            <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
-            <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
 
-            <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">MARKETS</div>
-            <SidebarLink to="/ngx" :icon="BarChart2">NGX Market</SidebarLink>
-            <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
-            <SidebarLink to="/crypto" :icon="Bitcoin">Crypto Market</SidebarLink>
-            <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income Market</SidebarLink>
+		  <!-- OVERVIEW -->
+		  <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
+		  <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
+		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
 
-            <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">TRADING</div>
-            <SidebarLink to="/trading" :icon="ShoppingCart">Trading</SidebarLink>
-            <SidebarLink to="/orders" :icon="ShoppingCart">Orders</SidebarLink>
-            <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
+		  <!-- MONEY -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Money</div>
+		  <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
+		  <SidebarLink to="/transactions" :icon="ListOrdered">Transactions</SidebarLink>
+		  <SidebarLink to="/fund" :icon="DollarSign">Fund / Withdraw</SidebarLink>
 
+		  <!-- MARKETS -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Markets</div>
+		  <SidebarLink to="/markets" :icon="Globe">All Markets</SidebarLink>
+		  <SidebarLink to="/ngx" :icon="BarChart2">Nigerian Stocks</SidebarLink>
+		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
+		  <SidebarLink to="/crypto" :icon="Bitcoin">Crypto</SidebarLink>
+		  <SidebarLink to="/fx" :icon="TrendingUp">FX Market</SidebarLink>
 
-            <div class="px-3 mt-6 mb-1 text-xs tracking-wider text-gray-500 uppercase">ACCOUNT</div>
-            <SidebarLink to="/reports" :icon="FileSpreadsheet">Generate Report</SidebarLink>
-            <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
-            <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help and Support</SidebarLink>
-          </div>
+		  <!-- TRADE -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trade</div>
+		  <SidebarLink to="/trading" :icon="ShoppingCart">Trade</SidebarLink>
+		  <SidebarLink to="/orders" :icon="FileText">Orders</SidebarLink>
+		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
+
+		  <!-- INSIGHTS -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
+		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
+
+		  <!-- CTA BUTTON -->
+		  <div class="px-3 mt-6">
+			<button
+			  @click="$router.push('/trading')"
+			  class="w-full py-3 rounded-xl bg-gradient-to-r from-[#C8A951] to-[#E6C97A] text-black font-semibold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-all duration-300"
+			>
+			  ⚡ Start Trade
+			</button>
+		  </div>
+
+		  <!-- ACCOUNT -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
+		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
+		  <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
+		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
+		  
+		  <button
+			  @click="logout"
+			  class="flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all mt-4"
+			>
+			  <LogOut class="w-5 h-5" />
+			  Logout
+			</button>
+
+		</div>
 
           <div v-if="currentView === 'staff'">
             <div class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Admin
@@ -138,6 +171,7 @@ import {
 
 import SidebarLink from "@/Components/SidebarLink.vue";
 import DemoToggle from "@/Components/DemoToggle.vue";
+import { Star } from "lucide-vue-next";
 
 const router = useRouter();
 const route = useRoute();
