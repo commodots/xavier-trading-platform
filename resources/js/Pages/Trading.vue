@@ -45,21 +45,6 @@
         </div>
       </div>
 
-      <!-- TRON Deposit Address -->
-      <div v-if="tronAddress" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="mb-4 text-xl font-semibold">+ Deposit USDT (TRON)</h2>
-        <div class="flex items-center space-x-4">
-          <div class="flex-1">
-            <p class="mb-2 text-sm text-gray-400">Your TRON Address</p>
-            <p class="font-mono text-[#00D4FF] bg-[#111827] p-3 rounded-lg break-all">{{ tronAddress.address }}</p>
-          </div>
-          <div class="flex-shrink-0">
-            <img :src="tronAddress.qr_code_url" alt="QR Code" class="w-20 h-20 p-1 bg-white rounded-lg" />
-          </div>
-        </div>
-        <p class="mt-3 text-xs text-gray-400">Send only USDT-TRC20 to this address. Deposits are processed automatically.</p>
-      </div>
-
       <!-- Open Trade Form -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
         <h2 class="mb-4 text-xl font-semibold">Enter Trade</h2>
@@ -225,9 +210,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted} from 'vue';
+import {useRouter} from 'vue-router'
+
 import MainLayout from '@/Layouts/MainLayout.vue';
 import api from '@/api';
+
+const router = useRouter();
 
 const form = ref({ pair: 'BTC/USDT', type: 'buy', amount: 1000 });
 const loading = ref(false);
@@ -349,6 +338,6 @@ const withdrawNav = () => {
   router.push('/crypto/withdraw')
 }
 const depositNav =() => {
-  router.push('/crypro/deposit')
+  router.push('/crypto/deposit')
 }
 </script>
