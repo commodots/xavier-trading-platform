@@ -18,6 +18,14 @@ class PriceService
             'BTC' => 64250.00,
             'ETH' => 3450.00,
             'SOL' => 145.00,
+            'BNB' => 580.00,
+            'XRP' => 0.62,
+            'ADA' => 0.45,
+            'DOGE' => 0.16,
+            'DOT' => 7.10,
+            'TRX' => 0.12,
+            'LINK' => 18.50,
+            'MATIC' => 0.72,
         ];
 
         $basePrice = $basePrices[strtoupper($symbol)] ?? 100.00;

@@ -46,11 +46,11 @@
 		  <SidebarLink to="/ngx" :icon="BarChart2">Nigerian Stocks</SidebarLink>
 		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
 		  <SidebarLink to="/crypto" :icon="Bitcoin">Crypto</SidebarLink>
-		  <SidebarLink to="/fx" :icon="TrendingUp">FX Market</SidebarLink>
+		  <SidebarLink to="/fixed-income" :icon="TrendingUp">FX Market</SidebarLink>
 
 		  <!-- TRADE -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trade</div>
-		  <SidebarLink to="/trading" :icon="ShoppingCart">Trade</SidebarLink>
+		  <SidebarLink to="/trading" :icon="ShoppingCart">Crypto</SidebarLink>
 		  <SidebarLink to="/orders" :icon="FileText">Orders</SidebarLink>
 		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
 
@@ -74,13 +74,7 @@
 		  <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
 		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
 		  
-		  <button
-			  @click="logout"
-			  class="flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all mt-4"
-			>
-			  <LogOut class="w-5 h-5" />
-			  Logout
-			</button>
+		  
 
 		</div>
 

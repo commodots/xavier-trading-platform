@@ -4,16 +4,31 @@ namespace App\Services;
 
 use App\Models\CryptoAddress;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Log;
 
 class TatumService
 {
     public function generateTronAddress(int $userId): string
-    {
+{
+    try {
         $res = Http::withHeaders([
             'x-api-key' => config('services.crypto.api_key'),
         ])->get(config('services.crypto.base_url').'/tron/address');
+        
+        // This only catches 4xx and 5xx errors
+        if ($res->failed()) {
+            throw new \Exception("Tatum API failed: " . $res->body());
+        }
 
         $data = $res->json();
+
+        // --- ADD THIS CHECK BELOW ---
+        if (!isset($data['address']) || !isset($data['privateKey'])) {
+            // Log the actual response so you can see why it's failing on the server
+            Log::error("Tatum Response Error for User $userId", ['response' => $data]);
+            throw new \Exception("Tatum returned a success status but no address data was found.");
+        }
 
         $address = $data['address'];
         $privateKey = $data['privateKey'];
@@ -27,11 +42,15 @@ class TatumService
             'qr_code_url' => $qrCodeUrl,
         ]);
 
-        // Subscribe to webhook for deposit notifications
         $this->subscribeAddress($address);
 
         return $address;
+
+    } catch (ConnectionException $e) {
+        Log::error("Tatum API Connection Error: " . $e->getMessage());
+        throw new \Exception("Unable to reach the crypto service.");
     }
+}
 
     public function subscribeAddress(string $address): void
     {
@@ -56,6 +75,10 @@ class TatumService
             'amount' => (string) $amount,
             'privateKey' => $privateKey,
         ]);
+
+        if ($res->failed()) {
+            throw new \Exception("Tatum withdrawal failed: " . $res->body());
+        }
 
         return $res->json();
     }

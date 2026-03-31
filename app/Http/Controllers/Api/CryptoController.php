@@ -55,28 +55,40 @@ class CryptoController extends Controller
 
         $privateKey = decrypt($crypto->private_key);
 
+        // Create a pending transaction and deduct balance first (Safety)
+        $transaction = DB::transaction(function () use ($user, $amount) {
+            $wallet = Wallet::where('user_id', $user->id)
+                ->where('currency', 'USD')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$wallet || $wallet->usd_cleared < $amount) {
+                throw new \Exception('Insufficient balance');
+            }
+
+            $wallet->decrement('usd_cleared', $amount);
+            $wallet->decrement('balance', $amount);
+
+            return NewTransaction::create([
+                'user_id' => $user->id,
+                'type' => 'withdrawal',
+                'amount' => $amount,
+                'currency' => 'USDT',
+                'status' => 'pending',
+            ]);
+        });
+
         try {
             $result = app(TatumService::class)->withdraw($toAddress, $amount, $privateKey);
-
-            DB::transaction(function () use ($user, $amount) {
-                NewTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'withdrawal',
-                    'amount' => $amount,
-                    'currency' => 'USDT',
-                    'status' => 'completed',
-                ]);
-
-                Wallet::where('user_id', $user->id)
-                    ->where('currency', 'USD')
-                    ->update([
-                        'usd_cleared' => DB::raw("usd_cleared - $amount"),
-                        'balance' => DB::raw("balance - $amount"),
-                    ]);
-            });
-
+            $transaction->update(['status' => 'completed', 'tx_hash' => $result['txId'] ?? null]);
+            
             return response()->json(['success' => true, 'tx_hash' => $result['txId'] ?? null]);
         } catch (\Exception $e) {
+            // Refund if external call fails
+            DB::transaction(function () use ($user, $amount, $transaction) {
+                Wallet::where('user_id', $user->id)->where('currency', 'USD')->increment('usd_cleared', $amount);
+                $transaction->update(['status' => 'failed']);
+            });
             return response()->json(['success' => false, 'message' => 'Withdrawal failed'], 500);
         }
     }
