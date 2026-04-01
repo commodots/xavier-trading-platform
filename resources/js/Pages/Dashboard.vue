@@ -1,13 +1,14 @@
 <template>
   <MainLayout :isDemo="isDemo">
     <div class="space-y-6">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">Hi, {{ userName }}</h1>
           <p class="text-sm text-gray-400">Here's your dashboard with an overview of your portfolio.</p>
         </div>
         <div class="flex items-center gap-4">
-          <button @click="showTradeModal = true" :class="[
+          <button @click="handleTradeAction" :class="[
             'px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg',
             isDemo ? 'bg-gradient-to-r from-yellow-600 to-orange-500' : 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]'
           ]">
@@ -163,6 +164,7 @@ import api from "@/api";
 import VueApexCharts from "vue3-apexcharts";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 
 const apexchart = VueApexCharts;
@@ -175,6 +177,7 @@ const error = ref(null);
 const showTradeModal = ref(false);
 const selectedTransaction = ref(null);
 const showDetailsModal = ref(false);
+const showPrompt = ref(false);
 
 
 const getUser = () => JSON.parse(localStorage.getItem('user') || '{}'); 
@@ -187,6 +190,19 @@ const syncModeWithStorage = () => {
   const updatedUser = getUser();
   user.value = updatedUser;
   isDemo.value = updatedUser.trading_mode === 'demo';
+};
+
+const isUserVerified = computed(() => {
+  const u = user.value;
+  return u.email_verified_at || u.role === 'admin' || (u.roles && u.roles.includes('admin'));
+});
+
+const handleTradeAction = () => {
+  if (!isUserVerified.value && !isDemo.value) {
+    showPrompt.value = true;
+    return;
+  }
+  showTradeModal.value = true;
 };
 
 // Asset Data
@@ -304,7 +320,7 @@ async function fetchDashboard() {
     ]);
 
     const rawData = portfolioResp.data.data;
-    data.value = rawData.success ? rawData : rawData;
+    data.value = rawData;
 
     const rawTxns = transResp.data.data || transResp.data;
     transactions.value = Array.isArray(rawTxns) ? rawTxns : (rawTxns.transactions || []);

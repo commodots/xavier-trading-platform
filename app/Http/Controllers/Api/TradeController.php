@@ -12,6 +12,29 @@ use Illuminate\Support\Facades\DB;
 
 class TradeController extends Controller
 {
+    // ADD THIS HELPER METHOD to map symbols to CoinGecko IDs
+    private function lookupPrice($symbol, $prices)
+    {
+        $map = [
+            'BTC' => 'bitcoin',
+            'ETH' => 'ethereum',
+            'USDT' => 'tether',
+            'BNB' => 'binancecoin',
+            'SOL' => 'solana',
+            'XRP' => 'ripple',
+            'ADA' => 'cardano',
+            'DOGE' => 'dogecoin',
+            'DOT' => 'polkadot',
+            'TRX' => 'tron',
+            'LINK' => 'chainlink',
+            'MATIC' => 'matic-network',
+        ];
+
+        $id = $map[strtoupper($symbol)] ?? 'bitcoin';
+
+        return (float) ($prices[$id]['usd'] ?? 0);
+    }
+
     public function open(Request $request)
     {
         $request->validate([
@@ -30,15 +53,24 @@ class TradeController extends Controller
         }
 
         $marketService = app(MarketService::class);
-        $rawPrice = $marketService->getBTCPrice();
-        // Apply "buy" spread if user is buying, "sell" spread if user is selling
+        $prices = $marketService->getPrices();
+
+        // Extract symbol: "SOL" from "SOL/USDT"
+        $symbol = strtoupper(explode('/', $request->input('pair'))[0]);
+
+        // Use the helper to get the correct price
+        $rawPrice = $this->lookupPrice($symbol, $prices);
+
+        if ($rawPrice <= 0) {
+            return response()->json(['success' => false, 'message' => 'Price data unavailable for '.$symbol], 422);
+        }
+
         $executionPrice = $marketService->applySpread($rawPrice, $request->type);
 
-        return DB::transaction(function () use ($user, $amount, $executionPrice, $request) {
-
+        return DB::transaction(function () use ($user, $amount, $executionPrice, $request, $symbol) {
             $wallet = Wallet::where('user_id', $user->id)
                 ->where('currency', 'USD')
-                ->lockForUpdate() // Prevents "Double Spending" on slow HDDs
+                ->lockForUpdate()
                 ->first();
 
             if (! $wallet || $wallet->usd_cleared < $amount) {
@@ -47,11 +79,11 @@ class TradeController extends Controller
 
             $order = \App\Models\Order::create([
                 'user_id' => $user->id,
-                'symbol' => strtoupper(explode('/', $request->input('pair', 'BTC/USDT'))[0]),
+                'symbol' => $symbol,
                 'side' => $request->input('type'),
                 'type' => 'market',
                 'price' => $executionPrice,
-                'quantity' => $amount,
+                'quantity' => $amount, 
                 'filled_quantity' => 0,
                 'status' => 'filled',
                 'currency' => 'USD',
@@ -63,7 +95,7 @@ class TradeController extends Controller
             $trade = Trade::create([
                 'order_id' => $order->id,
                 'user_id' => $user->id,
-                'pair' => strtoupper($request->input('pair', 'BTC/USDT')),
+                'pair' => strtoupper($request->input('pair')),
                 'type' => $request->input('type'),
                 'amount' => $amount,
                 'quantity' => $amount,
@@ -71,11 +103,6 @@ class TradeController extends Controller
                 'entry_price' => $executionPrice,
                 'status' => 'open',
             ]);
-
-            $wallet = Wallet::where('user_id', $user->id)->where('currency', 'USD')->lockForUpdate()->first();
-            if (! $wallet || $wallet->usd_cleared < $amount) {
-                throw new \Exception('Insufficient USD cleared balance');
-            }
 
             $wallet->decrement('usd_cleared', $amount);
 
@@ -100,10 +127,16 @@ class TradeController extends Controller
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
         }
 
-        $currentPrice = app(MarketService::class)->getBTCPrice();
-        $currentPrice = app(MarketService::class)->applySpread($currentPrice, 'sell');
+        // Dynamic price for closing too!
+        $marketService = app(MarketService::class);
+        $prices = $marketService->getPrices();
+        $symbol = strtoupper(explode('/', $trade->pair)[0]);
 
-        $profit = (($currentPrice - $trade->entry_price) / max($trade->entry_price, 1)) * $trade->amount;
+        $currentPrice = $this->lookupPrice($symbol, $prices);
+        $currentPrice = $marketService->applySpread($currentPrice, 'sell');
+
+        // P&L calculation: (Current - Entry) / Entry * Amount
+        $profit = (($currentPrice - $trade->entry_price) / max($trade->entry_price, 0.00000001)) * $trade->amount;
 
         return DB::transaction(function () use ($trade, $currentPrice, $profit) {
             $trade->update([
@@ -112,8 +145,13 @@ class TradeController extends Controller
                 'status' => 'closed',
             ]);
 
-            $wallet = Wallet::where('user_id', $trade->user_id)->where('currency', 'USD')->lockForUpdate()->first();
+            $wallet = Wallet::where('user_id', $trade->user_id)
+                ->where('currency', 'USD')
+                ->lockForUpdate()
+                ->first();
+
             if ($wallet) {
+                // Return initial investment + profit (or minus loss)
                 $wallet->increment('usd_cleared', $trade->amount + $profit);
                 $wallet->increment('balance', $trade->amount + $profit);
             }
@@ -133,11 +171,9 @@ class TradeController extends Controller
 
     public function index(Request $request)
     {
-        $user = $request->user();
-        $trades = Trade::where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return response()->json(['success' => true, 'data' => $trades]);
+        return response()->json([
+            'success' => true,
+            'data' => Trade::where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->get(),
+        ]);
     }
 }

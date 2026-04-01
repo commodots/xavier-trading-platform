@@ -4,6 +4,8 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -19,15 +21,20 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
-        $response = $this->post('/register', [
+        $response = $this->postJson('/api/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertStatus(201);
+        $response->assertJsonStructure(['success', 'message', 'token', 'user']);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'test@example.com',
+            'name' => 'Test User',
+        ]);
     }
 
     public function test_user_can_register_via_api(): void
@@ -67,6 +74,36 @@ class RegistrationTest extends TestCase
 
         // Verify KYC record was created
         $this->assertTrue($user->kyc()->exists());
+    }
+
+    public function test_registration_does_not_send_verification_email_auto(): void
+    {
+        Notification::fake();
+
+        $this->postJson('/api/register', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_api_verify_email_endpoint_marks_user_verified(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'api.verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->getEmailForVerification())]
+        );
+
+        $response = $this->get($verificationUrl);
+
+        $response->assertStatus(200);
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
 
     public function test_registration_requires_valid_email(): void

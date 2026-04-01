@@ -106,7 +106,7 @@ const errorMessage = ref("");
 
 const fetchPrefs = async () => {
   try {
-    const res = await api.get('/user/notifications/show');
+    const res = await api.get('/user/notifications/preferences');
 
     if (res.data.data) {
       prefs.value = {
@@ -128,7 +128,7 @@ const savePreferences = async () => {
   errorMessage.value = "";
 
   try {
-    await api.put('/user/notifications/update', prefs.value);
+    await api.put('/user/notifications/preferences', prefs.value);
 
     recentlySuccessful.value = true;
     setTimeout(() => {

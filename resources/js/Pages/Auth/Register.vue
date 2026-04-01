@@ -272,7 +272,7 @@ const submit = async () => {
       formData.append('profile_image', blob, 'profile.png');
     }
 
-    const res = await axios.post("/register", formData, {
+    const res = await api.post("/register", formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -280,7 +280,7 @@ const submit = async () => {
 
     localStorage.setItem("xavier_token", res.data.token);
     localStorage.setItem("user", JSON.stringify(res.data.user));
-    router.push("/welcome");
+    router.push("/verify-email");
   } catch (err) {
     console.error("Registration failed:", err);
     alert(err.response?.data?.message || "Registration failed. Please try again.");

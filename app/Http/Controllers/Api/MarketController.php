@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\MarketService;
 
 class MarketController extends Controller
 {
@@ -29,17 +28,42 @@ class MarketController extends Controller
         return response()->json(['success' => true, 'data' => $data]);
     }
 
+    // app/Http/Controllers/Api/MarketController.php
+
     public function crypto()
     {
-        $prices = app(MarketService::class)->getPrices();
+        $prices = app(\App\Services\MarketService::class)->getPrices();
+        $data = [];
+
+        // Map the internal CoinGecko IDs to the display names/symbols you want
+        $coinNames = [
+            'bitcoin' => ['symbol' => 'BTC', 'name' => 'Bitcoin'],
+            'ethereum' => ['symbol' => 'ETH', 'name' => 'Ethereum'],
+            'tether' => ['symbol' => 'USDT', 'name' => 'Tether'],
+            'binancecoin' => ['symbol' => 'BNB', 'name' => 'Binance Coin'],
+            'solana' => ['symbol' => 'SOL', 'name' => 'Solana'],
+            'ripple' => ['symbol' => 'XRP', 'name' => 'Ripple'],
+            'cardano' => ['symbol' => 'ADA', 'name' => 'Cardano'],
+            'dogecoin' => ['symbol' => 'DOGE', 'name' => 'Dogecoin'],
+            'polkadot' => ['symbol' => 'DOT', 'name' => 'Polkadot'],
+            'tron' => ['symbol' => 'TRX', 'name' => 'TRON'],
+            'chainlink' => ['symbol' => 'LINK', 'name' => 'Chainlink'],
+            'matic-network' => ['symbol' => 'MATIC', 'name' => 'Polygon'],
+        ];
+
+        foreach ($prices as $id => $val) {
+            if (isset($coinNames[$id])) {
+                $data[] = [
+                    'symbol' => $coinNames[$id]['symbol'],
+                    'name' => $coinNames[$id]['name'],
+                    'price' => $val['usd'],
+                ];
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'data' => [
-                ['symbol' => 'BTC', 'name' => 'Bitcoin', 'price' => $prices['bitcoin']['usd']],
-                ['symbol' => 'ETH', 'name' => 'Ethereum', 'price' => $prices['ethereum']['usd']],
-                ['symbol' => 'USDT', 'name' => 'Tether', 'price' => $prices['tether']['usd']],
-            ],
+            'data' => $data,
         ]);
     }
 }

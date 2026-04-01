@@ -62,6 +62,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'has_used_regular',
         'has_used_premium',
         'avatar',
+        'kyc_verified',
     ];
 
     //  Relationship: One User has one Wallet
@@ -83,6 +84,14 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         // return $this->hasOne(Kyc::class);
         return $this->hasOne(KycProfile::class, 'user_id');
+    }
+
+    /**
+     * Determine if the user has a verified KYC profile.
+     */
+    public function getKycVerifiedAttribute(): bool
+    {
+        return $this->kyc()->where('status', 'verified')->exists();
     }
 
     public function orders()
@@ -157,9 +166,15 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get FX transactions for this user
      */
-    public function isStaff()
+    public function isStaff(): bool
     {
-        return $this->hasAnyRole(['admin', 'accounts', 'manager', 'compliance', 'support']);
+        return $this->hasAnyRole(['admin', 'accounts', 'manager', 'compliance', 'support'])
+            || in_array($this->role, ['admin', 'accounts', 'manager', 'compliance', 'support'], true);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin') || $this->role === 'admin';
     }
 
     /**
@@ -246,6 +261,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getOnTrialAttribute()
     {
         return $this->onTrial();
+    }
+
+    /**
+     * Send the customized email verification notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new \App\Notifications\VerifyEmailNotification);
     }
 
     public function getTrialDaysLeftAttribute()

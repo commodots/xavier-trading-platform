@@ -93,6 +93,7 @@ class OnboardingController extends Controller
                 ]);
             }
 
+            // Don't auto-send verification immediately; send when user explicitly clicks "Verify now".
             // 🔍 Step 4: Optional KYC verification (if user provided ID)
             $kycData = [];
             $status = 'pending';

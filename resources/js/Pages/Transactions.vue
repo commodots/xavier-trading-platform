@@ -135,7 +135,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
 
 const filters = ref({ type: "", status: "", from: "", to: "" });
 const currentPage = ref(1);
@@ -157,11 +157,15 @@ const allTransactions = ref([
 
 const filteredTransactions = computed(() => {
   return allTransactions.value.filter((t) => {
+    const txnDate = new Date(t.date).getTime();
+    const fromDate = filters.value.from ? new Date(filters.value.from).getTime() : null;
+    const toDate = filters.value.to ? new Date(filters.value.to).getTime() : null;
+
     return (
       (!filters.value.type || t.type === filters.value.type) &&
       (!filters.value.status || t.status === filters.value.status) &&
-      (!filters.value.from || new Date(t.date) >= new Date(filters.value.from)) &&
-      (!filters.value.to || new Date(t.date) <= new Date(filters.value.to))
+      (!fromDate || txnDate >= fromDate) &&
+      (!toDate || txnDate <= toDate)
     );
   });
 });

@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
     <div class="max-w-2xl mx-auto space-y-6">
+      <EmailVerificationPrompt :user="$page.props.auth.user" />
       <!-- Header -->
        <button @click="router.push('/trading')" class="flex items-center text-gray-400 hover:text-white transition group">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -117,6 +118,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue'
 import api from '@/api'
 
 const form = ref({

@@ -149,11 +149,11 @@ class WalletFunctionsTest extends TestCase
         $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 0, 'usd_uncleared' => 0, 'balance' => 0, 'locked' => 0]);
         $address = \App\Models\CryptoAddress::create(['user_id' => $user->id, 'blockchain' => 'TRON', 'address' => 'TGW1']);
 
-        $payload = ['data' => ['item' => ['address' => 'TGW1', 'amount' => 10, 'transactionHash' => 'X123', 'confirmations' => 3]]];
+        $payload = ['address' => 'TGW1', 'amount' => 10, 'txId' => 'X123'];
 
-        config(['services.crypto.webhook_secret' => 'test-webhook-secret']);
+        config(['services.crypto.api_key' => 'test-webhook-secret']);
 
-        $response = $this->postJson('/api/crypto/webhook', $payload, ['X-Cryptoapi-Signature' => 'test-webhook-secret']);
+        $response = $this->postJson('/api/crypto/webhook', $payload, ['x-api-key' => 'test-webhook-secret']);
         $response->assertStatus(200);
 
         $response->assertStatus(200);

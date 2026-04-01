@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <div class="flex items-center justify-between gap-1">
         <div>
           <h1 class="flex items-center gap-2 text-2xl font-semibold" :class="isDemo ? 'text-yellow-500' : 'text-white'">
@@ -325,10 +326,13 @@ import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 
 const apexchart = VueApexCharts;
 
 // --- State ---
+const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
+const user = ref(getUser());
 const isDemo = ref(false);
 const balances = ref({
   balance_ngn: 0, balance_usd: 0,
@@ -346,6 +350,7 @@ const showModal = ref(false);
 const showPaymentModal = ref(false);
 const showConfirmModal = ref(false);
 const showNotificationModal = ref(false);
+const showPrompt = ref(false);
 
 const txnType = ref("");
 const from = ref("NGN");
@@ -413,8 +418,7 @@ const fetchLinkedAccountsFor = async (currency) => {
 const refreshData = async () => {
   loading.value = true;
   try {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    isDemo.value = user.trading_mode === 'demo';
+    isDemo.value = user.value.trading_mode === 'demo';
 
     const [balRes, txnRes] = await Promise.all([
       api.get("/wallet/balances"),
@@ -489,8 +493,12 @@ const executeResetDemo = async () => {
 
 // --- STANDARD METHODS ---
 const openTransaction = (type) => {
+  if (!user.value.email_verified_at) {
+    showPrompt.value = true;
+    return;
+  }
   txnType.value = type;
-  form.value = { amount: 0, currency: type === 'deposit' ? 'NGN' : 'NGN' };
+  form.value = { amount: 0, currency: 'NGN' };
   selectedAccountId.value = "";
   message.value = "";
   showModal.value = true;
@@ -498,6 +506,11 @@ const openTransaction = (type) => {
 };
 
 const openConvertModal = () => {
+  if (!isUserVerified.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
   message.value = "";
   amount.value = 0;
   openConvert.value = true;

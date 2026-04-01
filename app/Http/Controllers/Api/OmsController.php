@@ -56,7 +56,7 @@ class OmsController extends Controller
         $this->authorize('create', Order::class);
 
         // PSD2: Verify user completed KYC + trading allowed
-        if (! $user->kyc_verified || $user->email_verified_at === null) {
+        if (! $user->kyc_verified) {
             return response()->json([
                 'success' => false,
                 'message' => 'KYC verification and email verification required',

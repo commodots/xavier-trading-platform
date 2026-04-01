@@ -38,11 +38,11 @@
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Money</div>
 		  <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
 		  <SidebarLink to="/transactions" :icon="ListOrdered">Transactions</SidebarLink>
-		  <SidebarLink to="/fund" :icon="DollarSign">Fund / Withdraw</SidebarLink>
+		  <SidebarLink to="/wallet" :icon="DollarSign">Fund / Withdraw</SidebarLink>
 
 		  <!-- MARKETS -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Markets</div>
-		  <SidebarLink to="/markets" :icon="Globe">All Markets</SidebarLink>
+		  <SidebarLink to="/ngx" :icon="Globe">All Markets</SidebarLink>
 		  <SidebarLink to="/ngx" :icon="BarChart2">Nigerian Stocks</SidebarLink>
 		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
 		  <SidebarLink to="/crypto" :icon="Bitcoin">Crypto</SidebarLink>
@@ -52,7 +52,7 @@
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trade</div>
 		  <SidebarLink to="/trading" :icon="ShoppingCart">Crypto</SidebarLink>
 		  <SidebarLink to="/orders" :icon="FileText">Orders</SidebarLink>
-		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
+		  <SidebarLink to="/crypto" :icon="Star">Watchlist</SidebarLink>
 
 		  <!-- INSIGHTS -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>

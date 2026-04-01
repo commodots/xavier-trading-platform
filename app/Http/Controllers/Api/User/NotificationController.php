@@ -35,7 +35,7 @@ class NotificationController extends Controller
     /**
      * Get user notification settings
      */
-    public function show()
+    public function showPreferences()
     {
         $user = Auth::user();
         $prefs = NotificationPreference::firstOrCreate(
@@ -58,7 +58,7 @@ class NotificationController extends Controller
     /**
      * Update notification settings
      */
-    public function update(Request $request)
+    public function updatePreferences(Request $request)
     {
         $request->validate([
             'email' => 'required|boolean',

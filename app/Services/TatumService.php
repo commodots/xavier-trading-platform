@@ -4,36 +4,29 @@ namespace App\Services;
 
 use App\Models\CryptoAddress;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Log;
 
 class TatumService
 {
-    public function generateTronAddress(int $userId): string
-{
-    try {
+    public function generateTronAddress($userId)
+    {
+        // Use the wallet endpoint to get both address and privateKey
         $res = Http::withHeaders([
-            'x-api-key' => config('services.crypto.api_key'),
-        ])->get(config('services.crypto.base_url').'/tron/address');
-        
-        // This only catches 4xx and 5xx errors
-        if ($res->failed()) {
-            throw new \Exception("Tatum API failed: " . $res->body());
-        }
+            'x-api-key' => env('TATUM_API_KEY'),
+        ])->get(env('TATUM_BASE_URL').'/v3/tron/wallet');
 
         $data = $res->json();
 
-        // --- ADD THIS CHECK BELOW ---
-        if (!isset($data['address']) || !isset($data['privateKey'])) {
-            // Log the actual response so you can see why it's failing on the server
-            Log::error("Tatum Response Error for User $userId", ['response' => $data]);
-            throw new \Exception("Tatum returned a success status but no address data was found.");
+        if ($res->failed() || ! isset($data['address'])) {
+            Log::error('Tatum Generation Failed', ['user_id' => $userId, 'data' => $data]);
+            throw new \Exception('Tatum API error: '.($data['message'] ?? 'Unknown'));
         }
 
         $address = $data['address'];
         $privateKey = $data['privateKey'];
         $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='.urlencode($address);
 
+        // Save to database and encrypt the private key for security 
         CryptoAddress::create([
             'user_id' => $userId,
             'blockchain' => 'TRON',
@@ -45,12 +38,7 @@ class TatumService
         $this->subscribeAddress($address);
 
         return $address;
-
-    } catch (ConnectionException $e) {
-        Log::error("Tatum API Connection Error: " . $e->getMessage());
-        throw new \Exception("Unable to reach the crypto service.");
     }
-}
 
     public function subscribeAddress(string $address): void
     {
@@ -77,7 +65,7 @@ class TatumService
         ]);
 
         if ($res->failed()) {
-            throw new \Exception("Tatum withdrawal failed: " . $res->body());
+            throw new \Exception('Tatum withdrawal failed: '.$res->body());
         }
 
         return $res->json();

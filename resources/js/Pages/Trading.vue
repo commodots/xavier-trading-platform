@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
@@ -8,11 +9,11 @@
           <p class="mt-1 text-sm text-gray-400">Crypto spot trading with real-time prices</p>
         </div>
         <div class="flex gap-3">
-          <button @click="depositNav"
+          <button @click="handleAction(depositNav)"
             class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             + Deposit
           </button>
-          <button @click="withdrawNav"
+          <button @click="handleAction(withdrawNav)"
             class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
             - Withdraw
           </button>
@@ -247,13 +248,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router'
 
 import MainLayout from '@/Layouts/MainLayout.vue';
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from '@/api';
 
 const router = useRouter();
+
+const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+const showPrompt = ref(false);
 
 const form = ref({ pair: 'BTC/USDT', type: 'buy', amount: 1000 });
 const loading = ref(false);
@@ -266,12 +271,27 @@ const currentPrices = ref({});
 const errorMessage = ref('');
 const successMessage = ref('');
 const searchQuery = ref('');
+let updateInterval = null;
 
 const closeModal = ref({
   show: false,
   phase: 'confirm', // 'confirm' | 'processing' | 'success'
   trade: null
 });
+
+const isUserVerified = computed(() => {
+  const u = user.value;
+  return u.email_verified_at || u.role === 'admin' || (u.roles && u.roles.includes('admin'));
+});
+
+const handleAction = (callback) => {
+  if (!isUserVerified.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  callback();
+};
 
 
 const openTradesCount = computed(() => trades.value.length);
@@ -364,11 +384,16 @@ const fetchData = async () => {
 };
 
 const openTrade = async () => {
+  if (!isUserVerified.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
   if (!form.value.amount || form.value.amount <= 0) {
     errorMessage.value = 'Please enter a valid amount';
     return;
   }
-
   loading.value = true;
   errorMessage.value = '';
   successMessage.value = '';
@@ -442,15 +467,19 @@ const fetchUpdates = async () => {
   } catch (e) { console.error(e); }
 };
 
-onMounted(async () => {
+onMounted(() => {
   // Instant Load from cache
   const cached = localStorage.getItem('last_market_data');
   if (cached) {
     market.value = JSON.parse(cached);
   }
 
-  await fetchData(); // Initial full load
-  setInterval(fetchUpdates, 10000); // Polling only the essentials
+  fetchData(); // Initial full load
+  updateInterval = setInterval(fetchUpdates, 10000); // Polling only the essentials
+});
+
+onUnmounted(() => {
+  if (updateInterval) clearInterval(updateInterval);
 });
 
 const quickBuy = async (symbol) => {

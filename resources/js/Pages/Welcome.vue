@@ -1,15 +1,42 @@
 <script setup>
-import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import api from '@/api';
 
 const router = useRouter();
+const route = useRoute();
 const user = ref(null);
+const verificationStatus = ref(null);
+const verificationError = ref(null);
 
-onMounted(() => {
-  // Retrieve user info from localStorage
+const verified = computed(() => route.query.verified === '1' || verificationStatus.value === 'success');
+
+onMounted(async () => {
+  const verifyUrl = route.query.verify_url;
+
+  if (verifyUrl) {
+    try {
+      const decoded = decodeURIComponent(verifyUrl);
+      const res = await api.get(decoded);
+      if (res.data?.success) {
+        verificationStatus.value = 'success';
+      } else {
+        verificationStatus.value = 'error';
+        verificationError.value = res.data?.message || 'Verification failed. Please try again.';
+      }
+    } catch (error) {
+      verificationStatus.value = 'error';
+      verificationError.value = error.response?.data?.message || 'Verification failed. Please try again.';
+    }
+  }
+
   const stored = localStorage.getItem("user");
-  if (stored) user.value = JSON.parse(stored);
-  else router.push("/login");
+
+  if (stored) {
+    user.value = JSON.parse(stored);
+  } else if (!verifyUrl) {
+    router.push("/login");
+  }
 });
 
 const goToDashboard = () => {
@@ -27,7 +54,18 @@ const goToDashboard = () => {
         class="mx-auto h-[90px] w-auto mb-6 object-contain"
       />
 
-      <h1 class="mb-2 text-3xl font-bold">Welcome to Xavier</h1>
+      <h1 v-if="user" class="mb-2 text-3xl font-bold">
+        Welcome, {{ user.name }} to Xavier
+      </h1>
+      <h1 v-else class="mb-2 text-3xl font-bold">Welcome to Xavier</h1>
+      
+      <p v-if="verified" class="mb-2 text-green-300 font-semibold">
+        ✅ You have successfully verified your email.
+      </p>
+      <p v-if="verificationStatus === 'error'" class="mb-2 text-red-300 font-semibold">
+        ⚠️ {{ verificationError }}
+      </p>
+
       <p class="mb-6 text-base text-gray-400">
         Smart Trading Simplified — Your account is ready, and your wallet has been created.
       </p>
@@ -38,17 +76,12 @@ const goToDashboard = () => {
         <p class="text-sm text-gray-400">DOB: {{ new Date(user.dob).toLocaleDateString() }}</p>
       </div>
 
-      <div class="mb-8 space-y-2">
-        <p class="text-sm text-gray-300">✅ BVN verified successfully</p>
-        <p class="text-sm text-gray-300">💳 Wallet initialized with NGN balance</p>
-        <p class="text-sm text-gray-300">🚀 You're all set to explore your dashboard</p>
-      </div>
 
       <button
         @click="goToDashboard"
         class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg font-semibold hover:opacity-90 transition"
       >
-        Continue to Dashboard
+        Get Started!
       </button>
     </div>
 

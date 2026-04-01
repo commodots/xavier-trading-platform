@@ -33,7 +33,9 @@ class AdminServiceController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+        $user = auth()->user();
+
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $data = $request->validate([
@@ -61,7 +63,8 @@ class AdminServiceController extends Controller
     public function update(Request $request, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+        $user = auth()->user();
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
@@ -94,7 +97,8 @@ class AdminServiceController extends Controller
 
     public function addConnection(Request $request, $serviceId)
     {
-        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+        $user = auth()->user();
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $request->validate([
@@ -193,7 +197,8 @@ class AdminServiceController extends Controller
 
     public function updateConnection(Request $request, $connectionId)
     {
-        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+        $user = auth()->user();
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         

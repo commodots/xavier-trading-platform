@@ -24,15 +24,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    // Crypto pages
-    Route::get('/crypto/deposit', function () {
-        return Inertia::render('Crypto/Deposit');
-    })->name('crypto.deposit');
-
-    Route::get('/crypto/withdraw', function () {
-        return Inertia::render('Crypto/Withdraw');
-    })->name('crypto.withdraw');
 });
 
 require __DIR__.'/auth.php';

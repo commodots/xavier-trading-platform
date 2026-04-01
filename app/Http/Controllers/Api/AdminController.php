@@ -741,15 +741,20 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     }
     public function getCharges()
     {
-        if (!auth()->user()->hasRole('admin') && !\App\Services\StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+        $user = auth()->user();
+
+        if (! $user->isAdmin() && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
         return TransactionCharge::all();
     }
+
     public function updateCharge(Request $request, $id)
     {
-        if (!auth()->user()->hasRole('admin') && !\App\Services\StaffPermissionService::roleHasCapability(auth()->user(), 'manage_transaction_charges')) {
+        $user = auth()->user();
+
+        if (! $user->isAdmin() && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $request->validate([
