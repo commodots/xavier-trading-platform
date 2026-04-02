@@ -58,6 +58,14 @@ class WalletFunctionsTest extends TestCase
         $response->assertJsonValidationErrors(['amount']);
     }
 
+    public function test_paystack_callback_route_is_accessible_without_api_prefix(): void
+    {
+        $response = $this->get('/paystack/callback');
+
+        $response->assertStatus(302);
+        $response->assertRedirect('/wallet?payment_error=no_reference');
+    }
+
     public function test_user_can_convert_ngn_to_usd(): void
     {
         $user = User::factory()->create();

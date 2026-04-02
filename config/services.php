@@ -48,6 +48,11 @@ return [
         'dummy_mode' => env('QOREID_DUMMY_MODE', false),
     ],
 
+    'tatum' => [
+        'base_url' => env('TATUM_BASE_URL', 'https://api.tatum.io/v3'),
+        'api_key' => env('TATUM_API_KEY'),
+    ],
+
     'cscs' => [
         'simulate_errors' => env('CSCS_SIMULATE_ERRORS', false),
     ],

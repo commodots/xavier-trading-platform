@@ -334,6 +334,25 @@ const apexchart = VueApexCharts;
 const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
 const user = ref(getUser());
 const isDemo = ref(false);
+
+const isAdminUser = (u) => {
+  if (!u) return false;
+  const role = (u.role || '').toString().toLowerCase();
+  if (role.includes('admin')) return true;
+  if (Array.isArray(u.roles)) {
+    return u.roles.some((r) => {
+      const candidate = (typeof r === 'string' ? r : r?.name || '').toString().toLowerCase();
+      return candidate.includes('admin');
+    });
+  }
+  return false;
+};
+
+const isUserVerified = computed(() => {
+  const u = user.value || {};
+  return Boolean(u.email_verified_at) || isAdminUser(u);
+});
+
 const balances = ref({
   balance_ngn: 0, balance_usd: 0,
   cleared_balance_ngn: 0, uncleared_balance_ngn: 0, locked_balance_ngn: 0,
@@ -493,7 +512,7 @@ const executeResetDemo = async () => {
 
 // --- STANDARD METHODS ---
 const openTransaction = (type) => {
-  if (!user.value.email_verified_at) {
+  if (!isUserVerified.value) {
     showPrompt.value = true;
     return;
   }

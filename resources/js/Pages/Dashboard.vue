@@ -192,9 +192,22 @@ const syncModeWithStorage = () => {
   isDemo.value = updatedUser.trading_mode === 'demo';
 };
 
+const isAdminUser = (u) => {
+  if (!u) return false;
+  const role = (u.role || '').toString().toLowerCase();
+  if (role.includes('admin')) return true;
+  if (Array.isArray(u.roles)) {
+    return u.roles.some((r) => {
+      const candidate = (typeof r === 'string' ? r : r?.name || '').toString().toLowerCase();
+      return candidate.includes('admin');
+    });
+  }
+  return false;
+};
+
 const isUserVerified = computed(() => {
   const u = user.value;
-  return u.email_verified_at || u.role === 'admin' || (u.roles && u.roles.includes('admin'));
+  return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
 const handleTradeAction = () => {

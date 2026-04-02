@@ -15,7 +15,17 @@ const token = localStorage.getItem("xavier_token");
 if (token) {
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 }
-app.component('apexchart', VueApexCharts);
-app.use(router);
-app.mount("#app");
+
+// Fetch CSRF cookie once on app load
+(async () => {
+    try {
+        await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+    } catch (e) {
+        console.error('Failed to fetch CSRF cookie', e);
+    }
+
+    app.component('apexchart', VueApexCharts);
+    app.use(router);
+    app.mount("#app");
+})();
 

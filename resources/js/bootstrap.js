@@ -11,3 +11,5 @@ import axios from 'axios';
 window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+  window.axios.defaults.withCredentials = true; // CRITICAL for Sanctum
+window.axios.defaults.withXSRFToken = true;    // CRITICAL for Laravel 10/11

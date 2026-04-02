@@ -32,34 +32,38 @@ class MarketController extends Controller
 
     public function crypto()
     {
-        $prices = app(\App\Services\MarketService::class)->getPrices();
-        $data = [];
+        $data = cache()->remember('processed_crypto_prices', 300, function () {
+            $prices = app(\App\Services\MarketService::class)->getPrices();
+            $data = [];
 
-        // Map the internal CoinGecko IDs to the display names/symbols you want
-        $coinNames = [
-            'bitcoin' => ['symbol' => 'BTC', 'name' => 'Bitcoin'],
-            'ethereum' => ['symbol' => 'ETH', 'name' => 'Ethereum'],
-            'tether' => ['symbol' => 'USDT', 'name' => 'Tether'],
-            'binancecoin' => ['symbol' => 'BNB', 'name' => 'Binance Coin'],
-            'solana' => ['symbol' => 'SOL', 'name' => 'Solana'],
-            'ripple' => ['symbol' => 'XRP', 'name' => 'Ripple'],
-            'cardano' => ['symbol' => 'ADA', 'name' => 'Cardano'],
-            'dogecoin' => ['symbol' => 'DOGE', 'name' => 'Dogecoin'],
-            'polkadot' => ['symbol' => 'DOT', 'name' => 'Polkadot'],
-            'tron' => ['symbol' => 'TRX', 'name' => 'TRON'],
-            'chainlink' => ['symbol' => 'LINK', 'name' => 'Chainlink'],
-            'matic-network' => ['symbol' => 'MATIC', 'name' => 'Polygon'],
-        ];
+            // Map the internal CoinGecko IDs to the display names/symbols you want
+            $coinNames = [
+                'bitcoin' => ['symbol' => 'BTC', 'name' => 'Bitcoin'],
+                'ethereum' => ['symbol' => 'ETH', 'name' => 'Ethereum'],
+                'tether' => ['symbol' => 'USDT', 'name' => 'Tether'],
+                'binancecoin' => ['symbol' => 'BNB', 'name' => 'Binance Coin'],
+                'solana' => ['symbol' => 'SOL', 'name' => 'Solana'],
+                'ripple' => ['symbol' => 'XRP', 'name' => 'Ripple'],
+                'cardano' => ['symbol' => 'ADA', 'name' => 'Cardano'],
+                'dogecoin' => ['symbol' => 'DOGE', 'name' => 'Dogecoin'],
+                'polkadot' => ['symbol' => 'DOT', 'name' => 'Polkadot'],
+                'tron' => ['symbol' => 'TRX', 'name' => 'TRON'],
+                'chainlink' => ['symbol' => 'LINK', 'name' => 'Chainlink'],
+                'matic-network' => ['symbol' => 'MATIC', 'name' => 'Polygon'],
+            ];
 
-        foreach ($prices as $id => $val) {
-            if (isset($coinNames[$id])) {
-                $data[] = [
-                    'symbol' => $coinNames[$id]['symbol'],
-                    'name' => $coinNames[$id]['name'],
-                    'price' => $val['usd'],
-                ];
+            foreach ($prices as $id => $val) {
+                if (isset($coinNames[$id])) {
+                    $data[] = [
+                        'symbol' => $coinNames[$id]['symbol'],
+                        'name' => $coinNames[$id]['name'],
+                        'price' => is_array($val) ? ($val['usd'] ?? 0) : 0,
+                    ];
+                }
             }
-        }
+
+            return $data;
+        });
 
         return response()->json([
             'success' => true,

@@ -27,11 +27,31 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request)
     {
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        $user = Auth::user();
+
+        if ($request->expectsJson()) {
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'trading_mode' => $user->trading_mode,
+                    'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
+                    'wallet' => $user->wallet ?? null,
+                    'kyc' => $user->kyc ?? null,
+                ],
+            ]);
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
