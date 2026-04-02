@@ -60,7 +60,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('a
 Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA'])->middleware('throttle:5,1');
 
 /* Webhooks */
-Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback']);
+Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
 

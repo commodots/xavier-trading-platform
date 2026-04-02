@@ -66,6 +66,13 @@ class WalletFunctionsTest extends TestCase
         $response->assertRedirect('/wallet?payment_error=no_reference');
     }
 
+    public function test_paystack_verify_route_requires_sanctum_auth(): void
+    {
+        $response = $this->getJson('/api/paystack/verify/xavier_test_ref');
+
+        $response->assertStatus(401);
+    }
+
     public function test_paystack_webhook_post_bypasses_csrf_and_fails_signature(): void
     {
         $response = $this->postJson('/api/paystack/webhook', ['event' => 'charge.success', 'data' => []]);

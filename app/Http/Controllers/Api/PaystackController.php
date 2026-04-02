@@ -76,7 +76,7 @@ class PaystackController extends Controller
                 'email' => $user->email,
                 'amount' => $request->amount,
                 'reference' => $reference,
-                'callback_url' => config('services.paystack.callback_url'),
+                'callback_url' => route('paystack.callback'),
                 'metadata' => [
                     'user_id' => $user->id,
                     'type' => 'wallet_funding',
@@ -154,7 +154,7 @@ class PaystackController extends Controller
                 $this->processSuccessfulPayment($result, $reference);
 
                 // Redirect back to wallet with success info
-                return redirect('/wallet?payment_success=' . ($result['amount'] / 100) . '&reference=' . $reference);
+                return redirect('/wallet?payment_success=' . $result['amount'] . '&reference=' . $reference);
             } else {
                 // Payment failed or pending
                 Log::warning('[Paystack:redirect] Payment not successful', [
@@ -321,7 +321,8 @@ class PaystackController extends Controller
             $existing = NewTransaction::where('meta->reference', $reference)->first();
             if ($existing) return response()->json(['success' => true]);
 
-            $amount = $result['amount']/100;
+            // `verifyPayment()` already returns amount in NGN (not kobo)
+            $amount = $result['amount'];
             $charge = ($result['fees'] ?? 0) / 100;
             $netAmount = $amount - $charge;
 

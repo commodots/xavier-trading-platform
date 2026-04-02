@@ -37,9 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             SubstituteBindings::class,                // Enables route model binding
         ]);
         $middleware->validateCsrfTokens(except: [
-            'api/crypto/webhook',
-            'api/paystack/callback',
-            'api/paystack/webhook',
+            'api/*',
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {

@@ -436,6 +436,14 @@ const fetchLinkedAccountsFor = async (currency) => {
 
 const refreshData = async () => {
   loading.value = true;
+
+  const token = localStorage.getItem('xavier_token') || localStorage.getItem('token');
+  if (!token) {
+    loading.value = false;
+    console.warn('refreshData: no auth token found, skipping API calls');
+    return;
+  }
+
   try {
     isDemo.value = user.value.trading_mode === 'demo';
 
@@ -628,8 +636,18 @@ const checkPaymentResult = async () => {
     loading.value = true;
 
     try {
-
-      await api.get(`/paystack/verify/${reference}`);
+      // Verify only when auth token is present; this avoids a hard 401 failure on callback.
+      const token = localStorage.getItem('xavier_token');
+      if (token) {
+        try {
+          await api.get(`/paystack/verify/${reference}`);
+        } catch (e) {
+          // Keep flow resilient. If auth is missing/invalid, proceed to refresh wallet instead.
+          if (e.response?.status !== 401 && e.response?.status !== 403) {
+            throw e;
+          }
+        }
+      }
 
       const amount = parseFloat(paymentSuccess);
       paymentResult.value = { success: true, message: 'Payment verified and wallet credited!', amount: amount };
