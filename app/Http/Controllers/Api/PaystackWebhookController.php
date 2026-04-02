@@ -75,12 +75,14 @@ class PaystackWebhookController extends Controller
 
             $amount = $data['amount'] / 100; // Convert Kobo to Naira
             $planCode = $data['plan']['plan_code'] ?? null;
+            $targetCurrency = $data['metadata']['target_currency'] ?? 'NGN';
             $type = 'FUND';
+            $creditedAmount = $amount;
+            $fxRate = $data['metadata']['fx_rate'] ?? null;
 
             // Logic: Subscription vs. Regular Funding
             if ($planCode) {
                 $plan = SubscriptionPlan::where('paystack_plan_code', $planCode)->first();
-
                 if ($plan) {
                     $user->update([
                         'subscription_tier' => $plan->tier,
@@ -89,13 +91,27 @@ class PaystackWebhookController extends Controller
                     $type = 'SUBSCRIPTION';
                 }
             } else {
+                // Handle Multi-Currency Wallet Funding
+                if ($targetCurrency === 'USD') {
+                    $creditedAmount = $data['metadata']['usd_amount'] ?? ($amount / ($fxRate ?? 1));
+                }
+
                 $wallet = Wallet::firstOrCreate(
-                    ['user_id' => $user->id, 'currency' => 'NGN'],
-                    ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0]
+                    ['user_id' => $user->id, 'currency' => $targetCurrency],
+                    [
+                        'balance' => 0, 
+                        'status' => 'active', 
+                        'ngn_cleared' => 0, 
+                        'usd_cleared' => 0
+                    ]
                 );
 
-                // Assuming your Wallet model has a credit method
-                $wallet->increment('ngn_cleared', $amount);
+                $wallet->increment('balance', $creditedAmount);
+                if ($targetCurrency === 'NGN') {
+                    $wallet->increment('ngn_cleared', $creditedAmount);
+                } else {
+                    $wallet->increment('usd_cleared', $creditedAmount);
+                }
                 $type = 'FUND';
             }
 

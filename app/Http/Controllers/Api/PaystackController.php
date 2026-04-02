@@ -60,7 +60,7 @@ class PaystackController extends Controller
             if (! $fxRate) {
                 return response()->json(['success' => false, 'message' => 'FX rate not available for USD conversion.'], 400);
             }
-            $paystackAmount = round($request->amount * $fxRate->effective_rate, 2) * 100;
+            $paystackAmount = round($request->amount * $fxRate->effective_rate, 2);
             $metadata['usd_amount'] = $request->amount;
             $metadata['fx_rate'] = $fxRate->effective_rate;
             $metadata['ngn_amount'] = $paystackAmount / 100;
@@ -69,9 +69,16 @@ class PaystackController extends Controller
         // If in Demo mode, bypass Paystack and fund the demo wallet instantly
         if ($models->isDemo) {
             return DB::transaction(function () use ($user, $request, $reference, $models, $targetCurrency) {
+                $initData = [
+                    'balance' => 0, 
+                    'status' => 'active', 
+                    'ngn_cleared' => 0, 
+                    'usd_cleared' => 0
+                ];
+
                 $wallet = $models->wallet->firstOrCreate(
                     ['user_id' => $user->id, 'currency' => $targetCurrency],
-                    ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0]
+                    $initData
                 );
 
                 $wallet->increment('balance', $request->amount);
@@ -95,7 +102,7 @@ class PaystackController extends Controller
                 return response()->json([
                     'success' => true,
                     'is_demo' => true,
-                    'message' => "You have successfully deposited " . ($targetCurrency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " to your {$targetCurrency} wallet.",
+                    'message' => "You have successfully deposited " . ($targetCurrency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " to your " . strtoupper($targetCurrency) . " wallet.",
                     'data' => ['reference' => $reference, 'authorization_url' => null],
                 ]);
             });
@@ -215,7 +222,14 @@ class PaystackController extends Controller
                 }
 
                 // Redirect back to wallet with success info
-                $query = 'payment_success=' . $creditedAmount . '&reference=' . $reference . '&currency=' . $targetCurrency;
+                $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
+                $msg = "You have successfully deposited {$currencySymbol}" . number_format($creditedAmount, 2) . " to your " . strtoupper($targetCurrency) . " wallet.";
+                
+                if ($appliedRate) {
+                    $msg .= " (Rate: 1 USD = ₦" . number_format($appliedRate, 2) . ")";
+                }
+
+                $query = 'payment_success=' . $creditedAmount . '&reference=' . $reference . '&currency=' . $targetCurrency . '&message=' . urlencode($msg);
                 if ($appliedRate) {
                     $query .= '&fx_rate=' . $appliedRate;
                 }
@@ -341,7 +355,14 @@ class PaystackController extends Controller
 
                 $wallet = Wallet::firstOrCreate(
                     ['user_id' => $userId, 'currency' => $targetCurrency],
-                    ['balance' => 0, 'status' => 'active']
+                    [
+                        'balance' => 0, 
+                        'status' => 'active', 
+                        'ngn_cleared' => 0, 
+                        'ngn_uncleared' => 0, 
+                        'usd_cleared' => 0, 
+                        'usd_uncleared' => 0
+                    ]
                 );
 
                 Log::info('[Paystack:webhook] Updating wallet', [
@@ -457,7 +478,15 @@ class PaystackController extends Controller
 
             $wallet = Wallet::firstOrCreate(
                 ['user_id' => $userId, 'currency' => $targetCurrency],
-                ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0, 'ngn_uncleared' => 0, 'locked' => 0]
+                [
+                    'balance' => 0, 
+                    'status' => 'active', 
+                    'ngn_cleared' => 0, 
+                    'ngn_uncleared' => 0, 
+                    'usd_cleared' => 0, 
+                    'usd_uncleared' => 0, 
+                    'locked' => 0
+                ]
             );
 
             $wallet->increment('balance', $convertedAmount);
@@ -484,7 +513,7 @@ class PaystackController extends Controller
             ]);
 
             $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
-            $successMessage = "You have successfully deposited {$currencySymbol}" . number_format($convertedAmount, 2) . " to your {$targetCurrency} wallet.";
+            $successMessage = "You have successfully deposited {$currencySymbol}" . number_format($convertedAmount, 2) . " to your " . strtoupper($targetCurrency) . " wallet.";
             if ($appliedRate) {
                 $successMessage .= " (Conversion Rate: 1 USD = ₦" . number_format($appliedRate, 2) . ")";
             }
