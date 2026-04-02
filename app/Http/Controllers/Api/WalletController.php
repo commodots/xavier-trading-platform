@@ -176,7 +176,7 @@ class WalletController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Successfully deposited '.number_format($request->amount, 2),
+                'message' => "You have successfully deposited " . ($currency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " to your {$currency} wallet.",
             ]);
         });
     }
@@ -302,7 +302,7 @@ class WalletController extends Controller
     {
         $models = $this->resolveModels($user);
 
-        $w = $models->wallet()->where('currency', $currency)->first();
+        $w = $models->wallet->where('currency', $currency)->first();
 
         if ($currency === 'NGN') {
             return (float) (($w?->ngn_cleared ?? 0) + ($w?->ngn_uncleared ?? 0));
@@ -345,19 +345,30 @@ class WalletController extends Controller
     {
         $amount = $request->query('amount', 0);
         $from = $request->query('from', 'NGN');
-        $rate = 0.00065; // fetch from an api later
+
+        $fxRate = FxRate::where('from_currency', 'NGN')
+            ->where('to_currency', 'USD')
+            ->first();
+
+        if (!$fxRate) {
+            return response()->json(['error' => 'FX rate not available'], 400);
+        }
+
+        $rate = $fxRate->effective_rate; // e.g. 1500
 
         if ($from === 'NGN') {
-            $preview = $amount * $rate;
+            $preview = $amount / $rate;
             $label = 'USD';
         } else {
-            $preview = $amount / $rate;
+            $preview = $amount * $rate;
             $label = 'NGN';
         }
 
         return response()->json([
+            'amount' => (float) $amount,
+            'from_currency' => $from,
             'converted' => round($preview, 2),
-            'currency' => $label,
+            'to_currency' => $label,
             'rate' => $rate,
         ]);
     }

@@ -30,7 +30,7 @@
               <tr>
                 <th class="px-6 py-4 font-medium text-left">Symbol</th>
                 <th class="font-medium text-left">Name</th>
-                <th class="font-medium text-right">Price (₦)</th>
+                <th class="font-medium text-right">Price ($)</th>
                 <th class="font-medium text-right">24h Change</th>
                 <th class="font-medium text-right">Market Cap</th>
                 <th class="px-6 font-medium text-right">Trend</th>

@@ -1,7 +1,7 @@
 <template>
   <MainLayout>
     <div class="max-w-2xl mx-auto space-y-6">
-      <EmailVerificationPrompt :user="$page.props.auth.user" />
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <!-- Header -->
        <button @click="router.push('/trading')" class="flex items-center text-gray-400 hover:text-white transition group">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,7 +20,7 @@
       <!-- Balance -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
         <h2 class="text-xl font-semibold mb-4">Account Balance</h2>
-        <div class="text-3xl font-bold text-[#00D4FF]">${{ balance.toFixed(2) }}</div>
+        <div class="text-3xl font-bold text-[#00D4FF]">${{ balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
         <p class="text-gray-400 text-sm mt-1">Available for withdrawal</p>
       </div>
 
@@ -120,6 +120,10 @@ import { useRouter } from 'vue-router'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue'
 import api from '@/api'
+
+const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
+const user = ref(getUser());
+const showPrompt = ref(false);
 
 const form = ref({
   address: '',

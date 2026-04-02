@@ -553,7 +553,17 @@ const submitTransaction = async () => {
     try {
       const response = await api.post('/paystack/initiate', { amount: form.value.amount, currency: form.value.currency });
       if (response.data.success) {
-        window.location.href = response.data.data.authorization_url;
+        if (response.data.is_demo) {
+          // Demo mode - instant funding, no redirect needed
+          message.value = `Demo deposit successful! ${form.value.currency === 'NGN' ? '₦' : '$'}${form.value.amount.toLocaleString()} credited to ${form.value.currency} wallet.`;
+          setTimeout(() => {
+            showModal.value = false;
+            refreshData();
+          }, 1500);
+        } else {
+          // Live mode - redirect to Paystack
+          window.location.href = response.data.data.authorization_url;
+        }
         return;
       }
       message.value = response.data.message || "Payment initiation failed";
@@ -566,7 +576,8 @@ const submitTransaction = async () => {
   } else {
     try {
       await api.post('/withdraw', { amount: form.value.amount, currency: form.value.currency, linked_account_id: selectedAccountId.value });
-      message.value = "Successful!"; setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
+      const currencySymbol = form.value.currency === 'NGN' ? '₦' : '$';
+      message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited from ${form.value.currency} wallet.`; setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
     } catch (e) { message.value = e.response?.data?.message || "Transaction failed"; } finally { loading.value = false; actionType.value = ""; }
   }
 };
@@ -650,7 +661,14 @@ const checkPaymentResult = async () => {
       }
 
       const amount = parseFloat(paymentSuccess);
-      paymentResult.value = { success: true, message: 'Payment verified and wallet credited!', amount: amount };
+      const currency = urlParams.get('currency') || 'NGN';
+      const fxRate = urlParams.get('fx_rate');
+      const currencySymbol = currency === 'NGN' ? '₦' : '$';
+      let message = `Payment verified and ${currencySymbol}${amount.toLocaleString()} credited to ${currency} wallet!`;
+      if (fxRate) {
+        message += ` (Converted using FX rate ₦${parseFloat(fxRate).toLocaleString()})`;
+      }
+      paymentResult.value = { success: true, message, amount };
       showPaymentModal.value = true;
 
       // 3. Clean the URL and refresh actual balances

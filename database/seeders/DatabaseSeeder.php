@@ -25,10 +25,12 @@ class DatabaseSeeder extends Seeder
             NewTransactionSeeder::class,
             OrderSeeder::class,
             PortfolioSeeder::class,
-            StockSeeder::class,
             UserSettingsSeeder::class,
-            StockSeeder::class,
             RolePermissionSeeder::class,
+            FxRateSeeder::class,
+            FxConfigSeeder::class,
+            FxRateSeeder::class,
+            FxConfigSeeder::class,
         ]);
     }
 }
