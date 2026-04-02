@@ -58,12 +58,21 @@ class WalletFunctionsTest extends TestCase
         $response->assertJsonValidationErrors(['amount']);
     }
 
-    public function test_paystack_callback_route_is_accessible_without_api_prefix(): void
+    public function test_paystack_callback_route_is_accessible_using_api_prefix(): void
     {
-        $response = $this->get('/paystack/callback');
+        $response = $this->get('/api/paystack/callback');
 
         $response->assertStatus(302);
         $response->assertRedirect('/wallet?payment_error=no_reference');
+    }
+
+    public function test_paystack_webhook_post_bypasses_csrf_and_fails_signature(): void
+    {
+        $response = $this->postJson('/api/paystack/webhook', ['event' => 'charge.success', 'data' => []]);
+
+        // Without CSRF token, this should not be 419 (CSRF mismatch) but propagate to signature check.
+        $response->assertStatus(401);
+        $response->assertJson(['error' => 'Invalid signature']);
     }
 
     public function test_user_can_convert_ngn_to_usd(): void
