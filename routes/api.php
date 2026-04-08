@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\MarketDataController;
 use App\Http\Controllers\Api\NewTransactionController;
 use App\Http\Controllers\Api\OmsController;
 use App\Http\Controllers\Api\OnboardingController;
+use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
@@ -140,6 +141,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/trade/open', [TradeController::class, 'open']);
         Route::post('/trade/close/{id}', [TradeController::class, 'close']);
         Route::get('/trades', [TradeController::class, 'index']);
+
+        // Watchlist
+        Route::get('/watchlist', [WatchlistController::class, 'index']);
+        Route::post('/watchlist', [WatchlistController::class, 'store']);
+        Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
     });
 
     /* Payment Integrations */

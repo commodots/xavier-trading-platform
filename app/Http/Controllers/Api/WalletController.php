@@ -176,7 +176,7 @@ class WalletController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "You have successfully deposited " . ($currency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " to your {$currency} wallet.",
+                'message' => 'You have successfully deposited '.($currency === 'USD' ? '$' : '₦').number_format($request->amount, 2)." to your {$currency} wallet.",
             ]);
         });
     }
@@ -350,7 +350,7 @@ class WalletController extends Controller
             ->where('to_currency', 'USD')
             ->first();
 
-        if (!$fxRate) {
+        if (! $fxRate) {
             return response()->json(['error' => 'FX rate not available'], 400);
         }
 
@@ -370,6 +370,24 @@ class WalletController extends Controller
             'converted' => round($preview, 2),
             'to_currency' => $label,
             'rate' => $rate,
+        ]);
+    }
+
+    public function getRates(Request $request)
+    {
+        $rates = FxRate::all()->map(function ($rate) {
+            return [
+                'from_currency' => $rate->from_currency,
+                'to_currency' => $rate->to_currency,
+                'base_rate' => $rate->base_rate,
+                'markup_percent' => $rate->markup_percent,
+                'effective_rate' => $rate->effective_rate,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'rates' => $rates,
         ]);
     }
 }

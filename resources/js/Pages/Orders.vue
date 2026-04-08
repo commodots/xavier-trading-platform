@@ -25,8 +25,8 @@
             <select v-model="filterMarket"
               class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500">
               <option value="">All Markets</option>
-              <option value="CRYPTO">Crypto</option>
               <option value="NGX">Local Stocks (NGX)</option>
+              <option value="CRYPTO">Crypto</option>
               <option value="GLOBAL">Global Stocks</option>
               <option value="FIXED INCOME">Fixed Income Market</option>
             </select>
@@ -55,10 +55,10 @@
       </div>
 
       <div class="p-6 border rounded-xl"
-      :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold">{{ isDemo ? 'Demo Order History' : 'Order History' }}</h2>
-          <span class="text-xs text-gray-500">{{ filteredOrders.length }} orders found</span>
+          <span class="text-xs text-gray-500">{{ filteredOrders.length }} orders found • Page {{ currentPage }} of {{ totalPages }}</span>
         </div>
 
         <div v-if="loading" class="flex items-center justify-center py-12">
@@ -82,7 +82,7 @@
             </thead>
 
             <tbody class="divide-y divide-[#1f3348]">
-              <tr v-for="o in filteredOrders" :key="o.id" class="hover:bg-[#16213A] transition group">
+              <tr v-for="o in paginatedOrders" :key="o.id" class="hover:bg-[#16213A] transition group">
                 <td class="px-2 py-4 text-gray-300 whitespace-nowrap">
                   {{ formatDate(o.created_at) }}
                 </td>
@@ -125,13 +125,31 @@
                 </td>
               </tr>
 
-              <tr v-if="filteredOrders.length === 0">
+              <tr v-if="paginatedOrders.length === 0">
                 <td colspan="7" class="py-12 text-center text-gray-500">
                   No orders match your search criteria.
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div v-if="totalPages > 1" class="flex justify-between items-center mt-6">
+          <button
+            @click="prevPage"
+            :disabled="currentPage === 1"
+            class="bg-[#1C2541] px-4 py-2 rounded-lg text-sm hover:bg-[#24395C] disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            ← Previous
+          </button>
+          <button
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+            class="bg-[#1C2541] px-4 py-2 rounded-lg text-sm hover:bg-[#24395C] disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            Next →
+          </button>
         </div>
       </div>
     </div>
@@ -181,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
@@ -194,6 +212,9 @@ const statusFilter = ref("all");
 const showTradeModal = ref(false);
 const isDemo = ref(false);
 
+// Pagination state
+const currentPage = ref(1);
+const perPage = ref(10);
 // Cancel Modal State
 const orderToCancel = ref(null);
 const isCancelling = ref(false);
@@ -203,13 +224,17 @@ const showNotificationModal = ref(false);
 const notificationData = ref({ success: true, title: '', message: '' });
 
 const categoriesData = ref([
+    { id: 'NGX', name: 'Local Stocks', description: 'Nigerian Exchange' },
   { id: 'GLOBAL', name: 'Global Stocks', description: 'Trade Apple, Tesla, etc.' },
   { id: 'CRYPTO', name: 'Cryptocurrency', description: 'Trade BTC, ETH, SOL' },
-  { id: 'NGX', name: 'Local Stocks', description: 'Nigerian Exchange' },
   { id: 'FIXED_INCOME', name: 'Fixed Income', description: 'Trade Bonds, Papers, etc' },
 ]);
 
 const tickersData = ref({
+  NGX: [
+    { symbol: 'DANGCEM', name: 'Dangote Cement', price: 450, currency: 'NGN' },
+    { symbol: 'MTNN', name: 'MTN Nigeria', price: 280, currency: 'NGN' }
+  ],
   GLOBAL: [
     { symbol: 'AAPL', name: 'Apple Inc.', price: 180, currency: 'USD' },
     { symbol: 'TSLA', name: 'Tesla', price: 240, currency: 'USD' }
@@ -217,10 +242,6 @@ const tickersData = ref({
   CRYPTO: [
     { symbol: 'BTC', name: 'Bitcoin', price: 65000, currency: 'USD' },
     { symbol: 'ETH', name: 'Ethereum', price: 3500, currency: 'USD' }
-  ],
-  NGX: [
-    { symbol: 'DANGCEM', name: 'Dangote Cement', price: 450, currency: 'NGN' },
-    { symbol: 'MTNN', name: 'MTN Nigeria', price: 280, currency: 'NGN' }
   ],
   FIXED_INCOME: [
     { symbol: 'FGNSB_2027', name: 'FGN Savings Bond 2027', price: 1000.00, currency: 'NGN' },
@@ -259,7 +280,7 @@ async function loadOrders() {
       if (marketRaw === 'INTERNATIONAL') marketMapped = 'GLOBAL';
 
       const actualUnits = o.quantity || o.units || o.filled_quantity || 0;
-      
+
       let normalizedStatus = o.status;
       if (['closed', 'completed', 'success'].includes(o.status)) normalizedStatus = 'filled';
 
@@ -283,16 +304,28 @@ async function loadOrders() {
 
 const filteredOrders = computed(() => {
   return orders.value.filter(o => {
-    const matchesSearch = o.symbol.toLowerCase().includes(searchQuery.value.toLowerCase());
+    const symbol = (o.symbol || o.company || '').toString().toLowerCase();
+    const matchesSearch = symbol.includes(searchQuery.value.toLowerCase());
 
-    const matchesMarket = filterMarket.value === "" || o.market === filterMarket.value;
-    
+    const matchesMarket = filterMarket.value === "" || (o.market || '').toString() === filterMarket.value;
+
     const matchesStatus = statusFilter.value === "all" ||
       (statusFilter.value === "active" && ["open", "pending", "pending_market", "partially_filled"].includes(o.status)) ||
       (statusFilter.value === "completed" && o.status === "filled") ||
       (statusFilter.value === "canceled" && ["canceled", "cancelled", "failed"].includes(o.status));
     return matchesSearch && matchesMarket && matchesStatus;
   });
+});
+
+const totalPages = computed(() => {
+  const count = filteredOrders.value.length;
+  return count > 0 ? Math.ceil(count / perPage.value) : 1;
+});
+
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+  return filteredOrders.value.slice(start, end);
 });
 
 function beautifyStatus(s) {
@@ -337,6 +370,18 @@ function cancelOrder(id) {
   orderToCancel.value = id;
 }
 
+function prevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+}
+
 async function confirmCancel() {
   if (!orderToCancel.value) return;
 
@@ -369,5 +414,16 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('trading-mode-changed', loadOrders);
+});
+
+// Reset to page 1 when filters change
+watch([searchQuery, filterMarket, statusFilter], () => {
+  currentPage.value = 1;
+});
+
+watch(filteredOrders, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value;
+  }
 });
 </script>

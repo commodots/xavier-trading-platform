@@ -267,7 +267,7 @@
             </h2>
 
             <p class="mb-6 text-gray-400" v-if="paymentResult.success">
-              Your wallet has been credited with ₦{{ paymentResult.amount.toLocaleString() }}
+              Your wallet has been credited with {{ paymentResult.currency === 'USD' ? '$' : '₦' }}{{ paymentResult.amount.toLocaleString() }}
             </p>
             <p class="mb-6 text-gray-400" v-else>
               {{ paymentResult.message }}
@@ -662,13 +662,10 @@ const checkPaymentResult = async () => {
 
       const amount = parseFloat(paymentSuccess);
       const currency = urlParams.get('currency') || 'NGN';
-      const fxRate = urlParams.get('fx_rate');
+      const messageParam = urlParams.get('message');
       const currencySymbol = currency === 'NGN' ? '₦' : '$';
-      let message = `Payment verified and ${currencySymbol}${amount.toLocaleString()} credited to ${currency} wallet!`;
-      if (fxRate) {
-        message += ` (Converted using FX rate ₦${parseFloat(fxRate).toLocaleString()})`;
-      }
-      paymentResult.value = { success: true, message, amount };
+      let message = messageParam ? decodeURIComponent(messageParam) : `Payment verified and ${currencySymbol}${amount.toLocaleString()} credited to your ${currency} wallet!`;
+      paymentResult.value = { success: true, message, amount, currency };
       showPaymentModal.value = true;
 
       // 3. Clean the URL and refresh actual balances

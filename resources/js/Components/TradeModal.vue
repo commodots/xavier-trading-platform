@@ -4,14 +4,14 @@
       class="bg-[#1C1F2E] p-6 rounded-2xl shadow-xl w-full max-w-md relative border transition-colors duration-300"
       :class="isDemo ? 'border-yellow-600 shadow-yellow-900/20' : 'border-[#2A314A]'">
       
-      <button @click="handleClose" class="absolute text-gray-400 transition-colors top-4 right-4 hover:text-white">✖</button>
+      <button @click="handleClose" class="absolute text-gray-400 transition-colors top-4 right-4 hover:text-white">×</button>
 
       <h2 class="flex items-center mb-4 text-xl font-semibold">
         <span v-if="isDemo" class="mr-2 px-2 py-0.5 bg-yellow-500 text-black text-[10px] font-black rounded uppercase">DEMO</span>
         {{ tradeStep === 1 ? 'Select Market' : tradeStep === 2 ? 'Select Ticker' : 'Trade ' + selectedTicker?.symbol }}
       </h2>
 
-      <div v-if="tradeStep === 1" class="grid grid-cols-1 gap-2">
+      <div v-if="tradeStep === 1" class="grid grid-cols-2 gap-2 p-2">
         <button v-for="cat in assetCategories" :key="cat.id" @click="selectCategory(cat)"
           class="w-full p-3 text-left transition-all border rounded-xl group"
           :class="isDemo ? 'border-yellow-600/30 bg-yellow-500/5 hover:bg-yellow-500/10' : 'border-[#1f3348] hover:border-blue-500 bg-[#0F1724]'">
@@ -21,13 +21,13 @@
       </div>
 
       <div v-if="tradeStep === 2" class="space-y-2">
-        <div class="max-h-[300px] overflow-y-auto pr-1 space-y-1.5 custom-scrollbar">
+        <div class="max-h-[300px] overflow-y-auto pr-1 space-y-1.5 custom-scrollbar grid grid-cols-3 gap-2">
           <button v-for="ticker in filteredTickers" :key="ticker.symbol" @click="selectTicker(ticker)"
             class="flex items-center justify-between w-full p-3 transition border rounded-xl"
             :class="isDemo ? 'border-yellow-600/30 bg-yellow-500/5 hover:bg-yellow-500/10' : 'border-[#1f3348] hover:border-blue-500 bg-[#0F1724]'">
             <div>
               <div class="text-sm font-bold text-white">{{ ticker.symbol }}</div>
-              <div class="text-[10px] text-gray-500">{{ ticker.name }}</div>
+              <div class="text-[10px] text-gray-500 text-left">{{ ticker.name }}</div>
             </div>
           </button>
         </div>
@@ -45,7 +45,7 @@
           <div class="p-2 border border-gray-700 rounded-lg bg-gray-800/50">
             <div class="text-[9px] text-gray-500 uppercase font-bold">Price</div>
             <div class="text-xs font-bold text-white">
-              {{ (selectedTicker?.currency !== 'USD') ? '₦' : '$' }}{{ selectedTicker?.price?.toLocaleString() }}
+              {{ (selectedTicker?.currency === 'USD') ? '$' : '₦' }}{{ selectedTicker?.price?.toLocaleString() }}
             </div>
           </div>
         </div>
@@ -57,7 +57,7 @@
             {{ tradeAction === 'buy' ? 'Receiving' : 'Selling' }}
           </div>
           <div class="text-xl font-bold text-white">
-            {{ Number(unitInput).toFixed(selectedCategory?.id === 'CRYPTO' ? 6 : 2) }}
+            {{ Number(unitInput || 0).toFixed(selectedCategory?.id === 'CRYPTO' ? 6 : 2) }}
             <span class="text-xs font-normal text-gray-400">{{ selectedTicker?.symbol }}</span>
           </div>
           <div class="text-[10px] text-gray-400 mt-0.5">
@@ -67,8 +67,8 @@
 
         <div class="flex items-center justify-between px-1">
           <span class="text-[10px] text-gray-500 uppercase font-bold">{{ isDemo ? 'Demo Wallet' : 'Wallet Balance' }}</span>
-          <span class="text-xs font-bold" :class="nairaInput > userBalance && tradeAction === 'buy' ? 'text-red-400' : 'text-gray-300'">
-            ₦{{ userBalance.toLocaleString() }}
+          <span class="text-xs font-bold" :class="((inputMode === 'amount' ? nairaInput : unitInput * selectedTicker?.price) > activeBalance && tradeAction === 'buy') ? 'text-red-400' : 'text-gray-300'">
+            {{ (selectedCategory?.id === 'CRYPTO' || selectedCategory?.id === 'GLOBAL') ? '$' : '₦' }}{{ activeBalance.toLocaleString() }}
           </span>
         </div>
 
@@ -87,30 +87,36 @@
             <select v-model="inputMode"
               class="text-xs font-bold bg-transparent border-none outline-none cursor-pointer"
               :class="isDemo ? 'text-yellow-500' : 'text-blue-400'">
-              <option value="amount">Amount (₦)</option>
+              <option value="amount">Amount ({{ (selectedCategory?.id === 'CRYPTO' || selectedCategory?.id === 'GLOBAL') ? 'USD' : '₦' }})</option>
               <option value="quantity">Quantity (Units)</option>
             </select>
           </div>
 
           <div class="relative">
-            <input v-if="inputMode === 'amount'" v-model="formattedNairaInput" @input="syncFromNaira"
+            <input v-if="inputMode === 'amount'" v-model="formattedNairaInput"
               class="w-full px-3 py-2 bg-[#0F1724] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-blue-500 transition-all"
               placeholder="0.00" />
             <input v-else v-model.number="unitInput" type="number" @input="syncFromUnits"
               class="w-full px-3 py-2 bg-[#0F1724] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-blue-500 transition-all"
               placeholder="0" />
-            <span class="absolute text-[10px] font-bold text-gray-500 -translate-y-1/2 right-3 top-1/2 uppercase">
-              {{ inputMode === 'amount' ? 'NGN' : selectedTicker?.symbol }}
+            <span class="absolute text-[10px] font-bold text-gray-500 -translate-y-1/2 right-3 top-1/2 uppercase pointer-events-none">
+              {{ inputMode === 'amount' ? ((selectedCategory?.id === 'CRYPTO' || selectedCategory?.id === 'GLOBAL') ? 'USD' : 'NGN') : selectedTicker?.symbol }}
             </span>
           </div>
         </div>
 
         <div class="pt-1">
+          <button @click="toggleWatchlist" 
+            class="w-full py-2 mb-2 text-xs font-bold transition-all border rounded-lg"
+            :class="isInWatchlist ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'">
+            {{ isInWatchlist ? '★ In Watchlist' : '☆ Add to Watchlist' }}
+          </button>
+
           <button @click="handleTrade"
-            :disabled="isProcessing || nairaInput <= 0 || (tradeAction === 'buy' && nairaInput > userBalance) || (tradeAction === 'sell' && unitInput > currentAssetHolding)"
+            :disabled="isProcessing || (inputMode === 'amount' ? nairaInput : unitInput) <= 0 || (tradeAction === 'buy' && (inputMode === 'amount' ? nairaInput : unitInput * selectedTicker?.price) > activeBalance) || (tradeAction === 'sell' && unitInput > currentAssetHolding)"
             :class="isDemo ? 'from-yellow-600 to-orange-500 shadow-yellow-900/20' : 'from-[#0047AB] to-[#00D4FF] shadow-blue-900/20'"
             class="w-full py-3.5 font-black text-white transition-all rounded-xl bg-gradient-to-r text-sm shadow-lg disabled:opacity-40 disabled:grayscale uppercase tracking-wide">
-            <span v-if="tradeAction === 'buy' && nairaInput > userBalance">Insufficient Balance</span>
+            <span v-if="tradeAction === 'buy' && (inputMode === 'amount' ? nairaInput : unitInput * selectedTicker?.price) > activeBalance">Insufficient Balance</span>
             <span v-else-if="tradeAction === 'sell' && unitInput > currentAssetHolding">Insufficient Units</span>
             <span v-else>{{ isProcessing ? 'Processing...' : (isDemo ? 'Confirm Demo ' : 'Confirm ') + tradeAction }}</span>
           </button>
@@ -121,12 +127,8 @@
 
     <div v-else class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-sm text-center border"
       :class="isDemo ? 'border-yellow-600' : 'border-[#2A314A]'">
-      <div class="mb-4 text-5xl">
-        {{ feedbackType === 'success' ? '✅' : '❌' }}
-      </div>
-      <h3 class="mb-2 text-xl font-bold text-white">
-        {{ feedbackType === 'success' ? 'Order Successful' : 'Order Failed' }}
-      </h3>
+      <div class="mb-4 text-5xl">{{ feedbackType === 'success' ? '✅' : '❌' }}</div>
+      <h3 class="mb-2 text-xl font-bold text-white">{{ feedbackType === 'success' ? 'Order Successful' : 'Order Failed' }}</h3>
       <p class="mb-6 text-sm text-gray-400">{{ feedbackMessage }}</p>
       <button @click="closeFeedback"
         class="w-full py-3 font-bold text-white transition bg-gray-700 rounded-lg shadow-lg hover:bg-gray-600">
@@ -141,8 +143,6 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api';
 
-const router = useRouter();
-
 const props = defineProps({
   show: Boolean,
   tickers: Object,
@@ -151,7 +151,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'trade-success']);
+const router = useRouter();
 
+// State
 const tradeStep = ref(1);
 const tradeAction = ref('buy');
 const nairaInput = ref(0);
@@ -165,14 +167,21 @@ const localTickers = ref({});
 const showFeedback = ref(false);
 const feedbackMessage = ref('');
 const feedbackType = ref('success');
+const nairaBalance = ref(0);
+const usdBalance = ref(0);
 
 const userBalance = ref(0);
 const allHoldings = ref([]);
 const isDemo = ref(false);
-
+const watchlist = ref([]);
 const inputMode = ref('amount'); 
 
-// function to reset the modal when closed
+// Logic Helpers
+const activeBalance = computed(() => {
+  const market = selectedCategory.value?.id;
+  return (market === 'CRYPTO' || market === 'GLOBAL') ? usdBalance.value : nairaBalance.value;
+});
+
 const resetModalState = () => {
   tradeStep.value = 1;
   tradeAction.value = 'buy';
@@ -184,82 +193,17 @@ const resetModalState = () => {
   showFeedback.value = false;
 };
 
-// Handle explicit close via the 'X' button
-const handleClose = () => {
-  resetModalState();
-  emit('close');
-};
-
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    fetchBalance(); // Re-fetch balance every time modal opens to ensure accuracy
-
-    if (props.initialTicker) {
-      // Auto-select NGX category and the ticker
-      selectedCategory.value = props.assetCategories.find(c => c.id === 'NGX') || props.assetCategories[0];
-      selectedTicker.value = props.initialTicker;
-      tradeStep.value = 3;
-      nairaInput.value = 0;
-      unitInput.value = 0;
-
-      if (selectedCategory.value.id === 'NGX') {
-        fetchNgxPrices();
-      }
-    } else {
-      tradeStep.value = 1;
-    }
-  } else {
-
-    resetModalState();
+// Input Handling
+const formattedNairaInput = computed({
+  get() {
+    return nairaInput.value === 0 ? '' : nairaInput.value.toLocaleString();
+  },
+  set(value) {
+    const cleanValue = Number(value.replace(/[^0-9.]/g, ''));
+    nairaInput.value = isNaN(cleanValue) ? 0 : cleanValue;
+    syncFromNaira();
   }
 });
-
-const fetchNgxPrices = async () => {
-
-  const userStr = localStorage.getItem("user");
-  const userObj = userStr ? JSON.parse(userStr) : null;
-  if (userObj?.trading_mode === 'demo') {
-    return;
-  }
-
-  if (!localTickers.value.NGX) return;
-  for (let ticker of localTickers.value.NGX) {
-    try {
-      const res = await api.get(`/dummy/ngx/market/${ticker.symbol}`);
-      ticker.price = res.data.bid;
-    } catch (e) {
-      console.warn(`Failed to fetch price for ${ticker.symbol}`, e);
-    }
-  }
-};
-
-const fetchBalance = async () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    isDemo.value = user.trading_mode === 'demo';
-
-    const [portfolioRes, walletRes] = await Promise.all([
-      api.get('/portfolio'),
-      api.get('/wallet/balances')
-    ]);
-
-    const portData = portfolioRes.data.data || portfolioRes.data;
-    const walData = walletRes.data.data || walletRes.data;
-
-    const rawHoldings = portData.holdings || [];
-    allHoldings.value = Array.isArray(rawHoldings)
-      ? rawHoldings
-      : Object.values(rawHoldings);
-
-    if (isDemo.value) {
-      userBalance.value = portData.wallet_balance || portData.balance || 0;
-    } else {
-      userBalance.value = walData.cleared_balance_ngn || walData.balance || 0;
-    }
-  } catch (error) {
-    console.error("Failed to fetch trade data", error);
-  }
-};
 
 const syncFromNaira = () => {
   if (!selectedTicker.value || nairaInput.value <= 0) {
@@ -268,11 +212,8 @@ const syncFromNaira = () => {
   }
   const price = selectedTicker.value.price;
   const isCrypto = selectedCategory.value?.id === 'CRYPTO';
-  if (selectedTicker.value.currency === 'NGN' || !selectedTicker.value.currency) {
-    unitInput.value = isCrypto ? nairaInput.value / price : Math.floor(nairaInput.value / price);
-  } else {
-    unitInput.value = isCrypto ? (nairaInput.value / USD_RATE) / price : Math.floor((nairaInput.value / USD_RATE) / price);
-  }
+  // If we are in amount mode, the input is already in the market's base currency (NGN for NGX, USD for others)
+  unitInput.value = isCrypto ? (nairaInput.value / price) : Math.floor(nairaInput.value / price);
 };
 
 const syncFromUnits = () => {
@@ -282,51 +223,84 @@ const syncFromUnits = () => {
   }
   const price = selectedTicker.value.price;
   const isCrypto = selectedCategory.value?.id === 'CRYPTO';
-  if (selectedTicker.value.currency === 'NGN' || !selectedTicker.value.currency) {
-    nairaInput.value = isCrypto ? unitInput.value * price : Math.ceil(unitInput.value * price);
-  } else {
-    nairaInput.value = isCrypto ? (unitInput.value * price) * USD_RATE : Math.ceil((unitInput.value * price) * USD_RATE);
+  nairaInput.value = isCrypto ? (unitInput.value * price) : Math.ceil(unitInput.value * price);
+};
+
+// Watchlist
+const fetchWatchlist = async () => {
+  try {
+    const res = await api.get('/watchlist');
+    watchlist.value = res.data.data || res.data;
+  } catch (error) {
+    console.error("Failed to fetch watchlist", error);
   }
 };
 
-const formattedNairaInput = computed({
-  get() {
-    return nairaInput.value.toLocaleString();
-  },
-  set(value) {
-    nairaInput.value = Number(value.replace(/,/g, ''));
-    syncFromNaira();
-  }
+const isInWatchlist = computed(() => {
+  if (!selectedTicker.value || !selectedCategory.value) return false;
+  return Array.isArray(watchlist.value) && watchlist.value.some(item => 
+    item.symbol === selectedTicker.value.symbol && 
+    String(item.market).toUpperCase() === String(selectedCategory.value.id).toUpperCase()
+  );
 });
 
-const selectedHolding = computed(() => {
-  if (!selectedTicker.value) return null;
-  return allHoldings.value.find(h => h.symbol === selectedTicker.value.symbol);
-});
+const toggleWatchlist = async () => {
+  if (!selectedTicker.value || !selectedCategory.value) return;
+  try {
+    if (isInWatchlist.value) {
+      const item = watchlist.value.find(i => i.symbol === selectedTicker.value.symbol && String(i.market).toUpperCase() === String(selectedCategory.value.id).toUpperCase());
+      await api.delete(`/watchlist/${item.id}`);
+    } else {
+      await api.post('/watchlist', {
+        symbol: selectedTicker.value.symbol,
+        name: selectedTicker.value.name,
+        market: String(selectedCategory.value.id).toUpperCase(),
+        currency: selectedTicker.value.currency || (selectedCategory.value.id === 'NGX' ? 'NGN' : 'USD'),
+        added_price: parseFloat(selectedTicker.value.price),
+      });
+    }
+    await fetchWatchlist();
+  } catch (error) { console.error(error); }
+};
+
+// Market Logic
+const fetchBalance = async () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    isDemo.value = user.trading_mode === 'demo';
+    const [portfolioRes, walletRes] = await Promise.all([
+      api.get('/portfolio'),
+      api.get('/wallet/balances')
+    ]);
+    const portData = portfolioRes.data.data || portfolioRes.data;
+    const walData = walletRes.data.data || walletRes.data;
+    allHoldings.value = Array.isArray(portData.holdings) ? portData.holdings : Object.values(portData.holdings || {});
+    
+    if (isDemo.value) {
+      nairaBalance.value = portData.wallet_balance || 0;
+      usdBalance.value = portData.usd_balance || 5000;
+    } else {
+      nairaBalance.value = walData.cleared_balance_ngn || 0;
+      usdBalance.value = walData.cleared_balance_usd || 0;
+    }
+  } catch (error) { console.error(error); }
+};
 
 const currentAssetHolding = computed(() => {
   if (!selectedTicker.value) return 0;
-  const holding = selectedHolding.value;
+  const holding = allHoldings.value.find(h => h.symbol === selectedTicker.value.symbol);
   if (!holding) return 0;
-
-  // For Demo mode, if cleared_quantity is missing, fall back to total quantity
-  const availableToSell = isDemo.value 
-    ? (holding.quantity || 0) 
-    : (holding.cleared_quantity || 0);
-
-  return selectedCategory.value?.id === 'CRYPTO' ? availableToSell : Math.floor(availableToSell);
+  const available = (isDemo.value || !holding.cleared_quantity) ? (holding.quantity || 0) : holding.cleared_quantity;
+  return selectedCategory.value?.id === 'CRYPTO' ? available : Math.floor(available);
 });
 
 const filteredTickers = computed(() => {
-  return selectedCategory.value ? localTickers.value[selectedCategory.value.id] : [];
+  return (selectedCategory.value && localTickers.value) ? localTickers.value[selectedCategory.value.id] : [];
 });
 
 const selectCategory = (cat) => {
   selectedCategory.value = cat;
   tradeStep.value = 2;
-  if (cat.id === 'NGX') {
-    fetchNgxPrices();
-  }
 };
 
 const selectTicker = (t) => {
@@ -334,16 +308,6 @@ const selectTicker = (t) => {
   tradeStep.value = 3;
   nairaInput.value = 0;
   unitInput.value = 0;
-};
-
-const closeFeedback = () => {
-    
-  router.push('/orders');
-  fetchBalance();
-    
-    
-    emit('trade-success');
-    handleClose();
 };
 
 const handleTrade = async () => {
@@ -357,46 +321,46 @@ const handleTrade = async () => {
       price: selectedTicker.value.price,
       amount: nairaInput.value,
       market: selectedCategory.value.id.toUpperCase(),
-      company: selectedTicker.value.symbol,
-      market_price: selectedTicker.value.price,
     };
 
     const res = await api.post('/orders', payload);
-
     if (res.status === 200 || res.status === 201) {
       await fetchBalance();
-      // Trigger dummy settlement status check after successful order
-      if (!isDemo.value && selectedCategory.value.id === 'NGX') {
-        await api.post('/dummy/cscs/settle', {
-          trade_id: 'T' + (res.data.data?.id || Date.now()),
-          amount: nairaInput.value,
-          cycle: 'T' + Date.now(),
-        }).catch(e => console.warn("Settlement dummy failed, but trade was successful"));
-      }
       feedbackType.value = 'success';
-      feedbackMessage.value = isDemo.value
-        ? `Demo ${tradeAction.value.toUpperCase()} executed instantly.`
-        : `Order ${tradeAction.value.toUpperCase()} submitted to exchange.`;
+      feedbackMessage.value = isDemo.value 
+        ? `Demo ${tradeAction.value.toUpperCase()} executed instantly.` 
+        : `Order ${tradeAction.value.toUpperCase()} submitted successfully.`;
       showFeedback.value = true;
     }
   } catch (e) {
     feedbackType.value = 'error';
-    feedbackMessage.value = e.response?.data?.error || e.response?.data?.message || "Gateway Timeout: Service unreachable.";
+    feedbackMessage.value = e.response?.data?.error || "Trade failed.";
     showFeedback.value = true;
   } finally {
     isProcessing.value = false;
   }
 };
 
-onMounted(() => {
-  localTickers.value = JSON.parse(JSON.stringify(props.tickers));
+const handleClose = () => { resetModalState(); emit('close'); };
+const closeFeedback = () => { router.push('/orders'); handleClose(); emit('trade-success'); };
 
-  // Listen for the instant toggle switch
+watch(() => props.show, (newVal) => { 
+  if (newVal) {
+    fetchBalance(); fetchWatchlist();
+    if (props.initialTicker) {
+      selectedCategory.value = props.assetCategories.find(c => c.id === 'NGX') || props.assetCategories[0];
+      selectedTicker.value = props.initialTicker;
+      tradeStep.value = 3;
+    }
+  } else { resetModalState(); }
+});
+
+onMounted(() => {
+  localTickers.value = props.tickers ? JSON.parse(JSON.stringify(props.tickers)) : {};
   window.addEventListener('trading-mode-changed', fetchBalance);
 });
 
 onUnmounted(() => {
-  // Clean up the listener so it doesn't cause memory leaks when the modal is destroyed
   window.removeEventListener('trading-mode-changed', fetchBalance);
 });
 </script>

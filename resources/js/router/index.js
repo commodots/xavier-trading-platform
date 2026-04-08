@@ -21,6 +21,7 @@ import NgxMarket from "@/Pages/NGXMarket.vue";
 import GlobalMarket from "@/Pages/GlobalStocks.vue";
 import CryptoMarket from "@/Pages/CryptoMarket.vue";
 import FixedIncomeMarket from "@/Pages/FixedIncomeMarket.vue";
+import FxMarket from "@/Pages/Market/FxMarket.vue";
 import Profile from "@/Pages/Profile/Index.vue";
 import Settings from "@/Pages/Settings.vue";
 import Reports from "@/Pages/Reports.vue";
@@ -30,6 +31,7 @@ import Deposit from "@/Pages/Crypto/Deposit.vue";
 // OMS
 import Orders from "@/Pages/Orders.vue";
 import OrderDetails from "@/Pages/OrderDetails.vue";
+import Watchlist from "@/Pages/Watchlist.vue";
 import Advisory from "@/Pages/Advisory.vue";
 import Trading from "@/Pages/Trading.vue";
 
@@ -147,6 +149,12 @@ const routes = [
     component: FixedIncomeMarket,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/fx-market",
+    name: "fx-market",
+    component: FxMarket,
+    meta: { requiresAuth: true },
+  },
 
   /* ----------------------------------------------
      PROFILE (Details + KYC Tab)
@@ -167,6 +175,12 @@ const routes = [
     path: "/orders",
     name: "orders",
     component: Orders,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/watchlist",
+    name: "watchlist",
+    component: Watchlist,
     meta: { requiresAuth: true },
   },
   {

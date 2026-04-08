@@ -35,43 +35,42 @@
 		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
 
 		  <!-- MONEY -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Money</div>
-		  <SidebarLink to="/wallet" :icon="Wallet">Wallet</SidebarLink>
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Money-Wallet</div>
+		  <SidebarLink to="/wallet" :icon="Wallet">Fund/Withdraw</SidebarLink>
 		  <SidebarLink to="/transactions" :icon="ListOrdered">Transactions</SidebarLink>
-		  <SidebarLink to="/wallet" :icon="DollarSign">Fund / Withdraw</SidebarLink>
 
 		  <!-- MARKETS -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Markets</div>
-		  <SidebarLink to="/ngx" :icon="Globe">All Markets</SidebarLink>
-		  <SidebarLink to="/ngx" :icon="BarChart2">Nigerian Stocks</SidebarLink>
+		  <SidebarLink to="/ngx" :icon="BarChart2">NGX</SidebarLink>
 		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
 		  <SidebarLink to="/crypto" :icon="Bitcoin">Crypto</SidebarLink>
-		  <SidebarLink to="/fixed-income" :icon="TrendingUp">FX Market</SidebarLink>
+		  <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income</SidebarLink>
+		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
 
 		  <!-- TRADE -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trade</div>
-		  <SidebarLink to="/trading" :icon="ShoppingCart">Crypto</SidebarLink>
-		  <SidebarLink to="/orders" :icon="FileText">Orders</SidebarLink>
-		  <SidebarLink to="/crypto" :icon="Star">Watchlist</SidebarLink>
-
-		  <!-- INSIGHTS -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
-		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
-
-		  <!-- CTA BUTTON -->
+		  <SidebarLink to="/trading" :icon="ShoppingCart">Trading</SidebarLink>
+		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
+       <!-- CTA BUTTON -->
 		  <div class="px-3 mt-6">
 			<button
-			  @click="$router.push('/trading')"
+			  @click="$router.push('/orders')"
 			  class="w-full py-3 rounded-xl bg-gradient-to-r from-[#C8A951] to-[#E6C97A] text-black font-semibold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-all duration-300"
 			>
 			  ⚡ Start Trade
 			</button>
 		  </div>
 
+		  <!-- INSIGHTS -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
+		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
+
+		 
+
 		  <!-- ACCOUNT -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
 		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
-		  <SidebarLink to="/profile" :icon="Settings">Settings</SidebarLink>
+		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
 		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
 		  
 		  
@@ -160,7 +159,7 @@ import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

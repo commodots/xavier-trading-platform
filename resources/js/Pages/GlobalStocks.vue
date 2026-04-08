@@ -94,7 +94,7 @@
                     Details
                   </button>
                 </td>
-                <td class="px-2 pr-6 text-center">
+                <td class="px-2 text-center">
                   <button @click="openTrade(stock)"
                     class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
                     Trade

@@ -8,10 +8,6 @@
           icon="Users" @click="$router.push({ name: 'admin-users' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="hasRole('support', 'compliance')"
-          title="KYC Pending" :value="stats.kycPending" icon="ShieldCheck" @click="$router.push({ name: 'admin-kyc' })"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
-          
         <MetricCard v-if="hasRole('accounts', 'support')"
           title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered"
           @click="$router.push({ name: 'admin-transactions' })"
@@ -23,26 +19,41 @@
           @click="$router.push({ name: 'admin-control-panel', query: { tab: 'platform-earnings' } })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="hasRole('manager', 'accounts')"
-          title="Buffer/Shortfall" 
-          :value="'$' + formatNumber(Math.abs(fxStats.buffer))" 
-          :subtitle="fxStats.buffer >= 0 ? 'Safe margin' : 'SHORTFALL'"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+        <!-- Grouped Box: Compliance & Settlements -->
+        <div v-if="hasRole('support', 'compliance', 'manager', 'accounts')" 
+          class="bg-[#1C1F2E] p-5 rounded-xl border border-[#2A314A] flex flex-col justify-center space-y-4">
+          <div v-if="hasRole('support', 'compliance')" class="cursor-pointer group" @click="$router.push({ name: 'admin-kyc' })">
+            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">KYC Pending</p>
+            <p class="text-2xl font-bold text-white transition-colors group-hover:text-blue-400">{{ stats.kycPending }}</p>
+          </div>
+          <div v-if="hasRole('manager', 'accounts')" :class="{'pt-4 border-t border-gray-700/50': hasRole('support', 'compliance')}">
+            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Pending Settlements</p>
+            <p class="text-2xl font-bold text-white">{{ fxStats.pendingSettlements }}</p>
+          </div>
+        </div>
 
-        <MetricCard v-if="hasRole('manager', 'accounts')"
-          title="Pending Settlements" :value="fxStats.pendingSettlements" icon="Clock"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
+        <!-- Grouped Box: FX Margin & Buffer -->
+        <div v-if="hasRole('manager', 'accounts')" 
+          class="bg-[#1C1F2E] p-5 rounded-xl border border-[#2A314A] flex flex-col justify-center space-y-4 cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
+          @click="$router.push({ name: 'admin-fx-dashboard' })">
+          <div>
+            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">FX Margin Earned (Today)</p>
+            <p class="text-2xl font-bold text-white">₦{{ formatNumber(fxStats.fxMargin) }}</p>
+          </div>
+          <div class="pt-4 border-t border-gray-700/50">
+            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Buffer/Shortfall</p>
+            <div class="flex items-baseline gap-2">
+              <p class="text-2xl font-bold" :class="fxStats.buffer >= 0 ? 'text-white' : 'text-red-400'">
+                ${{ formatNumber(Math.abs(fxStats.buffer)) }}
+              </p>
+              <span class="text-[9px] font-black px-1.5 py-0.5 rounded uppercase" 
+                :class="fxStats.buffer >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'">
+                {{ fxStats.buffer >= 0 ? 'SAFE' : 'SHORT' }}
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <MetricCard v-if="hasRole('manager', 'accounts')"
-          title="FX Margin Earned" :value="'₦' + formatNumber(fxStats.fxMargin)" icon="TrendingUp"
-          :subtitle="'Today'"
-           @click="$router.push({ name: 'admin-fx-dashboard' })"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
-
-        <MetricCard v-if="hasRole('manager')"
-          title="₿ Crypto Settings" :value="'Configure'" icon="Settings"
-          @click="$router.push({ name: 'admin-crypto-settings' })"
-          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
       </div>
 
       <div :class="chartGridClasses">
@@ -156,9 +167,7 @@ const visibleMetricCards = computed(() => {
     hasRole('support', 'compliance'),
     hasRole('accounts', 'support'),
     hasRole('manager', 'accounts'),
-    hasRole('manager', 'accounts'),
-    hasRole('manager', 'accounts'),
-    hasRole('manager', 'accounts'),
+    hasRole('support', 'compliance', 'manager', 'accounts'),
     hasRole('manager', 'accounts')
   ];
   return conditions.reduce((s, c) => s + (c ? 1 : 0), 0);

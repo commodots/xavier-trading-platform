@@ -93,11 +93,15 @@
                 </td>
 
                 <!-- Action -->
-                <td class="px-2 text-right">
+                <td class="px-2 text-right space-x-2">
                   <button
                     @click="openBuy(stock)"
                     class="bg-[#0047AB] hover:bg-[#0057D4] px-3 py-1 rounded-lg text-white text-xs"
                   >Buy</button>
+                  <button
+                    @click="addToWatchlist(stock)"
+                    class="bg-[#1F2937] hover:bg-[#2A3A56] px-3 py-1 rounded-lg text-gray-200 text-xs"
+                  >Watch</button>
                 </td>
               </tr>
             </tbody>
@@ -175,6 +179,36 @@ const selectedStock = ref({});
 const amount = ref(0);
 const units = ref(0);
 const message = ref("");
+const WATCHLIST_KEY = 'xavier_watchlist';
+
+const getWatchlist = () => {
+  try {
+    return JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const saveWatchlist = (items) => {
+  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(items));
+};
+
+const addToWatchlist = (stock) => {
+  const list = getWatchlist();
+  if (list.some(item => item.symbol === stock.symbol && item.market === 'NGX')) {
+    return;
+  }
+
+  list.push({
+    symbol: stock.symbol,
+    name: stock.name,
+    market: 'NGX',
+    currency: 'NGN',
+    addedPrice: stock.market_price,
+    addedAt: new Date().toISOString(),
+  });
+  saveWatchlist(list);
+};
 
 // Load NGX market data
 onMounted(async () => {

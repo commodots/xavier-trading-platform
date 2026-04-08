@@ -62,7 +62,11 @@
           <span class="text-sm text-gray-400">Page {{ currentPage }} of {{ totalPages }}</span>
         </div>
 
-        <div v-if="paginatedTransactions.length" class="overflow-x-auto">
+        <div v-if="loading" class="text-center py-6">
+          <div class="text-gray-400">Loading transactions...</div>
+        </div>
+
+        <div v-else-if="paginatedTransactions.length" class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
@@ -80,21 +84,21 @@
                 class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
               >
                 <td class="py-3 px-2">{{ t.date }}</td>
-                <td class="px-2">{{ t.type }}</td>
-                <td class="px-2">{{ t.ref }}</td>
+                <td class="px-2 capitalize">{{ t.type }}</td>
+                <td class="px-2 text-center">{{ t.ref }}</td>
                 <td
                   class="px-2 text-right"
-                  :class="t.type === 'Deposit' ? 'text-green-400' : 'text-red-400'"
+                  :class="t.type === 'deposit' ? 'text-green-400' : 'text-red-400'"
                 >
                   ₦{{ t.amount.toLocaleString() }}
                 </td>
                 <td class="px-2 text-center">
                   <span
                     :class="[
-                      'px-3 py-1 rounded-full text-xs',
-                      t.status === 'Completed'
+                      'px-3 py-1 rounded-full text-xs capitalize',
+                      t.status === 'completed'
                         ? 'bg-green-500/20 text-green-400'
-                        : t.status === 'Pending'
+                        : t.status === 'pending'
                         ? 'bg-yellow-500/20 text-yellow-300'
                         : 'bg-red-500/20 text-red-400'
                     ]"
@@ -134,26 +138,57 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 
 const filters = ref({ type: "", status: "", from: "", to: "" });
 const currentPage = ref(1);
 const perPage = 8;
+const transactions = ref([]);
+const loading = ref(false);
 
-// sample transactions
-const allTransactions = ref([
-  { date: "2025-10-25", type: "Deposit", ref: "DEP-00128", amount: 500000, status: "Completed" },
-  { date: "2025-10-26", type: "Withdrawal", ref: "WTH-00129", amount: 200000, status: "Completed" },
-  { date: "2025-10-27", type: "Buy", ref: "BUY-00130", amount: 12500, status: "Completed" },
-  { date: "2025-10-28", type: "Sell", ref: "SEL-00131", amount: 11500, status: "Pending" },
-  { date: "2025-10-29", type: "Transfer", ref: "TRF-00132", amount: 80000, status: "Completed" },
-  { date: "2025-10-29", type: "Buy", ref: "BUY-00133", amount: 12000, status: "Failed" },
-  { date: "2025-10-29", type: "Deposit", ref: "DEP-00134", amount: 300000, status: "Completed" },
-  { date: "2025-10-29", type: "Withdrawal", ref: "WTH-00135", amount: 100000, status: "Pending" },
-  { date: "2025-10-29", type: "Sell", ref: "SEL-00136", amount: 25000, status: "Completed" },
-  { date: "2025-10-29", type: "Deposit", ref: "DEP-00137", amount: 400000, status: "Completed" },
-]);
+// Fetch transactions from API
+onMounted(async () => {
+  await fetchTransactions();
+});
+
+const fetchTransactions = async () => {
+  loading.value = true;
+  try {
+    const token = localStorage.getItem("xavier_token");
+    const response = await api.get("/transactions", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    transactions.value = response.data.map(t => ({
+      date: new Date(t.created_at).toISOString().split('T')[0],
+      type: t.type,
+      ref: t.id,
+      amount: t.amount,
+      status: t.status
+    }));
+  } catch (error) {
+    console.error("Failed to fetch transactions:", error);
+    // Fallback to sample data if API fails
+    transactions.value = [
+      { date: "2025-10-25", type: "Deposit", ref: "DEP-00128", amount: 500000, status: "Completed" },
+      { date: "2025-10-26", type: "Withdrawal", ref: "WTH-00129", amount: 200000, status: "Completed" },
+      { date: "2025-10-27", type: "Buy", ref: "BUY-00130", amount: 12500, status: "Completed" },
+      { date: "2025-10-28", type: "Sell", ref: "SEL-00131", amount: 11500, status: "Pending" },
+      { date: "2025-10-29", type: "Transfer", ref: "TRF-00132", amount: 80000, status: "Completed" },
+      { date: "2025-10-29", type: "Buy", ref: "BUY-00133", amount: 12000, status: "Failed" },
+      { date: "2025-10-29", type: "Deposit", ref: "DEP-00134", amount: 300000, status: "Completed" },
+      { date: "2025-10-29", type: "Withdrawal", ref: "WTH-00135", amount: 100000, status: "Pending" },
+      { date: "2025-10-29", type: "Sell", ref: "SEL-00136", amount: 25000, status: "Completed" },
+      { date: "2025-10-29", type: "Deposit", ref: "DEP-00137", amount: 400000, status: "Completed" },
+    ];
+  } finally {
+    loading.value = false;
+  }
+};
+
+// sample transactions (keeping for fallback)
+const allTransactions = computed(() => transactions.value);
 
 const filteredTransactions = computed(() => {
   return allTransactions.value.filter((t) => {

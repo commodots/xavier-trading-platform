@@ -58,7 +58,7 @@ class PaystackController extends Controller
                 ->where('to_currency', 'USD')
                 ->first();
             if (! $fxRate) {
-                return response()->json(['success' => false, 'message' => 'FX rate not available for USD conversion.'], 400);
+                return response()->json(['success' => false, 'message' => 'FX rate not available for USD conversion.', 'data' => null], 400);
             }
             $paystackAmount = round($request->amount * $fxRate->effective_rate, 2);
             $metadata['usd_amount'] = $request->amount;
@@ -102,7 +102,7 @@ class PaystackController extends Controller
                 return response()->json([
                     'success' => true,
                     'is_demo' => true,
-                    'message' => "You have successfully deposited " . ($targetCurrency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " to your " . strtoupper($targetCurrency) . " wallet.",
+                    'message' => "Successfully deposited " . ($targetCurrency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.",
                     'data' => ['reference' => $reference, 'authorization_url' => null],
                 ]);
             });
@@ -112,20 +112,30 @@ class PaystackController extends Controller
             $result = $this->paystackService->initializePayment([
                 'email' => $user->email,
                 'amount' => $paystackAmount,
+                'currency' => $targetCurrency,
                 'reference' => $reference,
                 'callback_url' => route('paystack.callback'),
                 'metadata' => $metadata,
             ]);
 
-            return response()->json([
-                'success' => true,
-                'is_demo' => false,
-                'data' => $result,
-                'fx_details' => ($targetCurrency === 'USD') ? [
-                    'rate' => $fxRate->effective_rate,
-                    'ngn_total' => $paystackAmount / 100
-                ] : null
-            ]);
+            if ($result['status'] === 'success') {
+                return response()->json([
+                    'success' => true,
+                    'is_demo' => false,
+                    'data' => $result,
+                    'fx_details' => ($targetCurrency === 'USD') ? [
+                        'rate' => $fxRate->effective_rate,
+                        'ngn_total' => $paystackAmount / 100
+                    ] : null
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'is_demo' => false,
+                    'message' => $result['message'] ?? 'Payment initialization failed.',
+                    'data' => $result,
+                ], 400);
+            }
         } catch (\Throwable $e) {
             Log::error('Paystack:initiate exception', ['error' => $e->getMessage()]);
 
@@ -152,9 +162,9 @@ class PaystackController extends Controller
                 return $this->processSuccessfulPayment($result, $reference);
             }
 
-            return response()->json(['success' => false, 'message' => 'Verification failed.'], 400);
+                return response()->json(['success' => false, 'message' => 'Verification failed.', 'data' => null], 400);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'message' => 'Server error.'], 500);
+                return response()->json(['success' => false, 'message' => 'Server error.', 'data' => null], 500);
         }
     }
 
@@ -223,8 +233,7 @@ class PaystackController extends Controller
 
                 // Redirect back to wallet with success info
                 $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
-                $msg = "You have successfully deposited {$currencySymbol}" . number_format($creditedAmount, 2) . " to your " . strtoupper($targetCurrency) . " wallet.";
-                
+                $msg = "Successfully deposited {$currencySymbol}" . number_format($creditedAmount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.";
                 if ($appliedRate) {
                     $msg .= " (Rate: 1 USD = ₦" . number_format($appliedRate, 2) . ")";
                 }
@@ -513,7 +522,7 @@ class PaystackController extends Controller
             ]);
 
             $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
-            $successMessage = "You have successfully deposited {$currencySymbol}" . number_format($convertedAmount, 2) . " to your " . strtoupper($targetCurrency) . " wallet.";
+            $successMessage = "Successfully deposited {$currencySymbol}" . number_format($convertedAmount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.";
             if ($appliedRate) {
                 $successMessage .= " (Conversion Rate: 1 USD = ₦" . number_format($appliedRate, 2) . ")";
             }
