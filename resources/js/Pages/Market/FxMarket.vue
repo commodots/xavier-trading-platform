@@ -36,7 +36,6 @@
               <tr>
                 <th class="px-2 py-2 text-left">Currency Pair</th>
                 <th class="px-2 text-left">Base Rate</th>
-                <th class="px-2 text-left">Markup</th>
                 <th class="px-2 text-left">Effective Rate</th>
                 <th class="px-2 text-left">Trend</th>
                 <th class="px-2 text-right">Action</th>
@@ -54,9 +53,6 @@
 
                 <!-- Base Rate -->
                 <td class="px-2">{{ rate.base_rate.toLocaleString() }}</td>
-
-                <!-- Markup -->
-                <td class="px-2">{{ rate.markup_percent }}%</td>
 
                 <!-- Effective Rate -->
                 <td class="px-2 font-medium">{{ rate.effective_rate.toLocaleString() }}</td>
@@ -188,9 +184,9 @@ const fetchFxRates = async () => {
   } catch (error) {
     console.error("Failed to fetch FX rates:", error);
     // Fallback dummy data
-    rates.value = [
-      { from_currency: "NGN", to_currency: "USD", base_rate: 1500, markup_percent: 2, effective_rate: 1530 },
-      { from_currency: "USD", to_currency: "NGN", base_rate: 0.00067, markup_percent: 2, effective_rate: 0.000653 },
+    rates.value = [ // Fallback dummy data
+      { from_currency: "NGN", to_currency: "USD", base_rate: 1500, effective_rate: 1530 },
+      { from_currency: "USD", to_currency: "NGN", base_rate: 0.00067, effective_rate: 0.000653 },
     ];
   } finally {
     loading.value = false;

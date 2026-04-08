@@ -375,15 +375,18 @@ class WalletController extends Controller
 
     public function getRates(Request $request)
     {
-        $rates = FxRate::all()->map(function ($rate) {
-            return [
-                'from_currency' => $rate->from_currency,
-                'to_currency' => $rate->to_currency,
-                'base_rate' => $rate->base_rate,
-                'markup_percent' => $rate->markup_percent,
-                'effective_rate' => $rate->effective_rate,
-            ];
-        });
+        $rates = FxRate::orderBy('created_at', 'desc')
+            ->get()
+            ->unique(fn($rate) => $rate->from_currency . $rate->to_currency)
+            ->map(function ($rate) {
+                return [
+                    'from_currency' => $rate->from_currency,
+                    'to_currency' => $rate->to_currency,
+                    'base_rate' => $rate->base_rate,
+                    'effective_rate' => $rate->effective_rate,
+                ];
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
