@@ -3,87 +3,43 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class VerifyEmailController extends Controller
 {
-    /**
-     * Mark the authenticated user's email address as verified.
-     */
     public function __invoke(Request $request)
     {
-        // Handle API requests
-        if ($request->expectsJson() || $request->is('api/*')) {
-            return $this->verifyApi($request);
-        }
+        $user = User::findOrFail($request->route('id'));
 
-        // Handle web requests
-        return $this->verifyWeb($request);
-    }
-
-    /**
-     * Handle web email verification.
-     */
-    protected function verifyWeb(Request $request): RedirectResponse
-    {
-        $emailVerificationRequest = new EmailVerificationRequest($request);
-
-        if ($emailVerificationRequest->user()->hasVerifiedEmail()) {
-            return redirect('/email-verified');
-        }
-
-        $emailVerificationRequest->fulfill();
-
-        return redirect('/email-verified');
-    }
-
-    /**
-     * Handle API email verification.
-     */
-    protected function verifyApi(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        if (! $user) {
-            $user = \App\Models\User::find($request->route('id'));
-        }
-
-        if (! $user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found.',
-            ], 404);
+        // Validate the hash manually as a secondary security measure
+        if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+            return $this->handleResponse($request, 'Invalid verification link.', 403);
         }
 
         if ($user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Email already verified.',
-            ]);
+            return $this->handleResponse($request, 'Email already verified.', 200, true);
         }
 
-        if (! hash_equals((string) $request->route('id'), (string) $user->getKey())) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid verification link.',
-            ], 400);
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
         }
 
-        if (! hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid verification link.',
-            ], 400);
+        return $this->handleResponse($request, 'Email verified successfully.', 200, true);
+    }
+
+    protected function handleResponse($request, $message, $code, $success = false)
+    {
+        // Redirect to your frontend URL explicitly
+        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+        
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json(['success' => $success, 'message' => $message], $code);
         }
 
-        $user->markEmailAsVerified();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Email verified successfully.',
-        ]);
+        $status = $success ? '1' : '0';
+        return redirect($frontendUrl . "/welcome?verified={$status}&message=" . urlencode($message));
     }
 }

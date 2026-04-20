@@ -12,8 +12,9 @@
         </button>
       </div>
 
-      <!-- Spread Control -->
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+      <div class="flex gap-4">
+        <!-- Spread Control -->
+      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 w-1/2">
         <div class="flex justify-between items-center mb-4">
           <div>
             <h2 class="text-xl font-semibold mb-1">Spread</h2>
@@ -39,8 +40,8 @@
         </p>
       </div>
 
-      <!-- Fee Control -->
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+        <!-- Fee Control -->
+      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 w-1/2">
         <div class="flex justify-between items-center mb-4">
           <div>
             <h2 class="text-xl font-semibold mb-1">Transaction Fee</h2>
@@ -64,6 +65,8 @@
         <p class="text-gray-400 text-sm mt-3">
           For Example: User opens $1,000 trade → Fee charged: $1,000 × {{ form.crypto_fee }}% = ${{ (1000 * form.crypto_fee / 100).toFixed(2) }}
         </p>
+      </div>
+
       </div>
 
       <!-- Max Trade Amount -->

@@ -47,8 +47,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-[#1f3348]">
-              <tr v-for="item in filteredWatchlist" :key="item.id"
-                class="hover:bg-[#16213A] transition">
+              <tr v-for="item in filteredWatchlist" :key="item.id" class="hover:bg-[#16213A] transition">
                 <td class="px-4 py-4 font-semibold text-[#00D4FF]">{{ item.symbol }}</td>
                 <td class="px-4 text-gray-300">{{ item.name }}</td>
                 <td class="px-4 text-gray-400">{{ item.market }}</td>
@@ -99,7 +98,7 @@ const watchlistItems = ref([]);
 const loading = ref(false);
 
 // Ticker refs stay here for "Current Price" comparison
-const ngxTickers = ref([]); 
+const ngxTickers = ref([]);
 const globalTickers = ref([]);
 const cryptoTickers = ref([]);
 const fixedIncomeTickers = ref([]);
@@ -134,7 +133,7 @@ const fetchWatchlist = async () => {
     const data = response.data.data || response.data;
     watchlistItems.value = data.map(item => ({
       ...item,
-      addedPrice: parseFloat(item.added_price) 
+      addedPrice: parseFloat(item.added_price)
     }));
   } catch (error) {
     console.error("Failed to fetch watchlist:", error);
@@ -161,8 +160,8 @@ const fetchMarketPrices = async () => {
 
 const filteredWatchlist = computed(() => {
   return watchlistWithPrices.value.filter(item => {
-    const matchesSearch = item.symbol.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                         item.name.toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchesSearch = item.symbol.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      item.name.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchesMarket = !filterMarket.value || item.market === filterMarket.value;
     return matchesSearch && matchesMarket;
   });
@@ -193,7 +192,7 @@ const removeFromWatchlist = async (item) => {
     const response = await api.delete(`/watchlist/${item.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    
+
     if (response.data.success) {
       // Remove from local array to update UI immediately
       watchlistItems.value = watchlistItems.value.filter(i => i.id !== item.id);

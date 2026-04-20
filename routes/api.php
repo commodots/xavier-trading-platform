@@ -42,6 +42,7 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\SubscriptionController;
 // Dummy/Testing
 use Illuminate\Http\Request;
@@ -52,6 +53,7 @@ use Illuminate\Support\Facades\Route;
 | Public Routes
 |--------------------------------------------------------------------------
 */
+
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
@@ -65,10 +67,6 @@ Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
 
-/* Email Verification (SPA link) */
-Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
-    ->middleware(['signed', 'throttle:6,1'])
-    ->name('api.verification.verify');
 
 /* Dummy API */
 Route::prefix('dummy')->group(function () {
@@ -93,19 +91,31 @@ Route::prefix('dummy')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
+    // Moved verification outside of auth:sanctum to allow guest verification
+});
 
+Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('api.verification.verify');
+
+Route::middleware('auth:sanctum')->group(function () {
     /* User & Auth Management */
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/email/verification-notification', function (Request $request) {
         if ($request->user()->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Already verified.'], 400);
+            return response()->json(['success' => false, 'message' => 'Email already verified.'], 400);
         }
-        $request->user()->sendEmailVerificationNotification();
 
-        return response()->json(['status' => 'verification-link-sent']);
-    })->middleware(['throttle:6,1'])->name('verification.send');
+        try {
+            $request->user()->sendEmailVerificationNotification();
+            return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
+        } catch (\Exception $e) {
+            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
+        }
+    })->middleware(['auth:sanctum', 'throttle:2,1']); // Slightly higher throttle to allow immediate retry if it fails
 
     /* Market Data (Available to all logged in users) */
     Route::get('/market/candles', [MarketDataController::class, 'candles']);
@@ -116,36 +126,42 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/market/fixed-income', [MarketController::class, 'fixedIncome']);
 
     /* Verified Actions (Wallet, Portfolio, Trading) */
-    Route::middleware('verified')->group(function () {
+    // Accessible to all authenticated users (even email unverified)
+    Route::get('/wallet/balances', [WalletController::class, 'balances']);
+    Route::get('/transactions', [NewTransactionController::class, 'index']);
+    Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
+    Route::get('/portfolio', [PortfolioController::class, 'index']);
+    Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
+    Route::get('/fx-rates', [WalletController::class, 'getRates']);
+    Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
 
+    /* Data Access (Available to all authenticated users) */
+    Route::get('/orders', [OmsController::class, 'listOrders']);
+    Route::get('/trades', [TradeController::class, 'index']);
+
+    /* Watchlist Management (Non-financial) */
+    Route::get('/watchlist', [WatchlistController::class, 'index']);
+    Route::post('/watchlist', [WatchlistController::class, 'store']);
+    Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
+
+
+    // Restricted to users with verified emails
+    Route::middleware('verified')->group(function () {
         // Wallet & Transactions
-        Route::get('/wallet/balances', [WalletController::class, 'balances']);
         Route::post('/wallet/convert', [WalletController::class, 'convert'])->middleware('throttle:10,1');
-        Route::get('/transactions', [NewTransactionController::class, 'index']);
+        Route::post('/otp/send-withdrawal', [NewTransactionController::class, 'sendOtp']);
         Route::post('/deposit', [NewTransactionController::class, 'deposit']);
         Route::post('/withdraw', [NewTransactionController::class, 'withdraw']);
         Route::post('/transfer', [NewTransactionController::class, 'transfer']);
-        Route::get('/fx-rates', [WalletController::class, 'getRates']);
-        Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
 
         // Crypto Operations
-        Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
         Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw']);
 
         // Portfolio & Trading
-        Route::get('/portfolio', [PortfolioController::class, 'index']);
-        Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
         Route::post('/orders', [OmsController::class, 'placeOrder']);
-        Route::get('/orders', [OmsController::class, 'listOrders']);
         Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
         Route::post('/trade/open', [TradeController::class, 'open']);
         Route::post('/trade/close/{id}', [TradeController::class, 'close']);
-        Route::get('/trades', [TradeController::class, 'index']);
-
-        // Watchlist
-        Route::get('/watchlist', [WatchlistController::class, 'index']);
-        Route::post('/watchlist', [WatchlistController::class, 'store']);
-        Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
     });
 
     /* Payment Integrations */
@@ -155,7 +171,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     /* Profile & Security */
-    Route::get('/profile/me', [ProfileController::class, 'me']);
+    Route::get('/profile/me', [ProfileController::class, 'show']);
     Route::post('/profile/update', [ProfileController::class, 'update']);
     Route::get('/profile/kyc', [ProfileController::class, 'getKyc']);
     Route::post('/profile/kyc', [ProfileController::class, 'submitKyc']);
@@ -249,6 +265,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services', [AdminServiceController::class, 'store']);
         Route::put('/services/{id}', [AdminServiceController::class, 'update']);
         Route::put('/services/{id}/mode', [AdminServiceController::class, 'updateMode']);
+        Route::post('/services/{serviceId}/connection', [AdminServiceController::class, 'addConnection']);
         Route::patch('/services/{serviceId}/toggle', [AdminServiceController::class, 'toggleService']);
         Route::get('/services/{serviceId}/config', [AdminServiceController::class, 'getConfig']);
         Route::post('/services/{serviceId}/config', [AdminServiceController::class, 'updateConfig']);
@@ -260,5 +277,4 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/run-reconciliation', [FxReconciliationController::class, 'runReconciliation']);
         });
     });
-
 });

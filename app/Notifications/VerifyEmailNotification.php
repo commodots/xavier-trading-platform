@@ -5,9 +5,13 @@ namespace App\Notifications;
 use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailBase;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
-class VerifyEmailNotification extends VerifyEmailBase
+class VerifyEmailNotification extends VerifyEmailBase implements ShouldQueue
 {
+    use Queueable;
+
     /**
      * Get the verification URL for the given notifiable.
      */
@@ -18,7 +22,7 @@ class VerifyEmailNotification extends VerifyEmailBase
         // Create signed backend route
         $signedUrl = URL::temporarySignedRoute(
             'api.verification.verify',
-            now()->addMinutes(config('auth.verification.expire', 60)),
+            now()->addMinutes(5), // Verification link expires after 5 minutes
             [
                 'id' => $notifiable->getKey(),
                 'hash' => sha1($notifiable->getEmailForVerification()),
@@ -38,7 +42,8 @@ class VerifyEmailNotification extends VerifyEmailBase
 
         return (new MailMessage)
             ->subject('Verify Your Email Address')
-            ->line('Thanks for signing up! Please verify your email address by clicking the button below.')
+            ->line('Thank you for signing up with Xavier Trading! Please verify your email address to secure your account and enable trading features.')
+            ->line('IMPORTANT: This verification link will expire in 5 minutes.')
             ->action('Verify Email Address', $verificationUrl)
             ->line('If you did not create an account, no further action is required.');
     }

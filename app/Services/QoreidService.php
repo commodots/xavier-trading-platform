@@ -4,6 +4,8 @@ namespace App\Services;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class QoreidService
 {
@@ -29,82 +31,109 @@ class QoreidService
             return 'dummy_token_12345';
         }
 
-        $url = 'https://api.qoreid.com/token';
+        return Cache::remember('qoreid_access_token', 3500, function () {
+            // QoreID standard endpoint is usually /token
+            $url = rtrim(config('services.qoreid.base_url'), '/') . '/token';
 
-        $payload = [
-            'clientId' => config('services.qoreid.client_id'),
-            'secret' => config('services.qoreid.client_secret'),
-            'grantType' => 'client_credentials',
-        ];
+            $response = Http::post($url, [
+                'clientId' => config('services.qoreid.client_id'),
+                'secret'   => config('services.qoreid.client_secret'),
+            ]);
 
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ])->post($url, $payload);
+            if ($response->failed()) {
+                throw new Exception('Failed to get QoreID token: ' . $response->body());
+            }
 
-        if ($response->failed()) {
-            throw new Exception('Failed to get QoreID token: '.$response->body());
-        }
-
-        return $response->json()['accessToken'] ?? null;
+            return $response->json()['accessToken'] ?? null;
+        });
     }
 
     /**
-     * Verify identity (BVN / vNIN)
+     * Consolidated Identity Verification (BVN or NIN/vNIN)
      */
-    public static function verifyIdentity($idType, $idValue)
+    public static function verify(string $idType, string $idValue)
     {
-        // ✅ Dummy data mode (for local/dev use)
+        if (config('services.qoreid.dummy_mode', false)) {
+            return ['success' => true, 'data' => ['id' => $idValue]];
+        }
+
+        $token = self::getAccessToken();
+        $baseUrl = rtrim(config('services.qoreid.base_url'), '/');
+        
+        $endpoint = match ($idType) {
+            'bvn' => "$baseUrl/v1/ng/identities/bvn/$idValue",
+            'nin', 'vnin' => "$baseUrl/v1/ng/identities/nin/$idValue",
+            default => throw new Exception("Unsupported ID type: $idType"),
+        };
+
+        $response = Http::withToken($token)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->get($endpoint);
+
+        if ($response->failed()) {
+            Log::error('QoreID Verification Error', [
+                'id_type' => $idType,
+                'response' => $response->body()
+            ]);
+            return [
+                'success' => false, 
+                'message' => 'Verification failed: ' . ($response->json('message') ?? 'Unknown error')
+            ];
+        }
+
+        return ['success' => true, 'data' => $response->json()];
+    }
+
+    /**
+     * The 2FA Implementation: BVN + NIN + Selfie Match    
+     */
+   public static function verify2FA($bvn, $nin, $imagePath, $userData = [])
+    {
+        // ✅ Dummy data mode
         if (config('services.qoreid.dummy_mode', false)) {
             return [
                 'success' => true,
-                'provider' => 'QoreID-Dummy',
-                'id_type' => $idType,
-                'id_value' => $idValue,
+                'is_match' => true, // Simulate successful face match
                 'data' => [
-                    'first_name' => 'Aisha',
-                    'last_name' => 'Ogunleye',
-                    'middle_name' => 'Temitope',
-                    'date_of_birth' => '1994-07-15',
-                    'gender' => 'Female',
-                    'phone_number' => '+2348089001122',
-                    'email' => 'aisha.ogunleye@example.com',
-                    'photo' => 'https://randomuser.me/api/portraits/women/44.jpg',
-                    'bvn' => '12345678901',
-                    'nin' => '98765432109',
-                    'address' => '26B Road 38, Lekki Scheme 2, Lagos',
-                    'status' => 'verified',
-                ],
+                    'firstname' => 'Aisha',
+                    'lastname' => 'Ogunleye',
+                    'bvn' => $bvn,
+                    'nin' => $nin,
+                ]
             ];
         }
 
-        // 🧩 Real API mode
         $token = self::getAccessToken();
-        $baseUrl = 'https://api.qoreid.com/v1/ng/identities';
+        $url = rtrim(config('services.qoreid.base_url'), '/') . '/v1/ng/identities/complex-verification';
 
-        if ($idType === 'vnin') {
-            $url = "$baseUrl/virtual-nin/vNIN";
-            $payload = [
-                'id' => $idValue,
-                'isSubjectConsent' => true,
-            ];
-        } elseif ($idType === 'bvn') {
-            $url = "$baseUrl/bvn/".$idValue;
-            $payload = [];
-        } else {
-            throw new Exception("Unsupported ID type: $idType");
+        if (!$imagePath || !file_exists($imagePath)) {
+            throw new Exception("Selfie image file not found.");
         }
 
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => "Bearer $token",
-            'Accept' => 'application/json',
-        ])->post($url, $payload);
+        $payload = [
+            'firstname' => $userData['firstname'] ?? '',
+            'lastname'  => $userData['lastname'] ?? '',
+            'field' => [
+                'bvn' => $bvn,
+                'nin' => $nin
+            ],
+            'image' => base64_encode(file_get_contents($imagePath)),
+            'imageType' => 'SELFIE'
+        ];
+
+        $response = Http::withToken($token)->post($url, $payload);
 
         if ($response->failed()) {
-            throw new Exception('Verification failed: '.$response->body());
+            throw new Exception('QoreID API Error: ' . $response->body());
         }
 
-        return $response->json();
+        $result = $response->json();
+
+        return [
+            'success'  => $response->successful(),
+            // QoreID returns biometrics match status here
+            'is_match' => $result['summary']['biometrics']['match'] ?? false,
+            'data'     => $result
+        ];
     }
 }

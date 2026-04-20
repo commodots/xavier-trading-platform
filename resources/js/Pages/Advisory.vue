@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
     <div class="relative p-6 mx-auto max-w-7xl">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
 
       <div v-if="feedback.show"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
@@ -421,6 +422,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -433,6 +435,7 @@ const user = ref({
   has_used_regular: false,
   has_used_premium: false,
 });
+const isDemo = computed(() => user.value.trading_mode === 'demo');
 const plans = ref([]);
 const regularPosts = ref([]);
 const premiumPosts = ref([]);
@@ -458,9 +461,23 @@ const trialDays = ref(7);
 // New state for the pricing modal
 const notificationContainer = ref(null);
 const showPricingModal = ref(false);
+const showPrompt = ref(false);
+
+const isAdminUser = (u) => {
+    if (!u) return false;
+    const role = (u.role || '').toString().toLowerCase();
+    return role.includes('admin');
+};
+
+const isUserVerified = computed(() => {
+    const u = user.value || {};
+    return Boolean(u.email_verified_at) || isAdminUser(u);
+});
 
 // --- TRIAL LOGIC ---
 const startTrial = async (tier = 'regular') => {
+  if (!isUserVerified.value && !isDemo.value) return (showPrompt.value = true);
+  
   // Map 'vip' to 'premium' for the API call to match backend/database expectations
   const apiTier = tier === 'vip' ? 'premium' : tier;
 
@@ -540,6 +557,8 @@ const fetchAllData = async () => {
       trial_expires_at: userData?.trial_expires_at,
       has_used_regular: !!userData?.has_used_regular,
       has_used_premium: !!userData?.has_used_premium,
+      trading_mode: userData?.trading_mode,
+      email_verified_at: userData?.email_verified_at,
     };
 
     updateCountdown();
@@ -637,6 +656,8 @@ const handlePaymentVerification = async (reference, planId) => {
 };
 
 const subscribe = async (planId) => {
+  if (!isUserVerified.value && !isDemo.value) return (showPrompt.value = true);
+  
   processingPlanId.value = planId;
   try {
     const res = await api.post('/user/advisory/subscribe', { plan_id: planId });
@@ -668,6 +689,8 @@ const confirmCancelSubscription = async () => {
 };
 
 const copyPortfolio = async (portfolioId) => {
+  if (!isUserVerified.value && !isDemo.value) return (showPrompt.value = true);
+
   const amount = copyAmounts.value[portfolioId];
   if (!amount || amount < 5000) return showFeedback('Budget Too Low', 'Minimum amount is ₦5,000.', 'error');
   processingPortfolioId.value = portfolioId;

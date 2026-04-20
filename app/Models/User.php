@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
+use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -12,10 +13,12 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmailContract
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, MustVerifyEmail;
     use HasRoles;
+
+    protected $_trialSubscription;
 
     protected $fillable = [
         'name',
@@ -34,10 +37,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'next_of_kin_phone',
         'next_of_kin_email',
         'bank_name',
-        'bank_account',
         'bvn',
-        'nin',
+        'kyc_status',
         'trading_mode',
+        'email_verified_at'
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -46,11 +49,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'google2fa_secret',
+        'bvn',
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
         'dob' => 'date',
+        'bvn' => 'encrypted',
     ];
 
     protected $appends = [
@@ -140,6 +145,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return new Attribute(
             get: fn ($value) => $value ? Storage::url($value) : asset('images/user.png'),
+            set: fn ($value) => $value,
         );
     }
 
@@ -186,28 +192,6 @@ class User extends Authenticatable implements MustVerifyEmail
             ['currency' => $currency],
             ['ngn_cleared' => 0, 'ngn_uncleared' => 0, 'usd_cleared' => 0, 'usd_uncleared' => 0]
         );
-    }
-
-    /**
-     * Check if the user's email has been verified.
-     */
-    public function hasVerifiedEmail(): bool
-    {
-        return ! is_null($this->email_verified_at);
-    }
-
-    /**
-     * Mark the user's email as verified.
-     */
-    public function markEmailAsVerified(): bool
-    {
-        if ($this->hasVerifiedEmail()) {
-            return false;
-        }
-
-        $this->forceFill(['email_verified_at' => $this->freshTimestamp()])->save();
-
-        return true;
     }
 
     /**
@@ -281,8 +265,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // If not on an active trial, return the default from settings
         $settings = \App\Models\SystemSetting::first();
-
-        return (int) ($settings->trial_days ?? 7);
+        return (int) ($settings?->trial_days ?? 7);
     }
 
     public function getTrialExpiresAtAttribute()

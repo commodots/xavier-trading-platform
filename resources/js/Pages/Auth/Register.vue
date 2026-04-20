@@ -171,7 +171,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
-import axios from "axios";
+import api from "@/api";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -245,6 +245,26 @@ const retakePhoto = () => {
   capturedImage.value = null;
   startCamera();
 };
+const resizeImage = (base64Str) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 600; 
+      const scaleSize = MAX_WIDTH / img.width;
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scaleSize;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, 'image/jpeg', 0.8); // High compression, small size
+    };
+  });
+};
 
 const submit = async () => {
   localErrors.value = {};
@@ -265,11 +285,10 @@ const submit = async () => {
     formData.append('bvn', kyc.value.bvn);
     formData.append('nin', kyc.value.nin);
 
-    // Convert base64 to blob
     if (capturedImage.value) {
-      const response = await fetch(capturedImage.value);
-      const blob = await response.blob();
-      formData.append('profile_image', blob, 'profile.png');
+      // RESIZE HAPPENS HERE
+      const resizedBlob = await resizeImage(capturedImage.value);
+      formData.append('profile_image', resizedBlob, 'profile.jpg');
     }
 
     const res = await api.post("/register", formData, {

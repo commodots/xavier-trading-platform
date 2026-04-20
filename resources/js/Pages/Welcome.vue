@@ -34,7 +34,23 @@ onMounted(async () => {
 
   if (stored) {
     user.value = JSON.parse(stored);
-  } else if (!verifyUrl) {
+  }
+
+  // If verified and a session exists, refresh the profile to update email_verified_at state
+  if (verified.value && localStorage.getItem('xavier_token')) {
+    try {
+      const res = await api.get('/profile/me');
+      const updatedUser = res.data?.data || res.data;
+      if (updatedUser) {
+        user.value = updatedUser;
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Failed to sync user verification status:", error);
+    }
+  }
+
+  if (!user.value && !verifyUrl) {
     router.push("/login");
   }
 });
@@ -59,10 +75,10 @@ const goToDashboard = () => {
       </h1>
       <h1 v-else class="mb-2 text-3xl font-bold">Welcome to Xavier</h1>
       
-      <p v-if="verified" class="mb-2 text-green-300 font-semibold">
+      <p v-if="verified" class="mb-2 font-semibold text-green-300">
         ✅ You have successfully verified your email.
       </p>
-      <p v-if="verificationStatus === 'error'" class="mb-2 text-red-300 font-semibold">
+      <p v-if="verificationStatus === 'error'" class="mb-2 font-semibold text-red-300">
         ⚠️ {{ verificationError }}
       </p>
 

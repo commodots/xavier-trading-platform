@@ -89,9 +89,9 @@
           <h2 class="mb-4 text-xl font-bold text-white">Recent Insights</h2>
           <div v-if="isLoading" class="italic text-blue-400">Loading posts...</div>
           <div v-else-if="postsList.length === 0" class="italic text-gray-400">No insights published yet.</div>
-          <div v-else class="space-y-4">
+          <div v-else class="space-y-4 flex flex-wrap items-center justify-between">
             <div v-for="post in postsList" :key="post.id"
-              class="flex flex-col md:flex-row items-start justify-between p-6 transition bg-[#0F1724] border border-gray-800 rounded-xl hover:border-gray-600 relative">
+              class="flex flex-col md:flex-row items-start justify-between p-4 transition bg-[#0F1724] border border-gray-800 rounded-xl hover:border-gray-600 relative w-1/2">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
                   <span v-if="post.is_premium"

@@ -1,276 +1,163 @@
 <template>
   <MainLayout>
-    <div class="space-y-8">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold">💹 Crypto Market</h1>
-          <p class="text-gray-400 text-sm">Buy and track cryptocurrencies in real-time.</p>
-        </div>
-
-        <div class="w-64">
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Search crypto (BTC, ETH...)"
-            class="w-full bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#00E1FF]"
-          />
+    <div class="space-y-6">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold">₿ Crypto Market</h1>
+        <div class="relative">
+          <input v-model="search" type="text" placeholder="Search crypto..."
+            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-64 transition-all" />
         </div>
       </div>
 
-      <!-- Suggestions -->
-      <div
-        v-if="showSuggestions"
-        class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-3 w-64 absolute z-40"
-      >
-        <div
-          v-for="c in suggestions"
-          :key="c.symbol"
-          @click="selectSuggestion(c)"
-          class="px-3 py-2 hover:bg-[#12203a] rounded cursor-pointer"
-        >
-          <div class="font-medium uppercase">{{ c.symbol }} — {{ c.name }}</div>
-          <div class="text-xs text-gray-400">${{ c.market_price }}</div>
-        </div>
-      </div>
+      <HoldingPerformanceChart 
+        title="Your Crypto Holdings" 
+        currencySymbol="$" 
+        :seriesData="portfolioData" 
+        :totalValue="totalValue"
+        :percentageChange="changePercent" 
+        :loading="isGraphLoading" 
+        @rangeChange="fetchPortfolioPerformance" 
+      />
 
-      <!-- Crypto Table -->
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold text-white">Top Cryptocurrencies</h2>
-          <span class="text-xs text-gray-400">Live market data (15m delay)</span>
+      <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
+        <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
+          <h2 class="font-semibold text-gray-200">Market Assets</h2>
+          <span class="text-xs text-gray-500">Live Prices</span>
         </div>
-
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+            <thead class="text-gray-400 border-b border-[#1f3348] bg-[#0B121D]">
               <tr>
-                <th class="text-left py-2 px-2">Asset</th>
-                <th class="text-left px-2">Price</th>
-                <th class="text-left px-2">24h Change</th>
-                <th class="text-left px-2">Trend</th>
-                <th class="text-right px-2">Action</th>
+                <th class="px-6 py-4 font-medium text-left">Symbol</th>
+                <th class="font-medium text-left">Name</th>
+                <th class="font-medium text-right">Price ($)</th>
+                <th class="font-medium text-right">24h Change</th>
+                <th class="font-medium text-right">Market Cap</th>
+                <th class="px-6 font-medium text-right">Trend</th>
+                <th class="font-medium text-center" colspan="2">Action</th>
               </tr>
             </thead>
-
-            <tbody>
-              <tr
-                v-for="c in filteredCrypto"
-                :key="c.symbol"
-                class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
-              >
-                <td class="py-3 px-2 font-semibold uppercase">{{ c.symbol }} <span class="text-gray-400 font-normal">{{ c.name }}</span></td>
-
-                <td class="px-2 font-medium">${{ c.market_price.toLocaleString() }}</td>
-
-                <td
-                  class="px-2"
-                  :class="{
-                    'text-green-400': c.change >= 0,
-                    'text-red-400': c.change < 0
-                  }"
-                >
-                  {{ c.change }}%
+            <tbody class="divide-y divide-[#1f3348]">
+              <tr v-for="coin in filteredCoins" :key="coin.symbol" class="hover:bg-[#16213A] transition">
+                <td class="px-6 py-4 font-bold text-[#F7931A]">{{ coin.symbol }}</td>
+                <td class="text-gray-300">{{ coin.name }}</td>
+                <td class="font-mono font-semibold text-right text-white">{{ coin.price.toLocaleString() }}</td>
+                <td class="text-right" :class="coin.change >= 0 ? 'text-green-400' : 'text-red-400'">
+                  {{ coin.change >= 0 ? '+' : '' }}{{ coin.change }}%
                 </td>
-
-                <td class="px-2">
-                  <apexchart
-                    type="area"
-                    height="45"
-                    width="110"
-                    :options="sparkOptions"
-                    :series="[{ data: c.sparkline }]"
-                  />
+                <td class="text-right text-gray-400">₦{{ (coin.marketcap / 1e9).toFixed(2) }}B</td>
+                <td class="w-32 px-6 text-right">
+                  <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: coin.spark }]" />
                 </td>
-
-                <td class="px-2 text-right">
-                  <button
-                    @click="openBuy(c)"
-                    class="bg-[#E91E63] hover:bg-[#FF4081] px-3 py-1 rounded-lg text-white text-xs"
-                  >Buy</button>
+                <td class="px-2 text-center">
+                  <button @click="openDetails(coin)" class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md hover:bg-[#2d4a66] transition text-xs">Details</button>
+                </td>
+                <td class="px-2 pr-6 text-center">
+                  <button @click="openTrade(coin)" class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">Trade</button>
                 </td>
               </tr>
             </tbody>
-
           </table>
         </div>
       </div>
 
-      <!-- Buy Modal -->
-      <div
-        v-if="buyModal"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-      >
-        <div class="bg-[#1C1F2E] rounded-2xl p-8 shadow-xl w-full max-w-lg relative">
-          <button
-            @click="buyModal = false"
-            class="absolute top-3 right-3 text-gray-400 hover:text-white"
-          >✖</button>
-
-          <h2 class="text-xl font-semibold mb-4">
-            Buy {{ selectedCrypto.symbol.toUpperCase() }}
-          </h2>
-
-          <form @submit.prevent="placeOrder">
-            <div class="mb-4">
-              <label class="text-sm text-gray-400">Amount (USD)</label>
-              <input
-                v-model.number="amount"
-                type="number"
-                class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 mt-1"
-                @input="calcUnits"
-              />
-            </div>
-
-            <div class="mb-4">
-              <label class="text-sm text-gray-400">Coins</label>
-              <input
-                type="text"
-                class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 mt-1"
-                :value="units"
-                disabled
-              />
-            </div>
-
-            <button
-              class="w-full bg-gradient-to-r from-[#E91E63] to-[#FF4081] py-2 rounded-lg mt-2"
-            >
-              Place Order
-            </button>
-
-            <p class="text-center text-yellow-400 text-sm mt-3">{{ message }}</p>
-          </form>
-        </div>
-      </div>
-
+      <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currencySymbol="₦" @close="isModalOpen = false" />
+      <TradeModal :show="showTradeModal" :tickers="tradeTickers" :assetCategories="assetCategories" :initialTicker="selectedTradeCoin" @close="showTradeModal = false" @trade-success="fetchPortfolioPerformance" />
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
-import axios from "axios";
-import MainLayout from "@/layouts/MainLayout.vue";
-import VueApexCharts from "vue3-apexcharts";
+import { ref, computed, onMounted } from "vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
+import apexchart from "vue3-apexcharts";
+import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
+import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
+import TradeModal from "@/Components/TradeModal.vue";
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
+import api from "@/api";
 
-const apexchart = VueApexCharts;
-
-// STATES
+const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+const isDemo = ref(user.value.trading_mode === 'demo');
+const showPrompt = ref(false);
+const isModalOpen = ref(false);
+const selectedItem = ref(null);
+const showTradeModal = ref(false);
+const selectedTradeCoin = ref(null);
 const search = ref("");
-const cryptoList = ref([]);
-const suggestions = ref([]);
-const buyModal = ref(false);
-const selectedCrypto = ref({});
-const amount = ref(0);
-const units = ref(0);
-const message = ref("");
+const isGraphLoading = ref(false);
+const portfolioData = ref([]);
+const totalValue = ref(0);
+const changePercent = ref(0);
 
-// LOAD MARKET DATA
-onMounted(async () => {
+const isAdminUser = (u) => {
+  if (!u) return false;
+  const role = (u.role || '').toString().toLowerCase();
+  return role.includes('admin');
+};
+
+const isUserVerified = computed(() => {
+  const u = user.value || {};
+  return Boolean(u.email_verified_at) || isAdminUser(u);
+});
+
+const assetCategories = [{ id: 'CRYPTO', name: 'Cryptocurrency', description: 'Digital Assets' }];
+
+const coins = ref([]);
+
+const fetchCoins = async () => {
   try {
-    const res = await axios.get("/api/market/crypto");
-    cryptoList.value = res.data.data;
-  } catch {
-    // fallback data
-    cryptoList.value = [
-      {
-        symbol: "BTC",
-        name: "Bitcoin",
-        market_price: 64250,
-        change: 1.4,
-        sparkline: [62000, 62800, 63000, 63550, 64250],
-      },
-      {
-        symbol: "ETH",
-        name: "Ethereum",
-        market_price: 3120,
-        change: -0.8,
-        sparkline: [3180, 3150, 3130, 3120],
-      },
-      {
-        symbol: "SOL",
-        name: "Solana",
-        market_price: 132.6,
-        change: 3.1,
-        sparkline: [125, 128, 129, 131, 132.6],
-      },
-    ];
+    const res = await api.get('/market/crypto');
+    coins.value = (res.data.data || []).map(item => ({
+      ...item,
+      change: item.change ?? 0,
+      marketcap: item.marketcap ?? 0,
+      spark: item.spark ?? [item.price, item.price, item.price],
+    }));
+  } catch (e) {
+    console.error(e);
   }
-});
+};
 
-// FILTER
-const filteredCrypto = computed(() => {
-  if (!search.value) return cryptoList.value;
-  return cryptoList.value.filter(c =>
-    c.symbol.toLowerCase().includes(search.value.toLowerCase()) ||
-    c.name.toLowerCase().includes(search.value.toLowerCase())
-  );
-});
-
-// AUTOCOMPLETE
-watch(search, (val) => {
-  if (val.length < 2) return (suggestions.value = []);
-  suggestions.value = filteredCrypto.value.slice(0, 5);
-});
-
-const showSuggestions = computed(() => suggestions.value.length > 0);
-
-function selectSuggestion(asset) {
-  search.value = asset.symbol;
-  suggestions.value = [];
-}
-
-// SPARKLINE
 const sparkOptions = {
-  chart: { sparkline: { enabled: true } },
+  chart: { toolbar: { show: false }, sparkline: { enabled: true } },
   stroke: { curve: "smooth", width: 2 },
-  fill: {
-    type: "gradient",
-    gradient: { opacityFrom: 0.5, opacityTo: 0.1 }
-  },
-  colors: ["#FF4081"],
+  colors: ["#00D4FF"],
   tooltip: { enabled: false }
 };
 
-// BUY MODAL
-function openBuy(asset) {
-  selectedCrypto.value = asset;
-  buyModal.value = true;
-  amount.value = 0;
-  units.value = 0;
-  message.value = "";
-}
+const tradeTickers = computed(() => ({
+  CRYPTO: coins.value.map(c => ({ ...c, currency: 'NGN' }))
+}));
 
-function calcUnits() {
-  if (!selectedCrypto.value.market_price || !amount.value) return;
-  units.value = (amount.value / selectedCrypto.value.market_price).toFixed(6);
-}
+const filteredCoins = computed(() => 
+  coins.value.filter(c => c.name.toLowerCase().includes(search.value.toLowerCase()) || c.symbol.toLowerCase().includes(search.value.toLowerCase()))
+);
 
-// PLACE ORDER
-async function placeOrder() {
+const fetchPortfolioPerformance = async (range = '1W') => {
+  isGraphLoading.value = true;
   try {
-    const token = localStorage.getItem("xavier_token");
+    const response = await api.get(`/portfolio/history`, { params: { category: 'crypto', range } });
+    portfolioData.value = response.data.series;
+    totalValue.value = response.data.total;
+    changePercent.value = response.data.change;
+  } catch (e) { console.error(e); } finally { isGraphLoading.value = false; }
+};
 
-    const payload = {
-      company: selectedCrypto.value.name,
-      symbol: selectedCrypto.value.symbol,
-      market_price: selectedCrypto.value.market_price,
-      amount: amount.value,
-      units: units.value,
-      type: "crypto",
-    };
-
-    const res = await axios.post("/api/orders", payload, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (res.data.success) {
-      message.value = "✅ Crypto order placed!";
-      setTimeout(() => (buyModal.value = false), 1000);
-    }
-  } catch {
-    message.value = "❌ Could not place order";
+const openDetails = (item) => { selectedItem.value = item; isModalOpen.value = true; };
+const openTrade = (coin) => { 
+  if (!isUserVerified.value && !isDemo.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
   }
-}
+  // Navigate directly to trading page instead of opening modal
+  window.location.href = '/trading';
+};
+
+onMounted(() => {
+  fetchPortfolioPerformance();
+  fetchCoins();
+});
 </script>

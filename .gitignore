@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-/vendor
-/node_modules
-.env
-/public/storage
-/storage/*.key
-=======
 /vendor/
 node_modules/
 npm-debug.log
@@ -35,6 +28,5 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
->>>>>>> a6e5e80fbbbda181b6df73d45dd7f64afbc34873
 
 .txt

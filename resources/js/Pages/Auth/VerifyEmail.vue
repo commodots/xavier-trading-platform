@@ -11,7 +11,7 @@ const status = ref(null);
 const processing = ref(false);
 
 onMounted(async () => {
-    const verificationUrl = route.query.url;
+    const verificationUrl = route.query.verify_url;
 
     if (verificationUrl) {
         processing.value = true;
@@ -48,7 +48,12 @@ const submit = async () => {
         // Check for the status key returned by the controller
         if (res.data.status === 'verification-link-sent') {
             status.value = 'verification-link-sent';
+            startTimer();
         }
+
+        const userRes = await api.get('/profile/me');
+            localStorage.setItem('user', JSON.stringify(userRes.data.data || userRes.data));
+
     } catch (error) {
         // Handle API errors if necessary
         console.error("Resend verification failed:", error);
@@ -96,11 +101,11 @@ const logout = async () => {
                     Verify Now
                 </PrimaryButton>
 
-                <PrimaryButton @click="verifyLater" type="button">
+                <PrimaryButton @click="verifyLater" type="button" :disabled="processing">
                     Verify Later
                 </PrimaryButton>
 
-                <button type="button" @click="logout"
+                <button type="button" @click="logout" :disabled="processing"
                     class="text-sm text-gray-600 underline rounded-md hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                     Log Out
                 </button>

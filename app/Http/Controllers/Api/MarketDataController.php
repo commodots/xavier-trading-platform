@@ -24,4 +24,15 @@ class MarketDataController extends Controller
             'ma14' => $indicator->movingAverage($candles, 14),
         ]);
     }
+
+    public function stockHistory(Request $request, $symbol)
+    {
+        $interval = $request->get('interval', '1D');
+        $market = new StockMarketService();
+
+        return response()->json([
+            'symbol' => $symbol,
+            'history' => $market->candles($symbol, $interval),
+        ]);
+    }
 }

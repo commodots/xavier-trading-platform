@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">📈 Fixed Income Market</h1>
         <div class="relative">
@@ -74,8 +75,12 @@ import apexchart from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import TradeModal from "@/Components/TradeModal.vue";
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
 
+const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+const isDemo = ref(user.value.trading_mode === 'demo');
+const showPrompt = ref(false);
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
 const showTradeModal = ref(false);
@@ -85,6 +90,17 @@ const isGraphLoading = ref(false);
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
+
+const isAdminUser = (u) => {
+  if (!u) return false;
+  const role = (u.role || '').toString().toLowerCase();
+  return role.includes('admin');
+};
+
+const isUserVerified = computed(() => {
+  const u = user.value || {};
+  return Boolean(u.email_verified_at) || isAdminUser(u);
+});
 
 const assetCategories = [{ id: 'FixedIncome', name: 'Fixed Income', description: 'Bonds, Treasury Bills, Funds, Commercial Papers' }];
 
@@ -133,7 +149,14 @@ const updateMarketPrices = () => {
 };
 
 const openDetails = (item) => { selectedItem.value = item; isModalOpen.value = true; };
-const openTrade = (instrument) => { selectedTradeInstrument.value = { ...instrument, currency: 'NGN' }; showTradeModal.value = true; };
+const openTrade = (instrument) => { 
+  if (!isUserVerified.value && !isDemo.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  selectedTradeInstrument.value = { ...instrument, currency: 'NGN' }; showTradeModal.value = true; 
+};
 
 let interval;
 onMounted(() => {

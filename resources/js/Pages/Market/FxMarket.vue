@@ -2,6 +2,7 @@
   <MainLayout>
     <div class="space-y-8">
 
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div>
@@ -145,14 +146,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 
 const apexchart = VueApexCharts;
 
 // STATES
+const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+const isDemo = ref(user.value.trading_mode === 'demo');
+const showPrompt = ref(false);
 const search = ref("");
 const rates = ref([]);
 const convertModal = ref(false);
@@ -162,9 +167,28 @@ const convertedAmount = ref(0);
 const message = ref("");
 const loading = ref(false);
 
+const isAdminUser = (u) => {
+  if (!u) return false;
+  const role = (u.role || '').toString().toLowerCase();
+  return role.includes('admin');
+};
+
+const isUserVerified = computed(() => {
+  const u = user.value || {};
+  return Boolean(u.email_verified_at) || isAdminUser(u);
+});
+
 // Load FX rates
 onMounted(async () => {
   await fetchFxRates();
+  window.addEventListener('trading-mode-changed', () => {
+    user.value = JSON.parse(localStorage.getItem('user') || '{}');
+    isDemo.value = user.value.trading_mode === 'demo';
+  });
+});
+
+onUnmounted(() => {
+  window.removeEventListener('trading-mode-changed', fetchFxRates);
 });
 
 const fetchFxRates = async () => {
@@ -215,6 +239,11 @@ const sparkOptions = {
 
 // CONVERT MODAL
 function openConvert(rate) {
+  if (!isUserVerified.value && !isDemo.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
   selectedRate.value = rate;
   convertAmount.value = 0;
   convertedAmount.value = 0;

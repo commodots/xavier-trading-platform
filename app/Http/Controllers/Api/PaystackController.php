@@ -103,6 +103,7 @@ class PaystackController extends Controller
                     'success' => true,
                     'is_demo' => true,
                     'message' => "Successfully deposited " . ($targetCurrency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.",
+                    'message' => 'Demo account instantly funded!',
                     'data' => ['reference' => $reference, 'authorization_url' => null],
                 ]);
             });

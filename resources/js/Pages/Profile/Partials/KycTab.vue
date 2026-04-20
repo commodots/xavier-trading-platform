@@ -61,9 +61,17 @@
           <span class="text-gray-500">Daily Withdrawal Limit:</span>
           <span class="font-bold text-green-400">{{ formatCurrency(kyc.daily_limit) }}</span>
         </p>
+        <!-- Display NIN as ID Type if id_type is 'nin', otherwise display the formatted ID Type -->
         <p class="flex justify-between text-sm">
-          <span class="text-gray-500">ID Type:</span>
-          <span class="text-white">{{ formatIdType(kyc.id_type) }}</span>
+          <span class="text-gray-500">
+            {{ kyc.id_type === 'nin' ? 'NIN:' : 'ID Type:' }}
+          </span>
+          <span class="text-white">
+            <template v-if="kyc.id_type === 'nin'">
+              ****{{ String(kyc.nin).slice(-4) }}
+            </template>
+            <template v-else>{{ formatIdType(kyc.id_type) }}</template>
+          </span>
         </p>
         <p class="flex justify-between text-sm">
           <span class="text-gray-500">BVN:</span>
@@ -71,7 +79,7 @@
         </p>
         <p v-if="kyc.nin" class="flex justify-between text-sm">
           <span class="text-gray-500">NIN:</span>
-          <span class="text-white">****{{ String(kyc.nin).slice(-4) }}</span>
+          <span class="text-white" v-if="kyc.nin && kyc.id_type !== 'nin'">****{{ String(kyc.nin).slice(-4) }}</span>
         </p>
       </div>
     </div>

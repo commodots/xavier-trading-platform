@@ -19,7 +19,7 @@
               + Deposit
             </button>
             <button @click="openTransaction('withdrawal')"
-              :disabled="(balances.cleared_balance_ngn <= 0 && balances.cleared_balance_usd <= 0)"
+            :disabled="!isDemo && (balances.cleared_balance_ngn <= 0 && balances.cleared_balance_usd <= 0)"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
               - Withdraw
             </button>
@@ -186,23 +186,50 @@
               </div>
 
               <div>
-                <label class="text-sm text-gray-400">Amount ({{ form.currency }})</label>
-                <input v-model="formattedAmount"
-                  class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
-                  required />
-              </div>
+                <div v-if="!otpSent">
+                  <div class="space-y-4">
+                    <div>
+                      <label class="text-sm text-gray-400">Amount ({{ form.currency }})</label>
+                      <input v-model="formattedAmount"
+                        class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500"
+                        required />
+                    </div>
+                    <div class="p-3 border rounded-lg bg-black/20 border-blue-500/20">
+                      <p class="text-[10px] text-gray-400 uppercase tracking-widest">Fee Information</p>
+                      <p class="text-xs text-blue-300">Standard platform fees will be applied to this {{ txnType }}.</p>
+                    </div>
+                  </div>
+                  <button type="submit" :disabled="loading"
+                    class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
+                    {{ loading ? '...' : 'Confirm Withdrawal' }}
+                  </button>
+                </div>
 
-              <div class="p-3 border rounded-lg bg-black/20 border-blue-500/20">
-                <p class="text-[10px] text-gray-400 uppercase tracking-widest">Fee Information</p>
-                <p class="text-xs text-blue-300">Standard platform fees will be applied to this {{ txnType }}.</p>
+                <div v-else class="space-y-4 animate-in fade-in zoom-in duration-300">
+                  <div class="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-center">
+                    <p class="text-sm text-blue-400 font-medium">Verification Required</p>
+                    <p class="text-xs text-gray-400 mt-1">Please enter the 6-digit code sent to your email.</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-gray-400">Withdrawal OTP</label>
+                    <div class="flex gap-2 mt-1">
+                      <input v-model="form.withdrawal_otp"
+                        class="flex-1 px-4 py-2 text-white bg-[#151a27] border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-center tracking-widest font-bold"
+                        placeholder="000000" maxlength="6" required />
+                    </div>
+                  </div>
+                  <button type="submit" :disabled="loading"
+                    class="w-full mt-2 bg-green-600 hover:bg-green-500 py-3 rounded-lg font-bold text-white shadow-lg transition-all">
+                    {{ loading ? 'Processing...' : 'Complete Withdrawal' }}
+                  </button>
+                  <div class="text-center">
+                    <button type="button" @click="sendWithdrawalOtp" class="text-xs text-blue-400 hover:underline">
+                      Didn't get the code? Resend
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <button :disabled="loading"
-              class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
-              {{ loading && actionType === 'submit' ? 'Processing...' : 'Confirm ' + txnType
-              }}
-            </button>
           </form>
           <p v-if="message" :class="message.includes('Success') ? 'text-green-400' : 'text-yellow-300'"
             class="mt-4 text-sm font-medium text-center">{{ message }}</p>
@@ -374,6 +401,7 @@ const showPrompt = ref(false);
 const txnType = ref("");
 const from = ref("NGN");
 const amount = ref(0);
+const otpSent = ref(false);
 
 const selectedTransaction = ref(null);
 const showDetailsModal = ref(false);
@@ -389,7 +417,7 @@ const formattedConvertAmount = computed({
 const linkedAccounts = ref([]);
 const selectedAccountId = ref("");
 
-const form = ref({ amount: 0, currency: "NGN" });
+const form = ref({ amount: 0, currency: "NGN", withdrawal_otp: "" });
 
 const formattedAmount = computed({
   get() { return form.value.amount.toLocaleString(); },
@@ -519,21 +547,38 @@ const executeResetDemo = async () => {
 };
 
 // --- STANDARD METHODS ---
-const openTransaction = (type) => {
-  if (!isUserVerified.value) {
+const openTransaction = async (type) => {
+  if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
     return;
   }
   txnType.value = type;
-  form.value = { amount: 0, currency: 'NGN' };
+  form.value = { amount: 0, currency: 'NGN', withdrawal_otp: "" };
   selectedAccountId.value = "";
+  otpSent.value = false;
   message.value = "";
   showModal.value = true;
   if (type === 'withdrawal') fetchLinkedAccountsFor(form.value.currency);
 };
 
+const sendWithdrawalOtp = async () => {
+  loading.value = true;
+  actionType.value = "send-otp";
+  try {
+    const response = await api.post('/otp/send-withdrawal');
+    message.value = response.data.message || "A verification code has been sent to your email.";
+    return true;
+  } catch (e) {
+    message.value = e.response?.data?.message || "Failed to send verification code.";
+    return false;
+  } finally {
+    loading.value = false;
+    actionType.value = "";
+  }
+};
+
 const openConvertModal = () => {
-  if (!isUserVerified.value) {
+  if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -574,8 +619,20 @@ const submitTransaction = async () => {
       actionType.value = "";
     }
   } else {
+    // Withdrawal Logic
+    if (!isDemo.value && !otpSent.value) {
+      const sent = await sendWithdrawalOtp();
+      if (sent) otpSent.value = true;
+      return;
+    }
+
     try {
-      await api.post('/withdraw', { amount: form.value.amount, currency: form.value.currency, linked_account_id: selectedAccountId.value });
+      await api.post('/withdraw', {
+        amount: form.value.amount,
+        currency: form.value.currency,
+        linked_account_id: selectedAccountId.value,
+        withdrawal_otp: form.value.withdrawal_otp
+      });
       const currencySymbol = form.value.currency === 'NGN' ? '₦' : '$';
       message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited from ${form.value.currency} wallet.`; setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
     } catch (e) { message.value = e.response?.data?.message || "Transaction failed"; } finally { loading.value = false; actionType.value = ""; }

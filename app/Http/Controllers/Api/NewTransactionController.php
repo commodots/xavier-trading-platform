@@ -13,8 +13,9 @@ use App\Models\TransactionType;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-
+use App\Notifications\WithdrawalOtpNotification;
 class NewTransactionController extends Controller
 {
     private function resolveModels($user, ?Request $request = null)
@@ -55,7 +56,7 @@ class NewTransactionController extends Controller
         $user = auth()->user();
         $models = $this->resolveModels($user);
 
-        Log::info('Deposit initiated for user '.$user->id.' with amount '.$request->amount);
+        Log::info('Deposit initiated for user ' . $user->id . ' with amount ' . $request->amount);
 
         return DB::transaction(function () use ($user, $request, $models) {
             $chargeConfig = TransactionCharge::where('transaction_type', 'deposit')->where('active', true)->first();
@@ -80,7 +81,7 @@ class NewTransactionController extends Controller
                 'net_amount' => $netAmount,
             ]);
 
-            Log::info('Transaction created with ID '.$transaction->id);
+            Log::info('Transaction created with ID ' . $transaction->id);
             $wallet = $models->wallet->firstOrCreate(
                 ['user_id' => $user->id, 'currency' => $request->currency]
             );
@@ -89,7 +90,7 @@ class NewTransactionController extends Controller
             $wallet->increment($clearedCol, $netAmount);
             $wallet->increment('balance', $netAmount);
 
-            Log::info('Wallet balance incremented by '.$netAmount.' for user '.$user->id);
+            Log::info('Wallet balance incremented by ' . $netAmount . ' for user ' . $user->id);
 
             try {
                 ActivityLog::create([
@@ -109,29 +110,71 @@ class NewTransactionController extends Controller
         });
     }
 
+    public function sendOtp(Request $request)
+    {
+        $user = auth()->user();
+
+        // Generate a random 6-digit OTP
+        $otp = (string) random_int(100000, 999999);
+
+        // Store in cache for 5 minutes (300 seconds)
+        $cacheKey = 'withdrawal_otp_' . $user->id;
+        Cache::put($cacheKey, $otp, now()->addMinutes(5));
+
+        $user->notify(new WithdrawalOtpNotification($otp));
+
+        Log::info("Withdrawal OTP generated for user {$user->id}", [
+            'ip' => $request->ip(),
+            'otp_preview' => substr($otp, 0, 2) . '****' // Log only part for security auditing
+        ]);
+
+        // For development/demo purposes, we'll return success. 
+        // In production, ensure the actual delivery service (Mail/SMS) succeeded.
+        return response()->json([
+            'success' => true,
+            'message' => 'A verification code has been sent to your registered email/phone.',
+            // Remove 'debug_otp' in production!
+            'debug_otp' => app()->environment('local') ? $otp : null
+        ]);
+    }
+
     public function withdraw(Request $request)
     {
+        $user = auth()->user();
+        $models = $this->resolveModels($user);
+
         // Check if the withdrawal service is active
         $withdrawalService = TransactionType::where('name', 'withdrawal')->first();
         if ($withdrawalService && ! $withdrawalService->active) {
             return response()->json(['success' => false, 'message' => 'Withdrawals are temporarily disabled.'], 403);
         }
 
-        $request->validate([
+        $rules = [
             'amount' => 'required|numeric|min:1',
             'currency' => 'required|in:NGN,USD',
             'linked_account_id' => 'required|exists:linked_accounts,id',
-            'withdrawal_otp' => 'required|string',
-        ]);
+        ];
 
-        $expectedOtp = env('WITHDRAWAL_OTP', '123456');
-        if ($request->input('withdrawal_otp') !== $expectedOtp) {
-            return response()->json(['success' => false, 'message' => 'Invalid withdrawal OTP.'], 403);
+        if (!$models->isDemo) {
+            $rules['withdrawal_otp'] = 'required|string';
         }
 
-        $user = auth()->user();
+        $request->validate($rules);
+
+
+        if (!$models->isDemo) {
+            $cacheKey = 'withdrawal_otp_' . $user->id;
+
+            $cachedOtp = Cache::get($cacheKey);
+
+            if (!$cachedOtp || $request->input('withdrawal_otp') !== $cachedOtp) {
+                return response()->json(['success' => false, 'message' => 'Invalid withdrawal OTP.'], 403);
+            }
+
+            // Clear the OTP immediately after successful verification to prevent reuse
+            Cache::forget($cacheKey);
+        }
         $kyc = $user->kyc;
-        $models = $this->resolveModels($user);
 
         // KYC Guard (Only enforced for LIVE mode!)
         if (! $models->isDemo) {
@@ -152,7 +195,7 @@ class NewTransactionController extends Controller
         if (! $models->isDemo && ($todayWithdrawn + $request->amount) > $dailyLimit) {
             $remaining = max(0, $dailyLimit - $todayWithdrawn);
 
-            return response()->json(['success' => false, 'message' => 'Daily limit exceeded. Remaining: '.number_format($remaining, 2)], 403);
+            return response()->json(['success' => false, 'message' => 'Daily limit exceeded. Remaining: ' . number_format($remaining, 2)], 403);
         }
 
         $account = LinkedAccount::where('user_id', $user->id)->where('id', $request->linked_account_id)->firstOrFail();

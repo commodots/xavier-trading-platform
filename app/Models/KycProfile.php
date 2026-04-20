@@ -12,11 +12,35 @@ class KycProfile extends Model
     protected $table = 'kyc_profiles';
 
     protected $fillable = [
-        'user_id', 'level', 'tier', 'daily_limit', 'bvn', 'nin', 'tin', 'id_type', 'id_number', 'status', 'rejection_reason', 'intl_passport', 'drivers_license', 'proof_of_address', 'national_id', 'id_card_front', 'id_card_back',
+        'user_id',
+        'level',
+        'tier',
+        'daily_limit',
+        'bvn',
+        'nin',
+        'tin',
+        'id_type',
+        'id_number',
+        'status',
+        'rejection_reason',
+        'intl_passport',
+        'drivers_license',
+        'proof_of_address',
+        'national_id',
+        'id_card_front',
+        'id_card_back',
+    ];
+
+    protected $hidden = [
+        'bvn',
+        'nin',
+        'tin',
     ];
 
     protected $casts = [
         'daily_limit' => 'decimal:2',
+        'bvn' => 'encrypted',
+        'nin' => 'encrypted',
     ];
 
     public function getTierNameAttribute()

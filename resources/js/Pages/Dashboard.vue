@@ -205,13 +205,30 @@ const isAdminUser = (u) => {
   return false;
 };
 
+const syncUserProfile = async () => {
+  try {
+    const res = await api.get('/profile/me');
+    const updatedUser = res.data?.data || res.data;
+    if (updatedUser) {
+      user.value = updatedUser;
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+  } catch (err) {
+    console.error("Failed to sync user profile:", err);
+  }
+};
+
 const isUserVerified = computed(() => {
   const u = user.value;
   return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
-const handleTradeAction = () => {
+const handleTradeAction = async () => {
   if (!isUserVerified.value && !isDemo.value) {
+    // Perform a quick sync to see if they verified in another tab or via admin
+    await syncUserProfile();
+    if (isUserVerified.value) return (showTradeModal.value = true);
+    
     showPrompt.value = true;
     return;
   }
@@ -373,6 +390,7 @@ async function fetchDashboard() {
 
 onMounted(async () => {
   syncModeWithStorage(); 
+  await syncUserProfile(); // Ensure we have the latest verification status on load
   await fetchDashboard();
 
   window.addEventListener('trading-mode-switching', (e) => {

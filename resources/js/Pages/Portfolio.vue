@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
+      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <h1 class="text-2xl font-semibold">
         <span v-if="isDemo" class="mr-2 font-bold text-yellow-500">DEMO</span>
         📊 Portfolio
@@ -22,9 +23,9 @@
       <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
         <div class="relative p-6 border rounded-xl"
         :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center justify-between mb-4 relative">
             <h2 class="text-lg font-semibold">Allocation Breakdown</h2>
-            <button @click="showTradeModal = true" :class="[
+            <button @click="handleTradeAction" :class="[
               'px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg flex items-center gap-2',
               isDemo ? 'bg-gradient-to-r from-yellow-600 to-orange-500' : 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]'
             ]">
@@ -91,16 +92,20 @@
 <script setup>
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
-import { ref, onMounted, onUnmounted } from "vue";
+import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 import api from "@/api";
 
 const apexchart = VueApexCharts;
 
 // --- State ---
-const isDemo = ref(false);
+const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
+const user = ref(getUser());
+const isDemo = ref(user.value.trading_mode === 'demo');
 const loading = ref(true);
 const holdings = ref([]);
+const showPrompt = ref(false);
 const totalEquity = ref(0);
 const chartSeries = ref([]);
 const chartOptions = ref({

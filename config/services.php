@@ -44,7 +44,6 @@ return [
         'base_url' => env('QOREID_BASE_URL', 'https://api.qoreid.com'),
         'client_id' => env('QOREID_CLIENT_ID'),
         'client_secret' => env('QOREID_CLIENT_SECRET'),
-        'api_key' => env('QOREID_API_KEY'),
         'dummy_mode' => env('QOREID_DUMMY_MODE', false),
     ],
 

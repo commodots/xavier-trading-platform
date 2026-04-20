@@ -57,8 +57,20 @@ class KycController extends Controller
     public function show()
     {
         $user = Auth::user();
-        $kyc = KycProfile::where('user_id', $user->id)->first();
-        return response()->json(['success' => true, 'data' => $kyc]);
+        $kyc = KycProfile::where('user_id', $user->id)->firstOrFail();
+        
+        // Explicitly format data for the frontend to show "Inputed details"
+        $data = $kyc->toArray();
+        
+        // Mask sensitive data for display (Assumes raw storage for now)
+        if ($kyc->bvn) {
+            $data['bvn_display'] = '*******' . substr($kyc->bvn, -4);
+        }
+        if ($kyc->nin) {
+            $data['nin_display'] = '*******' . substr($kyc->nin, -4);
+        }
+
+        return response()->json(['success' => true, 'data' => $data]);
     }
 
     public function submit(Request $request)
