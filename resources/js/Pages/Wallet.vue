@@ -201,14 +201,14 @@
                   </div>
                   <button type="submit" :disabled="loading"
                     class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
-                    {{ loading ? '...' : 'Confirm Withdrawal' }}
+                    {{ loading ? 'Processing...' : (txnType === 'withdrawal' ? 'Confirm Withdrawal' : 'Confirm Deposit') }}
                   </button>
                 </div>
 
-                <div v-else class="space-y-4 animate-in fade-in zoom-in duration-300">
-                  <div class="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-center">
-                    <p class="text-sm text-blue-400 font-medium">Verification Required</p>
-                    <p class="text-xs text-gray-400 mt-1">Please enter the 6-digit code sent to your email.</p>
+                <div v-else class="space-y-4 duration-300 animate-in fade-in zoom-in">
+                  <div class="p-4 text-center border rounded-lg bg-blue-500/10 border-blue-500/30">
+                    <p class="text-sm font-medium text-blue-400">Verification Required</p>
+                    <p class="mt-1 text-xs text-gray-400">Please enter the 6-digit code sent to your email.</p>
                   </div>
                   <div>
                     <label class="text-sm text-gray-400">Withdrawal OTP</label>
@@ -219,7 +219,7 @@
                     </div>
                   </div>
                   <button type="submit" :disabled="loading"
-                    class="w-full mt-2 bg-green-600 hover:bg-green-500 py-3 rounded-lg font-bold text-white shadow-lg transition-all">
+                    class="w-full py-3 mt-2 font-bold text-white transition-all bg-green-600 rounded-lg shadow-lg hover:bg-green-500">
                     {{ loading ? 'Processing...' : 'Complete Withdrawal' }}
                   </button>
                   <div class="text-center">

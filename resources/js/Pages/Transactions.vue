@@ -1,26 +1,24 @@
 <template>
   <MainLayout>
     <div>
-      <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-semibold">🔁 Transactions</h1>
-          <p class="text-gray-400 text-sm">Track all your wallet and trading activities.</p>
+          <p class="text-sm text-gray-400">Track all your wallet and trading activities.</p>
         </div>
       </div>
 
-      <!-- Filters -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
             <label class="text-xs text-gray-400">Type</label>
             <select v-model="filters.type" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0">
               <option value="">All</option>
-              <option>Deposit</option>
-              <option>Withdrawal</option>
-              <option>Buy</option>
-              <option>Sell</option>
-              <option>Transfer</option>
+              <option value="deposit">Deposit</option>
+              <option value="withdrawal">Withdrawal</option>
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+              <option value="transfer">Transfer</option>
             </select>
           </div>
 
@@ -28,9 +26,9 @@
             <label class="text-xs text-gray-400">Status</label>
             <select v-model="filters.status" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0">
               <option value="">All</option>
-              <option>Completed</option>
-              <option>Pending</option>
-              <option>Failed</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
             </select>
           </div>
 
@@ -45,7 +43,13 @@
           </div>
         </div>
 
-        <div class="mt-4 flex justify-end">
+        <div class="flex justify-end gap-3 mt-4">
+          <button
+            @click="clearFilters"
+            class="bg-[#1C2541] text-gray-400 px-6 py-2 rounded-lg font-medium hover:text-white transition"
+          >
+            Clear Filters
+          </button>
           <button
             @click="applyFilters"
             class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition"
@@ -58,11 +62,11 @@
       <!-- Transactions Table -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="font-semibold text-lg">Transaction History</h2>
-          <span class="text-sm text-gray-400">Page {{ currentPage }} of {{ totalPages }}</span>
+          <h2 class="text-lg font-semibold">Transaction History</h2>
+          <span class="text-sm text-gray-400">Page {{ currentPage }} of {{ totalPages || 1 }}</span>
         </div>
 
-        <div v-if="loading" class="text-center py-6">
+        <div v-if="loading" class="py-6 text-center">
           <div class="text-gray-400">Loading transactions...</div>
         </div>
 
@@ -70,37 +74,38 @@
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
-                <th class="py-2 text-left px-2">Date</th>
-                <th class="text-left px-2">Type</th>
-                <th class="text-left px-2">Reference</th>
-                <th class="text-right px-2">Amount</th>
-                <th class="text-center px-2">Status</th>
+                <th class="px-2 py-2 text-left">Date</th>
+                <th class="px-2 text-left">Type</th>
+                <th class="px-2 text-left">ID</th>
+                <th class="px-2 text-right">Amount</th>
+                <th class="px-2 text-center">Status</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="t in paginatedTransactions"
-                :key="t.ref"
-                class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
+                :key="t.id || t.ref"
+                @click="openTransactionDetails(t)"
+                class="border-b border-[#1f3348] hover:bg-[#16213A] transition cursor-pointer"
               >
-                <td class="py-3 px-2">{{ t.date }}</td>
+                <td class="px-2 py-3">{{ t.date }}</td>
                 <td class="px-2 capitalize">{{ t.type }}</td>
-                <td class="px-2 text-center">{{ t.ref }}</td>
+                <td class="px-2 font-mono text-[11px] text-gray-500 uppercase">{{ t.ref?.toString().substring(0, 10) }}</td>
                 <td
-                  class="px-2 text-right"
-                  :class="t.type === 'deposit' ? 'text-green-400' : 'text-red-400'"
+                  class="px-2 font-semibold text-right"
+                  :class="['deposit', 'sell_crypto', 'refund'].includes(t.type?.toLowerCase()) ? 'text-green-400' : 'text-red-400'"
                 >
-                  ₦{{ t.amount.toLocaleString() }}
+                  {{ formatAmount(t.amount, t.currency) }}
                 </td>
                 <td class="px-2 text-center">
                   <span
                     :class="[
-                      'px-3 py-1 rounded-full text-xs capitalize',
-                      t.status === 'completed'
-                        ? 'bg-green-500/20 text-green-400'
-                        : t.status === 'pending'
-                        ? 'bg-yellow-500/20 text-yellow-300'
-                        : 'bg-red-500/20 text-red-400'
+                      'px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter',
+                      t.status?.toLowerCase() === 'completed' || t.status?.toLowerCase() === 'success'
+                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                        : t.status?.toLowerCase() === 'pending' || t.status?.toLowerCase() === 'processing'
+                        ? 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/20'
+                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
                     ]"
                   >
                     {{ t.status }}
@@ -111,12 +116,11 @@
           </table>
         </div>
 
-        <div v-else class="text-gray-400 text-center py-6">
-          No transactions match the selected filters.
+        <div v-else class="py-12 text-center text-gray-500">
+          No transactions found matching those filters.
         </div>
 
-        <!-- Pagination -->
-        <div class="flex justify-between items-center mt-6">
+        <div v-if="totalPages > 1" class="flex items-center justify-between mt-6">
           <button
             @click="prevPage"
             :disabled="currentPage === 1"
@@ -134,6 +138,12 @@
         </div>
       </div>
     </div>
+
+    <TransactionDetailsModal 
+      :show="showDetailsModal" 
+      :txn="selectedTransaction" 
+      @close="showDetailsModal = false" 
+    />
   </MainLayout>
 </template>
 
@@ -141,6 +151,7 @@
 import { ref, computed, onMounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
+import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 
 const filters = ref({ type: "", status: "", from: "", to: "" });
 const currentPage = ref(1);
@@ -148,7 +159,15 @@ const perPage = 8;
 const transactions = ref([]);
 const loading = ref(false);
 
-// Fetch transactions from API
+const selectedTransaction = ref(null);
+const showDetailsModal = ref(false);
+
+const formatAmount = (amt, currency) => {
+  if (amt === null || amt === undefined) return '---';
+  const value = Number(amt);
+  return currency === "USD" ? `$${value.toLocaleString()}` : `₦${value.toLocaleString()}`;
+};
+
 onMounted(async () => {
   await fetchTransactions();
 });
@@ -160,12 +179,15 @@ const fetchTransactions = async () => {
     const response = await api.get("/transactions", {
       headers: { Authorization: `Bearer ${token}` }
     });
+    // Format incoming API data
     transactions.value = response.data.map(t => ({
+      ...t,
       date: new Date(t.created_at).toISOString().split('T')[0],
-      type: t.type,
       ref: t.id,
-      amount: t.amount,
-      status: t.status
+      amount: Number(t.amount),
+      currency: t.currency || 'NGN',
+      type: t.type,
+      status: t.status?.toLowerCase()
     }));
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
@@ -187,21 +209,19 @@ const fetchTransactions = async () => {
   }
 };
 
-// sample transactions (keeping for fallback)
-const allTransactions = computed(() => transactions.value);
-
 const filteredTransactions = computed(() => {
-  return allTransactions.value.filter((t) => {
-    const txnDate = new Date(t.date).getTime();
-    const fromDate = filters.value.from ? new Date(filters.value.from).getTime() : null;
-    const toDate = filters.value.to ? new Date(filters.value.to).getTime() : null;
+  return transactions.value.filter((t) => {
+    // Convert to normalized date objects (YYYY-MM-DD string comparison is safer)
+    const txnDateStr = t.date; 
+    const fromDateStr = filters.value.from;
+    const toDateStr = filters.value.to;
 
-    return (
-      (!filters.value.type || t.type === filters.value.type) &&
-      (!filters.value.status || t.status === filters.value.status) &&
-      (!fromDate || txnDate >= fromDate) &&
-      (!toDate || txnDate <= toDate)
-    );
+    const matchesType = !filters.value.type || t.type.toLowerCase() === filters.value.type.toLowerCase();
+    const matchesStatus = !filters.value.status || t.status.toLowerCase() === filters.value.status.toLowerCase();
+    const matchesFrom = !fromDateStr || txnDateStr >= fromDateStr;
+    const matchesTo = !toDateStr || txnDateStr <= toDateStr;
+
+    return matchesType && matchesStatus && matchesFrom && matchesTo;
   });
 });
 
@@ -216,6 +236,11 @@ function applyFilters() {
   currentPage.value = 1;
 }
 
+function clearFilters() {
+  filters.value = { type: "", status: "", from: "", to: "" };
+  currentPage.value = 1;
+}
+
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++;
 }
@@ -223,6 +248,11 @@ function nextPage() {
 function prevPage() {
   if (currentPage.value > 1) currentPage.value--;
 }
+
+const openTransactionDetails = async (t) => {
+  selectedTransaction.value = t;
+  showDetailsModal.value = true;
+};
 </script>
 
 <style scoped>

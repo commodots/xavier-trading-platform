@@ -79,6 +79,11 @@ class NewTransactionController extends Controller
                 'currency' => $request->currency,
                 'status' => 'completed',
                 'net_amount' => $netAmount,
+                'charge' => $charge,
+                'meta' => [
+                    'old_balance' => $oldBalance,
+                    'new_balance' => $newBalance,
+                ]
             ]);
 
             Log::info('Transaction created with ID ' . $transaction->id);
@@ -228,6 +233,8 @@ class NewTransactionController extends Controller
                     throw new \Exception("Insufficient cleared {$request->currency} balance");
                 }
 
+                $oldBalance = $wallet->balance;
+
                 $txn = $models->transaction->create([
                     'user_id' => $user->id,
                     'type' => 'withdrawal',
@@ -241,6 +248,8 @@ class NewTransactionController extends Controller
                         'acc_no' => $account->account_number,
                         'acc_name' => $account->account_name,
                         'mode' => $user->trading_mode,
+                        'old_balance' => $oldBalance,
+                        'new_balance' => $oldBalance - $totalDeduction,
                     ],
                 ]);
 

@@ -45,8 +45,10 @@ class PaystackController extends Controller
         $reference = 'xavier_'.uniqid();
         $models = $this->resolveModels($user);
         $targetCurrency = $request->input('currency', 'NGN');
+        
+        // The service handles conversion to kobo, so we pass the base amount.
+        $paystackAmount = $request->amount; 
 
-        $paystackAmount = $request->amount * 100; // Paystack expects amount in kobo/subunits
         $metadata = [
             'user_id' => $user->id,
             'type' => 'wallet_funding',
@@ -63,7 +65,7 @@ class PaystackController extends Controller
             $paystackAmount = round($request->amount * $fxRate->effective_rate, 2);
             $metadata['usd_amount'] = $request->amount;
             $metadata['fx_rate'] = $fxRate->effective_rate;
-            $metadata['ngn_amount'] = $paystackAmount / 100;
+                $metadata['ngn_amount'] = $paystackAmount;
         }
 
         // If in Demo mode, bypass Paystack and fund the demo wallet instantly
@@ -81,12 +83,16 @@ class PaystackController extends Controller
                     $initData
                 );
 
+                $oldBalance = $wallet->balance;
+
                 $wallet->increment('balance', $request->amount);
                 if ($targetCurrency === 'NGN') {
                     $wallet->increment('ngn_cleared', $request->amount);
                 } elseif ($targetCurrency === 'USD') {
                     $wallet->increment('usd_cleared', $request->amount);
                 }
+
+                $newBalance = $wallet->fresh()->balance;
 
                 $models->transaction->create([
                     'user_id' => $user->id,
@@ -96,7 +102,13 @@ class PaystackController extends Controller
                     'charge' => 0,
                     'net_amount' => $request->amount,
                     'currency' => $targetCurrency,
-                    'meta' => ['reference' => $reference, 'gateway' => 'demo_instant', 'mode' => 'demo'],
+                    'meta' => [
+                        'reference' => $reference, 
+                        'gateway' => 'demo_instant', 
+                        'mode' => 'demo',
+                        'old_balance' => $oldBalance,
+                        'new_balance' => $newBalance
+                    ],
                 ]);
 
                 return response()->json([
@@ -375,11 +387,13 @@ class PaystackController extends Controller
                     ]
                 );
 
+                $oldBalance = $wallet->balance;
+
                 Log::info('[Paystack:webhook] Updating wallet', [
                     'user_id' => $userId,
                     'wallet_id' => $wallet->id,
                     'currency' => $targetCurrency,
-                    'current_balance' => $wallet->balance,
+                    'current_balance' => $oldBalance,
                     'amount_to_add' => $convertedAmount,
                     'charge' => $charge,
                     'fx_rate_applied' => $appliedRate,
@@ -392,8 +406,11 @@ class PaystackController extends Controller
                     $wallet->increment('usd_cleared', $convertedAmount);
                 }
 
+                $wallet->refresh();
+                $newBalance = $wallet->balance;
+
                 Log::info('[Paystack:webhook] Wallet balance updated', [
-                    'new_balance' => $wallet->fresh()->balance,
+                    'new_balance' => $newBalance,
                 ]);
 
                 // Record the transaction
@@ -410,6 +427,8 @@ class PaystackController extends Controller
                         'gateway' => 'paystack',
                         'ngn_amount' => $amount,
                         'fx_rate_applied' => $appliedRate,
+                        'old_balance' => $oldBalance,
+                        'new_balance' => $newBalance,
                     ],
                 ]);
 
@@ -499,12 +518,17 @@ class PaystackController extends Controller
                 ]
             );
 
+            $oldBalance = $wallet->balance;
+
             $wallet->increment('balance', $convertedAmount);
             if ($targetCurrency === 'NGN') {
                 $wallet->increment('ngn_cleared', $convertedAmount);
             } elseif ($targetCurrency === 'USD') {
                 $wallet->increment('usd_cleared', $convertedAmount);
             }
+
+            $wallet->refresh();
+            $newBalance = $wallet->balance;
 
             NewTransaction::create([
                 'user_id' => $userId,
@@ -519,6 +543,8 @@ class PaystackController extends Controller
                     'gateway' => 'paystack',
                     'ngn_amount' => $amount,
                     'fx_rate_applied' => $appliedRate,
+                    'old_balance' => $oldBalance,
+                    'new_balance' => $newBalance,
                 ],
             ]);
 

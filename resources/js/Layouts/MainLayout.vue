@@ -49,12 +49,12 @@
 
 		  <!-- TRADE -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trade</div>
-		  <SidebarLink to="/trading" :icon="ShoppingCart">Trading</SidebarLink>
+		  <SidebarLink to="/orders" :icon="ShoppingCart">Trading</SidebarLink>
 		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
        <!-- CTA BUTTON -->
 		  <div class="px-3 mt-6">
 			<button
-			  @click="$router.push('/orders')"
+			  @click="$router.push('/trading')"
 			  class="w-full py-3 rounded-xl bg-gradient-to-r from-[#C8A951] to-[#E6C97A] text-black font-semibold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-all duration-300"
 			>
 			  ⚡ Start Trade
