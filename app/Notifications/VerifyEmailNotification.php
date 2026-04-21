@@ -7,17 +7,18 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\SerializesModels;
 
 class VerifyEmailNotification extends VerifyEmailBase implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SerializesModels;
 
     /**
      * Get the verification URL for the given notifiable.
      */
     protected function verificationUrl($notifiable)
     {
-        $frontendBase = rtrim(config('app.frontend_url', config('app.url')), '/');
+        $frontendBase = rtrim(config('app.frontend_url') ?: config('app.url') ?: '', '/');
 
         // Create signed backend route
         $signedUrl = URL::temporarySignedRoute(

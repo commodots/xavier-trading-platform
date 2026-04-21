@@ -17,16 +17,16 @@ onMounted(async () => {
   if (verifyUrl) {
     try {
       const decoded = decodeURIComponent(verifyUrl);
+      // We use a direct axios call to ensure we hit the backend
       const res = await api.get(decoded);
-      if (res.data?.success) {
+
+      if (res.data?.success || res.status === 200) {
         verificationStatus.value = 'success';
-      } else {
-        verificationStatus.value = 'error';
-        verificationError.value = res.data?.message || 'Verification failed. Please try again.';
-      }
+      } 
     } catch (error) {
+      console.error("Verification Error:", error);
       verificationStatus.value = 'error';
-      verificationError.value = error.response?.data?.message || 'Verification failed. Please try again.';
+      verificationError.value = error.response?.data?.message || 'Verification link expired or invalid.';
     }
   }
 
@@ -36,18 +36,22 @@ onMounted(async () => {
     user.value = JSON.parse(stored);
   }
 
-  // If verified and a session exists, refresh the profile to update email_verified_at state
+  // 3. Sync Profile if verified
+  // We add a tiny 500ms delay to ensure the DB transaction is fully committed 
+  // before we fetch the profile again.
   if (verified.value && localStorage.getItem('xavier_token')) {
-    try {
-      const res = await api.get('/profile/me');
-      const updatedUser = res.data?.data || res.data;
-      if (updatedUser) {
-        user.value = updatedUser;
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+    setTimeout(async () => {
+      try {
+        const res = await api.get('/profile/me');
+        const updatedUser = res.data?.data || res.data;
+        if (updatedUser) {
+          user.value = updatedUser;
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+      } catch (error) {
+        console.error("Failed to sync user verification status:", error);
       }
-    } catch (error) {
-      console.error("Failed to sync user verification status:", error);
-    }
+    }, 500);
   }
 
   if (!user.value && !verifyUrl) {

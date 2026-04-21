@@ -68,7 +68,7 @@ const routes = [
     path: "/welcome",
     name: "welcome",
     component: Welcome,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: false },
   },
   {
     path: "/dashboard",
