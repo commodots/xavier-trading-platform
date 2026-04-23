@@ -34,6 +34,7 @@ import OrderDetails from "@/Pages/OrderDetails.vue";
 import Watchlist from "@/Pages/Watchlist.vue";
 import Advisory from "@/Pages/Advisory.vue";
 import Trading from "@/Pages/Trading.vue";
+import TradingDashboard from "@/Pages/Trading/Dashboard.vue";
 
 // Admin
 import AdminUsers from "@/Pages/Admin/Users.vue";
@@ -199,6 +200,12 @@ const routes = [
     path: "/trading",
     name: "trading",
     component: Trading,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/trading/dashboard",
+    name: "trading-dashboard",
+    component: TradingDashboard,
     meta: { requiresAuth: true },
   },
   {

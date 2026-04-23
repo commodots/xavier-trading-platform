@@ -85,7 +85,7 @@
 
       <!-- Live Market Prices -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div class="flex flex-col justify-between gap-4 mb-6 md:flex-row md:items-center">
           <h2 class="text-xl font-semibold">Live Market Prices</h2>
           <div class="relative w-full md:w-64">
             <input v-model="searchQuery" type="text" placeholder="Search assets..."

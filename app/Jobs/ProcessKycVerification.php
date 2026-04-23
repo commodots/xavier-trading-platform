@@ -18,10 +18,15 @@ class ProcessKycVerification implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $userId;
+
     protected $bvn;
+
     protected $nin;
+
     protected $imagePath;
+
     protected $firstName;
+
     protected $lastName;
 
     /**
@@ -43,17 +48,19 @@ class ProcessKycVerification implements ShouldQueue
     public function handle(): void
     {
         $user = User::find($this->userId);
-        if (!$user) {
+        if (! $user) {
             Log::error("ProcessKycVerification: User {$this->userId} not found.");
+
             return;
         }
 
         $disk = Storage::disk('public');
         $fullImagePath = $disk->path($this->imagePath);
 
-        if (!$disk->exists($this->imagePath)) {
+        if (! $disk->exists($this->imagePath)) {
             Log::error("ProcessKycVerification: Image file not found at {$fullImagePath} for user {$this->userId}.");
             $this->updateKycStatus($user, 'pending', 'Image file missing for verification.');
+
             return;
         }
 
@@ -74,7 +81,7 @@ class ProcessKycVerification implements ShouldQueue
                 Log::warning("User {$user->id} KYC verification failed via QoreID: Biometric mismatch.");
             }
         } catch (\Throwable $e) {
-            Log::error("QoreID KYC verification failed for user {$user->id}: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error("QoreID KYC verification failed for user {$user->id}: ".$e->getMessage(), ['trace' => $e->getTraceAsString()]);
             $this->updateKycStatus($user, 'pending', 'QoreID verification service error.');
         } finally {
             // Clean up the uploaded image after processing

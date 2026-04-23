@@ -2,12 +2,27 @@
 
 namespace App\Services;
 
+use App\Models\AlpacaProvider;
+use App\Models\FinnhubProvider;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class MarketService
 {
+    public function getProvider(): object
+    {
+        return match (strtolower(env('MARKET_PROVIDER', 'finnhub'))) {
+            'alpaca' => new AlpacaProvider,
+            default => new FinnhubProvider,
+        };
+    }
+
+    public function quote(string $symbol): float
+    {
+        return (float) $this->getProvider()->quote($symbol);
+    }
+
     public function getPrices()
     {
         return cache()->remember('crypto_prices', 300, function () {
@@ -45,6 +60,11 @@ class MarketService
     public function getBTCPrice()
     {
         return $this->getPrices()['bitcoin']['usd'] ?? 64000.00;
+    }
+
+    public function getProviderName(): string
+    {
+        return strtolower(env('MARKET_PROVIDER', 'finnhub'));
     }
 
     public function applySpread(float $price, string $side): float

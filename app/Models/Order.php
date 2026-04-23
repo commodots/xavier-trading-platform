@@ -8,6 +8,7 @@ class Order extends Model
 {
     protected $fillable = [
         'user_id',
+        'alpaca_order_id',
         'symbol',
         'side',
         'type',
@@ -21,12 +22,18 @@ class Order extends Model
         'company',
         'units',
         'amount',
-        'market_price'
+        'market_price',
+        'limit_price',
+        'stop_price',
+        'take_profit',
+        'stop_loss',
     ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
     }
+
     public function trades()
     {
         return $this->hasMany(Trade::class);

@@ -4,10 +4,19 @@
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">🌍 Global Stocks</h1>
-        <div class="relative">
+        <div class="flex gap-3">
+          <button @click="router.push('/trading/dashboard')"
+            class="bg-[#0F1724] border border-[#2A314A] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#252a3d] transition max-w-[250px]">
+            Live Trading Dashboard
+        </button>
+
+          <div class="relative">
           <input v-model="search" type="text" placeholder="Search global stocks..."
             class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-64 transition-all" />
         </div>
+        </div>
+        
+        
       </div>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -132,6 +141,7 @@ import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import TradeModal from "@/Components/TradeModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
+import { useRouter } from 'vue-router';
 
 // State
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -142,6 +152,8 @@ const selectedItem = ref(null);
 const showTradeModal = ref(false);
 const selectedTradeStock = ref(null);
 const search = ref("");
+
+const router = useRouter()
 
 const isAdminUser = (u) => {
   if (!u) return false;

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\FxReconciliationController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AdvisoryController;
 // Feature Controllers
+use App\Http\Controllers\AlpacaWebhookController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminServiceController;
 use App\Http\Controllers\Api\AuthController;
@@ -23,7 +24,6 @@ use App\Http\Controllers\Api\MarketDataController;
 use App\Http\Controllers\Api\NewTransactionController;
 use App\Http\Controllers\Api\OmsController;
 use App\Http\Controllers\Api\OnboardingController;
-use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
@@ -33,19 +33,20 @@ use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
 use App\Http\Controllers\Api\User\NotificationController;
-// Admin Controllers
 use App\Http\Controllers\Api\User\SecurityController;
+// Admin Controllers
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
-use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\SubscriptionController;
-// Dummy/Testing
 use Illuminate\Http\Request;
+// Dummy/Testing
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -66,7 +67,8 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA'])->middlewar
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
-
+Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle']);
+Route::post('/market/update', [TradeController::class, 'updateMarket']);
 
 /* Dummy API */
 Route::prefix('dummy')->group(function () {
@@ -100,7 +102,7 @@ Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
 
 Route::middleware('auth:sanctum')->group(function () {
     /* User & Auth Management */
-    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/email/verification-notification', function (Request $request) {
@@ -110,9 +112,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         try {
             $request->user()->sendEmailVerificationNotification();
+
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (\Exception $e) {
-            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
+
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
     })->middleware(['auth:sanctum', 'throttle:2,1']); // Slightly higher throttle to allow immediate retry if it fails
@@ -132,6 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
     Route::get('/portfolio', [PortfolioController::class, 'index']);
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
+    Route::get('/portfolio/trading', [PortfolioController::class, 'trading']);
     Route::get('/fx-rates', [WalletController::class, 'getRates']);
     Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
 
@@ -143,7 +148,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/watchlist', [WatchlistController::class, 'index']);
     Route::post('/watchlist', [WatchlistController::class, 'store']);
     Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
-
 
     // Restricted to users with verified emails
     Route::middleware('verified')->group(function () {
@@ -162,6 +166,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
         Route::post('/trade/open', [TradeController::class, 'open']);
         Route::post('/trade/close/{id}', [TradeController::class, 'close']);
+        Route::post('/trade/place', [TradeController::class, 'placeOrder']);
+        Route::get('/account', [TradeController::class, 'account']);
     });
 
     /* Payment Integrations */
