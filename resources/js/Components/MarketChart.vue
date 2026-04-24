@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-[400px] rounded-lg overflow-hidden">
+  <div class="w-full h-[400px] rounded-lg overflow-hidden bg-[#0F1724]">
     <div ref="chart" class="w-full h-full"></div>
   </div>
 </template>
@@ -16,18 +16,30 @@ const chart = ref();
 let chartInstance = null;
 let series = null;
 let channel = null;
+let lastCandle = null;
+let resizeObserver = null;
 
-const baseData = (symbol) => [
-  { time: Math.floor(Date.now() / 1000) - 300, open: 220, high: 225, low: 218, close: 224 },
-  { time: Math.floor(Date.now() / 1000) - 240, open: 224, high: 228, low: 222, close: 226 },
-  { time: Math.floor(Date.now() / 1000) - 180, open: 226, high: 230, low: 224, close: 228 },
-  { time: Math.floor(Date.now() / 1000) - 120, open: 228, high: 232, low: 226, close: 230 },
-  { time: Math.floor(Date.now() / 1000) - 60, open: 230, high: 235, low: 228, close: 233 },
-];
+// Helper to get historical-looking data so the chart isn't empty
+const baseData = () => {
+  const data = [];
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 20; i > 0; i--) {
+    data.push({
+      time: (now - (i * 60)) - (now % 60), // aligned to minutes
+      open: 220 + i,
+      high: 225 + i,
+      low: 218 + i,
+      close: 224 + i
+    });
+  }
+  return data;
+};
 
 const resetSeries = () => {
   if (series) {
-    series.setData(baseData(props.symbol));
+    const data = baseData();
+    series.setData(data);
+    lastCandle = { ...data[data.length - 1] };
   }
 };
 
@@ -36,22 +48,17 @@ onMounted(() => {
 
   chartInstance = createChart(chart.value, {
     layout: {
-      background: { color: '#0F1724' },
-      textColor: '#D1D5DB',
+      background: { color: 'transparent' },
+      textColor: '#9CA3AF',
     },
     grid: {
-      vertLines: { color: '#1F2937' },
-      horzLines: { color: '#1F2937' },
-    },
-    crosshair: {
-      mode: 1,
-    },
-    rightPriceScale: {
-      borderColor: '#374151',
+      vertLines: { color: '#1f3348' },
+      horzLines: { color: '#1f3348' },
     },
     timeScale: {
-      borderColor: '#374151',
+      borderColor: '#1f3348',
       timeVisible: true,
+      secondsVisible: false,
     },
   });
 
@@ -65,33 +72,50 @@ onMounted(() => {
 
   resetSeries();
 
+  // Subscribing to the channel
   channel = window.Echo.channel("market-channel")
-    .listen('.MarketUpdated', (e) => {
-      if (e.data && Array.isArray(e.data)) {
-        e.data.forEach(trade => {
-          if (trade.p && trade.s === props.symbol) {
-            const newCandle = {
-              time: Math.floor(Date.now() / 1000),
-              open: trade.p,
-              high: trade.p + 0.5,
-              low: trade.p - 0.5,
-              close: trade.p,
+    .listen('MarketUpdated', (e) => { // Removed the extra dot
+      const updates = Array.isArray(e) ? e : (e.data || []);
+      
+      updates.forEach(trade => {
+        // Ensure symbols match regardless of casing
+        if (trade.s && trade.s.toUpperCase() === props.symbol.toUpperCase()) {
+          
+          const tradePrice = parseFloat(trade.p);
+          const tradeTime = Math.floor((trade.t || Date.now()) / 1000);
+          const candleTime = Math.floor(tradeTime / 60) * 60;
+
+          if (lastCandle && lastCandle.time === candleTime) {
+            // Update the current minute's candle
+            lastCandle.close = tradePrice;
+            lastCandle.high = Math.max(lastCandle.high, tradePrice);
+            lastCandle.low = Math.min(lastCandle.low, tradePrice);
+          } else {
+            // It's a new minute! Start a new candle
+            lastCandle = {
+              time: candleTime,
+              open: tradePrice,
+              high: tradePrice,
+              low: tradePrice,
+              close: tradePrice,
             };
-            series.update(newCandle);
           }
-        });
-      }
+
+          // Directly update the series - lightweight charts handles the "motion"
+          series.update(lastCandle);
+        }
+      });
     });
 
-  const resizeObserver = new ResizeObserver(() => {
-    if (chartInstance) {
+  // Handle resizing
+  resizeObserver = new ResizeObserver(() => {
+    if (chartInstance && chart.value) {
       chartInstance.applyOptions({
         width: chart.value.clientWidth,
         height: chart.value.clientHeight,
       });
     }
   });
-
   resizeObserver.observe(chart.value);
 });
 
@@ -100,11 +124,8 @@ watch(() => props.symbol, () => {
 });
 
 onUnmounted(() => {
-  if (channel) {
-    window.Echo.leave("market-channel");
-  }
-  if (chartInstance) {
-    chartInstance.remove();
-  }
+  if (channel) window.Echo.leave("market-channel");
+  if (resizeObserver) resizeObserver.disconnect();
+  if (chartInstance) chartInstance.remove();
 });
 </script>

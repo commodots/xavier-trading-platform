@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AlpacaProvider;
+use App\Providers\AlpacaProvider;
 use App\Models\Order;
 use App\Models\Position;
 use Illuminate\Console\Command;

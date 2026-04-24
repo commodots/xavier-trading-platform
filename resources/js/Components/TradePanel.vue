@@ -53,14 +53,16 @@
 
       <!-- Action Buttons -->
       <div class="flex gap-3 mt-4">
-        <button @click="submit('buy')" :disabled="loading || !isValid" class="flex items-center justify-center flex-1 px-4 py-3 font-semibold text-white transition duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-          <span v-if="loading" class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
-          {{ loading ? 'Placing...' : 'Buy' }}
-        </button>
-        <button @click="submit('sell')" :disabled="loading || !isValid" class="flex items-center justify-center flex-1 px-4 py-3 font-semibold text-white transition duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
-          <span v-if="loading" class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
-          {{ loading ? 'Placing...' : 'Sell' }}
-        </button>
+        <button @click="submit('buy')" :disabled="!!sideLoading || !isValid"
+         class="flex items-center justify-center flex-1 px-4 py-3 font-semibold text-white transition duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span v-if="sideLoading === 'buy'" class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
+    {{ sideLoading === 'buy' ? 'Buying...' : 'Buy' }}
+  </button>
+        <button @click="submit('sell')" :disabled="!!sideLoading || !isValid"
+         class="flex items-center justify-center flex-1 px-4 py-3 font-semibold text-white transition duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span v-if="sideLoading === 'sell'" class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
+    {{ sideLoading === 'sell' ? 'Selling...' : 'Sell' }}
+  </button>
       </div>
 
       <!-- Error Message -->
@@ -88,7 +90,8 @@ const stop_price = ref(null);
 const take_profit = ref(null);
 const stop_loss = ref(null);
 
-const loading = ref(false);
+const sideLoading = ref(null); // Tracks 'buy', 'sell', or null
+const emit = defineEmits(['order-placed']); // Define the emit
 const error = ref("");
 const success = ref("");
 
@@ -105,12 +108,12 @@ const isValid = computed(() => {
 const submit = async (side) => {
   if (!isValid.value) return;
 
-  loading.value = true;
+  sideLoading.value = side;
   error.value = "";
   success.value = "";
 
   try {
-    const response = await axios.post("/api/trade/place", {
+    const response = await axios.post("/trade/place", {
       symbol: symbol.value.toUpperCase(),
       qty: qty.value,
       side,
@@ -123,6 +126,8 @@ const submit = async (side) => {
 
     success.value = `Order placed successfully! Order ID: ${response.data.id}`;
 
+    emit('order-placed');
+
     // Clear form on success
     symbol.value = "AAPL";
     qty.value = 1;
@@ -134,7 +139,7 @@ const submit = async (side) => {
   } catch (err) {
     error.value = err.response?.data?.message || "Failed to place order. Please try again.";
   } finally {
-    loading.value = false;
+    sideLoading.value = null;
   }
 };
 </script>

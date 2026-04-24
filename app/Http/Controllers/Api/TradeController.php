@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\MarketUpdated;
 use App\Http\Controllers\Controller;
-use App\Models\AlpacaProvider;
+use App\Providers\AlpacaProvider;
 use App\Models\NewTransaction;
 use App\Models\Order;
 use App\Models\Trade;
@@ -12,9 +12,23 @@ use App\Models\Wallet;
 use App\Services\MarketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class TradeController extends Controller
 {
+    private function resolveModels($user)
+    {
+        $isDemo = $user->trading_mode === 'demo';
+
+        return (object) [
+            'isDemo' => $isDemo,
+            'wallet' => $isDemo ? \App\Models\Demo\DemoWallet::class : Wallet::class,
+            'transaction' => $isDemo ? \App\Models\Demo\DemoTransaction::class : NewTransaction::class,
+            'order' => $isDemo ? \App\Models\Demo\DemoOrder::class : Order::class,
+            'trade' => $isDemo ? \App\Models\Demo\DemoTrade::class : Trade::class,
+        ];
+    }
+
     // ADD THIS HELPER METHOD to map symbols to CoinGecko IDs
     private function lookupPrice($symbol, $prices)
     {
@@ -33,7 +47,9 @@ class TradeController extends Controller
             'MATIC' => 'matic-network',
         ];
 
-        $id = $map[strtoupper($symbol)] ?? 'bitcoin';
+        $id = $map[strtoupper($symbol)] ?? null;
+
+        if (!$id) return 0; // Don't guess. If it's not in the map, price is 0 (unavailable).
 
         return (float) ($prices[$id]['usd'] ?? 0);
     }
@@ -81,13 +97,14 @@ class TradeController extends Controller
         $rawPrice = $this->lookupPrice($symbol, $prices);
 
         if ($rawPrice <= 0) {
-            return response()->json(['success' => false, 'message' => 'Price data unavailable for '.$symbol], 422);
+            return response()->json(['success' => false, 'message' => 'Price data unavailable for ' . $symbol], 422);
         }
 
         $executionPrice = $marketService->applySpread($rawPrice, $request->type);
+        $models = $this->resolveModels($user);
 
-        return DB::transaction(function () use ($user, $amount, $executionPrice, $request, $symbol) {
-            $wallet = Wallet::where('user_id', $user->id)
+        return DB::transaction(function () use ($user, $amount, $executionPrice, $request, $symbol, $models) {
+            $wallet = $models->wallet::where('user_id', $user->id)
                 ->where('currency', 'USD')
                 ->lockForUpdate()
                 ->first();
@@ -96,7 +113,7 @@ class TradeController extends Controller
                 throw new \Exception('Insufficient cleared funds.');
             }
 
-            $order = \App\Models\Order::create([
+            $order = $models->order::create([
                 'user_id' => $user->id,
                 'symbol' => $symbol,
                 'side' => $request->input('type'),
@@ -111,7 +128,7 @@ class TradeController extends Controller
                 'market_price' => $executionPrice,
             ]);
 
-            $trade = Trade::create([
+            $trade = $models->trade::create([
                 'order_id' => $order->id,
                 'user_id' => $user->id,
                 'pair' => strtoupper($request->input('pair')),
@@ -125,7 +142,7 @@ class TradeController extends Controller
 
             $wallet->decrement('usd_cleared', $amount);
 
-            NewTransaction::create([
+            $models->transaction::create([
                 'user_id' => $user->id,
                 'type' => 'buy_crypto',
                 'amount' => $amount,
@@ -140,7 +157,9 @@ class TradeController extends Controller
 
     public function close($id)
     {
-        $trade = Trade::findOrFail($id);
+        $user = auth()->user();
+        $models = $this->resolveModels($user);
+        $trade = $models->trade::findOrFail($id);
 
         if ($trade->status !== 'open') {
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
@@ -157,14 +176,14 @@ class TradeController extends Controller
         // P&L calculation: (Current - Entry) / Entry * Amount
         $profit = (($currentPrice - $trade->entry_price) / max($trade->entry_price, 0.00000001)) * $trade->amount;
 
-        return DB::transaction(function () use ($trade, $currentPrice, $profit) {
+        return DB::transaction(function () use ($trade, $currentPrice, $profit, $models) {
             $trade->update([
                 'exit_price' => $currentPrice,
                 'profit_loss' => $profit,
                 'status' => 'closed',
             ]);
 
-            $wallet = Wallet::where('user_id', $trade->user_id)
+            $wallet = $models->wallet::where('user_id', $trade->user_id)
                 ->where('currency', 'USD')
                 ->lockForUpdate()
                 ->first();
@@ -175,7 +194,7 @@ class TradeController extends Controller
                 $wallet->increment('balance', $trade->amount + $profit);
             }
 
-            NewTransaction::create([
+            $models->transaction::create([
                 'user_id' => $trade->user_id,
                 'type' => 'sell_crypto',
                 'amount' => $trade->amount + $profit,
@@ -202,7 +221,7 @@ class TradeController extends Controller
     {
         $request->validate([
             'symbol' => 'required|string',
-            'qty' => 'required|numeric|min:1',
+            'qty' => 'required|numeric|min:0.000001',
             'side' => 'required|in:buy,sell',
             'type' => 'required|in:market,limit,stop,bracket',
         ]);
@@ -217,6 +236,13 @@ class TradeController extends Controller
 
         $user = auth()->user();
 
+        $marketService = app(MarketService::class);
+        $prices = $marketService->getPrices();
+        $currentPrice = $this->lookupPrice($request->symbol, $prices);
+
+        $effectivePrice = $request->limit_price ?? $currentPrice;
+        $totalAmount = $request->qty * $effectivePrice;
+
         // 1. Create local record
         $order = Order::create([
             'user_id' => $user->id,
@@ -224,17 +250,21 @@ class TradeController extends Controller
             'quantity' => $request->qty,
             'side' => $request->side,
             'type' => $request->type,
-            'status' => 'pending',
+            'status' => 'open',
+            'amount' => $totalAmount,
+            'market_price' => $effectivePrice,
             'limit_price' => $request->limit_price,
             'stop_price' => $request->stop_price,
             'take_profit' => $request->take_profit,
             'stop_loss' => $request->stop_loss,
+            'currency' => 'USD',
+            'market' => 'STOCKS'
         ]);
 
         // 2. Build Alpaca Payload
         $payload = [
             'symbol' => $request->symbol,
-            'qty' => (int) $request->qty,
+            'qty' => (float) $request->qty, // Changed to float to support fractional shares
             'side' => $request->side,
             'time_in_force' => 'gtc',
         ];
@@ -244,21 +274,22 @@ class TradeController extends Controller
                 break;
             case 'limit':
                 $payload['type'] = 'limit';
-                $payload['limit_price'] = $request->limit_price;
+                $payload['limit_price'] = (float) $request->limit_price;
                 break;
             case 'stop':
                 $payload['type'] = 'stop';
-                $payload['stop_price'] = $request->stop_price;
+                $payload['stop_price'] = (float) $request->stop_price;
                 break;
             case 'bracket':
                 $payload['type'] = 'market';
                 $payload['order_class'] = 'bracket';
-                $payload['take_profit'] = ['limit_price' => $request->take_profit];
-                $payload['stop_loss'] = ['stop_price' => $request->stop_loss];
+                $payload['take_profit'] = ['limit_price' => (float) $request->take_profit];
+                $payload['stop_loss'] = ['stop_price' => (float) $request->stop_loss];
                 break;
         }
 
         // 3. Execute
+        try {
         $alpaca = new AlpacaProvider;
         $response = $alpaca->placeAdvancedOrder($payload);
 
@@ -266,7 +297,11 @@ class TradeController extends Controller
             'alpaca_order_id' => $response['id'] ?? null,
         ]);
 
-        return response()->json($order);
+        return response()->json(['success' => true, 'data' => $order]);
+        } catch (\Exception $e) {
+            $order->update(['status' => 'failed']);
+            return response()->json(['message' => 'Alpaca Error: ' . $e->getMessage()], 500);
+        }
     }
 
     public function account()

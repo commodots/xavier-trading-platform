@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\AlpacaProvider;
-use App\Models\FinnhubProvider;
+use App\Providers\AlpacaProvider;
+use App\Providers\FinnhubProvider;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;

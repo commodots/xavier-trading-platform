@@ -184,7 +184,9 @@ async function verify2FA() {
  * Finalizes the login process
  */
 async function handleSuccessfulLogin(token, user) {
-  localStorage.clear(); 
+  // Clear auth-related items only, preserve other app data
+  localStorage.removeItem("xavier_token");
+  localStorage.removeItem("user");
 
   localStorage.setItem("xavier_token", token);
   localStorage.setItem("user", JSON.stringify(user));

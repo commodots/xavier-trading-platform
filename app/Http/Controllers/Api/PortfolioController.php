@@ -47,17 +47,15 @@ class PortfolioController extends Controller
         $user = $request->user();
         $models = $this->resolveModels($user, $request);
 
-        // For trading dashboard, return positions from Alpaca
         if (! $models->isDemo) {
-            $alpaca = new \App\Models\AlpacaProvider();
-            $positions = $alpaca->getPositions();
-            $account = $alpaca->getAccount();
+            // Query local positions attributed to this user
+            $positions = \App\Models\Position::where('user_id', $user->id)->get();
 
             return response()->json([
                 'success' => true,
                 'mode' => 'live',
-                'positions' => $positions ?? [],
-                'account' => $account ?? null,
+                'positions' => $positions,
+                'account' => $user->wallet, // Use local wallet for balance
             ]);
         }
 

@@ -303,8 +303,9 @@ const formatDate = (dateStr) => {
 };
 
 function generateTrend(currentValue) {
+  const val = Number(currentValue || 0);
   const points = [];
-  let lastVal = currentValue;
+  let lastVal = val;
   for (let i = 0; i < 7; i++) {
     points.unshift(lastVal);
     const variance = 1 + (Math.random() * 0.02 - 0.01);

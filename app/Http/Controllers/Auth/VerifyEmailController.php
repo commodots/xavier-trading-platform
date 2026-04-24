@@ -17,13 +17,24 @@ class VerifyEmailController extends Controller
 
         $user = User::find($request->route('id'));
 
-        if (!$user) {
+        if (! $user) {
             Log::error('User not found in verification');
+
             return $this->handleResponse($request, 'User not found.', 404);
         }
 
         if ($user->hasVerifiedEmail()) {
             return $this->handleResponse($request, 'Email already verified.', 200, true);
+        }
+
+        // Validate the hash
+        $providedHash = $request->route('hash');
+        $expectedHash = sha1($user->getEmailForVerification());
+
+        if (! hash_equals($expectedHash, $providedHash)) {
+            Log::warning('Invalid verification hash attempted for user '.$user->id);
+
+            return $this->handleResponse($request, 'Invalid verification link.', 400);
         }
 
         // Bypassing all lifecycle hooks/observers that might be blocking the save
@@ -43,19 +54,19 @@ class VerifyEmailController extends Controller
     protected function handleResponse($request, $message, $code, $success = false)
     {
         $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
-        
+
         if ($request->expectsJson() || $request->is('api/*')) {
             return response()->json(['success' => $success, 'message' => $message], $code);
         }
 
         $status = $success ? '1' : '0';
-        
+
         // Use a "no-cache" redirect to ensure the browser doesn't skip the request next time
-        return redirect($frontendUrl . "/welcome?verified={$status}&message=" . urlencode($message))
+        return redirect($frontendUrl."/welcome?verified={$status}&message=".urlencode($message))
             ->withHeaders([
                 'Cache-Control' => 'no-cache, no-store, max-age=0, must-revalidate',
-                'Pragma'        => 'no-cache',
-                'Expires'       => 'Fri, 01 Jan 1990 00:00:00 GMT',
+                'Pragma' => 'no-cache',
+                'Expires' => 'Fri, 01 Jan 1990 00:00:00 GMT',
             ]);
     }
 }
