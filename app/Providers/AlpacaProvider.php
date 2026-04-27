@@ -28,6 +28,52 @@ class AlpacaProvider
         return (float) ($data['askprice'] ?? 0.0);
     }
 
+    public function quoteDetails(string $symbol): array
+    {
+        $data = Http::withHeaders($this->headers())
+            ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/quotes')
+            ->json();
+
+        $current = (float) ($data['askprice'] ?? $data['last']['price'] ?? 0.0);
+        $previousClose = $this->getPreviousClose($symbol);
+        $change = $previousClose > 0 ? round((($current - $previousClose) / $previousClose) * 100, 2) : 0.0;
+
+        return [
+            'symbol' => strtoupper($symbol),
+            'price' => $current,
+            'previous_close' => $previousClose,
+            'change' => $change,
+            'timestamp' => now()->toISOString(),
+        ];
+    }
+
+    protected function getPreviousClose(string $symbol): float
+    {
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/bars', [
+                    'timeframe' => '1Day',
+                    'start' => now()->subDays(7)->toDateString(),
+                    'end' => now()->toDateString(),
+                    'limit' => 2,
+                ]);
+
+            if ($response->successful()) {
+                $payload = $response->json();
+                $bars = $payload['bars'] ?? $payload;
+                if (is_array($bars) && count($bars) > 0) {
+                    $latest = end($bars);
+
+                    return (float) ($latest['c'] ?? 0.0);
+                }
+            }
+        } catch (\Exception $e) {
+            .
+        }
+
+        return 0.0;
+    }
+
     public function placeOrder($symbol, $qty, $side)
     {
         return $this->placeAdvancedOrder([

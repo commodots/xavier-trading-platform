@@ -4,15 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\MarketUpdated;
 use App\Http\Controllers\Controller;
-use App\Providers\AlpacaProvider;
 use App\Models\NewTransaction;
 use App\Models\Order;
+use App\Models\Symbol;
 use App\Models\Trade;
 use App\Models\Wallet;
+use App\Providers\AlpacaProvider;
 use App\Services\MarketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Redis;
 
 class TradeController extends Controller
 {
@@ -49,7 +51,9 @@ class TradeController extends Controller
 
         $id = $map[strtoupper($symbol)] ?? null;
 
-        if (!$id) return 0; // Don't guess. If it's not in the map, price is 0 (unavailable).
+        if (! $id) {
+            return 0;
+        } // Don't guess. If it's not in the map, price is 0 (unavailable).
 
         return (float) ($prices[$id]['usd'] ?? 0);
     }
@@ -61,13 +65,38 @@ class TradeController extends Controller
         }
 
         try {
-            // This takes the data from Node.js and broadcasts it to the frontend
+            $trades = $request->all();
+
+            // Persist latest price to database
+            foreach ($trades as $trade) {
+                if (isset($trade['s']) && isset($trade['p'])) {
+                    Symbol::where('symbol', $trade['s'])->update([
+                        'last_price' => $trade['p'],
+                    ]);
+                }
+            }
+
             broadcast(new MarketUpdated($request->all()));
 
             return response()->json(['status' => 'success'], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function updateMarketData(Request $request)
+    {
+        $data = $request->all(); // The array of trades from Node
+
+        foreach ($data as $trade) {
+            event(new MarketPriceUpdated([
+                'symbol' => $trade['s'],
+                'price' => $trade['p'],
+                'timestamp' => $trade['t'],
+            ]));
+        }
+
+        return response()->json(['status' => 'broadcasted']);
     }
 
     public function open(Request $request)
@@ -96,8 +125,13 @@ class TradeController extends Controller
         // Use the helper to get the correct price
         $rawPrice = $this->lookupPrice($symbol, $prices);
 
+        // Fallback to real-time Finnhub price if CoinGecko mapping is missing
         if ($rawPrice <= 0) {
-            return response()->json(['success' => false, 'message' => 'Price data unavailable for ' . $symbol], 422);
+            $rawPrice = (float) Symbol::where('symbol', $symbol)->value('last_price');
+        }
+
+        if ($rawPrice <= 0) {
+            return response()->json(['success' => false, 'message' => 'Price data unavailable for '.$symbol], 422);
         }
 
         $executionPrice = $marketService->applySpread($rawPrice, $request->type);
@@ -217,6 +251,24 @@ class TradeController extends Controller
         ]);
     }
 
+    public function searchSymbols(Request $request)
+    {
+        $query = trim($request->query('q', ''));
+
+        if (strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        $results = Symbol::query()
+            ->where('symbol', 'like', "%{$query}%")
+            ->orWhere('name', 'like', "%{$query}%")
+            ->orderBy('symbol')
+            ->limit(20)
+            ->get(['symbol', 'name', 'exchange', 'type']);
+
+        return response()->json($results);
+    }
+
     public function placeOrder(Request $request)
     {
         $request->validate([
@@ -258,7 +310,7 @@ class TradeController extends Controller
             'take_profit' => $request->take_profit,
             'stop_loss' => $request->stop_loss,
             'currency' => 'USD',
-            'market' => 'STOCKS'
+            'market' => 'STOCKS',
         ]);
 
         // 2. Build Alpaca Payload
@@ -290,17 +342,18 @@ class TradeController extends Controller
 
         // 3. Execute
         try {
-        $alpaca = new AlpacaProvider;
-        $response = $alpaca->placeAdvancedOrder($payload);
+            $alpaca = new AlpacaProvider;
+            $response = $alpaca->placeAdvancedOrder($payload);
 
-        $order->update([
-            'alpaca_order_id' => $response['id'] ?? null,
-        ]);
+            $order->update([
+                'alpaca_order_id' => $response['id'] ?? null,
+            ]);
 
-        return response()->json(['success' => true, 'data' => $order]);
+            return response()->json(['success' => true, 'data' => $order]);
         } catch (\Exception $e) {
             $order->update(['status' => 'failed']);
-            return response()->json(['message' => 'Alpaca Error: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Alpaca Error: '.$e->getMessage()], 500);
         }
     }
 
@@ -363,5 +416,30 @@ class TradeController extends Controller
         ]);
 
         return $order->json();
+    }
+
+    public function trackSymbol(Request $request)
+    {
+        // Handle both single symbol and array of symbols
+        $symbols = $request->input('symbol') ? [$request->input('symbol')] : ($request->input('symbols') ?? []);
+        $symbols = array_map('strtoupper', $symbols);
+
+        // Update each symbol's last_seen timestamp in database
+        foreach ($symbols as $symbol) {
+            $existing = Symbol::where('symbol', $symbol)->first();
+            
+            if (!$existing) {
+                Symbol::create(['symbol' => $symbol, 'last_price' => 0]);
+            }
+
+            // Notify the market-stream worker via Redis
+            Redis::hset('active_tickers', $symbol, now()->timestamp);
+            Redis::publish('symbol-updates', json_encode([
+                'action' => 'subscribe',
+                'symbol' => $symbol,
+            ]));
+        }
+
+        return response()->json(['status' => 'tracking', 'symbols' => $symbols]);
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\SystemSetting;
 use App\Providers\AlpacaProvider;
 use App\Providers\FinnhubProvider;
-use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -21,6 +21,25 @@ class MarketService
     public function quote(string $symbol): float
     {
         return (float) $this->getProvider()->quote($symbol);
+    }
+
+    public function quoteDetails(string $symbol): array
+    {
+        $provider = $this->getProvider();
+
+        if (method_exists($provider, 'quoteDetails')) {
+            return $provider->quoteDetails($symbol);
+        }
+
+        $price = $this->quote($symbol);
+
+        return [
+            'symbol' => strtoupper($symbol),
+            'price' => $price,
+            'change' => 0.0,
+            'previous_close' => 0.0,
+            'timestamp' => now()->toISOString(),
+        ];
     }
 
     public function getPrices()

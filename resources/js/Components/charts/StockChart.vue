@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import axios from "@/lib/axios";
 
 /* ---------- PROPS ---------- */
@@ -71,6 +71,8 @@ const chartType = ref("line");
 const timeframe = ref("1D");
 const candles = ref([]);
 const series = ref([]);
+let channel = null;
+let lastCandle = null;
 
 /* ---------- CHART OPTIONS ---------- */
 const chartOptions = ref({
@@ -106,6 +108,11 @@ const fetchCandles = async () => {
 
     candles.value = res.data.data;
     buildSeries();
+    
+    // Set up initial candle for real-time updates
+    if (candles.value.length > 0) {
+      lastCandle = { ...candles.value[candles.value.length - 1] };
+    }
 
   } catch (e) {
     console.error("Chart error", e);
@@ -142,11 +149,44 @@ const buildSeries = () => {
   }
 };
 
+/* ---------- REAL-TIME UPDATES ---------- */
+const setupRealtimeListener = () => {
+  if (!window.Echo) return;
+  
+  channel = window.Echo.channel("market-channel")
+    .listen(".price.updated", (event) => {
+      const { symbol, price } = event.data;
+      
+      // Only update if this is for the current symbol
+      if (symbol.toUpperCase() === props.symbol.toUpperCase()) {
+        // Update the latest candle's close price
+        if (candles.value.length > 0) {
+          const latestCandle = candles.value[candles.value.length - 1];
+          latestCandle.close = price;
+          latestCandle.high = Math.max(latestCandle.high, price);
+          latestCandle.low = Math.min(latestCandle.low, price);
+          
+          // Rebuild series with updated data
+          buildSeries();
+        }
+      }
+    });
+};
+
 /* ---------- WATCHERS ---------- */
 watch([chartType, timeframe, () => props.symbol], () => {
   fetchCandles();
 });
 
 /* ---------- INIT ---------- */
-onMounted(fetchCandles);
-</script
+onMounted(() => {
+  fetchCandles();
+  setupRealtimeListener();
+});
+
+onUnmounted(() => {
+  if (channel) {
+    window.Echo.leave("market-channel");
+  }
+});
+</script>

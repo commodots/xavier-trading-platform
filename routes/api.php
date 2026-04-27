@@ -70,6 +70,9 @@ Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
 Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle']);
 Route::post('/market/update', [TradeController::class, 'updateMarket']);
 
+Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);
+Route::post('/stocks/track', [TradeController::class, 'trackSymbol']);
+
 /* Dummy API */
 Route::prefix('dummy')->group(function () {
     Route::prefix('ngx')->group(function () {
@@ -124,6 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /* Market Data (Available to all logged in users) */
     Route::get('/market/candles', [MarketDataController::class, 'candles']);
     Route::get('/markets/stocks/{symbol}/history', [MarketDataController::class, 'stockHistory']);
+    Route::get('/market/quotes', [MarketController::class, 'quotes']);
     Route::get('/market/ngx', [MarketController::class, 'ngx']);
     Route::get('/market/global', [MarketController::class, 'global']);
     Route::get('/market/crypto', [MarketController::class, 'crypto']);

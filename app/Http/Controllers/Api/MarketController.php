@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 
 class MarketController extends Controller
 {
@@ -29,6 +30,27 @@ class MarketController extends Controller
     }
 
     // app/Http/Controllers/Api/MarketController.php
+
+    public function quotes(Request $request)
+    {
+        $symbols = collect(explode(',', $request->query('symbols', '')))
+            ->map(fn ($symbol) => strtoupper(trim($symbol)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $quotes = collect($symbols)
+            ->map(fn ($symbol) => app(\App\Services\MarketService::class)->quoteDetails($symbol))
+            ->filter(fn ($quote) => ! empty($quote['symbol']))
+            ->values()
+            ->all();
+
+        return response()->json([
+            'success' => true,
+            'data' => $quotes,
+        ]);
+    }
 
     public function crypto()
     {

@@ -18,7 +18,7 @@
       <!-- Symbol -->
       <div>
         <label class="block mb-2 text-sm font-medium text-gray-300">Symbol</label>
-        <input v-model="symbol" type="text" placeholder="AAPL" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
+        <input v-model="symbol" type="text" placeholder="AAPL" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" :readonly="!!initialSymbol" />
       </div>
 
       <!-- Quantity -->
@@ -82,7 +82,14 @@
 import axios from "axios";
 import { ref, computed } from "vue";
 
-const symbol = ref("AAPL");
+const props = defineProps({
+  initialSymbol: {
+    type: String,
+    default: 'AAPL'
+  }
+});
+
+const symbol = ref(props.initialSymbol);
 const qty = ref(1);
 const type = ref("market");
 const limit_price = ref(null);
@@ -129,7 +136,7 @@ const submit = async (side) => {
     emit('order-placed');
 
     // Clear form on success
-    symbol.value = "AAPL";
+    symbol.value = props.initialSymbol; // Reset to initial or default
     qty.value = 1;
     limit_price.value = null;
     stop_price.value = null;

@@ -247,13 +247,21 @@ const recentTransactions = ref([
 
 async function fetchDashboardData() {
   try {
-    const [earningsRes, txnRes, usersRes, dashboardRes, fxRes] = await Promise.all([
+    const requests = [
       api.get('/admin/earnings').catch(() => ({ data: {} })),
       api.get('/admin/transactions').catch(() => ({ data: { data: { data: [] } } })),
       api.get('/admin/kycs', { params: { per_page: 10 } }).catch(() => ({ data: { data: { data: [] } } })),
-      api.get('/admin/dashboard').catch(() => ({ data: {} })),
-      api.get('/admin/fx/reconciliation').catch(() => ({ data: {} }))
-    ]);
+      api.get('/admin/dashboard').catch(() => ({ data: {} }))
+    ];
+    
+    // Only fetch FX data if user has manager or accounts role
+    if (hasRole('manager', 'accounts')) {
+      requests.push(api.get('/admin/fx/reconciliation').catch(() => ({ data: {} })));
+    } else {
+      requests.push(Promise.resolve({ data: {} }));
+    }
+
+    const [earningsRes, txnRes, usersRes, dashboardRes, fxRes] = await Promise.all(requests);
 
     if (dashboardRes.data?.success) {
       const dData = dashboardRes.data.stats;
