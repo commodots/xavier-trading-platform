@@ -12,6 +12,38 @@ use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
+    public function index()
+    {
+        $user = auth()->user();
+        $model = ($user->trading_mode === 'demo') ? new DemoOrder : new Order;
+
+        
+        $orders = $model->where('user_id', $user->id)
+            ->where('status', '!=', 'closed')
+            ->where('market', 'foreign')
+            ->latest()
+            ->get();
+
+        // Map database columns to the property names used in PositionsMonitor.vue
+        $positions = $orders->map(function ($order) {
+            return [
+                'id'           => $order->id,
+                'symbol'       => $order->symbol,
+                'side'         => $order->type,      // 'buy' or 'sell'
+                'type'         => $order->market,    // 'market' or 'limit'
+                'quantity'     => $order->units,     // Mapped from 'units'
+                'entry_price'  => $order->market_price,
+                'amount'       => $order->amount,
+                'currency'     => $order->currency,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $positions,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $user = auth()->user();
@@ -54,6 +86,22 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'data' => $order->load('trades'),
+        ]);
+    }
+
+    public function close($id)
+    {
+        $user = auth()->user();
+        $model = ($user->trading_mode === 'demo') ? new DemoOrder : new Order;
+
+        $order = $model->where('id', $id)->where('user_id', $user->id)->firstOrFail();
+
+        // Logic to close the position 
+        $order->update(['status' => 'closed']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Position closed successfully.'
         ]);
     }
 }

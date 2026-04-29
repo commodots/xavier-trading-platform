@@ -6,7 +6,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">🌍 Global Market</h1>
-          <p class="text-gray-400 text-sm">Trade global stocks from US & other international markets.</p>
+          <p class="text-sm text-gray-400">Trade global stocks from US & other international markets.</p>
         </div>
 
         <!-- Search -->
@@ -47,12 +47,12 @@
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
-                <th class="text-left py-2 px-2">Symbol</th>
-                <th class="text-left px-2">Company</th>
-                <th class="text-left px-2">Price</th>
-                <th class="text-left px-2">Change</th>
-                <th class="text-left px-2">Trend</th>
-                <th class="text-right px-2">Action</th>
+                <th class="px-2 py-2 text-left">Symbol</th>
+                <th class="px-2 text-left">Company</th>
+                <th class="px-2 text-left">Price</th>
+                <th class="px-2 text-left">Change</th>
+                <th class="px-2 text-left">Trend</th>
+                <th class="px-2 text-right">Action</th>
               </tr>
             </thead>
 
@@ -62,7 +62,7 @@
                 :key="stock.symbol"
                 class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
               >
-                <td class="py-3 px-2 font-semibold">{{ stock.symbol }}</td>
+                <td class="px-2 py-3 font-semibold">{{ stock.symbol }}</td>
                 <td class="px-2">{{ stock.name }}</td>
                 <td class="px-2 font-medium">${{ stock.market_price.toLocaleString() }}</td>
 
@@ -94,7 +94,7 @@
                 </td>
               </tr>
             </tbody>
-
+          </table>
       </div>
 
       <!-- Holdings Table -->
@@ -108,14 +108,14 @@
           <table class="w-full text-sm">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
               <tr>
-                <th class="text-left py-2 px-2">Symbol</th>
-                <th class="text-left px-2">Company</th>
-                <th class="text-left px-2">Quantity</th>
-                <th class="text-left px-2">Avg Cost</th>
-                <th class="text-left px-2">Current Price</th>
-                <th class="text-left px-2">Volume</th>
-                <th class="text-left px-2">Trend</th>
-                <th class="text-left px-2">P/L</th>
+                <th class="px-2 py-2 text-left">Symbol</th>
+                <th class="px-2 text-left">Company</th>
+                <th class="px-2 text-left">Quantity</th>
+                <th class="px-2 text-left">Avg Cost</th>
+                <th class="px-2 text-left">Current Price</th>
+                <th class="px-2 text-left">Volume</th>
+                <th class="px-2 text-left">Trend</th>
+                <th class="px-2 text-left">P/L</th>
               </tr>
             </thead>
 
@@ -131,7 +131,7 @@
                 :key="holding.symbol"
                 class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
               >
-                <td class="py-3 px-2 font-semibold">{{ holding.symbol }}</td>
+                <td class="px-2 py-3 font-semibold">{{ holding.symbol }}</td>
                 <td class="px-2">{{ holding.name || holding.symbol }}</td>
                 <td class="px-2">{{ holding.quantity ? holding.quantity.toLocaleString() : 0 }}</td>
                 <td class="px-2">${{ holding.avg_price ? holding.avg_price.toLocaleString() : '0.00' }}</td>
@@ -169,15 +169,15 @@
       <!-- Buy Modal -->
       <div
         v-if="buyModal"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       >
         <div class="bg-[#1C1F2E] rounded-2xl p-8 shadow-xl w-full max-w-lg relative">
           <button
             @click="buyModal = false"
-            class="absolute top-3 right-3 text-gray-400 hover:text-white"
+            class="absolute text-gray-400 top-3 right-3 hover:text-white"
           >✖</button>
 
-          <h2 class="text-xl font-semibold mb-4">
+          <h2 class="mb-4 text-xl font-semibold">
             Buy {{ selectedStock.symbol }}
           </h2>
 
@@ -187,7 +187,7 @@
               <input
                 v-model.number="amount"
                 type="number"
-                class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 mt-1"
+                class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg"
                 @input="calcUnits"
               />
             </div>
@@ -196,7 +196,7 @@
               <label class="text-sm text-gray-400">Units</label>
               <input
                 type="text"
-                class="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-2 mt-1"
+                class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg"
                 :value="units"
                 disabled
               />
@@ -208,12 +208,13 @@
               Place Order
             </button>
 
-            <p class="text-center text-yellow-400 text-sm mt-3">{{ message }}</p>
+            <p class="mt-3 text-sm text-center text-yellow-400">{{ message }}</p>
           </form>
         </div>
       </div>
 
     </div>
+  </div>
   </MainLayout>
 </template>
 

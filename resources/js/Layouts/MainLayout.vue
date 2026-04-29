@@ -230,8 +230,9 @@ onMounted(fetchPermissions);
 
 // Logic: Check if user has ANY staff/admin roles
 const hasStaffAccess = computed(() => {
-  const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
   if (!user.value) return false;
+
+  const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
 
   const roleString = typeof user.value.role === 'string' ? user.value.role.toLowerCase() : '';
   const hasRoleInString = staffRoles.includes(roleString);

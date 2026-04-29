@@ -18,7 +18,7 @@ class SyncSymbols extends Command
 
         $response = Http::get('https://finnhub.io/api/v1/stock/symbol', [
             'exchange' => 'US',
-            'token' => env('FINNHUB_API_KEY'),
+            'token' => config('services.finnhub.api_key'),
         ]);
 
         if ($response->failed()) {

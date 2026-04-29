@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TradeController;
+use App\Http\Controllers\Trading\OrderController;
 use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
@@ -170,6 +171,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/orders', [OmsController::class, 'placeOrder']);
         Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
         Route::post('/trade/open', [TradeController::class, 'open']);
+        Route::get('/trade/positions', [TradeController::class, 'index']);
         Route::post('/trade/close/{id}', [TradeController::class, 'close']);
         Route::post('/trade/place', [TradeController::class, 'placeOrder']);
         Route::get('/account', [TradeController::class, 'account']);

@@ -189,7 +189,9 @@ class TradeController extends Controller
     {
         $user = auth()->user();
         $models = $this->resolveModels($user);
-        $trade = $models->trade::findOrFail($id);
+        $trade = $models->trade::where('order_id', $id)
+        ->where('user_id', $user->id)
+        ->firstOrFail();
 
         if ($trade->status !== 'open') {
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
@@ -238,38 +240,21 @@ class TradeController extends Controller
     }
 
     public function index(Request $request)
-    {
-        $user = $request->user();
-        $models = $this->resolveModels($user);
-        $tradeModel = $models->trade;
+{
+    $user = $request->user();
+    $models = $this->resolveModels($user);
 
-        $trades = $tradeModel::whereHas('order', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-            ->with('order')
-            ->orderBy('created_at', 'desc')
-            ->get();
+    // Fetch OPEN TRADES (Positions), not just orders
+    $positions = $models->order::where('user_id', $user->id)
+        ->where('status', 'open')
+        ->orderBy('created_at', 'desc')
+        ->get();
 
-        // Fetch current prices to show "Trend" in the holdings table
-        $symbols = $trades->pluck('pair')->map(fn ($p) => explode('/', $p)[0])->unique();
-        $marketData = Symbol::whereIn('symbol', $symbols)->get()->keyBy('symbol');
-
-        $trades->each(function ($trade) use ($marketData) {
-            $symbol = explode('/', $trade->pair)[0];
-            $market = $marketData->get($symbol);
-
-            if ($market) {
-                $trade->current_price = (float) $market->last_price;
-                $trade->change_24h = (float) $market->change;
-                $trade->trend = $market->change >= 0 ? 'up' : 'down';
-            }
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => $trades,
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'data' => $positions,
+    ]);
+}
 
     public function searchSymbols(Request $request, $query = null)
     {

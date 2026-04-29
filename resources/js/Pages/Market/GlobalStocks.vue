@@ -210,7 +210,7 @@
                   <th class="font-medium text-right">Price ($)</th>
                   <th class="font-medium text-right">Value ($)</th>
                   <th class="font-medium text-right">24h Change</th>
-                  <th class="fonts-medium text-right">Volume</th>
+                  <th class="text-right fonts-medium">Volume</th>
                   <th class="px-6 font-medium text-right">Trend</th>
                   <th class="font-medium text-center" colspan="2">Action</th>
                 </tr>
@@ -246,6 +246,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Open Positions / Orders Monitor -->
+      <PositionsMonitor />
 
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currency-symbol="$" @close="isModalOpen = false" />
 
@@ -283,6 +286,7 @@ import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import MarketChart from "@/Components/MarketChart.vue";
 import MarketTicker from "@/Components/MarketTicker.vue";
 import TradePanel from "@/Components/TradePanel.vue";
+import PositionsMonitor from "@/Components/PositionsMonitor.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
 import { useRouter } from 'vue-router';

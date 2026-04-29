@@ -30,7 +30,7 @@
       <div>
         <label class="block mb-2 text-sm font-medium text-gray-300">Symbol</label>
         <div class="flex gap-2">
-          <input v-model="symbol" type="text" placeholder="AAPL" class="flex-1 px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" :readonly="!!initialSymbol" />
+          <input v-model="symbol" type="text" placeholder="AAPL" class="flex-1 px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
           <button @click="addToWatchlist" :disabled="watchlistLoading || !symbol" 
             class="px-3 py-2 text-xs font-bold transition-all border rounded-lg whitespace-nowrap"
             :class="isInWatchlist ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'">
@@ -99,7 +99,7 @@
 
 <script setup>
 import axios from "axios";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 
 const props = defineProps({
   initialSymbol: {
@@ -162,9 +162,17 @@ const submit = async (side) => {
       stop_loss: stop_loss.value
     });
 
-    success.value = `Order placed successfully! Order ID: ${response.data.data.id}`;
+    const order = response.data.data;
+    success.value = `Order placed successfully! ID: ${order.id.substring(0, 8)}`;
 
-    emit('order-placed');
+    // Notify parent for chart annotations and sound effects
+    emit('order-placed', order);
+
+    // Immediate Wallet Update
+    await fetchWalletBalances();
+
+    // Trigger refresh on the Positions Monitor globally
+    window.dispatchEvent(new CustomEvent('order-placed', { detail: order }));
 
     // Clear form on success
     symbol.value = props.initialSymbol; // Reset to initial or default
@@ -230,5 +238,12 @@ const addToWatchlist = async () => {
 onMounted(() => {
   fetchWalletBalances();
   fetchWatchlist();
+
+  // Listen for close events from the monitor to refresh balance
+  window.addEventListener('wallet-refresh', fetchWalletBalances);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('wallet-refresh', fetchWalletBalances);
 });
 </script>
