@@ -1,6 +1,17 @@
 <template>
   <div class="bg-[#1f2937] p-5 rounded-xl border border-[#374151]">
-  
+    
+    <!-- Wallet Balance Display -->
+    <div class="mb-6 space-y-1">
+      <div class="flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-500">
+        <span>Buying Power (USD)</span>
+        <span class="text-white">${{ walletBalances.cleared_balance_usd ? walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}</span>
+      </div>
+      <div class="w-full h-1 overflow-hidden bg-gray-800 rounded-full">
+        <div class="h-full bg-blue-500" :style="{ width: '100%' }"></div>
+      </div>
+    </div>
+
     <h3 class="mb-4 text-lg font-semibold">Place Order</h3>
 
     <div class="grid grid-cols-1 gap-4">
@@ -18,7 +29,15 @@
       <!-- Symbol -->
       <div>
         <label class="block mb-2 text-sm font-medium text-gray-300">Symbol</label>
-        <input v-model="symbol" type="text" placeholder="AAPL" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" :readonly="!!initialSymbol" />
+        <div class="flex gap-2">
+          <input v-model="symbol" type="text" placeholder="AAPL" class="flex-1 px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" :readonly="!!initialSymbol" />
+          <button @click="addToWatchlist" :disabled="watchlistLoading || !symbol" 
+            class="px-3 py-2 text-xs font-bold transition-all border rounded-lg whitespace-nowrap"
+            :class="isInWatchlist ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'">
+            <span v-if="watchlistLoading" class="inline-block w-3 h-3 mr-1 border-b-2 border-current rounded-full animate-spin"></span>
+            {{ isInWatchlist ? '★ In Watchlist' : '☆ Add to Watchlist' }}
+          </button>
+        </div>
       </div>
 
       <!-- Quantity -->
@@ -80,7 +99,7 @@
 
 <script setup>
 import axios from "axios";
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 
 const props = defineProps({
   initialSymbol: {
@@ -101,6 +120,12 @@ const sideLoading = ref(null); // Tracks 'buy', 'sell', or null
 const emit = defineEmits(['order-placed']); // Define the emit
 const error = ref("");
 const success = ref("");
+const walletBalances = ref({
+  cleared_balance_usd: 0,
+  cleared_balance_ngn: 0
+});
+const watchlistLoading = ref(false);
+const watchlist = ref([]);
 
 const isValid = computed(() => {
   if (!symbol.value || !qty.value || qty.value < 1) return false;
@@ -110,6 +135,12 @@ const isValid = computed(() => {
   if (type.value === 'bracket' && (!take_profit.value || !stop_loss.value)) return false;
 
   return true;
+});
+
+const isInWatchlist = computed(() => {
+  return Array.isArray(watchlist.value) && watchlist.value.some(item => 
+    item.symbol === symbol.value.toUpperCase()
+  );
 });
 
 const submit = async (side) => {
@@ -131,7 +162,7 @@ const submit = async (side) => {
       stop_loss: stop_loss.value
     });
 
-    success.value = `Order placed successfully! Order ID: ${response.data.id}`;
+    success.value = `Order placed successfully! Order ID: ${response.data.data.id}`;
 
     emit('order-placed');
 
@@ -144,9 +175,60 @@ const submit = async (side) => {
     stop_loss.value = null;
 
   } catch (err) {
-    error.value = err.response?.data?.message || "Failed to place order. Please try again.";
+    error.value = (err.response && err.response.data && err.response.data.message) ? err.response.data.message : "Failed to place order. Please try again.";
   } finally {
     sideLoading.value = null;
   }
 };
+
+const fetchWalletBalances = async () => {
+  try {
+    const response = await axios.get("/wallet/balances");
+    walletBalances.value = response.data.data;
+  } catch (err) {
+    console.error("Failed to fetch wallet balances:", err);
+  }
+};
+
+const fetchWatchlist = async () => {
+  try {
+    const res = await axios.get('/watchlist');
+    watchlist.value = res.data.data || res.data;
+  } catch (error) {
+    console.error("Failed to fetch watchlist", error);
+  }
+};
+
+const addToWatchlist = async () => {
+  if (!symbol.value) return;
+
+  watchlistLoading.value = true;
+  try {
+    if (isInWatchlist.value) {
+      const item = watchlist.value.find(i => i.symbol === symbol.value.toUpperCase());
+      await axios.delete(`/watchlist/${item.id}`);
+    } else {
+      await axios.post("/watchlist", {
+        symbol: symbol.value.toUpperCase(),
+        name: symbol.value.toUpperCase(),
+        market: "stocks",
+        currency: "USD",
+        added_price: 0
+      });
+    }
+    
+    await fetchWatchlist();
+    
+  } catch (err) {
+    error.value = (err.response && err.response.data && err.response.data.message) ? err.response.data.message : "Failed to update watchlist.";
+  } finally {
+    watchlistLoading.value = false;
+  }
+};
+
+// Fetch wallet balances and watchlist on component mount
+onMounted(() => {
+  fetchWalletBalances();
+  fetchWatchlist();
+});
 </script>

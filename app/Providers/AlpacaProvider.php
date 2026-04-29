@@ -68,7 +68,6 @@ class AlpacaProvider
                 }
             }
         } catch (\Exception $e) {
-            .
         }
 
         return 0.0;

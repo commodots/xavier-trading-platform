@@ -95,6 +95,73 @@
               </tr>
             </tbody>
 
+      </div>
+
+      <!-- Holdings Table -->
+      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-white">Your Holdings</h2>
+          <span class="text-xs text-gray-400">Global stock positions</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+              <tr>
+                <th class="text-left py-2 px-2">Symbol</th>
+                <th class="text-left px-2">Company</th>
+                <th class="text-left px-2">Quantity</th>
+                <th class="text-left px-2">Avg Cost</th>
+                <th class="text-left px-2">Current Price</th>
+                <th class="text-left px-2">Volume</th>
+                <th class="text-left px-2">Trend</th>
+                <th class="text-left px-2">P/L</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr v-if="holdings.length === 0">
+                <td colspan="8" class="py-6 text-center text-gray-500">
+                  You currently hold no global stocks.
+                </td>
+              </tr>
+              <tr
+                v-else
+                v-for="holding in holdings"
+                :key="holding.symbol"
+                class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
+              >
+                <td class="py-3 px-2 font-semibold">{{ holding.symbol }}</td>
+                <td class="px-2">{{ holding.name || holding.symbol }}</td>
+                <td class="px-2">{{ holding.quantity ? holding.quantity.toLocaleString() : 0 }}</td>
+                <td class="px-2">${{ holding.avg_price ? holding.avg_price.toLocaleString() : '0.00' }}</td>
+                <td class="px-2 font-medium">${{ holding.market_price ? holding.market_price.toLocaleString() : '0.00' }}</td>
+                <td class="px-2 text-gray-400">{{ holding.volume ? holding.volume.toLocaleString() : 'N/A' }}</td>
+                <td class="px-2">
+                  <apexchart
+                    v-if="holding.sparkline && holding.sparkline.length > 0"
+                    type="area"
+                    height="35"
+                    width="80"
+                    :options="sparkOptions"
+                    :series="[{ data: holding.sparkline }]"
+                  />
+                  <span v-else class="text-gray-500">-</span>
+                </td>
+                <td
+                  class="px-2"
+                  :class="{
+                    'text-green-400': (holding.market_price - holding.avg_price) >= 0,
+                    'text-red-400': (holding.market_price - holding.avg_price) < 0
+                  }"
+                >
+                  ${{ (((holding.market_price || 0) - (holding.avg_price || 0)) * (holding.quantity || 0)).toLocaleString() || '0.00' }}
+                  <span class="text-xs">
+                    ({{ ((((holding.market_price || 0) - (holding.avg_price || 0)) / (holding.avg_price || 1)) * 100).toFixed(2) || '0.00' }}%)
+                  </span>
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -153,7 +220,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import axios from "axios";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 
 const apexchart = VueApexCharts;
@@ -162,6 +229,7 @@ const apexchart = VueApexCharts;
 const search = ref("");
 const suggestions = ref([]);
 const stocks = ref([]);
+const holdings = ref([]);
 const buyModal = ref(false);
 const selectedStock = ref({});
 const amount = ref(0);
@@ -181,7 +249,40 @@ onMounted(async () => {
       { symbol: "AMZN", name: "Amazon", market_price: 136.1, change: 0.7, sparkline: [132, 133, 134, 135, 136.1] },
     ];
   }
+
+  // Load user holdings
+  await fetchHoldings();
 });
+
+// FETCH USER HOLDINGS
+async function fetchHoldings() {
+  try {
+    const token = localStorage.getItem("xavier_token");
+    const res = await axios.get("/api/portfolio", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    // Filter for global stocks only and enrich with volume/trend data
+    const portfolioData = res.data.data && res.data.data.holdings ? res.data.data.holdings : [];
+    const globalHoldings = portfolioData.filter(h =>
+      h.category === 'stocks' || h.market === 'STOCKS'
+    );
+
+    // Enrich holdings with current market data
+    holdings.value = globalHoldings.map(holding => {
+      const marketData = stocks.value.find(s => s.symbol === holding.symbol);
+      return {
+        ...holding,
+        market_price: marketData ? marketData.market_price : holding.market_price || 0,
+        volume: marketData ? marketData.volume : 0,
+        sparkline: marketData ? marketData.sparkline : []
+      };
+    });
+  } catch (error) {
+    console.error("Failed to fetch holdings:", error);
+    holdings.value = [];
+  }
+}
 
 // AUTOCOMPLETE
 watch(search, async (val) => {
@@ -252,11 +353,12 @@ async function placeOrder() {
     });
 
     if (res.data.success) {
-      message.value = "✅ Global stock order placed!";
+      message.value = "Global stock order placed!";
+      await fetchHoldings(); // Refresh holdings after order
       setTimeout(() => (buyModal.value = false), 1000);
     }
   } catch (e) {
-    message.value = "❌ Could not place order";
+    message.value = "Could not place order";
   }
 }
 </script>

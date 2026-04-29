@@ -113,7 +113,9 @@ ws.on('close', (code, reason) => {
 // Listen for new subscription requests from Laravel
 redisSub.subscribe('symbol-updates');
 redisSub.on('message', (channel, msg) => {
+    console.log(`Message received on channel ${channel}`);
     try {
+        
         const { action, symbol } = JSON.parse(msg);
         if (action === 'subscribe' && symbol && !trackedSymbols.has(symbol)) {
             if (ws.readyState === WebSocket.OPEN) {

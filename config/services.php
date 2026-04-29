@@ -64,8 +64,20 @@ return [
 
     'paystack' => [
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
-        'public_key' => env('PAYSTACK_PUBLIC_KEY')  ?? env('VITE_PAYSTACK_PUBLIC_KEY'),
+        'public_key' => env('PAYSTACK_PUBLIC_KEY') ?? env('VITE_PAYSTACK_PUBLIC_KEY'),
         'callback_url' => env('PAYSTACK_CALLBACK_URL'),
     ],
-
+    'finnhub' => [
+        'api_key' => env('FINNHUB_API_KEY'),
+        'secret' => env('FINNHUB_SECRET'),
+    ],
+    'alpaca' => [
+        'api_key' => env('ALPACA_API_KEY'),
+        'secret_key' => env('ALPACA_SECRET_KEY'),
+    ],
+    'pusher' => [
+        'pusher_app_id' => env('PUSHER_APP_ID'),
+        'pusher_app_key' => env('PUSHER_APP_KEY'),
+        'pusher_app_secret' => env('PUSHER_APP_SECRET'),
+    ],
 ];

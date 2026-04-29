@@ -12,9 +12,9 @@
       </span>
 
       <span class="text-[10px] font-medium px-1.5 py-0.5 rounded"
-        :class="stock.p >= stock.pc ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'">
-        {{ stock.p >= stock.pc ? '▲' : '▼' }}
-        {{ Math.abs(((stock.p - stock.pc) / (stock.pc || 1)) * 100).toFixed(2) }}%
+        :class="stock.change >= 0 ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'">
+        {{ stock.change >= 0 ? '▲' : '▼' }}
+        {{ Math.abs(stock.change).toFixed(2) }}%
       </span>
     </div>
   </div>
@@ -30,9 +30,9 @@ const props = defineProps({
 });
 
 const defaultStocks = [
-  { s: 'AAPL', p: 0, pc: 0 },
-  { s: 'TSLA', p: 0, pc: 0 },
-  { s: 'MSFT', p: 0, pc: 0 }
+  { s: 'AAPL', p: 0, pc: 0, change: 0 },
+  { s: 'TSLA', p: 0, pc: 0, change: 0 },
+  { s: 'MSFT', p: 0, pc: 0, change: 0 }
 ];
 
 const emit = defineEmits(['select-symbol']);
@@ -42,9 +42,10 @@ const stocks = ref([...defaultStocks]);
 const normalizeTicker = (ticker) => {
   const symbol = ticker?.symbol || ticker?.s;
   const price = Number(ticker?.price ?? ticker?.p ?? 0);
-  const prevClose = Number(ticker?.pc ?? price);
+  const prevClose = Number(ticker?.previous_close ?? ticker?.pc ?? price);
+  const change = Number(ticker?.change ?? 0);
   if (!symbol) return null;
-  return { s: symbol, p: price, pc: prevClose };
+  return { s: symbol, p: price, pc: prevClose, change };
 };
 
 const fetchPricesForSymbols = async (symbols) => {
@@ -59,10 +60,13 @@ const fetchPricesForSymbols = async (symbols) => {
     quoteData.forEach(quote => {
       const sym = quote.symbol || quote.s;
       const price = Number(quote.price || quote.p || 0);
+      const prevClose = Number(quote.previous_close || quote.pc || price);
+      const change = Number(quote.change || 0);
       const ticker = stocks.value.find(s => s.s === sym);
       if (ticker && price > 0) {
         ticker.p = price;
-        ticker.pc = price;
+        ticker.pc = prevClose;
+        ticker.change = change;
       }
     });
   } catch (e) {
@@ -75,18 +79,21 @@ watch(
   (newTickers) => {
     if (!Array.isArray(newTickers)) return;
 
-    if (newTickers.length > 0) {
-      const normalized = newTickers.map(normalizeTicker).filter(Boolean);
-      const combined = [...normalized, ...defaultStocks];
-      stocks.value = combined.filter((v, i, a) => a.findIndex(t => t.s === v.s) === i);
-      
-      // Fetch real prices for all symbols
-      const symbols = stocks.value.map(s => s.s);
-      fetchPricesForSymbols(symbols);
-    } else {
-      stocks.value = [...defaultStocks];
-      fetchPricesForSymbols(defaultStocks.map(s => s.s));
-    }
+    // Start with the current visible stocks or defaults if empty
+    let current = stocks.value.length > 0 ? [...stocks.value] : [...defaultStocks];
+    const normalizedFavorites = newTickers.map(normalizeTicker).filter(Boolean);
+
+    normalizedFavorites.forEach(fav => {
+      const exists = current.find(s => s.s === fav.s);
+      if (!exists) {
+        current.push(fav);
+        // Maintain exactly 3: remove the first if we exceed the limit
+        if (current.length > 3) current.shift();
+      }
+    });
+
+    stocks.value = current;
+    fetchPricesForSymbols(stocks.value.map(s => s.s));
   },
   { deep: true, immediate: true }
 );
@@ -114,11 +121,13 @@ onMounted(() => {
               existing.p = Number(update.p);
             }
           } else if (update.s && update.p != null) {
-            stocks.value.push({ 
+            // If a new symbol comes from the stream, push and shift to keep 3
+            stocks.value.push({
               s: update.s, 
               p: Number(update.p), 
               pc: Number(update.p) 
             });
+            if (stocks.value.length > 3) stocks.value.shift();
           }
         });
       }

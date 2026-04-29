@@ -13,5 +13,14 @@ class Symbol extends Model
         'name',
         'type',
         'exchange',
+        'last_price',
+        'change',
+        'volume',
+    ];
+
+    protected $casts = [
+        'last_price' => 'decimal:4',
+        'change' => 'decimal:4',
+        'volume' => 'decimal:2',
     ];
 }

@@ -54,9 +54,22 @@ import MarketTicker from "@/Components/MarketTicker.vue";
 import MarketChart from "@/Components/MarketChart.vue";
 import TradePanel from "@/Components/TradePanel.vue";
 import PortfolioPanel from "@/Components/PortfolioPanel.vue";
+import api from '@/api';
 
 const router = useRouter()
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const selectedSymbol = ref('AAPL')
+
+watch(selectedSymbol, async (symbol) => {
+  if (!symbol) {
+    return;
+  }
+
+  try {
+    await api.post('/stocks/track', { symbol });
+  } catch (error) {
+    console.error('Failed to track selected symbol:', symbol, error);
+  }
+});
 </script>

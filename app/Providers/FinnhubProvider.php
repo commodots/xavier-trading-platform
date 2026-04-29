@@ -25,15 +25,34 @@ class FinnhubProvider
 
     public function getQuote(string $symbol): array
     {
+        return $this->request('/api/v1/quote', [
+            'symbol' => strtoupper($symbol),
+        ]);
+    }
+
+    public function candles(string $symbol, string $resolution = '1', ?int $from = null, ?int $to = null): array
+    {
+        $from = $from ?: now()->subHours(3)->timestamp;
+        $to = $to ?: now()->timestamp;
+
+        return $this->request('/api/v1/stock/candle', [
+            'symbol' => strtoupper($symbol),
+            'resolution' => $resolution,
+            'from' => $from,
+            'to' => $to,
+        ]);
+    }
+
+    protected function request(string $uri, array $query = []): array
+    {
         if (! $this->key) {
             return [];
         }
 
         try {
-            $response = Http::timeout(10)->get($this->baseUrl.'/api/v1/quote', [
-                'symbol' => strtoupper($symbol),
+            $response = Http::timeout(10)->get($this->baseUrl.$uri, array_merge($query, [
                 'token' => $this->key,
-            ]);
+            ]));
 
             if ($response->successful()) {
                 return $response->json();

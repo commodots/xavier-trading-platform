@@ -154,22 +154,27 @@ const setupRealtimeListener = () => {
   if (!window.Echo) return;
   
   channel = window.Echo.channel("market-channel")
-    .listen(".price.updated", (event) => {
-      const { symbol, price } = event.data;
-      
-      // Only update if this is for the current symbol
-      if (symbol.toUpperCase() === props.symbol.toUpperCase()) {
-        // Update the latest candle's close price
-        if (candles.value.length > 0) {
-          const latestCandle = candles.value[candles.value.length - 1];
-          latestCandle.close = price;
-          latestCandle.high = Math.max(latestCandle.high, price);
-          latestCandle.low = Math.min(latestCandle.low, price);
-          
-          // Rebuild series with updated data
-          buildSeries();
+    .listen("MarketUpdated", (e) => {
+      const updates = Array.isArray(e) ? e : (e.data || []);
+
+      updates.forEach(trade => {
+        const symbol = trade.s;
+        const price = trade.p;
+
+        // Only update if this is for the current symbol
+        if (symbol && symbol.toUpperCase() === props.symbol.toUpperCase()) {
+          // Update the latest candle's close price
+          if (candles.value.length > 0) {
+            const latestCandle = candles.value[candles.value.length - 1];
+            latestCandle.close = price;
+            latestCandle.high = Math.max(latestCandle.high, price);
+            latestCandle.low = Math.min(latestCandle.low, price);
+            
+            // Rebuild series with updated data
+            buildSeries();
+          }
         }
-      }
+      });
     });
 };
 

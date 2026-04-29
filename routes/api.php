@@ -132,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/market/global', [MarketController::class, 'global']);
     Route::get('/market/crypto', [MarketController::class, 'crypto']);
     Route::get('/market/fixed-income', [MarketController::class, 'fixedIncome']);
+    Route::get('/companies/search/{query}', [TradeController::class, 'searchSymbols']);
 
     /* Verified Actions (Wallet, Portfolio, Trading) */
     // Accessible to all authenticated users (even email unverified)

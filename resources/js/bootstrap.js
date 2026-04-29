@@ -30,4 +30,14 @@ window.Echo = new Echo({
     key: import.meta.env.VITE_PUSHER_APP_KEY,
     cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER ?? 'mt1',
     forceTLS: true,
+    enabledTransports: ['ws', 'wss'],
+    disableStats: true,
 });
+
+const originalWarn = console.warn;
+console.warn = function(...args) {
+    if (args[0] && args[0].includes('Permissions policy violation') && args[0].includes('unload')) {
+        return;
+    }
+    originalWarn.apply(console, args);
+};

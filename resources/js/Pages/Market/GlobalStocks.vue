@@ -8,7 +8,7 @@
             <div class="relative">
               <input ref="searchInput" v-model="search" @input="handleSearchInput" @keydown.enter="selectFirstSuggestion" type="text" placeholder="Search global stocks..."
                 class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-64 transition-all" />
-              <span v-if="searchLoading" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Searching…</span>
+              <span v-if="searchLoading" class="absolute text-xs text-gray-400 -translate-y-1/2 right-3 top-1/2">Searching…</span>
               
               <!-- Autocomplete Dropdown -->
               <div v-if="searchSuggestions.length > 0" class="absolute top-full left-0 right-0 mt-1 bg-[#0F1724] border border-[#1f3348] rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto">
@@ -23,7 +23,7 @@
       </div>
 
       <!-- Portfolio Summary Bar -->
-      <div class=" flex gap-4 mb-6 items-center">
+      <div class="flex items-center gap-4 mb-6 ">
         <div>
           <p class="text-[12px] uppercase tracking-widest text-white font-bold mb-1">USD Wallet Balance: <span>${{ walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span></p>
         </div>
@@ -33,21 +33,21 @@
       </div>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="lg:col-span-2 space-y-4">
+        <div class="space-y-4 lg:col-span-2">
           <!-- Chart Toggle -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
             <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg">
               <button 
                 @click="activeChart = 'holdings'"
-                class="px-4 py-2 text-xs font-bold transition-all rounded-md uppercase"
+                class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
                 :class="activeChart === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
               >
                 My Holdings
               </button>
               <button 
                 @click="activeChart = 'market'"
-                class="px-4 py-2 text-xs font-bold transition-all rounded-md uppercase"
+                class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
                 :class="activeChart === 'market' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
               >
                 Live Chart
@@ -95,11 +95,9 @@
         <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] flex flex-col h-full min-h-[540px]">
           <div class="p-4 border-b border-[#1f3348] flex items-center justify-between gap-2">
             <h3 class="text-sm font-bold tracking-wider text-gray-400 uppercase">Market Insights</h3>
-            <input v-model="insightsSearch" type="text" placeholder="Filter..." 
-              class="bg-[#0B121D] border border-[#1f3348] rounded px-2 py-1 text-[10px] text-gray-300 focus:border-[#00D4FF] outline-none w-24" />
           </div>
           
-          <div class="flex border-b border-[#1f3348] text-[10px] font-bold uppercase overflow-x-auto no-scrollbar bg-[#0B121D]">
+          <div class="flex border-b border-[#1f3348] text-[10px] font-bold uppercase bg-[#0B121D]">
             <button v-for="tab in marketTabs" :key="tab.id" @click="setActiveTab(tab.id)"
               class="flex-1 px-2 py-3 transition-all border-b-2 whitespace-nowrap"
               :class="activeTab === tab.id ? 'border-[#00D4FF] text-[#00D4FF] bg-[#00D4FF]/5' : 'border-transparent text-gray-500 hover:text-gray-300'">
@@ -107,54 +105,44 @@
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto custom-scrollbar">
-            <template v-if="activeTab === 'search'">
-              <div class="p-4">
-                <div class="mb-4 text-xs uppercase tracking-widest text-gray-400">Search Global Stocks</div>
-                <div class="rounded-2xl border border-[#1f3348] bg-[#0B121D] p-4">
-                  <p class="text-sm text-gray-300">Use the search input at the top to query symbols. Results appear both in the holdings table and this insights panel.</p>
-                  <div class="mt-4 flex flex-wrap gap-2">
-                    <button @click="focusSearch"
-                      class="rounded-md bg-[#00D4FF] px-3 py-2 text-xs font-semibold text-[#0F1724] hover:bg-[#00b8e6] transition">
-                      Focus search
-                    </button>
-                  </div>
-                </div>
-                <div v-if="showSearchResults && searchResults.length > 0" class="mt-4 divide-y divide-[#1f3348]">
-                  <div v-for="stock in searchResults" :key="stock.symbol" class="py-3 flex items-center justify-between gap-4">
-                    <div>
-                      <div class="font-semibold text-[#00D4FF]">{{ stock.symbol }}</div>
-                      <div class="text-gray-400 text-xs">{{ stock.name }}</div>
-                    </div>
-                    <button @click="openDetails(stock)"
-                      class="rounded-md border border-[#1f3348] px-3 py-2 text-xs text-gray-300 hover:bg-[#16213A] transition">
-                      View
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div v-if="isInsightsLoading" class="p-10 text-center text-gray-400">Loading market insights…</div>
-              <table v-else class="w-full text-xs">
-              <tbody class="divide-y divide-[#1f3348]/30">
-                <tr v-for="item in filteredMarketData" :key="item.symbol" 
-                    class="hover:bg-[#16213A] transition cursor-pointer group" 
-                    @click="openDetails(item)">
-                  <td class="px-4 py-3">
-                    <div class="font-bold text-white group-hover:text-[#00D4FF]">{{ item.symbol }}</div>
-                    <div class="text-[10px] text-gray-500 truncate w-24">{{ item.name }}</div>
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <div class="font-semibold text-white">${{ item.price.toLocaleString() }}</div>
-                    <div :class="item.change >= 0 ? 'text-green-400' : 'text-red-400'" class="text-[10px]">
-                      {{ item.change >= 0 ? '+' : '' }}{{ item.change }}%
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </template>
+          <!-- Market Insights List Container -->
+          <div class="flex-1 p-4">
+            <div v-if="isInsightsLoading" class="flex flex-col items-center justify-center h-full space-y-2 opacity-50">
+              <div class="w-8 h-8 border-t-2 border-blue-500 rounded-full animate-spin"></div>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Syncing...</span>
+            </div>
+            
+            <div v-else-if="marketData.length === 0" class="flex flex-col items-center justify-center py-10 text-xs text-center text-gray-500">
+              <p>No market data available for {{ activeTab }}</p>
+            </div>
+
+            <div v-else>
+              <table class="min-w-full text-sm border-separate border-spacing-0">
+                <thead class="text-[10px] uppercase tracking-wider text-gray-500 bg-[#0B121D]">
+                  <tr>
+                    <th class="px-4 py-2 text-left">Symbol</th>
+                    <th class="px-4 py-2 text-right">Price</th>
+                    <th class="px-4 py-2 text-right">Change%</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#1f3348]">
+                  <tr v-for="item in marketData" :key="item.symbol" @click="selectForChart({ symbol: item.symbol, name: item.name })" class="hover:bg-[#16213A] transition cursor-pointer">
+                    <td class="px-4 py-3 font-bold text-white">{{ item.symbol }}</td>
+                    <td class="px-4 py-3 text-right text-white">${{ item.price.toFixed(2) }}</td>
+                    <td class="px-4 py-3 text-right">
+                      <span :class="['inline-flex items-center justify-end rounded-full px-2 py-1 text-[10px] font-semibold', item.change >= 0 ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300']">
+                        {{ item.change >= 0 ? '+' : '' }}{{ item.change.toFixed(2) }}%
+                      </span>
+                    </td>
+                    <td class="w-24 px-4 py-3 text-right">
+                      <div class="h-8">
+                        <apexchart type="line" height="32" :options="{ ...sparkOptions, colors: [item.change >= 0 ? '#10B981' : '#EF4444'] }" :series="[{ data: item.spark || [] }]" />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -164,11 +152,11 @@
           <div>
             <h2 class="font-semibold text-gray-200">Your Holdings</h2>
           </div>
-          <span class="text-xs text-gray-500">{{ showSearchResults ? searchResults.length : stocks.length }} Assets</span>
+          <span class="text-xs text-gray-500">{{ showSearchResults ? searchResults.length : userHoldings.length }} Assets</span>
         </div>
         <div class="overflow-x-auto">
           <div v-if="showSearchResults" class="p-4">
-            <div class="mb-3 flex items-center justify-between">
+            <div class="flex items-center justify-between mb-3">
               <div>
                 <h3 class="text-sm font-semibold text-white">Search results</h3>
                 <p class="text-xs text-gray-400">Showing up to 20 matching symbols.</p>
@@ -192,7 +180,7 @@
                     Trade
                   </button>
                   <button v-if="!isStockInHoldings(stock.symbol)" @click="addToHoldings(stock)"
-                    class="border border-blue-500/50 text-blue-400 px-3 py-2 rounded-md hover:bg-blue-500/10 transition text-xs">
+                    class="px-3 py-2 text-xs text-blue-400 transition border rounded-md border-blue-500/50 hover:bg-blue-500/10">
                     + Track
                   </button>
                 </div>
@@ -206,38 +194,48 @@
           </div>
 
           <div v-else>
-            <table class="w-full text-sm">
+            <div v-if="holdingsLoading" class="p-10 text-center text-gray-400">
+              <div class="w-8 h-8 mx-auto mb-2 border-t-2 border-blue-500 rounded-full animate-spin"></div>
+              Loading your holdings...
+            </div>
+            <div v-else-if="userHoldings.length === 0" class="p-10 text-center text-gray-400">
+              No global stock holdings yet. Start trading to see your assets here.
+            </div>
+            <table v-else class="w-full text-sm">
               <thead class="text-gray-400 border-b border-[#1f3348] bg-[#0B121D]">
                 <tr>
                   <th class="px-6 py-4 font-medium text-left">Symbol</th>
                   <th class="font-medium text-left">Company</th>
+                  <th class="font-medium text-right">Quantity</th>
                   <th class="font-medium text-right">Price ($)</th>
+                  <th class="font-medium text-right">Value ($)</th>
                   <th class="font-medium text-right">24h Change</th>
-                  <th class="font-medium text-right">Volume</th>
+                  <th class="fonts-medium text-right">Volume</th>
                   <th class="px-6 font-medium text-right">Trend</th>
                   <th class="font-medium text-center" colspan="2">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#1f3348]">
-                <tr v-for="stock in stocks" :key="stock.symbol" class="hover:bg-[#16213A] transition">
-                  <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ stock.symbol }}</td>
-                  <td class="text-gray-300">{{ stock.name }}</td>
-                  <td class="font-mono font-semibold text-right text-white">${{ stock.price.toFixed(2) }}</td>
-                  <td class="text-right" :class="stock.change >= 0 ? 'text-green-400' : 'text-red-400'">
-                    {{ stock.change >= 0 ? '+' : '' }}{{ stock.change }}%
+                <tr v-for="holding in userHoldings" :key="holding.symbol" class="hover:bg-[#16213A] transition">
+                  <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ holding.symbol }}</td>
+                  <td class="text-gray-300">{{ holding.name }}</td>
+                  <td class="text-right text-gray-300">{{ holding.quantity }}</td>
+                  <td class="font-mono font-semibold text-right text-white">${{ holding.price ? holding.price.toFixed(2) : '0.00' }}</td>
+                  <td class="text-right" :class="holding.change >= 0 ? 'text-green-400' : 'text-red-400'">
+                    {{ holding.change >= 0 ? '+' : '' }}{{ holding.change || 0 }}%
                   </td>
-                  <td class="text-right text-gray-400">{{ stock.volume.toLocaleString() }}</td>
+                  <td class="text-right text-gray-300">{{ holding.volume ? holding.volume.toLocaleString() : '0' }}</td>
                   <td class="w-32 px-6 text-right">
-                    <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: stock.spark }]" />
+                    <apexchart type="line" height="30" :options="{ ...sparkOptions, colors: [holding.change >= 0 ? '#10B981' : '#EF4444'] }" :series="[{ data: holding.spark || [] }]" />
                   </td>
                   <td class="px-2 text-center">
-                    <button @click="openDetails(stock)"
+                    <button @click="openDetails(holding)"
                       class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md hover:text-white hover:bg-[#2d4a66] transition text-xs">
                       Details
                     </button>
                   </td>
                   <td class="px-2 text-center">
-                    <button @click="openTrade(stock)"
+                    <button @click="openTrade(holding)"
                       class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
                       Trade
                     </button>
@@ -251,13 +249,27 @@
 
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currency-symbol="$" @close="isModalOpen = false" />
 
-      <Modal :show="showTradeModal" @close="showTradeModal = false" max-width="md">
-        <TradePanel 
-          v-if="selectedTradeStock"
-          :initialSymbol="selectedTradeStock.symbol" 
-          @order-placed="() => { showTradeModal = false; fetchPortfolioPerformance(); }" 
-        />
-      </Modal>
+      <!-- Trade Modal -->
+      <div v-if="showTradeModal" class="fixed inset-0 z-50 overflow-y-auto" @keydown.escape="showTradeModal = false">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="showTradeModal = false"></div>
+          <div class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-[#0F1724] border border-[#1f3348] shadow-xl rounded-lg">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-white">Trade {{ selectedTradeStock ? selectedTradeStock.symbol : '' }}</h3>
+              <button @click="showTradeModal = false" class="text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            <TradePanel 
+              v-if="selectedTradeStock"
+              :initialSymbol="selectedTradeStock.symbol" 
+              @order-placed="() => { showTradeModal = false; fetchHoldings(); fetchPortfolioPerformance(); fetchWalletBalances(); }" 
+            />
+          </div>
+        </div>
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -271,7 +283,6 @@ import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import MarketChart from "@/Components/MarketChart.vue";
 import MarketTicker from "@/Components/MarketTicker.vue";
 import TradePanel from "@/Components/TradePanel.vue";
-import Modal from "@/Components/Modal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
 import { useRouter } from 'vue-router';
@@ -321,7 +332,6 @@ const marketTabSymbols = {
   most_traded: ['AAPL', 'AMZN', 'GOOGL'],
 };
 
-const insightsSearch = ref("");
 let searchTimer = null;
 let chartSearchTimer = null;
 const chartSearch = ref("");
@@ -352,7 +362,6 @@ const marketTabs = [
   { id: 'gainers', name: 'Gainers' },
   { id: 'losers', name: 'Losers' },
   { id: 'most_traded', name: 'Most Traded' },
-  { id: 'search', name: 'Search' },
 ];
 
 const insightData = {
@@ -361,15 +370,8 @@ const insightData = {
   most_traded: [],
 };
 
-const filteredMarketData = computed(() => {
-  const data = marketInsights.value[activeTab.value] || [];
-  if (!insightsSearch.value.trim()) return data;
-  
-  const query = insightsSearch.value.toLowerCase();
-  return data.filter(item => 
-    item.symbol.toLowerCase().includes(query) || 
-    item.name.toLowerCase().includes(query)
-  );
+const marketData = computed(() => {
+  return marketInsights.value[activeTab.value] || [];
 });
 
 const stocks = ref([
@@ -377,6 +379,9 @@ const stocks = ref([
   { symbol: "TSLA", name: "Tesla Inc", price: 0, change: 0, volume: 0, spark: [] },
   { symbol: "MSFT", name: "Microsoft Corp", price: 0, change: 0, volume: 0, spark: [] },
 ]);
+
+const holdings = ref([]);
+const holdingsLoading = ref(false);
 
 const sparkOptions = {
   chart: { toolbar: { show: false }, sparkline: { enabled: true } },
@@ -389,6 +394,14 @@ const sparkOptions = {
 const tradeTickers = computed(() => ({ GLOBAL: stocks.value.map(s => ({ ...s, currency: 'USD' })) }));
 const showSearchResults = computed(() => search.value.trim().length >= 2);
 const searchedTickers = computed(() => favoriteTickers.value);
+
+const userHoldings = computed(() => {
+  // Normalize category checking and provide fallback if category is missing
+  return holdings.value.filter(h => {
+    const cat = (h.category || '').toUpperCase();
+    return ['GLOBAL', 'STOCKS', 'FOREIGN'].includes(cat) || !h.category;
+  });
+});
 
 const isStockInHoldings = (symbol) => stocks.value.some(s => s.symbol === symbol);
 
@@ -408,23 +421,16 @@ const focusSearch = () => {
 
 const setActiveTab = (tab) => {
   activeTab.value = tab;
-  if (tab !== 'search') {
-    fetchMarketInsights(tab);
-    
-    // Standardize heartbeat to plural 'symbols' array
-    const symbols = marketTabSymbols[tab] || [];
-    if (symbols.length > 0) {
-      api.post('/stocks/track', { symbols }).catch(() => {
-        // Silently fail heartbeat to avoid console spam on server issues
-      });
-    }
+  fetchMarketInsights(tab);
+  const symbols = marketTabSymbols[tab] || [];
+  if (symbols.length > 0) {
+    api.post('/stocks/track', { symbols }).catch(() => {});
   }
 };
 
 const fetchMarketInsights = async (tab = activeTab.value, silent = false) => {
-  if (!marketTabSymbols[tab] || marketTabSymbols[tab].length === 0) {
-    return;
-  }
+  const symbols = marketTabSymbols[tab] || [];
+  if (symbols.length === 0) return;
 
   if (!silent) {
     isInsightsLoading.value = true;
@@ -435,16 +441,18 @@ const fetchMarketInsights = async (tab = activeTab.value, silent = false) => {
       params: { symbols: marketTabSymbols[tab].join(',') }
     });
 
-    marketInsights.value[tab] = response.data.data.map(item => ({
+    const rawData = response.data.data || [];
+
+    marketInsights.value[tab] = rawData.map(item => ({
       symbol: item.symbol,
-      name: marketNameMap[item.symbol] || item.symbol,
-      price: item.price,
-      change: item.change ?? 0,
-      volume: item.volume ?? 0,
-      spark: item.spark ?? [],
+      name: marketNameMap[item.symbol] || item.name || item.symbol,
+      price: item.price || 0,
+      change: item.change || 0,
+      volume: item.volume || 0,
+      spark: item.spark || []
     }));
   } catch (error) {
-    console.error('Failed to fetch market insights', error);
+    console.error('Market Insights fetch failed:', error);
     marketInsights.value[tab] = [];
   } finally {
     isInsightsLoading.value = false;
@@ -496,7 +504,7 @@ const fetchHoldingsQuotes = async (silent = false) => {
 const fetchSymbolSearch = async (queryOverride = null) => {
   const query = (queryOverride || search.value).trim();
 
-  if (query.length < 2) {
+  if (query.length < 3) { // Changed from 2 to 3
     searchSuggestions.value = [];
     searchLoading.value = false;
     return;
@@ -521,7 +529,7 @@ const fetchSymbolSearch = async (queryOverride = null) => {
 const handleSearchInput = () => {
   searchLoading.value = true;
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => fetchSymbolSearch(), 300);
+  searchTimer = setTimeout(() => fetchSymbolSearch(), 500); // Changed from 300 to 500
 };
 
 const selectSuggestion = (stock) => {
@@ -598,7 +606,6 @@ const openTrade = (stock) => {
 };
 
 const fetchPortfolioPerformance = async (range = '1W') => {
-  isGraphLoading.value = true;
   try {
     const response = await api.get(`/portfolio/history`, { params: { category: 'foreign', range } });
     portfolioData.value = response.data.series;
@@ -606,8 +613,6 @@ const fetchPortfolioPerformance = async (range = '1W') => {
     changePercent.value = response.data.change;
   } catch (e) {
     console.error('Failed to fetch history', e);
-  } finally {
-    isGraphLoading.value = false;
   }
 };
 
@@ -617,6 +622,132 @@ const fetchWalletBalances = async () => {
     walletBalances.value = response.data.data;
   } catch (error) {
     console.error('Failed to fetch wallet balances', error);
+  }
+};
+
+const fetchHoldings = async () => {
+  holdingsLoading.value = true;
+  try {
+    const response = await api.get('/portfolio');
+    const data = response.data.data || response.data;
+    const holdingsData = data.holdings || [];
+    
+    // Filter global holdings
+    const globalHoldings = holdingsData.filter(h => ['GLOBAL', 'STOCKS', 'FOREIGN'].includes(h.category ? h.category.toUpperCase() : ''));
+    
+    // Fetch live quotes for holdings in parallel
+    if (globalHoldings.length > 0) {
+      const symbols = globalHoldings.map(h => h.symbol).join(',');
+      try {
+        const quotesResponse = await api.get('/market/quotes', { params: { symbols } });
+        const quotes = quotesResponse.data.data || [];
+        const quotesMap = quotes.reduce((map, q) => {
+          map[q.symbol] = q;
+          return map;
+        }, {});
+        
+        // Merge holdings with live quotes
+        holdings.value = globalHoldings.map(h => ({
+          ...h,
+          price: quotesMap[h.symbol] ? quotesMap[h.symbol].price : 0,
+          change: quotesMap[h.symbol] ? quotesMap[h.symbol].change : 0,
+          volume: quotesMap[h.symbol] ? quotesMap[h.symbol].volume : 0,
+          spark: quotesMap[h.symbol] ? quotesMap[h.symbol].spark : []
+        }));
+      } catch (quoteError) {
+        console.error('Failed to fetch holdings quotes', quoteError);
+        holdings.value = globalHoldings;
+      }
+    } else {
+      holdings.value = [];
+    }
+  } catch (error) {
+    console.error('Failed to fetch holdings', error);
+    holdings.value = [];
+  } finally {
+    holdingsLoading.value = false;
+  }
+};
+
+// Step 4: Consolidated Dashboard Initialization
+const initDashboard = async () => {
+  isGraphLoading.value = true;
+  holdingsLoading.value = true;
+  
+  try {
+    // Make parallel API calls for faster loading
+    const [portfolioResponse, walletResponse, performanceResponse] = await Promise.allSettled([
+      api.get('/portfolio'),
+      api.get('/wallet/balances'),
+      api.get('/portfolio/history', { params: { category: 'foreign', range: '1W' } })
+    ]);
+
+    // Process portfolio/holdings data
+    if (portfolioResponse.status === 'fulfilled') {
+      const data = portfolioResponse.value.data.data || portfolioResponse.value.data;
+      const holdingsData = data.holdings || [];
+      const globalHoldings = holdingsData.filter(h => ['GLOBAL', 'STOCKS', 'FOREIGN'].includes(h.category ? h.category.toUpperCase() : ''));
+      
+      // Fetch quotes for holdings in parallel
+      if (globalHoldings.length > 0) {
+        try {
+          const symbols = globalHoldings.map(h => h.symbol).join(',');
+          const quotesResponse = await api.get('/market/quotes', { params: { symbols } });
+          const quotes = quotesResponse.data.data || [];
+          const quotesMap = quotes.reduce((map, q) => {
+            map[q.symbol] = q;
+            return map;
+          }, {});
+          
+          holdings.value = globalHoldings.map(h => ({
+            ...h,
+            price: quotesMap[h.symbol] ? quotesMap[h.symbol].price : 0,
+            change: quotesMap[h.symbol] ? quotesMap[h.symbol].change : 0,
+            volume: quotesMap[h.symbol] ? quotesMap[h.symbol].volume : 0,
+            spark: quotesMap[h.symbol] ? quotesMap[h.symbol].spark : []
+          }));
+        } catch (quoteError) {
+          console.error('Failed to fetch holdings quotes', quoteError);
+          holdings.value = globalHoldings;
+        }
+      } else {
+        holdings.value = [];
+      }
+    } else {
+      console.error('Failed to fetch portfolio', portfolioResponse.reason);
+      holdings.value = [];
+    }
+
+    // Process wallet data
+    if (walletResponse.status === 'fulfilled') {
+      walletBalances.value = walletResponse.value.data.data;
+    } else {
+      console.error('Failed to fetch wallet balances', walletResponse.reason);
+    }
+
+    // Process performance data
+    if (performanceResponse.status === 'fulfilled') {
+      portfolioData.value = performanceResponse.value.data.series;
+      totalValue.value = performanceResponse.value.data.total;
+      changePercent.value = performanceResponse.value.data.change;
+    } else {
+      console.error('Failed to fetch performance', performanceResponse.reason);
+    }
+    
+    // Fetch market insights separately as they are tab-dependent
+    fetchMarketInsights();
+  } catch (e) {
+    console.error('Dashboard init failed, falling back to individual calls', e);
+    // Fallback to individual calls if parallel calls fail
+    await Promise.all([
+      fetchPortfolioPerformance(),
+      fetchHoldings(),
+      fetchWalletBalances()
+    ]);
+    fetchMarketInsights();
+  } finally {
+    isGraphLoading.value = false;
+    holdingsLoading.value = false;
   }
 };
 
@@ -634,34 +765,54 @@ onMounted(() => {
     }
   }
 
-  // Fire requests in parallel without awaiting (Instant UI response)
-  Promise.allSettled([
-    fetchPortfolioPerformance(),
-    fetchMarketInsights(),
-    fetchHoldingsQuotes(false), // Fetch initial holdings quotes
-    fetchWalletBalances()
-  ]);
+  // Replace individual calls with consolidated init
+  initDashboard();
+  
+  // Ensure default insights are loaded if initDashboard fallback happens
+  if (!user.value.has_active_subscription) {
+     fetchMarketInsights('gainers');
+  }
+  fetchHoldingsQuotes(false);
 
   // --- REAL-TIME ECHO LISTENER ---
   window.Echo.channel('market-channel')
-    .listen('.price.updated', (event) => {
-      const { symbol, price } = event.data;
+    .listen('MarketUpdated', (e) => {
+      const updates = Array.isArray(e) ? e : (e.data || []);
 
-      // 1. Update the "Your Holdings" Table
-      const stockIndex = stocks.value.findIndex(s => s.symbol === symbol);
-      if (stockIndex !== -1) {
-        // Calculate new change % if you have the previous close
-        stocks.value[stockIndex].price = price;
-      }
+      updates.forEach(trade => {
+        const symbol = trade.s;
+        const price = trade.p;
+        const volume = trade.v;
 
-      // 2. Update "Market Insights" if that symbol is visible there
-      const insightList = marketInsights.value[activeTab.value];
-      if (insightList) {
-        const insightIndex = insightList.findIndex(i => i.symbol === symbol);
-        if (insightIndex !== -1) {
-          insightList[insightIndex].price = price;
+        // 1. Update holdings
+        const holdingIndex = holdings.value.findIndex(h => h.symbol === symbol);
+        if (holdingIndex !== -1) {
+          const h = holdings.value[holdingIndex];
+          h.price = price;
+          if (volume) h.volume = volume;
+          
+          // Trigger reactivity by replacing the array reference
+          const updatedSpark = h.spark ? [...h.spark] : [];
+          updatedSpark.push(price);
+          if (updatedSpark.length > 20) updatedSpark.shift();
+          h.spark = updatedSpark;
+          
+          // Update change percentage based on first vs last point in spark if available
         }
-      }
+        const stockIndex = stocks.value.findIndex(s => s.symbol === symbol);
+        if (stockIndex !== -1) {
+          stocks.value[stockIndex].price = price;
+        }
+
+       
+        const insightList = marketInsights.value[activeTab.value];
+        if (insightList) {
+          const insightIndex = insightList.findIndex(i => i.symbol === symbol);
+          if (insightIndex !== -1) {
+            insightList[insightIndex].price = price;
+          }
+        }
+      });
     });
 
   // Setup real-time refresh every 10 seconds

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NewTransaction;
 use App\Models\Order;
 use App\Models\Symbol;
+use App\Models\SystemSetting;
 use App\Models\Trade;
 use App\Models\Wallet;
 use App\Providers\AlpacaProvider;
@@ -72,6 +73,7 @@ class TradeController extends Controller
                 if (isset($trade['s']) && isset($trade['p'])) {
                     Symbol::where('symbol', $trade['s'])->update([
                         'last_price' => $trade['p'],
+                        'volume' => $trade['v'] ?? 0,
                     ]);
                 }
             }
@@ -88,13 +90,7 @@ class TradeController extends Controller
     {
         $data = $request->all(); // The array of trades from Node
 
-        foreach ($data as $trade) {
-            event(new MarketPriceUpdated([
-                'symbol' => $trade['s'],
-                'price' => $trade['p'],
-                'timestamp' => $trade['t'],
-            ]));
-        }
+        broadcast(new MarketUpdated($data));
 
         return response()->json(['status' => 'broadcasted']);
     }
@@ -110,7 +106,7 @@ class TradeController extends Controller
         $user = $request->user();
         $amount = (float) $request->input('amount');
 
-        $settings = app(\App\Models\SystemSetting::class)::first();
+        $settings = SystemSetting::first();
         $maxTrade = (float) ($settings->max_trade_amount ?? 0);
         if ($maxTrade > 0 && $amount > $maxTrade) {
             return response()->json(['success' => false, 'message' => 'Trade exceeds max trade amount.'], 422);
@@ -199,12 +195,12 @@ class TradeController extends Controller
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
         }
 
-        // Dynamic price for closing too!
-        $marketService = app(MarketService::class);
-        $prices = $marketService->getPrices();
         $symbol = strtoupper(explode('/', $trade->pair)[0]);
 
-        $currentPrice = $this->lookupPrice($symbol, $prices);
+        // PERFORMANCE: Use local symbol price for faster execution
+        $currentPrice = (float) Symbol::where('symbol', $symbol)->value('last_price');
+
+        $marketService = app(MarketService::class);
         $currentPrice = $marketService->applySpread($currentPrice, 'sell');
 
         // P&L calculation: (Current - Entry) / Entry * Amount
@@ -243,17 +239,41 @@ class TradeController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
+        $models = $this->resolveModels($user);
+        $tradeModel = $models->trade;
+
+        $trades = $tradeModel::whereHas('order', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+            ->with('order')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Fetch current prices to show "Trend" in the holdings table
+        $symbols = $trades->pluck('pair')->map(fn ($p) => explode('/', $p)[0])->unique();
+        $marketData = Symbol::whereIn('symbol', $symbols)->get()->keyBy('symbol');
+
+        $trades->each(function ($trade) use ($marketData) {
+            $symbol = explode('/', $trade->pair)[0];
+            $market = $marketData->get($symbol);
+
+            if ($market) {
+                $trade->current_price = (float) $market->last_price;
+                $trade->change_24h = (float) $market->change;
+                $trade->trend = $market->change >= 0 ? 'up' : 'down';
+            }
+        });
+
         return response()->json([
             'success' => true,
-            'data' => Trade::whereHas('order', function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id);
-            })->with('order')->orderBy('created_at', 'desc')->get(),
+            'data' => $trades,
         ]);
     }
 
-    public function searchSymbols(Request $request)
+    public function searchSymbols(Request $request, $query = null)
     {
-        $query = trim($request->query('q', ''));
+        $query = $query ?? trim($request->query('q', ''));
 
         if (strlen($query) < 2) {
             return response()->json([]);
@@ -264,7 +284,7 @@ class TradeController extends Controller
             ->orWhere('name', 'like', "%{$query}%")
             ->orderBy('symbol')
             ->limit(20)
-            ->get(['symbol', 'name', 'exchange', 'type']);
+            ->get(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change']);
 
         return response()->json($results);
     }
@@ -288,12 +308,9 @@ class TradeController extends Controller
 
         $user = auth()->user();
 
-        $marketService = app(MarketService::class);
-        $prices = $marketService->getPrices();
-        $currentPrice = $this->lookupPrice($request->symbol, $prices);
-
-        $effectivePrice = $request->limit_price ?? $currentPrice;
-        $totalAmount = $request->qty * $effectivePrice;
+        $currentPrice = (float) Symbol::where('symbol', $request->symbol)->value('last_price');
+        $effectivePrice = (float) ($request->limit_price ?? $currentPrice);
+        $totalAmount = (float) ($request->qty * $effectivePrice);
 
         // 1. Create local record
         $order = Order::create([
@@ -427,8 +444,8 @@ class TradeController extends Controller
         // Update each symbol's last_seen timestamp in database
         foreach ($symbols as $symbol) {
             $existing = Symbol::where('symbol', $symbol)->first();
-            
-            if (!$existing) {
+
+            if (! $existing) {
                 Symbol::create(['symbol' => $symbol, 'last_price' => 0]);
             }
 
