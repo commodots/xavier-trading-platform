@@ -10,7 +10,7 @@ class AlpacaWebhookController extends Controller
 {
     public function handle(Request $request)
     {
-       
+
         $response = response()->json(['ok'], 200);
 
         $event = $request->all();
@@ -32,6 +32,7 @@ class AlpacaWebhookController extends Controller
             ]);
 
             $this->syncPosition($order);
+            $this->handleWallet($order);
         }
 
         return response()->json(['ok']);
@@ -52,5 +53,29 @@ class AlpacaWebhookController extends Controller
 
         $position->avg_price = $order->price;
         $position->save();
+    }
+
+    protected function handleWallet($order)
+    {
+        $wallet = \App\Models\Wallet::where('user_id', $order->user_id)
+            ->where('currency', $order->currency ?? 'USD')
+            ->first();
+
+        if (! $wallet) {
+            return;
+        }
+
+        $totalValue = $order->quantity * $order->price;
+
+        if ($order->side === 'buy') {
+            // Deduct from cleared and lock the funds
+            if ($wallet->usd_cleared >= $totalValue) {
+                $wallet->decrement('usd_cleared', $totalValue);
+                $wallet->increment('locked', $totalValue);
+            }
+        } else {
+            // For sell, add proceeds to uncleared
+            $wallet->increment('usd_uncleared', $totalValue);
+        }
     }
 }

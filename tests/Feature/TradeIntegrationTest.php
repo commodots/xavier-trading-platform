@@ -65,6 +65,57 @@ class TradeIntegrationTest extends TestCase
         $this->assertSame(1.27, $quotes[0]['change']);
     }
 
+    public function test_trade_positions_route_requires_authentication(): void
+    {
+        $response = $this->getJson('/api/trade/positions');
+
+        $response->assertStatus(401);
+        $response->assertJson(['message' => 'Unauthenticated.']);
+    }
+
+    public function test_trade_positions_route_returns_data_for_authenticated_user(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/trade/positions');
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $response->assertJsonStructure(['success', 'data']);
+    }
+
+    public function test_trade_positions_list_includes_order_position_type(): void
+    {
+        $user = User::factory()->create();
+        $order = \App\Models\Order::create([
+            'user_id' => $user->id,
+            'symbol' => 'AAPL',
+            'side' => 'buy',
+            'type' => 'market',
+            'price' => 150.00,
+            'quantity' => 1,
+            'filled_quantity' => 0,
+            'status' => 'open',
+            'source' => 'test',
+            'market' => 'STOCKS',
+            'currency' => 'USD',
+            'company' => 'Apple Inc',
+            'units' => 1,
+            'amount' => 150.00,
+            'market_price' => 150.00,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/trade/positions');
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $response->assertJsonPath('data.0.position_type', 'order');
+        $response->assertJsonPath('data.0.id', $order->id);
+    }
+
     public function test_bracket_order_requires_take_profit_and_stop_loss(): void
     {
         $user = User::factory()->create();

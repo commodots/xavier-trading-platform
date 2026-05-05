@@ -11,17 +11,17 @@
     </div>
 
     <div class="overflow-x-auto custom-scrollbar">
-      <table class="w-full text-left border-collapse">
-        <thead>
+      <div class="min-w-[900px] overflow-hidden rounded-b-xl">
+        <table class="w-full min-w-full text-left border-collapse">
+          <thead>
           <tr class="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-[#2A314A] bg-black/20">
             <th class="px-4 py-3">Asset</th>
-            <th class="px-4 py-3">Side</th>
-            <th class="px-4 py-3">Type</th>
+            <th class="hidden px-4 py-3 sm:table-cell">Side</th>
+            <th class="hidden px-4 py-3 md:table-cell">Type</th>
             <th class="px-4 py-3 text-right">Size</th>
-            <th class="px-4 py-3 text-right">Entry Price</th>
+            <th class="hidden px-4 py-3 text-right sm:table-cell">Entry Price</th>
             <th class="px-4 py-3 text-right">Market Price</th>
-            <th class="px-4 py-3 text-right">Unrealized P&L %</th>
-            <th class="px-4 py-3 text-right">Unrealized P&L</th>
+            <th class="hidden px-4 py-3 text-right md:table-cell">Unrealized P&L %</th>
             <th class="px-4 py-3 text-center">Action</th>
           </tr>
         </thead>
@@ -30,37 +30,35 @@
             <td class="px-4 py-3">
               <div class="font-bold text-white">{{ pos.symbol }}</div>
             </td>
-            <td class="px-4 py-3">
+            <td class="hidden px-4 py-3 sm:table-cell">
               <span :class="pos.side === 'buy' ? 'text-green-400' : 'text-red-400'" class="font-black text-[10px] uppercase">
                 {{ pos.side }}
               </span>
             </td>
-            <td class="px-4 py-3">
+            <td class="hidden px-4 py-3 md:table-cell">
               <span class="text-[10px] font-medium text-gray-500 uppercase tracking-tighter bg-gray-800/50 px-1.5 py-0.5 rounded">{{ pos.type }}</span>
             </td>
             <td class="px-4 py-3 font-mono text-right text-gray-300">{{ pos.quantity }}</td>
-            <td class="px-4 py-3 font-mono text-right text-gray-300">
-              {{ pos.currency === 'USD' ? '$' : '₦' }}{{ Number(pos.market_price || pos.entry_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
+            <td class="hidden px-4 py-3 font-mono text-right text-gray-300 sm:table-cell">
+              {{ pos.currency === 'USD' ? '$' : '₦' }}{{ Number(pos.entry_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
             </td>
             <td class="px-4 py-3 font-mono text-right text-white">
-              {{ pos.currency === 'USD' ? '$' : '₦' }}{{ getMarkPrice(pos).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
+              {{ pos.currency === 'USD' ? '$' : '₦' }}{{ Number(pos.market_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
             </td>
-            <td class="px-4 py-3 font-mono font-bold text-right" :class="getPLPercentage(pos) >= 0 ? 'text-green-400' : 'text-red-400'">
-              {{ getPLPercentage(pos) >= 0 ? '+' : '' }}{{ getPLPercentage(pos).toLocaleString(undefined, {minimumFractionDigits: 2}) }}%
+            <td class="px-4 py-3 font-mono font-bold text-right" :class="(pos.unrealized_pl_percent ?? getPLPercentage(pos)) >= 0 ? 'text-green-400' : 'text-red-400'">
+              {{ (pos.unrealized_pl_percent ?? getPLPercentage(pos)) >= 0 ? '+' : '' }}{{ Number(pos.unrealized_pl_percent ?? getPLPercentage(pos)).toLocaleString(undefined, {minimumFractionDigits: 2}) }}%
             </td>
-            <td class="px-4 py-3 font-mono font-bold text-right" :class="getPL(pos) >= 0 ? 'text-green-400' : 'text-red-400'">
-              {{ getPL(pos) >= 0 ? '+' : '' }}{{ pos.currency === 'USD' ? '$' : '₦' }}{{ getPL(pos).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
-            </td>
+            
             <td class="px-4 py-3 text-center">
-              <button @click="closePosition(pos.id)" :disabled="closingId === pos.id"
+              <button @click="closePosition(pos.id, pos)" :disabled="closingId === pos.id"
                 class="bg-red-500/10 text-red-500 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-all border border-red-500/20 disabled:opacity-50">
-                {{ closingId === pos.id ? '...' : 'Close' }}
+                {{ closingId === pos.id ? 'Cancelling' : (isOrderPosition(pos) ? 'Cancel' : 'Close') }}
               </button>
             </td>
           </tr>
-          <tr v-if="positions.length === 0 && !loading">
+          <tr v-if="filteredPositions.length === 0 && !loading">
             <td colspan="9" class="px-4 py-12 text-xs italic text-center text-gray-500">
-              No active positions.
+              No active global stock positions.
             </td>
           </tr>
         </tbody>
@@ -81,33 +79,65 @@
         Next →
       </button>
     </div>
+
+    <!-- Cancel Confirmation Modal -->
+    <div v-if="showCancelModal" class="fixed inset-0 z-50 overflow-y-auto" @keydown.escape="showCancelModal = false">
+      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="showCancelModal = false"></div>
+        <div class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-[#0F1724] border border-[#1f3348] shadow-xl rounded-lg">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium text-white">Order Cancelled</h3>
+            <button @click="showCancelModal = false" class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="text-gray-300">{{ cancelMessage }}</p>
+          <div class="mt-4">
+            <button @click="showCancelModal = false" class="bg-[#00D4FF] text-[#0F1724] px-4 py-2 rounded-md font-bold hover:bg-[#00b8e6] transition">
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import axios from 'axios';
+import api from '@/api';
 
 const positions = ref([]);
 const loading = ref(false);
 const closingId = ref(null);
 const livePrices = ref({});
+let autoRefreshInterval = null;
 
 const currentPage = ref(1);
 const itemsPerPage = 10;
 
+// Modal for cancel confirmation
+const showCancelModal = ref(false);
+const cancelMessage = ref('');
+
 const totalPages = computed(() => {
-  return Math.ceil(positions.value.length / itemsPerPage) || 0;
+  return Math.ceil(filteredPositions.value.length / itemsPerPage) || 0;
 });
 
 const paginatedPositions = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
-  return positions.value.slice(start, start + itemsPerPage);
+  return filteredPositions.value.slice(start, start + itemsPerPage);
 });
 
-const prevPage = () => {
-  if (currentPage.value > 1) currentPage.value--;
-};
+const filteredPositions = computed(() => {
+  return positions.value.filter(pos => {
+    return (pos.category || '').toUpperCase() === 'GLOBAL';
+  });
+});
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) currentPage.value++;
@@ -116,7 +146,7 @@ const nextPage = () => {
 const fetchPositions = async () => {
   loading.value = true;
   try {
-    const res = await axios.get('/trade/positions');
+    const res = await api.get('/trade/positions');
     positions.value = res.data.data || res.data;
   } catch (err) {
     console.error('Failed to fetch positions', err);
@@ -125,9 +155,13 @@ const fetchPositions = async () => {
   }
 };
 
-const getMarkPrice = (pos) => livePrices.value[pos.symbol] || pos.market_price || pos.entry_price || 0;
+const getMarkPrice = (pos) => pos.market_price ?? livePrices.value[pos.symbol] ?? pos.entry_price ?? 0;
 
 const getPLPercentage = (pos) => {
+  if (typeof pos.unrealized_pl_percent === 'number') {
+    return pos.unrealized_pl_percent;
+  }
+
   const mark = getMarkPrice(pos);
   const entry = parseFloat(pos.entry_price || 0);
   if (entry === 0) return 0;
@@ -137,24 +171,31 @@ const getPLPercentage = (pos) => {
 };
 
 const getPL = (pos) => {
+  if (typeof pos.unrealized_pl === 'number') {
+    return pos.unrealized_pl;
+  }
+
   const mark = getMarkPrice(pos);
-  const entry = parseFloat(pos.entry_price || 0); // Use entry_price only
-  
+  const entry = parseFloat(pos.entry_price || 0);
   if (entry === 0) return 0;
 
-  // If BUY: (Current - Entry). If SELL: (Entry - Current)
   const priceDiff = pos.side === 'buy' ? (mark - entry) : (entry - mark);
-  
-  // P&L = (Price Difference / Entry Price) * Initial Investment
-  return (priceDiff / entry) * pos.amount;
+  return priceDiff * pos.amount;
 };
 
-const closePosition = async (id) => {
+const isOrderPosition = (pos) => pos.position_type === 'order';
+
+const closePosition = async (id, pos) => {
   closingId.value = id;
   try {
-    await axios.post(`/trade/close/${id}`);
+    const endpoint = isOrderPosition(pos) ? `/orders/${id}/cancel` : `/trade/close/${id}`;
+    await api.post(endpoint);
     await fetchPositions();
     window.dispatchEvent(new CustomEvent('wallet-refresh'));
+    if (isOrderPosition(pos)) {
+      cancelMessage.value = `Order for ${pos.symbol} has been cancelled.`;
+      showCancelModal.value = true;
+    }
   } catch (err) {
     console.error('Failed to close position', err);
   } finally {
@@ -162,19 +203,35 @@ const closePosition = async (id) => {
   }
 };
 
+const handleOrderPlaced = () => {
+  fetchPositions();
+};
+
 onMounted(() => {
   fetchPositions();
+
+  const startAutoRefresh = () => {
+    autoRefreshInterval = setTimeout(async () => {
+      await fetchPositions();
+      startAutoRefresh();
+    }, 5000);
+  };
+
+  startAutoRefresh();
+
   if (window.Echo) {
     window.Echo.channel('market-channel').listen('MarketUpdated', (e) => {
       const data = Array.isArray(e) ? e : (e.data || []);
       data.forEach(ticker => { livePrices.value[ticker.s] = parseFloat(ticker.p); });
     });
   }
-  window.addEventListener('order-placed', fetchPositions);
+  
+  window.addEventListener('order-placed', handleOrderPlaced);
 });
 
 onUnmounted(() => {
+  if (autoRefreshInterval) clearTimeout(autoRefreshInterval);
   if (window.Echo) window.Echo.leave('market-channel');
-  window.removeEventListener('order-placed', fetchPositions);
+  window.removeEventListener('order-placed', handleOrderPlaced);
 });
 </script>

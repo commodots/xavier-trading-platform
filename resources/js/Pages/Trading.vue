@@ -279,6 +279,12 @@ const closeModal = ref({
   trade: null
 });
 
+const openSuccessModal = ref({
+  show: false,
+  phase: 'confirm', // 'confirm' | 'processing' | 'success'
+  trade: null
+});
+
 const isAdminUser = (u) => {
   if (!u) return false;
   const role = (u.role || '').toString().toLowerCase();
@@ -412,15 +418,15 @@ const openTrade = async () => {
   successMessage.value = '';
 
   try {
-    await api.post('/trade/open', {
+    const response = await api.post('/trade/open', {
       pair: form.value.pair,
       amount: form.value.amount,
       type: form.value.type,
     });
-    successMessage.value = `Trade opened successfully! ${form.value.type.toUpperCase()} ${form.value.amount} ${form.value.pair}`;
+    
+    openSuccessModal.value = { show: true, trade: response.data.data };
     form.value.amount = 1000;
     await fetchData();
-    setTimeout(() => { successMessage.value = ''; }, 3000);
   } catch (e) {
     errorMessage.value = e.response?.data?.message || 'Failed to open trade';
   } finally {

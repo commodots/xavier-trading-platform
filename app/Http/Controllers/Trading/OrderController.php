@@ -17,30 +17,31 @@ class OrderController extends Controller
         $user = auth()->user();
         $model = ($user->trading_mode === 'demo') ? new DemoOrder : new Order;
 
-        
+       
         $orders = $model->where('user_id', $user->id)
-            ->where('status', '!=', 'closed')
-            ->where('market', 'foreign')
+            ->whereIn('status', ['filled', 'open', 'partially_filled'])
+            ->where('market', 'GLOBAL') // Filter for foreign/global stocks
             ->latest()
             ->get();
 
         // Map database columns to the property names used in PositionsMonitor.vue
         $positions = $orders->map(function ($order) {
             return [
-                'id'           => $order->id,
-                'symbol'       => $order->symbol,
-                'side'         => $order->type,      // 'buy' or 'sell'
-                'type'         => $order->market,    // 'market' or 'limit'
-                'quantity'     => $order->units,     // Mapped from 'units'
-                'entry_price'  => $order->market_price,
-                'amount'       => $order->amount,
-                'currency'     => $order->currency,
+                'id' => $order->id,
+                'symbol' => $order->symbol,
+                'side' => $order->side,      // 'buy' or 'sell'
+                'market_type' => $order->market,    // e.g., 'GLOBAL'
+                'order_type' => $order->type,      // e.g., 'market', 'limit', 'stop'
+                'quantity' => $order->units,     // Mapped from 'units'
+                'entry_price' => $order->market_price,
+                'amount' => $order->amount,
+                'currency' => $order->currency,
             ];
         });
 
         return response()->json([
             'success' => true,
-            'data'    => $positions,
+            'data' => $positions,
         ]);
     }
 
@@ -96,12 +97,12 @@ class OrderController extends Controller
 
         $order = $model->where('id', $id)->where('user_id', $user->id)->firstOrFail();
 
-        // Logic to close the position 
+        // Logic to close the position
         $order->update(['status' => 'closed']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Position closed successfully.'
+            'message' => 'Position closed successfully.',
         ]);
     }
 }

@@ -29,14 +29,13 @@ use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TradeController;
-use App\Http\Controllers\Trading\OrderController;
 use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
 use App\Http\Controllers\Api\User\NotificationController;
 use App\Http\Controllers\Api\User\SecurityController;
-// Admin Controllers
 use App\Http\Controllers\Api\WalletController;
+// Admin Controllers
 use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -148,7 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /* Data Access (Available to all authenticated users) */
     Route::get('/orders', [OmsController::class, 'listOrders']);
-    Route::get('/trades', [TradeController::class, 'index']);
+    Route::get('/trade/positions', [TradeController::class, 'index']);
 
     /* Watchlist Management (Non-financial) */
     Route::get('/watchlist', [WatchlistController::class, 'index']);
@@ -171,7 +170,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/orders', [OmsController::class, 'placeOrder']);
         Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
         Route::post('/trade/open', [TradeController::class, 'open']);
-        Route::get('/trade/positions', [TradeController::class, 'index']);
         Route::post('/trade/close/{id}', [TradeController::class, 'close']);
         Route::post('/trade/place', [TradeController::class, 'placeOrder']);
         Route::get('/account', [TradeController::class, 'account']);

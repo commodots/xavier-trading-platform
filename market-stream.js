@@ -1,9 +1,16 @@
-import 'dotenv/config';
+import 'dotenv/config'; 
 import WebSocket from 'ws';
 import axios from 'axios';
 import Redis from 'ioredis';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const token = process.env.FINNHUB_API_KEY;
+
 const apiUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://127.0.0.1:8000';
 
 if (!token) {
@@ -11,16 +18,22 @@ if (!token) {
     process.exit(1);
 }
 
+// Verification Logs
+//console.log('--- Environment Check ---');
+//console.log('Secret Loaded:', process.env.FINNHUB_SECRET ? 'YES' : 'NO');
+//console.log('API URL:', apiUrl);
+//console.log('-------------------------');
+
 const trackedSymbols = new Set();
 
 const redisConfig = {
-  host: '127.0.0.1', 
-  port: 6379,
+    host: '127.0.0.1',
+    port: 6379,
   family: 4 // Force IPv4 to talk to Memurai
 };
 
-const redis = new Redis(redisConfig); 
-const redisSub = new Redis(redisConfig); 
+const redis = new Redis(redisConfig);
+const redisSub = new Redis(redisConfig);
 
 const ws = new WebSocket(`wss://ws.finnhub.io?token=${token}`);
 
@@ -52,18 +65,24 @@ ws.on('open', async () => {
 
 // Helper to ensure we are watching what Redis says is active
 async function syncFromRedis() {
-    const tickers = await redis.hgetall('active_tickers');
-    Object.keys(tickers).forEach(symbol => {
-        if (!trackedSymbols.has(symbol)) {
-            ws.send(JSON.stringify({ type: 'subscribe', symbol }));
-            trackedSymbols.add(symbol);
+    try {
+        const tickers = await redis.hgetall('active_tickers');
+        Object.keys(tickers).forEach(symbol => {
+            if (!trackedSymbols.has(symbol)) {
+                ws.send(JSON.stringify({ type: 'subscribe', symbol }));
+                trackedSymbols.add(symbol);
             console.log('Current tracked symbols after Redis sync:', Array.from(trackedSymbols).join(', '));
             console.log(`Re-synced subscription for: ${symbol}`);
-        }
-    });
+            }
+        });
+    } catch (e) {
+        console.error("Redis Sync Error:", e.message);
+    }
 }
 
-ws.on('message', async (msg) => {
+let tradeBuffer = [];
+
+ws.on('message', (msg) => {
     try {
         const data = JSON.parse(msg.toString());
         if (data.type === 'trade' && Array.isArray(data.data) && data.data.length > 0) {
@@ -115,7 +134,6 @@ redisSub.subscribe('symbol-updates');
 redisSub.on('message', (channel, msg) => {
     console.log(`Message received on channel ${channel}`);
     try {
-        
         const { action, symbol } = JSON.parse(msg);
         if (action === 'subscribe' && symbol && !trackedSymbols.has(symbol)) {
             if (ws.readyState === WebSocket.OPEN) {
@@ -139,7 +157,6 @@ setInterval(async () => {
     await syncFromRedis();
 
     const tickers = await redis.hgetall('active_tickers');
-
     for (const [symbol, lastSeen] of Object.entries(tickers)) {
         if (now - parseInt(lastSeen) > 1800) { // 30 minutes of inactivity
             console.log(`Unsubscribing from ${symbol} (Inactive)`);
@@ -147,6 +164,7 @@ setInterval(async () => {
             trackedSymbols.delete(symbol);
             console.log('Current tracked symbols after cleanup:', Array.from(trackedSymbols).join(', '));
             await redis.hdel('active_tickers', symbol);
+            console.log(`Unsubscribed: ${symbol} due to inactivity.`);
         }
     }
 }, 60000);

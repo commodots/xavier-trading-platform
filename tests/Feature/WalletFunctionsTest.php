@@ -152,7 +152,7 @@ class WalletFunctionsTest extends TestCase
         $user = User::factory()->create();
         Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
 
-        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+        Http::fake(['https://api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
 
         $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
         $openRes->assertStatus(200)->assertJson(['success' => true]);
@@ -184,5 +184,89 @@ class WalletFunctionsTest extends TestCase
         $this->assertDatabaseHas('new_transactions_table', ['user_id' => $user->id, 'type' => 'deposit', 'amount' => 10, 'currency' => 'USDT']);
         $wallet->refresh();
         $this->assertEquals(10, $wallet->usd_cleared);
+    }
+
+    public function test_crypto_trade_profit_scenario(): void
+    {
+        SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
+
+        $user = User::factory()->create();
+        $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
+
+        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+
+        // Buy 1 BTC at $100 with $100
+        $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
+        $openRes->assertStatus(200);
+
+        $tradeId = $openRes->json('data.id');
+        $quantity = $openRes->json('data.quantity');
+
+        // Verify quantity is stored correctly (should be 1 BTC, not 100)
+        $this->assertEqualsWithDelta(1.0, $quantity, 0.01);
+
+        // Verify wallet balance after buy
+        $wallet->refresh();
+        $this->assertEquals(900, $wallet->usd_cleared);
+
+        // Clear cache for the next API call
+        \Illuminate\Support\Facades\Cache::forget('crypto_prices');
+
+        // Now mock price at $110 for close
+        Http::fake(['https://api.coingecko.com/api/v3/simple/price*' => function ($request) {
+            return Http::response(['bitcoin' => ['usd' => 110]], 200);
+        }]);
+
+        $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
+        $closeRes->assertStatus(200);
+
+        $exitPrice = $closeRes->json('data.exit_price');
+        $this->assertEquals(110, $exitPrice);
+
+        $profitLoss = $closeRes->json('data.profit_loss');
+        // Expected profit: (110 - 100) / 100 * 100 = $10
+        $this->assertEqualsWithDelta(10.0, $profitLoss, 0.01);
+
+        // Verify wallet balance after close (should have original $100 + $10 profit = $110)
+        $wallet->refresh();
+        $this->assertEqualsWithDelta(1010, $wallet->usd_cleared, 0.01);
+    }
+
+    public function test_crypto_trade_loss_scenario(): void
+    {
+        SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
+
+        $user = User::factory()->create();
+        $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
+
+        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+
+        // Buy 1 BTC at $100 with $100
+        $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
+        $openRes->assertStatus(200);
+
+        $tradeId = $openRes->json('data.id');
+
+        // Verify wallet balance after buy
+        $wallet->refresh();
+        $this->assertEquals(900, $wallet->usd_cleared);
+
+        // Clear cache for the next API call
+        \Illuminate\Support\Facades\Cache::flush();
+        // Set symbol price for fallback
+        \App\Models\Symbol::updateOrCreate(['symbol' => 'BTC'], ['last_price' => 110]);
+        // Now mock price at $90 for close
+        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 90]], 200)]);
+
+        $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
+        $closeRes->assertStatus(200);
+
+        $profitLoss = $closeRes->json('data.profit_loss');
+        // Expected loss: (90 - 100) / 100 * 100 = -$10
+        $this->assertEqualsWithDelta(-10.0, $profitLoss, 0.01);
+
+        // Verify wallet balance after close (should have $100 - $10 loss = $90)
+        $wallet->refresh();
+        $this->assertEqualsWithDelta(990, $wallet->usd_cleared, 0.01);
     }
 }

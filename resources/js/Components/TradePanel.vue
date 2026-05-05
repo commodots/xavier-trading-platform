@@ -163,7 +163,7 @@ const submit = async (side) => {
     });
 
     const order = response.data.data;
-    success.value = `Order placed successfully! ID: ${order.id.substring(0, 8)}`;
+    success.value = `Order placed successfully! ID: ${String(order.id).substring(0, 8)}`;
 
     // Notify parent for chart annotations and sound effects
     emit('order-placed', order);

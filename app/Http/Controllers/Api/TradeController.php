@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\MarketUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\NewTransaction;
 use App\Models\Order;
@@ -61,7 +60,9 @@ class TradeController extends Controller
 
     public function updateMarket(Request $request)
     {
-        if ($request->header('X-Finnhub-Secret') !== env('FINNHUB_SECRET')) {
+        $secret = config('services.finnhub.secret');
+
+        if ($request->header('X-Finnhub-Secret') !== $secret) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -78,21 +79,12 @@ class TradeController extends Controller
                 }
             }
 
-            broadcast(new MarketUpdated($request->all()));
+            broadcast(new \App\Events\MarketUpdated($trades))->toOthers();
 
             return response()->json(['status' => 'success'], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
-    }
-
-    public function updateMarketData(Request $request)
-    {
-        $data = $request->all(); // The array of trades from Node
-
-        broadcast(new MarketUpdated($data));
-
-        return response()->json(['status' => 'broadcasted']);
     }
 
     public function open(Request $request)
@@ -127,7 +119,7 @@ class TradeController extends Controller
         }
 
         if ($rawPrice <= 0) {
-            return response()->json(['success' => false, 'message' => 'Price data unavailable for '.$symbol], 422);
+            return response()->json(['success' => false, 'message' => 'Price data unavailable for ' . $symbol], 422);
         }
 
         $executionPrice = $marketService->applySpread($rawPrice, $request->type);
@@ -143,13 +135,15 @@ class TradeController extends Controller
                 throw new \Exception('Insufficient cleared funds.');
             }
 
+            $quantity = $amount / $executionPrice;
+
             $order = $models->order::create([
                 'user_id' => $user->id,
                 'symbol' => $symbol,
                 'side' => $request->input('type'),
                 'type' => 'market',
                 'price' => $executionPrice,
-                'quantity' => $amount,
+                'quantity' => $quantity,
                 'filled_quantity' => 0,
                 'status' => 'filled',
                 'currency' => 'USD',
@@ -164,7 +158,7 @@ class TradeController extends Controller
                 'pair' => strtoupper($request->input('pair')),
                 'type' => $request->input('type'),
                 'amount' => $amount,
-                'quantity' => $amount,
+                'quantity' => $quantity,
                 'price' => $executionPrice,
                 'entry_price' => $executionPrice,
                 'status' => 'open',
@@ -189,9 +183,10 @@ class TradeController extends Controller
     {
         $user = auth()->user();
         $models = $this->resolveModels($user);
-        $trade = $models->trade::where('order_id', $id)
-        ->where('user_id', $user->id)
-        ->firstOrFail();
+
+        $trade = $models->trade::where('id', $id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
 
         if ($trade->status !== 'open') {
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
@@ -199,62 +194,197 @@ class TradeController extends Controller
 
         $symbol = strtoupper(explode('/', $trade->pair)[0]);
 
-        // PERFORMANCE: Use local symbol price for faster execution
-        $currentPrice = (float) Symbol::where('symbol', $symbol)->value('last_price');
-
         $marketService = app(MarketService::class);
+
+        // LIVE API: Fetch real-time quote
+        if (str_contains($trade->pair, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'])) {
+            // For crypto, use CoinGecko prices
+            $prices = $marketService->getPrices();
+            $currentPrice = $this->lookupPrice($symbol, $prices);
+            if ($currentPrice <= 0) {
+                $currentPrice = (float) Symbol::where('symbol', $symbol)->value('last_price');
+            }
+        } else {
+            // For stocks, use Finnhub
+            $currentPrice = $marketService->quote($symbol);
+        }
+
         $currentPrice = $marketService->applySpread($currentPrice, 'sell');
 
         // P&L calculation: (Current - Entry) / Entry * Amount
         $profit = (($currentPrice - $trade->entry_price) / max($trade->entry_price, 0.00000001)) * $trade->amount;
 
-        return DB::transaction(function () use ($trade, $currentPrice, $profit, $models) {
-            $trade->update([
+        return DB::transaction(function () use ($id, $user, $currentPrice, $profit, $models) {
+            // Refetch inside transaction with lock
+            $lockedTrade = $models->trade::where('id', $id)
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $lockedTrade) {
+                throw new \Exception('Trade not found');
+            }
+
+            $lockedTrade->update([
                 'exit_price' => $currentPrice,
                 'profit_loss' => $profit,
                 'status' => 'closed',
             ]);
 
-            $wallet = $models->wallet::where('user_id', $trade->user_id)
+            $wallet = $models->wallet::where('user_id', $user->id)
                 ->where('currency', 'USD')
                 ->lockForUpdate()
                 ->first();
 
             if ($wallet) {
                 // Return initial investment + profit (or minus loss)
-                $wallet->increment('usd_cleared', $trade->amount + $profit);
-                $wallet->increment('balance', $trade->amount + $profit);
+                $wallet->increment('usd_cleared', $lockedTrade->amount + $profit);
+                $wallet->increment('balance', $lockedTrade->amount + $profit);
             }
 
             $models->transaction::create([
-                'user_id' => $trade->user_id,
+                'user_id' => $user->id,
                 'type' => 'sell_crypto',
-                'amount' => $trade->amount + $profit,
+                'amount' => $lockedTrade->amount + $profit,
                 'currency' => 'USD',
                 'status' => 'completed',
-                'meta' => ['pair' => $trade->pair, 'trade_id' => $trade->id, 'profit_loss' => $profit],
+                'meta' => ['pair' => $lockedTrade->pair, 'trade_id' => $lockedTrade->id, 'profit_loss' => $profit],
             ]);
 
-            return response()->json(['success' => true, 'data' => $trade]);
+            return response()->json(['success' => true, 'data' => $lockedTrade]);
         });
     }
 
     public function index(Request $request)
-{
-    $user = $request->user();
-    $models = $this->resolveModels($user);
+    {
+        try {
+            $user = $request->user();
+            $models = $this->resolveModels($user);
 
-    // Fetch OPEN TRADES (Positions), not just orders
-    $positions = $models->order::where('user_id', $user->id)
-        ->where('status', 'open')
-        ->orderBy('created_at', 'desc')
-        ->get();
+            $marketService = app(MarketService::class);
+            $prices = $marketService->getPrices();
 
-    return response()->json([
-        'success' => true,
-        'data' => $positions,
-    ]);
-}
+            $trades = $models->trade::where('user_id', $user->id)
+                ->where('status', 'open')
+                ->whereHas('order', fn($query) => $query->where('market', 'GLOBAL'))
+                ->latest()
+                ->get();
+
+            $orders = $models->order::where('user_id', $user->id)
+                ->where('market', 'GLOBAL')
+                ->whereIn('status', ['filled', 'open', 'partially_filled'])
+                ->latest()
+                ->get();
+
+            $stockSymbols = collect()
+                ->merge($trades->map(fn($trade) => strtoupper(explode('/', $trade->pair)[0])))
+                ->merge($orders->map(fn($order) => strtoupper($order->symbol)))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $stockQuotes = Symbol::whereIn('symbol', $stockSymbols)
+                ->pluck('last_price', 'symbol')
+                ->toArray();
+
+            $tradePositions = $trades->map(function ($t) use ($prices, $stockQuotes) {
+                $symbol = strtoupper(explode('/', $t->pair)[0]);
+                $entryPrice = (float) $t->entry_price;
+                $marketPrice = $entryPrice;
+
+                $isCrypto = str_contains($t->pair, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC']);
+                $category = $isCrypto ? 'CRYPTO' : 'GLOBAL';
+
+                if ($isCrypto) {
+                    $marketPrice = $this->lookupPrice($symbol, $prices);
+                    if ($marketPrice <= 0) {
+                        $marketPrice = (float) Symbol::where('symbol', $symbol)->value('last_price') ?: $entryPrice;
+                    }
+                } else {
+                    $stockPrice = (float) ($stockQuotes[$symbol] ?? 0);
+                    if ($stockPrice > 0) {
+                        $marketPrice = $stockPrice;
+                    }
+                }
+
+                $priceDiff = $t->type === 'buy' ? $marketPrice - $entryPrice : $entryPrice - $marketPrice;
+                $unrealizedPlPercent = $entryPrice > 0 ? ($priceDiff / $entryPrice) * 100 : 0;
+                $unrealizedPl = $priceDiff * (float) $t->amount;
+
+                return [
+                    'id' => $t->id,
+                    'position_type' => 'trade',
+                    'symbol' => $t->pair,
+                    'side' => $t->type,
+                    'quantity' => (float) $t->quantity,
+                    'entry_price' => $entryPrice,
+                    'market_price' => $marketPrice,
+                    'amount' => (float) $t->amount,
+                    'status' => $t->status,
+                    'type' => $t->type,
+                    'currency' => 'USD',
+                    'category' => $category,
+                    'unrealized_pl' => $unrealizedPl,
+                    'unrealized_pl_percent' => $unrealizedPlPercent,
+                ];
+            });
+
+            $orderPositions = $orders->map(function ($order) use ($prices, $stockQuotes) {
+                $symbol = strtoupper($order->symbol);
+                $entryPrice = (float) $order->market_price;
+                $marketPrice = $entryPrice;
+
+                $isCrypto = str_contains($order->symbol, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC']) || $order->market === 'CRYPTO';
+                $category = $isCrypto ? 'CRYPTO' : 'GLOBAL';
+
+                if ($isCrypto) {
+                    $cryptoPrice = $this->lookupPrice($symbol, $prices);
+                    if ($cryptoPrice > 0) {
+                        $marketPrice = $cryptoPrice;
+                    } elseif ($marketPrice <= 0) {
+                        $marketPrice = (float) Symbol::where('symbol', $symbol)->value('last_price') ?: $entryPrice;
+                    }
+                } else {
+                    $stockPrice = (float) ($stockQuotes[$symbol] ?? 0);
+                    if ($stockPrice > 0) {
+                        $marketPrice = $stockPrice;
+                    }
+                }
+
+                $priceDiff = $order->side === 'buy' ? $marketPrice - $entryPrice : $entryPrice - $marketPrice;
+                $unrealizedPlPercent = $entryPrice > 0 ? ($priceDiff / $entryPrice) * 100 : 0;
+
+
+                return [
+                    'id' => $order->id,
+                    'position_type' => 'order',
+                    'symbol' => $order->symbol,
+                    'side' => $order->side,
+                    'quantity' => (float) $order->quantity,
+                    'entry_price' => $entryPrice,
+                    'market_price' => $marketPrice,
+                    'amount' => (float) $order->amount,
+                    'status' => $order->status,
+                    'type' => $order->type,
+                    'currency' => $order->currency,
+                    'category' => $category,
+                    'unrealized_pl_percent' => $unrealizedPlPercent,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $tradePositions->concat($orderPositions)->values(),
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Trade positions error: ' . $e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to load positions at this time.',
+            ], 500);
+        }
+    }
 
     public function searchSymbols(Request $request, $query = null)
     {
@@ -292,27 +422,56 @@ class TradeController extends Controller
         }
 
         $user = auth()->user();
+        $models = $this->resolveModels($user);
 
-        $currentPrice = (float) Symbol::where('symbol', $request->symbol)->value('last_price');
-        $effectivePrice = (float) ($request->limit_price ?? $currentPrice);
+        $marketService = app(MarketService::class);
+
+        $currentPrice = $marketService->quote($request->symbol);
+
+        if ($currentPrice <= 0) {
+            return response()->json(['message' => "Price for {$request->symbol} is currently unavailable. Please try again in a moment."], 422);
+        }
+
+        // Logic: If it's a limit order, use the limit price for calculations.
+        // Otherwise (Market, Stop, Bracket), use the current market price.
+        $effectivePrice = ($request->type === 'limit')
+            ? (float) $request->limit_price
+            : $currentPrice;
+
         $totalAmount = (float) ($request->qty * $effectivePrice);
 
-        // 1. Create local record
-        $order = Order::create([
+        return DB::transaction(function () use ($request, $user, $totalAmount, $currentPrice, $models) {
+            // Balance Check and Deduction (For Buy Orders)
+            if ($request->side === 'buy') {
+                $wallet = $models->wallet::where('user_id', $user->id)
+                    ->where('currency', 'USD')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$wallet || $wallet->usd_cleared < $totalAmount) {
+                    throw new \Exception('Insufficient cleared USD balance to place this order.');
+                }
+
+                $wallet->decrement('usd_cleared', $totalAmount);
+                $wallet->decrement('balance', $totalAmount);
+            }
+
+          
+            $order = $models->order::create([
             'user_id' => $user->id,
-            'symbol' => $request->symbol,
+            'symbol' => strtoupper($request->symbol),
             'quantity' => $request->qty,
             'side' => $request->side,
             'type' => $request->type,
             'status' => 'open',
             'amount' => $totalAmount,
-            'market_price' => $effectivePrice,
+            'market_price' => $currentPrice,
             'limit_price' => $request->limit_price,
             'stop_price' => $request->stop_price,
             'take_profit' => $request->take_profit,
             'stop_loss' => $request->stop_loss,
             'currency' => 'USD',
-            'market' => 'STOCKS',
+            'market' => 'GLOBAL',
         ]);
 
         // 2. Build Alpaca Payload
@@ -324,7 +483,8 @@ class TradeController extends Controller
         ];
 
         switch ($request->type) {
-            case 'market': $payload['type'] = 'market';
+            case 'market':
+                $payload['type'] = 'market';
                 break;
             case 'limit':
                 $payload['type'] = 'limit';
@@ -351,11 +511,26 @@ class TradeController extends Controller
                 'alpaca_order_id' => $response['id'] ?? null,
             ]);
 
+            \App\Models\NewTransaction::create([
+                'user_id' => $user->id,
+                'order_id' => $order->id, // Link to the order we just created
+                'symbol' => strtoupper($request->symbol),
+                'amount' => $totalAmount,
+                'quantity' => $request->qty,
+                'type' => $request->side, // 'buy' or 'sell'
+                'description' => "Order placed for {$request->qty} shares of " . strtoupper($request->symbol),
+                'status' => 'completed', // Or 'pending' depending on your flow
+                'metadata' => json_encode([
+                    'alpaca_id' => $response['id'] ?? null,
+                    'order_type' => $request->type
+                ]),
+            ]);
+
             return response()->json(['success' => true, 'data' => $order]);
         } catch (\Exception $e) {
             $order->update(['status' => 'failed']);
 
-            return response()->json(['message' => 'Alpaca Error: '.$e->getMessage()], 500);
+            return response()->json(['message' => 'Alpaca Error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -382,7 +557,7 @@ class TradeController extends Controller
         $order = Http::withHeaders([
             'APCA-API-KEY-ID' => env('ALPACA_API_KEY'),
             'APCA-API-SECRET-KEY' => env('ALPACA_SECRET_KEY'),
-        ])->post(env('ALPACA_BASE_URL').'/v2/orders', [
+        ])->post(env('ALPACA_BASE_URL') . '/v2/orders', [
             'symbol' => $request->symbol,
             'qty' => $request->qty,
             'side' => 'buy',
@@ -409,7 +584,7 @@ class TradeController extends Controller
         $order = Http::withHeaders([
             'APCA-API-KEY-ID' => env('ALPACA_API_KEY'),
             'APCA-API-SECRET-KEY' => env('ALPACA_SECRET_KEY'),
-        ])->post(env('ALPACA_BASE_URL').'/v2/orders', [
+        ])->post(env('ALPACA_BASE_URL') . '/v2/orders', [
             'symbol' => $request->symbol,
             'qty' => $request->qty,
             'side' => 'sell',

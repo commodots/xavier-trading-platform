@@ -23,4 +23,10 @@ class MarketUpdated implements ShouldBroadcast
     {
         return 'MarketUpdated';
     }
+
+    public function broadcastWith()
+    {
+
+        return $this->data;
+    }
 }

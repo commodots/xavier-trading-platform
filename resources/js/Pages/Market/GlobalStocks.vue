@@ -23,7 +23,7 @@
       </div>
 
       <!-- Portfolio Summary Bar -->
-      <div class="flex items-center gap-4 mb-6 ">
+      <div class="flex flex-col gap-4 mb-6 md:flex-row md:items-center">
         <div>
           <p class="text-[12px] uppercase tracking-widest text-white font-bold mb-1">USD Wallet Balance: <span>${{ walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span></p>
         </div>
@@ -739,7 +739,7 @@ const initDashboard = async () => {
     }
     
     // Fetch market insights separately as they are tab-dependent
-    fetchMarketInsights();
+    // fetchMarketInsights(); // Removed redundant call
   } catch (e) {
     console.error('Dashboard init failed, falling back to individual calls', e);
     // Fallback to individual calls if parallel calls fail
@@ -748,7 +748,7 @@ const initDashboard = async () => {
       fetchHoldings(),
       fetchWalletBalances()
     ]);
-    fetchMarketInsights();
+    // fetchMarketInsights(); // Removed
   } finally {
     isGraphLoading.value = false;
     holdingsLoading.value = false;
@@ -776,7 +776,6 @@ onMounted(() => {
   if (!user.value.has_active_subscription) {
      fetchMarketInsights('gainers');
   }
-  fetchHoldingsQuotes(false);
 
   // --- REAL-TIME ECHO LISTENER ---
   window.Echo.channel('market-channel')
@@ -819,10 +818,10 @@ onMounted(() => {
       });
     });
 
-  // Setup real-time refresh every 10 seconds
+  // Setup real-time refresh every 30 seconds
   refreshInterval = setInterval(() => {
     fetchHoldingsQuotes(true);
-  }, 10000);
+  }, 30000);
 });
 
 onUnmounted(() => {

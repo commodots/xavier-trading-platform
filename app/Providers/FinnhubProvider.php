@@ -18,16 +18,24 @@ class FinnhubProvider
 
     public function quote(string $symbol): float
     {
-        $data = $this->getQuote($symbol);
+        try {
+            $data = $this->getQuote($symbol);
 
-        return (float) ($data['c'] ?? 0.0);
+            return (float) ($data['c'] ?? 0.0);
+        } catch (\Exception $e) {
+            return 0.0;
+        }
     }
 
     public function getQuote(string $symbol): array
     {
-        return $this->request('/api/v1/quote', [
-            'symbol' => strtoupper($symbol),
-        ]);
+        try {
+            return $this->request('/api/v1/quote', [
+                'symbol' => strtoupper($symbol),
+            ]);
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     public function candles(string $symbol, string $resolution = '1', ?int $from = null, ?int $to = null): array

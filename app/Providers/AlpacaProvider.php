@@ -12,45 +12,85 @@ class AlpacaProvider
 
     protected $baseUrl;
 
+    protected $dataBaseUrl;
+
     public function __construct()
     {
         $this->key = env('ALPACA_API_KEY');
         $this->secret = env('ALPACA_SECRET_KEY');
         $this->baseUrl = env('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets');
+        $this->dataBaseUrl = 'https://data.alpaca.markets/v2';
     }
+
+    protected int $timeout = 10;
 
     public function quote(string $symbol): float
     {
-        $data = Http::withHeaders($this->headers())
-            ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/quotes')
-            ->json();
+        if (! $this->key || ! $this->secret) {
+            return 0.0;
+        }
 
-        return (float) ($data['askprice'] ?? 0.0);
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
+                ->get($this->dataBaseUrl.'/stocks/'.strtoupper($symbol).'/latest/quote');
+
+                if ($response->successful()) {
+                $data = $response->json();
+               
+                return (float) ($data['quote']['ap'] ?? $data['quote']['bp'] ?? 0.0);
+            }
+            return 0.0;
+        } catch (\Exception $e) {
+            return 0.0;
+        }
     }
 
     public function quoteDetails(string $symbol): array
     {
-        $data = Http::withHeaders($this->headers())
-            ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/quotes')
-            ->json();
+        if (! $this->key || ! $this->secret) {
+            return [
+                'symbol' => strtoupper($symbol),
+                'price' => 0.0,
+                'previous_close' => 0.0,
+                'change' => 0.0,
+                'timestamp' => now()->toISOString(),
+            ];
+        }
 
-        $current = (float) ($data['askprice'] ?? $data['last']['price'] ?? 0.0);
-        $previousClose = $this->getPreviousClose($symbol);
-        $change = $previousClose > 0 ? round((($current - $previousClose) / $previousClose) * 100, 2) : 0.0;
+        try {
+            $data = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
+                ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/latest/quote')
+                ->json();
 
-        return [
-            'symbol' => strtoupper($symbol),
-            'price' => $current,
-            'previous_close' => $previousClose,
-            'change' => $change,
-            'timestamp' => now()->toISOString(),
-        ];
+            $current = (float) ($data['quote']['ap'] ?? $data['quote']['lp'] ?? 0.0);
+            $previousClose = $this->getPreviousClose($symbol);
+            $change = $previousClose > 0 ? round((($current - $previousClose) / $previousClose) * 100, 2) : 0.0;
+
+            return [
+                'symbol' => strtoupper($symbol),
+                'price' => $current,
+                'previous_close' => $previousClose,
+                'change' => $change,
+                'timestamp' => now()->toISOString(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'symbol' => strtoupper($symbol),
+                'price' => 0.0,
+                'previous_close' => 0.0,
+                'change' => 0.0,
+                'timestamp' => now()->toISOString(),
+            ];
+        }
     }
 
     protected function getPreviousClose(string $symbol): float
     {
         try {
             $response = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
                 ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/bars', [
                     'timeframe' => '1Day',
                     'start' => now()->subDays(7)->toDateString(),

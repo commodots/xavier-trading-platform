@@ -1,6 +1,7 @@
 <template>
   <div class="w-full h-[400px] rounded-lg overflow-hidden bg-[#0F1724] relative">
-    <div v-if="isLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-[#0F1724]/80 text-[#00D4FF] text-xs font-bold uppercase tracking-widest">
+    <div v-if="isLoading"
+      class="absolute inset-0 z-10 flex items-center justify-center bg-[#0F1724]/80 text-[#00D4FF] text-xs font-bold uppercase tracking-widest">
       Syncing Live Market...
     </div>
     <div ref="chartContainer" class="w-full h-full"></div>
@@ -24,24 +25,17 @@ let lastCandle = null;
 let resizeObserver = null;
 let abortController = null;
 
-// In-memory cache for instant symbol switching
 const historyCache = new Map();
 
 /**
- Fetch REAL historical candles so the live "tick" 
- * matches the previous price action.
+ * Fetch Historical Data
  */
 const fetchHistory = async () => {
-  if (!series) {
-    return;
-  }
+  if (!series) return;
 
-  if (abortController) {
-    abortController.abort();
-  }
+  if (abortController) abortController.abort();
   abortController = new AbortController();
 
-  // Check cache for instant visual feedback
   if (historyCache.has(props.symbol)) {
     const cachedData = historyCache.get(props.symbol);
     series.setData(cachedData);
@@ -54,11 +48,7 @@ const fetchHistory = async () => {
 
   try {
     const response = await api.get(`/market/candles`, {
-      params: {
-        symbol: props.symbol,
-        interval: '1',
-        limit: 150 // Optimize payload size for faster transfer
-      },
+      params: { symbol: props.symbol, interval: '1', limit: 150 },
       signal: abortController.signal
     });
 
@@ -75,6 +65,7 @@ const fetchHistory = async () => {
       series.setData(historyData);
       lastCandle = { ...historyData[historyData.length - 1] };
       chartInstance.timeScale().fitContent();
+      chartInstance.priceScale('right').applyOptions({ autoScale: true });
     }
   } catch (e) {
     if (e.name !== 'CanceledError') {
@@ -85,78 +76,73 @@ const fetchHistory = async () => {
   }
 };
 
-onMounted(() => {
-  if (!chartContainer.value) {
-    return;
-  }
 
-  chartInstance = createChart(chartContainer.value, {
-    layout: {
-      background: { color: 'transparent' },
-      textColor: '#9CA3AF',
-    },
-    grid: {
-      vertLines: { color: '#1f3348' },
-      horzLines: { color: '#1f3348' },
-    },
-    crosshair: {
-      mode: 0, // Normal mode for tracking
-    },
-    timeScale: {
-      borderColor: '#1f3348',
-      timeVisible: true,
-      secondsVisible: false,
-      tickMarkFormatter: (time) => {
-        const date = new Date(time * 1000);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      },
-    },
-  });
-
-  series = chartInstance.addSeries(CandlestickSeries, {
-    upColor: '#10B981',
-    downColor: '#EF4444',
-    borderVisible: false,
-    wickUpColor: '#10B981',
-    wickDownColor: '#EF4444',
-  });
-
-  fetchHistory();
-
-  // The Live "Motion" Listener
+const setupEchoListener = () => {
   window.Echo.channel("market-channel")
     .listen('MarketUpdated', (e) => {
-      const updates = Array.isArray(e) ? e : (e.data || []);
+      const updates = Array.isArray(e) ? e : [];
 
       updates.forEach(trade => {
         if (trade.s && trade.s.toUpperCase() === props.symbol.toUpperCase()) {
-
           const tradePrice = parseFloat(trade.p);
           const tradeTime = Math.floor((trade.t || Date.now()) / 1000);
           const candleTime = Math.floor(tradeTime / 60) * 60;
 
+          // Update existing candle or create new one
           if (lastCandle && lastCandle.time === candleTime) {
-            // "Tick" logic: Update the CURRENT candle
             lastCandle.close = tradePrice;
             lastCandle.high = Math.max(lastCandle.high, tradePrice);
             lastCandle.low = Math.min(lastCandle.low, tradePrice);
           } else {
-            // "New Bar" logic: Start a fresh minute
             lastCandle = {
               time: candleTime,
               open: tradePrice,
               high: tradePrice,
               low: tradePrice,
-              close: tradePrice,
+              close: tradePrice
             };
           }
 
-          
-          series.update(lastCandle);
+          if (series) series.update(lastCandle);
         }
       });
     });
+};
 
+onMounted(() => {
+  if (!chartContainer.value) return;
+
+  // Initialize Chart
+  chartInstance = createChart(chartContainer.value, {
+    layout: { background: { color: 'transparent' }, textColor: '#9CA3AF' },
+    grid: { vertLines: { color: '#1f3348' }, horzLines: { color: '#1f3348' } },
+    priceScale: {
+      autoScale: true,          
+      mode: 0,
+      borderVisible: false,
+    },
+    timeScale: {
+      borderColor: '#1f3348',
+      timeVisible: true,
+      rightOffset: 12,
+      barSpacing: 6,
+    },
+  });
+
+  series = chartInstance.addSeries(CandlestickSeries, {
+    upColor: '#10B981', downColor: '#EF4444', borderVisible: false,
+    wickUpColor: '#10B981', wickDownColor: '#EF4444',
+    priceFormat: {
+      type: 'price',
+      precision: 4,
+      minMove: 0.0001,
+    },
+  });
+
+  fetchHistory();
+  setupEchoListener();
+
+  
   resizeObserver = new ResizeObserver(() => {
     if (chartInstance && chartContainer.value) {
       chartInstance.applyOptions({
@@ -168,22 +154,15 @@ onMounted(() => {
   resizeObserver.observe(chartContainer.value);
 });
 
-// Refresh chart when user changes the stock symbol
 watch(() => props.symbol, () => {
-  lastCandle = null; // Clear state for new symbol
+  lastCandle = null;
   fetchHistory();
 });
 
 onUnmounted(() => {
   window.Echo.leave("market-channel");
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
-  if (chartInstance) {
-    chartInstance.remove();
-  }
-  if (abortController) {
-    abortController.abort();
-  }
+  if (resizeObserver) resizeObserver.disconnect();
+  if (chartInstance) chartInstance.remove();
+  if (abortController) abortController.abort();
 });
 </script>
