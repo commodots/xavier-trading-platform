@@ -43,19 +43,26 @@ class WalletController extends Controller
         $ngnWallet = $models->wallet->where('user_id', $user->id)->where('currency', 'NGN')->first();
         $usdWallet = $models->wallet->where('user_id', $user->id)->where('currency', 'USD')->first();
 
+        $unclearedNgn = (float) ($ngnWallet?->ngn_uncleared ?? 0);
+        $unclearedUsd = (float) ($usdWallet?->usd_uncleared ?? 0);
+
+        $data = [
+            'balance_ngn' => (float) (($ngnWallet?->ngn_cleared ?? 0) + $unclearedNgn + ($ngnWallet?->locked ?? 0)),
+            'balance_usd' => (float) (($usdWallet?->usd_cleared ?? 0) + $unclearedUsd + ($usdWallet?->locked ?? 0)),
+            'cleared_balance_ngn' => (float) ($ngnWallet?->ngn_cleared ?? 0),
+            'cleared_balance_usd' => (float) ($usdWallet?->usd_cleared ?? 0),
+            'uncleared_balance_ngn' => max(0, $unclearedNgn),
+            'locked_balance_ngn' => (float) ($ngnWallet?->locked ?? 0),
+            'uncleared_balance_usd' => max(0, $unclearedUsd),
+            'locked_balance_usd' => (float) ($usdWallet?->locked ?? 0),
+        ];
+
+        Log::debug("Wallet balances fetched for User #{$user->id}", ['mode' => $user->trading_mode, 'balances' => $data]);
+
         return response()->json([
             'success' => true,
             'mode' => $user->trading_mode,
-            'data' => [
-                'balance_ngn' => (float) (($ngnWallet?->ngn_cleared ?? 0) + ($ngnWallet?->ngn_uncleared ?? 0) + ($ngnWallet?->locked ?? 0)),
-                'balance_usd' => (float) (($usdWallet?->usd_cleared ?? 0) + ($usdWallet?->usd_uncleared ?? 0) + ($usdWallet?->locked ?? 0)),
-                'cleared_balance_ngn' => (float) ($ngnWallet?->ngn_cleared ?? 0),
-                'cleared_balance_usd' => (float) ($usdWallet?->usd_cleared ?? 0),
-                'uncleared_balance_ngn' => (float) ($ngnWallet?->ngn_uncleared ?? 0),
-                'locked_balance_ngn' => (float) ($ngnWallet?->locked ?? 0),
-                'uncleared_balance_usd' => (float) ($usdWallet?->usd_uncleared ?? 0),
-                'locked_balance_usd' => (float) ($usdWallet?->locked ?? 0),
-            ],
+            'data' => $data,
         ]);
     }
 
@@ -102,14 +109,25 @@ class WalletController extends Controller
                 ->first();
 
             $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
-            $clearedBalance = $wallet ? ($currency === 'NGN' ? $wallet->ngn_cleared : $wallet->usd_cleared) : 0;
+            $walletBefore = $wallet ? $wallet->{$clearedCol} : 0;
 
-            if (! $wallet || $clearedBalance < $request->amount) {
+            if (! $wallet || $walletBefore < $request->amount) {
                 return response()->json(['message' => 'Insufficient cleared funds'], 400);
             }
 
+            Log::info('Wallet Withdrawal Initiated', [
+                'user_id' => $user->id,
+                'amount' => $request->amount,
+                'currency' => $currency,
+                'wallet_before' => $walletBefore,
+                'mode' => $models->mode
+            ]);
+
             $wallet->decrement($clearedCol, $request->amount);
             $wallet->decrement('balance', $request->amount);
+            $wallet->refresh(); // Refresh to get the latest values after decrement
+            $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
+            $wallet->refresh();
 
             $models->transaction->create([
                 'user_id' => $user->id,
@@ -123,6 +141,12 @@ class WalletController extends Controller
                     'note' => 'User initiated withdrawal',
                     'mode' => $models->mode,
                 ],
+            ]);
+
+            Log::info('Wallet Withdrawal Completed', [
+                'user_id' => $user->id,
+                'wallet_after_cleared' => $wallet->{$clearedCol},
+                'wallet_after_total' => $wallet->balance
             ]);
 
             // PCI-DSS: Audit log for all payment operations
@@ -157,8 +181,21 @@ class WalletController extends Controller
             // Row lock for safety
             $wallet = $models->wallet->where('id', $wallet->id)->lockForUpdate()->first();
 
+            $walletBefore = $wallet->{$clearedCol};
+
+            Log::info('Wallet Deposit Started', [
+                'user_id' => $user->id,
+                'amount' => $request->amount,
+                'currency' => $currency,
+                'wallet_before' => $walletBefore,
+                'mode' => $models->mode
+            ]);
+
             $wallet->increment($clearedCol, $request->amount);
             $wallet->increment('balance', $request->amount);
+            $wallet->refresh(); // Refresh to get the latest values after increment
+            $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
+            $wallet->refresh();
 
             $models->transaction->create([
                 'user_id' => $user->id,
@@ -172,6 +209,12 @@ class WalletController extends Controller
                     'reference' => 'XAV-'.strtoupper(bin2hex(random_bytes(4))),
                     'mode' => $models->mode,
                 ],
+            ]);
+
+            Log::info('Wallet Deposit Finished', [
+                'user_id' => $user->id,
+                'wallet_after_cleared' => $wallet->{$clearedCol},
+                'wallet_after_total' => $wallet->balance
             ]);
 
             return response()->json([
@@ -233,6 +276,16 @@ class WalletController extends Controller
 
                 $status = $isDemo ? 'completed' : 'pending';
 
+                Log::info('Wallet Conversion Started', [
+                    'user_id' => $user->id,
+                    'from' => $fromCurrency,
+                    'to' => $toCurrency,
+                    'amount_in' => $amount,
+                    'expected_out' => $convertedAmount,
+                    'rate' => $rate->effective_rate,
+                    'mode' => $models->mode
+                ]);
+
                 $sourceWallet->decrement($clearedCol, $amount);
                 $sourceWallet->decrement('balance', $amount);
 
@@ -278,10 +331,12 @@ class WalletController extends Controller
                     ],
                 ]);
 
-                ActivityLog::log($user->id, 'fx_conversion_initiated', [
+                Log::info('Wallet Conversion Completed', [
+                    'user_id' => $user->id,
                     'from_amount' => $amount,
                     'to_amount' => $convertedAmount,
-                    'rate' => $rate->effective_rate,
+                    'source_wallet_after' => $sourceWallet->fresh()->balance,
+                    'dest_wallet_after' => $destWallet->fresh()->balance
                 ]);
 
                 return response()->json([

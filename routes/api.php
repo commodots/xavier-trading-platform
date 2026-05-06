@@ -105,7 +105,7 @@ Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
 
 Route::middleware('auth:sanctum')->group(function () {
     /* User & Auth Management */
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/email/verification-notification', function (Request $request) {
@@ -118,7 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (\Exception $e) {
-            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }

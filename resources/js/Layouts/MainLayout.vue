@@ -212,15 +212,14 @@ const fetchPermissions = async () => {
     const currentUser = profileRes.data.data;
 
     // Default to an empty array to prevent undefined errors
-    userPermissions.value = currentUser.permissions || [];
-    user.value.permissions = userPermissions.value;
-    user.value.trading_mode = currentUser.trading_mode || 'live';
+    user.value = {
+      ...user.value,
+      ...currentUser,
+      permissions: currentUser.permissions || []
+    };
 
     // Update localStorage 
-    let storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-    storedUser.permissions = userPermissions.value;
-    storedUser.trading_mode = user.value.trading_mode;
-    localStorage.setItem("user", JSON.stringify(storedUser));
+    localStorage.setItem("user", JSON.stringify(user.value));
   } catch (e) {
     console.error('Failed to fetch permissions', e);
   }
@@ -232,20 +231,23 @@ onMounted(fetchPermissions);
 const hasStaffAccess = computed(() => {
   if (!user.value) return false;
 
+  
   const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
-
   const roleString = typeof user.value.role === 'string' ? user.value.role.toLowerCase() : '';
-  const hasRoleInString = staffRoles.includes(roleString);
+  const hasRole = staffRoles.includes(roleString);
 
-  let hasRoleInArray = false;
-  if (Array.isArray(user.value.roles)) {
-    hasRoleInArray = user.value.roles.some(r => {
-      const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
-      return staffRoles.includes(roleName);
-    });
-  }
+  
+  const adminPermissions = [
+    'manage_system_settings',
+    'manage_services',
+    'manage_kyc_settings',
+    'manage_transaction_charges'
+  ];
+  
+  const hasAdminPermission = user.value.permissions && 
+    adminPermissions.some(p => user.value.permissions[p] === true);
 
-  return hasRoleInArray || hasRoleInString;
+  return hasRole || hasAdminPermission;
 });
 
 // INITIALIZATION LOGIC FOR BUG FIX

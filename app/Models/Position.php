@@ -11,5 +11,6 @@ class Position extends Model
         'symbol',
         'qty',
         'avg_price',
+        'position_type'
     ];
 }

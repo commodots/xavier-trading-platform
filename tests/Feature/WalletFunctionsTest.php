@@ -130,7 +130,7 @@ class WalletFunctionsTest extends TestCase
     public function test_crypto_market_uses_live_api(): void
     {
         Http::fake([
-            'api.coingecko.com/api/v3/simple/price*' => Http::response([
+            'https://api.coingecko.com/api/v3/simple/price*' => Http::response([
                 'bitcoin' => ['usd' => 65000],
                 'ethereum' => ['usd' => 3200],
                 'tether' => ['usd' => 1],
@@ -193,7 +193,12 @@ class WalletFunctionsTest extends TestCase
         $user = User::factory()->create();
         $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
 
-        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+        // Setup sequence: 100 for open, 110 for close
+        Http::fake([
+            'https://api.coingecko.com/api/v3/simple/price*' => Http::sequence()
+                ->push(['bitcoin' => ['usd' => 100]], 200)
+                ->push(['bitcoin' => ['usd' => 110]], 200),
+        ]);
 
         // Buy 1 BTC at $100 with $100
         $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
@@ -211,11 +216,6 @@ class WalletFunctionsTest extends TestCase
 
         // Clear cache for the next API call
         \Illuminate\Support\Facades\Cache::forget('crypto_prices');
-
-        // Now mock price at $110 for close
-        Http::fake(['https://api.coingecko.com/api/v3/simple/price*' => function ($request) {
-            return Http::response(['bitcoin' => ['usd' => 110]], 200);
-        }]);
 
         $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
         $closeRes->assertStatus(200);
@@ -239,7 +239,12 @@ class WalletFunctionsTest extends TestCase
         $user = User::factory()->create();
         $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
 
-        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+        // Setup sequence: 100 for open, 90 for close
+        Http::fake([
+            'https://api.coingecko.com/api/v3/simple/price*' => Http::sequence()
+                ->push(['bitcoin' => ['usd' => 100]], 200)
+                ->push(['bitcoin' => ['usd' => 90]], 200),
+        ]);
 
         // Buy 1 BTC at $100 with $100
         $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
@@ -255,8 +260,6 @@ class WalletFunctionsTest extends TestCase
         \Illuminate\Support\Facades\Cache::flush();
         // Set symbol price for fallback
         \App\Models\Symbol::updateOrCreate(['symbol' => 'BTC'], ['last_price' => 110]);
-        // Now mock price at $90 for close
-        Http::fake(['api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 90]], 200)]);
 
         $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
         $closeRes->assertStatus(200);

@@ -98,12 +98,13 @@ class TradeIntegrationTest extends TestCase
             'filled_quantity' => 0,
             'status' => 'open',
             'source' => 'test',
-            'market' => 'STOCKS',
+            'market' => 'GLOBAL',
             'currency' => 'USD',
             'company' => 'Apple Inc',
             'units' => 1,
             'amount' => 150.00,
             'market_price' => 150.00,
+            'position_type' => 'order',
         ]);
 
         Sanctum::actingAs($user);

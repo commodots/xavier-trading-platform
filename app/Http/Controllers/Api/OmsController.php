@@ -146,15 +146,6 @@ class OmsController extends Controller
                 if ($holding && $remainingUnits > 0) {
                     $holding->decrement('quantity', $remainingUnits);
                     $holding->decrement('uncleared_quantity', $remainingUnits);
-                } else {
-                    // Sell Order Cancellation: Return the assets to the user
-                    if ($remainingUnits > 0 && $holding) {
-                        $holding->decrement('uncleared_quantity', $remainingUnits);
-                        $holding->increment('cleared_quantity', $remainingUnits);
-                    }
-                    if ($refundCashAmount > 0 && $wallet) {
-                        $wallet->decrement($unclearedCol, $refundCashAmount);
-                    }
                 }
                 $message = 'Order canceled. Refunded '.$order->currency.' '.number_format($refundCashAmount, 2);
             } else {
@@ -163,7 +154,10 @@ class OmsController extends Controller
                     $holding->increment('cleared_quantity', $remainingUnits);
                 }
                 if ($refundCashAmount > 0 && $wallet) {
-                    $wallet->decrement($unclearedCol, $refundCashAmount);
+                    
+                    $toDeduct = min($wallet->{$unclearedCol}, $refundCashAmount);
+                    $wallet->decrement($unclearedCol, $toDeduct);
+                    $wallet->decrement('balance', $toDeduct);
                 }
                 $message = 'Order canceled. Returned '.number_format($remainingUnits, 6).' '.$order->symbol.' to portfolio.';
             }

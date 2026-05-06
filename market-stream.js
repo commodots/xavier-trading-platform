@@ -82,7 +82,7 @@ async function syncFromRedis() {
 
 let tradeBuffer = [];
 
-ws.on('message', (msg) => {
+ws.on('message', async (msg) => {
     try {
         const data = JSON.parse(msg.toString());
         if (data.type === 'trade' && Array.isArray(data.data) && data.data.length > 0) {

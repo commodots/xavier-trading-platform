@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md h-screen w-full
+  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A] backdrop-blur-md h-screen w-full
   ">
     <div ref="receipt" id="receipt-content"
       class="bg-[#0F172A] border border-slate-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">

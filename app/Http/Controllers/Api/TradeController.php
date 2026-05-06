@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Log;
 
 class TradeController extends Controller
 {
@@ -56,6 +57,19 @@ class TradeController extends Controller
         } // Don't guess. If it's not in the map, price is 0 (unavailable).
 
         return (float) ($prices[$id]['usd'] ?? 0);
+    }
+
+    private function matchesSymbolSearch(Symbol $symbol, string $query): bool
+    {
+        $normalizedQuery = strtolower(trim($query));
+        $normalizedSymbol = strtolower($symbol->symbol);
+        $normalizedName = strtolower($symbol->name ?? '');
+
+        if (str_contains($normalizedSymbol, $normalizedQuery) || str_contains($normalizedName, $normalizedQuery)) {
+            return true;
+        }
+
+        return levenshtein($normalizedSymbol, $normalizedQuery) <= 1;
     }
 
     public function updateMarket(Request $request)
@@ -131,11 +145,24 @@ class TradeController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if (! $wallet || $wallet->usd_cleared < $amount) {
+            $walletBefore = $wallet ? $wallet->usd_cleared : 0;
+
+            if (!$wallet || $wallet->usd_cleared < $amount) {
                 throw new \Exception('Insufficient cleared funds.');
             }
 
             $quantity = $amount / $executionPrice;
+
+            Log::info('Crypto Trade Opening', [
+                'user_id' => $user->id,
+                'pair' => $request->input('pair'),
+                'amount_usd' => $amount,
+                'entry_price' => $executionPrice,
+                'calculated_quantity' => $quantity,
+                'wallet_before_cleared' => $walletBefore,
+                'wallet_before_total' => $wallet->balance,
+                'mode' => $user->trading_mode
+            ]);
 
             $order = $models->order::create([
                 'user_id' => $user->id,
@@ -165,6 +192,10 @@ class TradeController extends Controller
             ]);
 
             $wallet->decrement('usd_cleared', $amount);
+            $wallet->increment('locked', $amount); // Standardize: Move to locked instead of removing
+            $wallet->refresh(); // Refresh to get latest values before calculating balance
+            $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
+            $wallet->save();
 
             $models->transaction::create([
                 'user_id' => $user->id,
@@ -188,8 +219,14 @@ class TradeController extends Controller
             ->where('user_id', $user->id)
             ->firstOrFail();
 
+        //  Only open trades can be closed
         if ($trade->status !== 'open') {
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
+        }
+
+        
+        if (!$trade->quantity || !$trade->entry_price || !$trade->amount) {
+            return response()->json(['success' => false, 'message' => 'Invalid trade data'], 422);
         }
 
         $symbol = strtoupper(explode('/', $trade->pair)[0]);
@@ -209,50 +246,153 @@ class TradeController extends Controller
             $currentPrice = $marketService->quote($symbol);
         }
 
+        Log::info('TradeController::close current price debug', [
+            'trade_id' => $trade->id,
+            'pair' => $trade->pair,
+            'symbol' => $symbol,
+            'prices' => $prices ?? null,
+            'current_price' => $currentPrice,
+        ]);
+
+        
+        if ($currentPrice <= 0) {
+            return response()->json(['success' => false, 'message' => "Price unavailable for {$symbol}"], 422);
+        }
+
         $currentPrice = $marketService->applySpread($currentPrice, 'sell');
 
-        // P&L calculation: (Current - Entry) / Entry * Amount
-        $profit = (($currentPrice - $trade->entry_price) / max($trade->entry_price, 0.00000001)) * $trade->amount;
+        
+        $quantity = (float) $trade->quantity;
+        $buyPrice = (float) $trade->entry_price;
+        $sellPrice = (float) $currentPrice;
 
-        return DB::transaction(function () use ($id, $user, $currentPrice, $profit, $models) {
-            // Refetch inside transaction with lock
-            $lockedTrade = $models->trade::where('id', $id)
-                ->where('user_id', $user->id)
-                ->lockForUpdate()
-                ->first();
+        $buyValue = $quantity * $buyPrice;     // Initial investment (should match $trade->amount)
+        $sellValue = $quantity * $sellPrice;   // Total proceeds from selling
 
-            if (! $lockedTrade) {
-                throw new \Exception('Trade not found');
-            }
+        // P&L: sell_value - buy_value (not percentage * amount)
+        $profitLoss = $sellValue - $buyValue;
 
-            $lockedTrade->update([
-                'exit_price' => $currentPrice,
-                'profit_loss' => $profit,
-                'status' => 'closed',
-            ]);
+        Log::info('Crypto Trade Closing - Calculation', [
+            'trade_id' => $id,
+            'user_id' => $user->id,
+            'pair' => $trade->pair,
+            'quantity' => $quantity,
+            'buy_price' => $buyPrice,
+            'sell_price' => $sellPrice,
+            'buy_value' => $buyValue,
+            'sell_value' => $sellValue,
+            'profit_loss' => $profitLoss,
+            'trade_amount' => $trade->amount,
+        ]);
 
-            $wallet = $models->wallet::where('user_id', $user->id)
-                ->where('currency', 'USD')
-                ->lockForUpdate()
-                ->first();
+        try {
+            return DB::transaction(function () use ($id, $user, $sellPrice, $profitLoss, $models, $buyValue, $sellValue, $quantity, $trade, $buyPrice) {
+                // Refetch inside transaction with lock to prevent race conditions
+                $lockedTrade = $models->trade::where('id', $id)
+                    ->where('user_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($wallet) {
-                // Return initial investment + profit (or minus loss)
-                $wallet->increment('usd_cleared', $lockedTrade->amount + $profit);
-                $wallet->increment('balance', $lockedTrade->amount + $profit);
-            }
+                if (!$lockedTrade) {
+                    throw new \Exception('Trade not found');
+                }
 
-            $models->transaction::create([
+                // Double-check status inside transaction
+                if ($lockedTrade->status !== 'open') {
+                    throw new \Exception('Trade already closed');
+                }
+
+                // Update trade record with close price and P&L
+                $lockedTrade->update([
+                    'exit_price' => $sellPrice,
+                    'profit_loss' => $profitLoss,
+                    'status' => 'closed',
+                ]);
+
+                // Lock wallet to prevent concurrent updates
+                $wallet = $models->wallet::where('user_id', $user->id)
+                    ->where('currency', 'USD')
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $walletBeforeLocked = (float) $wallet->locked;
+                $walletBeforeCleared = (float) $wallet->usd_cleared;
+
+                // WALLET RULE: Return capital from locked + add FULL proceeds to cleared
+                $wallet->decrement('locked', $buyValue);        // Release locked capital
+                $wallet->increment('usd_cleared', $sellValue);  // Add FULL proceeds (capital + profit)
+                $wallet->refresh(); // Refresh to get latest values after decrement/increment
+                $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
+                $wallet->save();
+
+                $walletAfterLocked = (float) $wallet->locked;
+                $walletAfterCleared = (float) $wallet->usd_cleared;
+
+                Log::info('Crypto Trade Closing - Wallet Updated', [
+                    'trade_id' => $id,
+                    'locked_before' => $walletBeforeLocked,
+                    'locked_after' => $walletAfterLocked,
+                    'cleared_before' => $walletBeforeCleared,
+                    'cleared_after' => $walletAfterCleared,
+                    'capital_returned' => $buyValue,
+                    'proceeds_added' => $sellValue,
+                    'profit_recorded' => $profitLoss,
+                ]);
+
+                // Create ledger entry for wallet update
+                \App\Models\Ledger::create([
+                    'user_id' => $user->id,
+                    'currency' => 'USD',
+                    'amount' => $profitLoss,
+                    'type' => 'crypto_trade_sell',
+                    'status' => 'completed',
+                    'reference' => "Trade #{$lockedTrade->id}",
+                    'meta' => [
+                        'trade_id' => $lockedTrade->id,
+                        'pair' => $lockedTrade->pair,
+                        'quantity' => $quantity,
+                        'entry_price' => $buyPrice,
+                        'exit_price' => $sellPrice,
+                        'buy_value' => $buyValue,
+                        'sell_value' => $sellValue,
+                    ],
+                ]);
+
+                // ✅ Create transaction record for audit trail
+                $models->transaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'sell_crypto',
+                    'amount' => $sellValue,
+                    'currency' => 'USD',
+                    'status' => 'completed',
+                    'meta' => [
+                        'pair' => $lockedTrade->pair,
+                        'trade_id' => $lockedTrade->id,
+                        'quantity' => $quantity,
+                        'price' => $sellPrice,
+                        'buy_value' => $buyValue,
+                        'sell_value' => $sellValue,
+                        'profit_loss' => $profitLoss,
+                    ],
+                ]);
+
+                Log::info('Crypto Trade Closed Successfully', [
+                    'trade_id' => $id,
+                    'user_id' => $user->id,
+                    'status' => 'success',
+                ]);
+
+                return response()->json(['success' => true, 'data' => $lockedTrade]);
+            });
+        } catch (\Exception $e) {
+            Log::error('Crypto Trade Close Failed', [
+                'trade_id' => $id,
                 'user_id' => $user->id,
-                'type' => 'sell_crypto',
-                'amount' => $lockedTrade->amount + $profit,
-                'currency' => 'USD',
-                'status' => 'completed',
-                'meta' => ['pair' => $lockedTrade->pair, 'trade_id' => $lockedTrade->id, 'profit_loss' => $profit],
+                'error' => $e->getMessage(),
             ]);
 
-            return response()->json(['success' => true, 'data' => $lockedTrade]);
-        });
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function index(Request $request)
@@ -387,22 +527,53 @@ class TradeController extends Controller
     }
 
     public function searchSymbols(Request $request, $query = null)
-    {
-        $query = $query ?? trim($request->query('q', ''));
+{
+    $query = $query ?? trim($request->query('q', ''));
 
-        if (strlen($query) < 2) {
-            return response()->json([]);
-        }
-
-        $results = Symbol::query()
-            ->where('symbol', 'like', "%{$query}%")
-            ->orWhere('name', 'like', "%{$query}%")
-            ->orderBy('symbol')
-            ->limit(20)
-            ->get(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change']);
-
-        return response()->json($results);
+    if (strlen($query) < 2) {
+        return response()->json([]);
     }
+
+    $results = Symbol::query();
+
+    // Check if we are running in a test/SQLite environment
+    if (config('database.default') === 'sqlite') {
+        $results->where(function($q) use ($query) {
+            $q->where('symbol', 'like', "%{$query}%")
+              ->orWhere('name', 'like', "%{$query}%");
+        });
+    } else {
+        // Use high-performance Fulltext search for MySQL (Production)
+        $results->where(function($q) use ($query) {
+            $q->whereFulltext('name', $query)
+              ->orWhere('symbol', 'like', "%{$query}%");
+        });
+    }
+
+    $finalResults = $results->orderBy('symbol')
+        ->limit(20)
+        ->get(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change']);
+
+    if ($finalResults->count() < 20) {
+        $fallback = Symbol::select(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change'])
+            ->get()
+            ->filter(fn($symbol) => $this->matchesSymbolSearch($symbol, $query));
+
+        foreach ($fallback as $symbol) {
+            if ($finalResults->contains('symbol', $symbol->symbol)) {
+                continue;
+            }
+
+            $finalResults->push($symbol);
+
+            if ($finalResults->count() >= 20) {
+                break;
+            }
+        }
+    }
+
+    return response()->json($finalResults->take(20));
+}
 
     public function placeOrder(Request $request)
     {
@@ -440,7 +611,8 @@ class TradeController extends Controller
 
         $totalAmount = (float) ($request->qty * $effectivePrice);
 
-        return DB::transaction(function () use ($request, $user, $totalAmount, $currentPrice, $models) {
+        try {
+            return DB::transaction(function () use ($request, $user, $totalAmount, $currentPrice, $models) {
             // Balance Check and Deduction (For Buy Orders)
             if ($request->side === 'buy') {
                 $wallet = $models->wallet::where('user_id', $user->id)
@@ -452,11 +624,11 @@ class TradeController extends Controller
                     throw new \Exception('Insufficient cleared USD balance to place this order.');
                 }
 
+                // Standardize: Move to locked state instead of decrementing total balance
                 $wallet->decrement('usd_cleared', $totalAmount);
-                $wallet->decrement('balance', $totalAmount);
+                $wallet->increment('locked', $totalAmount);
             }
 
-          
             $order = $models->order::create([
             'user_id' => $user->id,
             'symbol' => strtoupper($request->symbol),
@@ -511,26 +683,32 @@ class TradeController extends Controller
                 'alpaca_order_id' => $response['id'] ?? null,
             ]);
 
-            \App\Models\NewTransaction::create([
+            $models->transaction::create([
                 'user_id' => $user->id,
-                'order_id' => $order->id, // Link to the order we just created
-                'symbol' => strtoupper($request->symbol),
+                'type' => $request->side === 'buy' ? 'buy_stock' : 'sell_stock',
                 'amount' => $totalAmount,
-                'quantity' => $request->qty,
-                'type' => $request->side, // 'buy' or 'sell'
-                'description' => "Order placed for {$request->qty} shares of " . strtoupper($request->symbol),
-                'status' => 'completed', // Or 'pending' depending on your flow
-                'metadata' => json_encode([
+                'net_amount' => $totalAmount,
+                'currency' => 'USD',
+                'status' => 'completed',
+                'meta' => [
+                    'order_id' => $order->id,
+                    'symbol' => strtoupper($request->symbol),
+                    'quantity' => $request->qty,
                     'alpaca_id' => $response['id'] ?? null,
-                    'order_type' => $request->type
-                ]),
+                    'order_type' => $request->type,
+                ],
             ]);
 
             return response()->json(['success' => true, 'data' => $order]);
         } catch (\Exception $e) {
-            $order->update(['status' => 'failed']);
-
-            return response()->json(['message' => 'Alpaca Error: ' . $e->getMessage()], 500);
+            throw $e;
+        }
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order Failed: ' . $e->getMessage()
+            ], 500);
         }
     }
 

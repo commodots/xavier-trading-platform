@@ -27,6 +27,7 @@ class Order extends Model
         'stop_price',
         'take_profit',
         'stop_loss',
+        'position_type',
     ];
 
     public function user()

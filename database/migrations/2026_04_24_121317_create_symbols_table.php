@@ -21,7 +21,10 @@ return new class extends Migration
 
             // Indexing for faster search performance
             $table->index('symbol');
-            $table->fulltext('name');
+            
+            if (config('database.default') !== 'sqlite') {
+                $table->fulltext('name');
+            }
         });
     }
 

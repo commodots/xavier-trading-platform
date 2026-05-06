@@ -2,7 +2,7 @@
   <MainLayout>
     <div class="space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
-      <div class="flex items-center justify-between gap-1">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 class="flex items-center gap-2 text-2xl font-semibold" :class="isDemo ? 'text-yellow-500' : 'text-white'">
             {{ isDemo ? 'Demo Wallet' : '💼 Wallet ' }}
@@ -12,7 +12,7 @@
           </p>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <template v-if="!isDemo">
             <button @click="openTransaction('deposit')"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
@@ -52,7 +52,7 @@
       <div :class="loading && !actionType ? 'blur-sm animate-pulse' : ''" class="transition-all duration-300">
         <div class="p-8 border rounded-xl"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
-          <div class="flex items-center gap-12 mb-6 border-b border-[#1f3348] pb-6">
+          <div class="flex flex-col md:flex-row md:items-center gap-8 md:gap-12 mb-6 border-b border-[#1f3348] pb-6">
 
             <div class="flex items-center gap-3">
               <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
@@ -73,7 +73,7 @@
               </div>
             </div>
 
-            <div class="flex items-center gap-3 border-l border-[#1f3348] pl-12">
+            <div class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-[#1f3348] pt-6 md:pt-0 md:pl-12">
               <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
               <div>
                 <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>

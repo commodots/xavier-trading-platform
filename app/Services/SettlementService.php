@@ -66,12 +66,17 @@ class SettlementService
                 $portfolio->increment('cleared_quantity', $trade->quantity);
             } else {
                 // SETTLE SELL:
-                // Shares officially gone (Remove from uncleared & total)
+                // Guard: Prevent settlement if funds were already removed (e.g. by cancellation)
+                $toSettle = min($wallet->{$unclearedCol}, $totalValue);
+
                 $portfolio->decrement('uncleared_quantity', $trade->quantity);
                 $portfolio->decrement('quantity', $trade->quantity);
-                // Cash officially yours (Move from uncleared to cleared)
-                $wallet->decrement($unclearedCol, $totalValue);
-                $wallet->increment($clearedCol, $totalValue);
+
+                if ($toSettle > 0) {
+                    $wallet->decrement($unclearedCol, $toSettle);
+                    // Only increment cleared by what we actually moved from uncleared
+                    $wallet->increment($clearedCol, $toSettle);
+                }
             }
         } catch (\Exception $e) {
             Log::error("SettlementService: Error processing settlement for trade {$trade->id}, order {$order->id}: " . $e->getMessage());

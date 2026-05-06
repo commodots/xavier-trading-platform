@@ -89,6 +89,7 @@ class LiveTradingService
                 // Proceeds go to 'uncleared' wallet balance for T+2
                 $unclearedCol = ($currency === 'NGN') ? 'ngn_uncleared' : 'usd_uncleared';
                 $wallet->increment($unclearedCol, $actualCost);
+                $wallet->increment('balance', $actualCost); // Fix: Sell proceeds must increase total balance
             }
 
             $order = Order::create([

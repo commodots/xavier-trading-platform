@@ -89,10 +89,10 @@
             <div class="text-xs text-gray-400">Sort by value</div>
           </div>
 
-          <table class="w-full text-sm">
-            <thead class="text-left text-gray-400 text-xs border-b border-[#1f2a44]">
+          <table class="w-full text-[11px] md:text-sm text-center">
+            <thead class=" text-gray-400 text-xs border-b border-[#1f2a44]">
               <tr>
-                <th class="py-2">Asset</th>
+                <th class="text-left">Asset</th>
                 <th>Qty</th>
                 <th>Avg Cost</th>
                 <th>Market Price</th>
@@ -106,7 +106,7 @@
                 </td>
               </tr>
               <tr v-else v-for="h in data.holdings" :key="h.symbol" class="border-b border-[#1f2a44]">
-                <td class="py-3">
+                <td class="py-3 text-left">
                   <div class="font-medium">{{ h.symbol }}</div>
                   <div class="text-xs text-gray-400">{{ h.name }}</div>
                 </td>
