@@ -8,9 +8,10 @@
       </h1>
       <p class="text-sm text-gray-400">Your asset allocation & performance overview.</p>
 
-      <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <div
+        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
         <div class="p-6 border rounded-xl"
-        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="text-sm text-gray-400">
             {{ isDemo ? 'Virtual Portfolio Value' : 'Total Portfolio Value' }}
           </div>
@@ -20,9 +21,10 @@
         </div>
       </div>
 
-      <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <div
+        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
         <div class="relative p-6 border rounded-xl"
-        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="flex items-center justify-between mb-4 relative">
             <h2 class="text-lg font-semibold">Allocation Breakdown</h2>
             <button @click="handleTradeAction" :class="[
@@ -38,21 +40,22 @@
         </div>
       </div>
 
-      <div :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <div
+        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
         <div class="p-6 border rounded-xl"
-        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-4 text-lg font-semibold">Your Holdings</h2>
-          <table class="w-full text-sm">
-            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+          <table class="w-full text-[11px] md:text-sm">
+            <thead class="text-gray-400 text-xs border-b border-[#1f3348] text-center py-2">
               <tr>
-                <th class="py-2 text-left">Asset</th>
-                <th class="text-left">Total Qty</th>
-                <th class="text-left">Cleared</th>
-                <th class="text-left">Uncleared</th>
-                <th class="text-left">Status</th>
-                <th class="text-left">Avg Cost</th>
-                <th class="text-left">Market Price</th>
-                <th class="text-left">P/L</th>
+                <th class="text-left">Asset</th>
+                <th >Total Qty</th>
+                <th>Cleared</th>
+                <th >Uncleared</th>
+                <th >Status</th>
+                <th >Avg Cost</th>
+                <th >Market Price</th>
+                <th>P/L</th>
               </tr>
             </thead>
             <tbody>
@@ -61,8 +64,8 @@
                   You currently hold no assets.
                 </td>
               </tr>
-              <tr v-else v-for="h in holdings" :key="h.symbol" class="border-b border-[#1f3348] hover:bg-[#16213A]">
-                <td class="py-3 font-semibold">{{ h.symbol }}</td>
+              <tr v-else v-for="h in holdings" :key="h.symbol" class="border-b border-[#1f3348] hover:bg-[#16213A] text-center">
+                <td class="py-3 font-semibold text-left">{{ h.symbol }}</td>
                 <td>{{ formatQuantity(h.quantity, h.category || '') }}</td>
                 <td>{{ formatQuantity(h.cleared_quantity || h.quantity || 0, h.category || '') }}</td>
                 <td>{{ formatQuantity(h.uncleared_quantity || 0, h.category || '') }}</td>
@@ -72,13 +75,20 @@
                   </span>
                 </td>
                 <td>
-                  ₦{{ h.currency === 'USD' ? ((h.avg_price || 0) * 1500).toLocaleString() : (h.avg_price || 0).toLocaleString() }}
+                  ₦{{ h.currency === 'USD' ? ((h.avg_price || 0) * (h.fx_rate_used || 1500)).toLocaleString() :
+                    (h.avg_price || 0).toLocaleString() }}
                 </td>
                 <td>
                   {{ h.currency === 'USD' ? '$' : '₦' }}{{ Number(h.market_price || 0).toLocaleString() }}
                 </td>
-                <td :class="h.total_value_ngn >= ((h.avg_price_ngn || 0) * h.quantity) ? 'text-green-400' : 'text-red-400'">
-                  ₦{{ ((h.total_value_ngn || 0) - ((h.avg_price_ngn || 0) * h.quantity)).toLocaleString() }}
+                <td :class="h.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'">
+                  <div class="flex flex-col">
+                    <span>₦{{ Math.abs(h.profit_loss * 1500).toLocaleString() }}</span>
+                    <span class="text-xs opacity-70">
+                      {{ h.profit_loss >= 0 ? '▲' : '▼' }}
+                      {{ ((h.profit_loss / h.total_cost) * 100).toFixed(2) }}%
+                    </span>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -156,13 +166,13 @@ const handleModeSwitching = (e) => {
 const refreshPortfolio = async () => {
   loading.value = true;
   try {
-   const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
     isDemo.value = user.trading_mode === 'demo';
 
     const res = await api.get('/portfolio');
-    
+
     // Extract data
-   const data = res.data.data || res.data;
+    const data = res.data.data || res.data;
 
     const wallet = Number(data.wallet_balance || 0);
     const ngx = Number(data.ngx_value || 0);
@@ -173,7 +183,7 @@ const refreshPortfolio = async () => {
     totalEquity.value = Number(data.total_equity || 0);
     holdings.value = data.holdings || [];
     chartSeries.value = [wallet, ngx, globalUsd, crypto, fixedIncome];
-    
+
   } catch (err) {
     console.error("Portfolio fetch error:", err);
   } finally {
@@ -184,7 +194,7 @@ const refreshPortfolio = async () => {
 function formatQuantity(quantity, category) {
   const num = Number(quantity);
   if (category?.toLowerCase() === 'crypto' || category?.toLowerCase() === 'global') {
-    return num.toFixed(4).replace(/\.?0+$/, ''); 
+    return num.toFixed(4).replace(/\.?0+$/, '');
   } else {
     return Math.floor(num).toString();
   }
@@ -192,7 +202,7 @@ function formatQuantity(quantity, category) {
 
 onMounted(() => {
   refreshPortfolio();
- 
+
   window.addEventListener('trading-mode-switching', handleModeSwitching);
 
   window.addEventListener('trading-mode-changed', refreshPortfolio);

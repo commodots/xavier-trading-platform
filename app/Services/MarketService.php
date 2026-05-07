@@ -24,16 +24,22 @@ class MarketService
         $symbol = strtoupper($symbol);
 
         $price = (float) $this->getProvider()->quote($symbol);
-        if ($price > 0) return $price;
+        if ($price > 0) {
+            return $price;
+        }
 
-        
         $localPrice = (float) Symbol::where('symbol', $symbol)->value('last_price');
-        if ($localPrice > 0) return $localPrice;
+        if ($localPrice > 0) {
+            return $localPrice;
+        }
 
-       
         if ($this->isCrypto($symbol)) {
             $prices = $this->getPrices();
-            
+            $cryptoPrice = $this->lookupCryptoPrice($symbol, $prices);
+
+            if ($cryptoPrice > 0) {
+                return $cryptoPrice;
+            }
         }
 
         return 0.0;
@@ -42,7 +48,30 @@ class MarketService
     private function isCrypto(string $symbol): bool
     {
         $cryptoList = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'];
-        return in_array($symbol, $cryptoList) || str_contains($symbol, '/USDT');
+
+        return in_array($symbol, $cryptoList, true) || str_contains($symbol, '/USDT');
+    }
+
+    private function lookupCryptoPrice(string $symbol, array $prices): float
+    {
+        $map = [
+            'BTC' => 'bitcoin',
+            'ETH' => 'ethereum',
+            'USDT' => 'tether',
+            'BNB' => 'binancecoin',
+            'SOL' => 'solana',
+            'XRP' => 'ripple',
+            'ADA' => 'cardano',
+            'DOGE' => 'dogecoin',
+            'DOT' => 'polkadot',
+            'TRX' => 'tron',
+            'LINK' => 'chainlink',
+            'MATIC' => 'matic-network',
+        ];
+
+        $id = $map[strtoupper($symbol)] ?? null;
+
+        return $id ? (float) ($prices[$id]['usd'] ?? 0.0) : 0.0;
     }
 
     public function quoteDetails(string $symbol): array
@@ -64,39 +93,8 @@ class MarketService
         ];
     }
 
-    public function getPrices()
+    public function getPrices(): array
     {
-        if (app()->environment('testing')) {
-           
-            try {
-                $res = Http::timeout(10)->get('https://api.coingecko.com/api/v3/simple/price', [
-                    'ids' => 'bitcoin,ethereum,tether,binancecoin,solana,ripple,cardano,dogecoin,polkadot,tron,chainlink,matic-network',
-                    'vs_currencies' => 'usd',
-                ]);
-
-                if ($res->successful()) {
-                    return $res->json();
-                }
-            } catch (\Exception $e) {
-                Log::warning('CoinGecko API unavailable: ' . $e->getMessage());
-            }
-
-            return [
-                'bitcoin' => ['usd' => 64000],
-                'ethereum' => ['usd' => 3400],
-                'tether' => ['usd' => 1.00],
-                'binancecoin' => ['usd' => 300],
-                'solana' => ['usd' => 145],
-                'ripple' => ['usd' => 0.50],
-                'cardano' => ['usd' => 0.40],
-                'dogecoin' => ['usd' => 0.10],
-                'polkadot' => ['usd' => 5.00],
-                'tron' => ['usd' => 0.12],
-                'chainlink' => ['usd' => 12.00],
-                'matic-network' => ['usd' => 0.80],
-            ];
-        }
-
         return cache()->remember('crypto_prices', 300, function () {
             try {
                 $res = Http::timeout(10)->get('https://api.coingecko.com/api/v3/simple/price', [
@@ -108,7 +106,7 @@ class MarketService
                     return $res->json();
                 }
             } catch (\Exception $e) {
-                Log::warning('CoinGecko API unavailable: ' . $e->getMessage());
+                Log::warning('CoinGecko API unavailable: '.$e->getMessage());
             }
 
             // Fallback: If the API fails, return a basic structure to prevent "Undefined key" errors
