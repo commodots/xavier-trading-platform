@@ -177,7 +177,7 @@
                   </button>
                   <button @click="openTrade(stock)"
                     class="bg-[#00D4FF] text-[#0F1724] px-3 py-2 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
-                    Trade
+                    Buy
                   </button>
                   <button v-if="!isStockInHoldings(stock.symbol)" @click="addToHoldings(stock)"
                     class="px-3 py-2 text-xs text-blue-400 transition border rounded-md border-blue-500/50 hover:bg-blue-500/10">
@@ -237,7 +237,7 @@
                   <td class="px-2 text-center">
                     <button @click="openTrade(holding)"
                       class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
-                      Trade
+                      Buy
                     </button>
                   </td>
                 </tr>
@@ -248,7 +248,7 @@
       </div>
 
       <!-- Open Positions / Orders Monitor -->
-      <PositionsMonitor />
+      <PositionsMonitor category="GLOBAL" />
 
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currency-symbol="$" @close="isModalOpen = false" />
 

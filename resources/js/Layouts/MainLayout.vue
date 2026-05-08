@@ -29,17 +29,12 @@
 
           <div v-if="currentView === 'user'">
 
-		  <!-- OVERVIEW -->
-		  <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
-		  <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
-		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
+		  <!-- PRIMARY ACTIONS -->
+		  <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trading</div>
+		  <SidebarLink to="/trading" :icon="ShoppingCart">Trading</SidebarLink>
+		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
 
-		  <!-- MONEY -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Money-Wallet</div>
-		  <SidebarLink to="/wallet" :icon="Wallet">Fund/Withdraw</SidebarLink>
-		  <SidebarLink to="/transactions" :icon="ListOrdered">Transactions</SidebarLink>
-
-		  <!-- MARKETS -->
+		  <!-- MARKET DATA -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Markets</div>
 		  <SidebarLink to="/ngx" :icon="BarChart2">NGX</SidebarLink>
 		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
@@ -47,10 +42,23 @@
 		  <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income</SidebarLink>
 		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
 
-		  <!-- TRADE -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trade</div>
-		  <SidebarLink to="/orders" :icon="ShoppingCart">Trading</SidebarLink>
-		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
+		  <!-- OVERVIEW -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
+		  <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
+		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
+
+		  <!-- ACCOUNT -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
+		  <SidebarLink to="/wallet" :icon="Wallet">Fund Account</SidebarLink>
+		  <SidebarLink to="/transactions" :icon="ListOrdered">Transactions</SidebarLink>
+		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
+		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
+		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
+
+		  <!-- INSIGHTS -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
+		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
+
        <!-- CTA BUTTON -->
 		  <div class="px-3 mt-6">
 			<button
@@ -60,20 +68,6 @@
 			  ⚡ Start Trade
 			</button>
 		  </div>
-
-		  <!-- INSIGHTS -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
-		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
-
-		 
-
-		  <!-- ACCOUNT -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
-		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
-		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
-		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
-		  
-		  
 
 		</div>
 

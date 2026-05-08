@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '@/api';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -110,7 +110,7 @@ const logout = async () => {
           <button type="submit" :disabled="processing"
             class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2 transition-all">
             <span v-if="processing" class="w-4 h-4 border-2 rounded-full border-white/30 border-t-white animate-spin"></span>
-            {{ processing ? 'Sending...' : 'Resend Verification Email' }}
+            {{ processing ? 'Sending...' : 'Send Verification Email' }}
           </button>
 
           <button @click="verifyLater" type="button" :disabled="processing"

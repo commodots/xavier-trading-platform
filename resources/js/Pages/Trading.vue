@@ -28,7 +28,7 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div class="bg-gradient-to-br from-[#0F1724] to-[#1a2332] border border-[#1f3348] rounded-xl p-5">
           <p class="mb-2 text-sm text-gray-400">Available Balance</p>
-          <p class="text-3xl font-bold text-[#00D4FF]">${{ formatCurrency(wallet.cleared_balance_usd || 0) }}</p>
+          <p class="text-3xl font-bold text-[#00D4FF]">{{ formatCurrency(wallet.cleared_balance_usd || 0) }}</p>
         </div>
         <div class="bg-gradient-to-br from-[#0F1724] to-[#1a2332] border border-[#1f3348] rounded-xl p-5">
           <p class="mb-2 text-sm text-gray-400">Open Trades</p>
@@ -37,14 +37,14 @@
         <div class="bg-gradient-to-br from-[#0F1724] to-[#1a2332] border border-[#1f3348] rounded-xl p-5">
           <p class="mb-2 text-sm text-gray-400">Total Profit \ Loss</p>
           <p :class="totalPnL >= 0 ? 'text-green-400' : 'text-red-400'" class="text-3xl font-bold">
-            {{ totalPnL >= 0 ? '+' : '-' }}${{ formatCurrency(totalPnL) }}
+            {{ totalPnL >= 0 ? '+' : '-' }}{{ formatCurrency(Math.abs(totalPnL)) }}
           </p>
         </div>
       </div>
 
-      <!-- Open Trade Form -->
+      <!-- Buy/Sell Form -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="mb-4 text-xl font-semibold">Enter Trade</h2>
+        <h2 class="mb-4 text-xl font-semibold">Buy/Sell</h2>
         <form @submit.prevent="openTrade" class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
             <label class="block mb-2 text-sm text-gray-400">Trading Pair</label>
@@ -75,7 +75,7 @@
           <div class="flex items-end">
             <button type="submit" :disabled="loading || !form.amount"
               class="w-full bg-[#00D4FF] text-black px-4 py-2 rounded-lg font-bold hover:bg-[#00b8e6] disabled:opacity-50 disabled:cursor-not-allowed transition">
-              {{ loading ? 'Opening...' : '→ Open Trade' }}
+              {{ loading ? 'Processing...' : form.type === 'buy' ? 'Buy' : 'Sell' }}
             </button>
           </div>
         </form>
@@ -85,11 +85,19 @@
 
       <!-- Live Market Prices -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <div class="flex flex-col justify-between gap-4 mb-6 md:flex-row md:items-center">
+        <div class="flex flex-col justify-between gap-6 mb-6 md:flex-row md:items-center">
           <h2 class="text-xl font-semibold">Live Market Prices</h2>
-          <div class="relative w-full md:w-64">
-            <input v-model="searchQuery" type="text" placeholder="Search assets..."
-              class="w-full bg-[#111827] border border-[#1f3348] rounded-lg py-2 px-4 text-sm text-white focus:border-[#00D4FF] outline-none transition" />
+          <div class="flex flex-col md:flex-row gap-4 items-center">
+            <!-- Market Segmentation Tabs -->
+            <div class="flex p-1 bg-[#111827] rounded-lg border border-[#1f3348]">
+              <button class="px-3 py-1 rounded-md text-xs font-bold transition bg-[#00D4FF] text-black">
+                CRYPTO
+              </button>
+            </div>
+            <div class="relative w-full md:w-64">
+              <input v-model="searchQuery" type="text" placeholder="Search assets..."
+                class="w-full bg-[#111827] border border-[#1f3348] rounded-lg py-2 px-4 text-sm text-white focus:border-[#00D4FF] outline-none transition" />
+            </div>
           </div>
         </div>
 
@@ -104,19 +112,19 @@
                 <p class="font-bold text-white">{{ coin.name }}</p>
                 <p class="text-sm text-gray-400">{{ coin.symbol }}</p>
               </div>
-              <span class="font-mono text-[#00D4FF] font-bold">${{ formatCurrency(coin.price) }}</span>
+              <span class="font-mono text-[#00D4FF] font-bold">{{ formatCurrency(coin.price) }}</span>
             </div>
-            <button @click="quickBuy(coin.symbol)" :disabled="loading"
+            <button @click="openBuyModal(coin)" :disabled="loading"
               class="w-full px-3 py-1 text-sm text-green-400 transition rounded bg-green-600/20 hover:bg-green-600/30">
-              Buy $100
+              Buy
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Open Trades -->
+      <!-- Open Positions -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="mb-4 text-xl font-semibold">Open Trades ({{ openTradesCount }})</h2>
+        <h2 class="mb-4 text-xl font-semibold">Open Positions ({{ openTradesCount }})</h2>
         <div v-if="trades.length === 0" class="py-8 text-center text-gray-400">No open trades</div>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -142,19 +150,19 @@
                     {{ trade.type.toUpperCase() }}
                   </span>
                 </td>
-                <td class="px-4 py-3 text-right">${{ formatCurrency(trade.amount) }}</td>
-                <td class="px-4 py-3 font-mono text-right">${{ formatCurrency(trade.entry_price) }}</td>
-                <td class="px-4 py-3 text-right text-[#00D4FF]">${{ formatCurrency(currentPrices[trade.pair] ||
+                <td class="px-4 py-3 text-right">{{ formatCurrency(trade.amount) }}</td>
+                <td class="px-4 py-3 font-mono text-right">{{ formatCurrency(trade.entry_price) }}</td>
+                <td class="px-4 py-3 text-right text-[#00D4FF]">{{ formatCurrency(currentPrices[trade.pair] ||
                   trade.entry_price) }}</td>
                 <td class="px-4 py-3 text-right">
                   <span :class="calculatePnL(trade) >= 0 ? 'text-green-400' : 'text-red-400'" class="font-bold">
-                    {{ calculatePnL(trade) >= 0 ? '+' : '-' }}${{ formatCurrency(calculatePnL(trade)) }}
+                    {{ calculatePnL(trade) >= 0 ? '+' : '-' }}{{ formatCurrency(Math.abs(calculatePnL(trade))) }}
                   </span>
                 </td>
                 <td class="px-4 py-3 text-center">
                   <button @click="closeTrade(trade)" :disabled="loading"
                     class="bg-[#1f3348] text-gray-300 px-3 py-1 rounded text-xs hover:bg-[#2d4a66] disabled:opacity-50 transition">
-                    Close
+                    Sell
                   </button>
                 </td>
               </tr>
@@ -163,7 +171,7 @@
         </div>
       </div>
 
-      <!-- Closed Trades History -->
+      <!-- Trade History -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
         <h2 class="mb-4 text-xl font-semibold">Trade History</h2>
         <div v-if="closedTrades.length === 0" class="py-8 text-center text-gray-400">No closed trades</div>
@@ -184,11 +192,11 @@
                 <td class="px-4 py-3 font-semibold">{{ trade.pair }}</td>
                 <td class="px-4 py-3 text-right">
                   <span :class="trade.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'" class="font-bold">
-                    {{ trade.profit_loss >= 0 ? '+' : '-' }}${{ formatCurrency(trade.profit_loss || 0) }}
+                    {{ trade.profit_loss >= 0 ? '+' : '-' }}{{ formatCurrency(Math.abs(trade.profit_loss || 0)) }}
                   </span>
                 </td>
                 <td class="px-4 py-3 font-mono text-xs text-right">
-                  ${{ formatCurrency(trade.entry_price) }} → ${{ trade.exit_price ? formatCurrency(trade.exit_price) :
+                  {{ formatCurrency(trade.entry_price) }} → {{ trade.exit_price ? formatCurrency(trade.exit_price) :
                     'N/A' }}
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-400">{{ formatDate(trade.created_at) }}</td>
@@ -210,15 +218,15 @@
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-white">Close Trade?</h3>
-          <p class="mt-2 text-gray-400">Are you sure you want to close trade #{{ closeModal.trade?.id }} for {{
+          <h3 class="text-xl font-bold text-white">Confirm Sale?</h3>
+          <p class="mt-2 text-gray-400">Are you sure you want to sell your position in {{
             closeModal.trade?.pair }}?</p>
           <div class="flex gap-3 mt-6">
             <button @click="closeModal.show = false"
               class="flex-1 px-4 py-2 text-gray-300 transition bg-gray-800 rounded-lg hover:bg-gray-700">Cancel</button>
             <button @click="executeClose"
               class="flex-1 px-4 py-2 font-bold text-black transition bg-red-500 rounded-lg hover:bg-red-600">Confirm
-              Close</button>
+              Sell</button>
           </div>
         </div>
 
@@ -238,12 +246,46 @@
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-white">Trade Closed!</h3>
-          <p class="mt-2 text-gray-400">Your trade was closed successfully. Refreshing your dashboard...</p>
+          <h3 class="text-xl font-bold text-white">Asset Sold!</h3>
+          <p class="mt-2 text-gray-400">Your position was closed successfully. Refreshing your dashboard...</p>
         </div>
 
       </div>
     </div>
+
+    <!-- Buy Modal -->
+    <div v-if="buyModal.show"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl w-full max-w-md p-6 shadow-2xl">
+        <h3 class="text-xl font-bold text-white mb-4">Buy {{ buyModal.asset?.name }}</h3>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block mb-2 text-sm text-gray-400">Current Price</label>
+            <p class="text-[#00D4FF] font-bold">{{ formatCurrency(buyModal.asset?.price) }}</p>
+          </div>
+
+          <div>
+            <label class="block mb-2 text-sm text-gray-400">Amount (USD)</label>
+            <input v-model.number="buyForm.amount" type="number" placeholder="1000" min="1" step="1"
+              class="w-full px-4 py-2 bg-[#111827] border border-[#1f3348] rounded-lg text-white placeholder-gray-600 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
+          </div>
+
+          <div>
+            <label class="block mb-2 text-sm text-gray-400">Estimated Quantity</label>
+            <p class="text-gray-300">{{ estimatedQuantity }} {{ buyModal.asset?.symbol }}</p>
+          </div>
+
+          <div class="flex gap-3">
+            <button @click="buyModal.show = false"
+              class="flex-1 px-4 py-2 text-gray-300 transition bg-gray-800 rounded-lg hover:bg-gray-700">Cancel</button>
+            <button @click="executeBuy"
+              class="flex-1 px-4 py-2 font-bold text-black transition bg-[#00D4FF] rounded-lg hover:bg-[#00b8e6]">Buy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </MainLayout>
 </template>
 
@@ -254,6 +296,7 @@ import { useRouter } from 'vue-router'
 import MainLayout from '@/Layouts/MainLayout.vue';
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from '@/api';
+import { formatCurrency, formatDate, formatPercentage } from '@/lib/formatters';
 
 const router = useRouter();
 
@@ -277,6 +320,15 @@ const closeModal = ref({
   show: false,
   phase: 'confirm', // 'confirm' | 'processing' | 'success'
   trade: null
+});
+
+const buyModal = ref({
+  show: false,
+  asset: null
+});
+
+const buyForm = ref({
+  amount: 1000
 });
 
 const openSuccessModal = ref({
@@ -316,14 +368,11 @@ const handleAction = (callback) => {
 const openTradesCount = computed(() => trades.value.length);
 
 const filteredMarket = computed(() => {
-  if (!searchQuery.value) return market.value;
   const query = searchQuery.value.toLowerCase();
-  return market.value.filter(coin =>
-    coin.name.toLowerCase().includes(query) ||
-    coin.symbol.toLowerCase().includes(query)
-  );
+  return market.value.filter((coin) => {
+    return !query || coin.name.toLowerCase().includes(query) || coin.symbol.toLowerCase().includes(query);
+  });
 });
-
 const totalPnL = computed(() => {
   // Ensure we are reducing numbers, defaulting to 0 if something is missing
   const openPnL = trades.value.reduce((sum, t) => sum + (calculatePnL(t) || 0), 0);
@@ -334,6 +383,11 @@ const totalPnL = computed(() => {
   }, 0);
 
   return openPnL + closedPnL;
+});
+
+const estimatedQuantity = computed(() => {
+  if (!buyModal.value.asset?.price || !buyForm.value.amount) return 0;
+  return (buyForm.value.amount / buyModal.value.asset.price).toFixed(6);
 });
 
 const calculatePnL = (trade) => {
@@ -357,27 +411,14 @@ const calculatePnL = (trade) => {
   return isNaN(pnl) ? 0 : pnl;
 };
 
-const formatCurrency = (amount) => {
-  // If amount is undefined, null, or NaN, default to 0
-  const value = parseFloat(amount) || 0;
-  return Math.abs(value).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-};
-
-const formatDate = (date) => {
-  return new Date(date).toLocaleDateString();
-};
-
 const fetchData = async () => {
   try {
     // This starts all requests at the SAME time
-    const [walletRes, addressRes, marketRes, tradesRes] = await Promise.all([
+    const [walletRes, addressRes, marketRes, positionsRes] = await Promise.all([
       api.get('/wallet/balances'),
       api.get('/crypto/address'),
       api.get('/market/crypto'),
-      api.get('/trades')
+      api.get('/trade/positions', { params: { category: 'crypto' } })
     ]);
 
     // Now assign the data
@@ -393,7 +434,7 @@ const fetchData = async () => {
       currentPrices.value[`${symbol}/USDT`] = coin.price;
     });
 
-    const allTrades = tradesRes.data.data || [];
+    const allTrades = positionsRes.data.data || [];
     trades.value = allTrades.filter(t => t.status === 'open');
     closedTrades.value = allTrades.filter(t => t.status === 'closed');
 
@@ -423,12 +464,17 @@ const openTrade = async () => {
       amount: form.value.amount,
       type: form.value.type,
     });
-    
-    openSuccessModal.value = { show: true, trade: response.data.data };
+
+    successMessage.value = `Trade executed successfully!`;
     form.value.amount = 1000;
+
+    // Auto-refresh portfolio and wallet after short delay
     await fetchData();
+
+    // Clear success message after 3 seconds
+    setTimeout(() => { successMessage.value = ''; }, 3000);
   } catch (e) {
-    errorMessage.value = e.response?.data?.message || 'Failed to open trade';
+    errorMessage.value = e.response?.data?.message || 'Failed to execute trade';
   } finally {
     loading.value = false;
   }
@@ -442,23 +488,62 @@ const closeTrade = (trade) => {
   };
 };
 
+const openBuyModal = (asset) => {
+  buyModal.value = {
+    show: true,
+    asset: asset
+  };
+  buyForm.value.amount = 1000; // default
+};
+
+const executeBuy = async () => {
+  if (!buyForm.value.amount || buyForm.value.amount <= 0) {
+    errorMessage.value = 'Please enter a valid amount';
+    return;
+  }
+
+  loading.value = true;
+  try {
+    await api.post('/trade/open', {
+      pair: buyModal.value.asset.symbol.toUpperCase() + '/USDT',
+      amount: buyForm.value.amount,
+      type: 'buy',
+    });
+
+    buyModal.value.show = false;
+    successMessage.value = `Successfully bought ${buyModal.value.asset.name}!`;
+
+    // Auto-refresh portfolio and wallet
+    await fetchData();
+
+    // Clear success message after 3 seconds
+    setTimeout(() => { successMessage.value = ''; }, 3000);
+  } catch (e) {
+    errorMessage.value = e.response?.data?.message || 'Failed to buy asset';
+  } finally {
+    loading.value = false;
+  }
+};
+
 const executeClose = async () => {
   const tradeId = closeModal.value.trade.id;
 
-  // 1. Move to processing
+  // Move to processing
   closeModal.value.phase = 'processing';
 
   try {
     await api.post(`/trade/close/${tradeId}`);
 
-    // 2. Move to success
+    // Move to success
     closeModal.value.phase = 'success';
 
-    // 3. Wait 2 seconds so they can see the success message, then reload
+    // Auto-refresh data immediately
+    await fetchData();
+
+    // Close modal after showing success message
     setTimeout(() => {
-      window.location.reload(); // Hard refresh as requested
-      // Alternatively, use: await fetchData(); closeModal.value.show = false;
-    }, 2000);
+      closeModal.value.show = false;
+    }, 1500);
 
   } catch (e) {
     closeModal.value.show = false;
@@ -469,15 +554,15 @@ const executeClose = async () => {
 // New function for "Live" data only
 const fetchUpdates = async () => {
   try {
-    const [walletRes, marketRes, tradesRes] = await Promise.all([
+    const [walletRes, marketRes, positionsRes] = await Promise.all([
       api.get('/wallet/balances'),
       api.get('/market/crypto'),
-      api.get('/trades') // Maybe create a specific /trades/open endpoint later
+      api.get('/trade/positions', { params: { category: 'crypto' } })
     ]);
 
     wallet.value = walletRes.data.data || { cleared_balance_usd: 0 };
     market.value = marketRes.data.data || [];
-    const allTrades = tradesRes.data.data || [];
+    const allTrades = positionsRes.data.data || [];
     trades.value = allTrades.filter(t => t.status === 'open');
 
     market.value.forEach(coin => {
@@ -500,13 +585,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (updateInterval) clearInterval(updateInterval);
 });
-
-const quickBuy = async (symbol) => {
-  form.value.pair = symbol.toUpperCase() + '/USDT';
-  form.value.type = 'buy';
-  form.value.amount = 100;
-  await openTrade();
-};
 
 
 const withdrawNav = () => {

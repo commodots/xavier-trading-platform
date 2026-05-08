@@ -52,13 +52,13 @@
           class="p-4 transition-all border cursor-pointer rounded-xl active:scale-95"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">US Stocks</div>
-          <div class="text-xl font-semibold">${{ globalValueUSD.toLocaleString() }}</div>
+          <div class="text-xl font-semibold">{{ formatCurrency(globalValueUSD, 'USD') }}</div>
         </div>
         <div @click="$router.push({ name: 'crypto' })"
           class="p-4 rounded-xl border cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10 hover:bg-yellow-600/40' : 'border-[#1f3348]  bg-[#111827]/60 hover:bg-[#1f3348]/40'">
           <div class="text-xs text-gray-400">Crypto</div>
-          <div class="text-xl font-semibold">${{ cryptoValueUSD.toLocaleString() }}</div>
+          <div class="text-xl font-semibold">{{ formatCurrency(cryptoValueUSD, 'USD') }}</div>
         </div>
         <div @click="$router.push({ name: 'fixed-income' })"
           class="p-4 transition-all border cursor-pointer rounded-xl active:scale-95"
@@ -161,6 +161,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import api from "@/api";
+import { formatCurrency } from '@/lib/formatters';
 import VueApexCharts from "vue3-apexcharts";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
@@ -346,8 +347,8 @@ async function fetchDashboard() {
     const currentMode = isDemo.value ? 'demo' : 'live';
 
     const [portfolioResp, transResp] = await Promise.all([
-      api.get(`/portfolio?mode=${currentMode}`),
-      api.get(`/transactions?mode=${currentMode}`)
+      api.get(`/portfolio`),
+      api.get(`/transactions`)
     ]);
 
     const rawData = portfolioResp.data.data;

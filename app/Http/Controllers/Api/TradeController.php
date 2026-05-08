@@ -14,8 +14,8 @@ use App\Services\MarketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class TradeController extends Controller
 {
@@ -133,7 +133,7 @@ class TradeController extends Controller
         }
 
         if ($rawPrice <= 0) {
-            return response()->json(['success' => false, 'message' => 'Price data unavailable for ' . $symbol], 422);
+            return response()->json(['success' => false, 'message' => 'Price data unavailable for '.$symbol], 422);
         }
 
         $executionPrice = $marketService->applySpread($rawPrice, $request->type);
@@ -147,7 +147,7 @@ class TradeController extends Controller
 
             $walletBefore = $wallet ? $wallet->usd_cleared : 0;
 
-            if (!$wallet || $wallet->usd_cleared < $amount) {
+            if (! $wallet || $wallet->usd_cleared < $amount) {
                 throw new \Exception('Insufficient cleared funds.');
             }
 
@@ -161,7 +161,7 @@ class TradeController extends Controller
                 'calculated_quantity' => $quantity,
                 'wallet_before_cleared' => $walletBefore,
                 'wallet_before_total' => $wallet->balance,
-                'mode' => $user->trading_mode
+                'mode' => $user->trading_mode,
             ]);
 
             $order = $models->order::create([
@@ -224,8 +224,7 @@ class TradeController extends Controller
             return response()->json(['success' => false, 'message' => 'Trade is not open'], 422);
         }
 
-        
-        if (!$trade->quantity || !$trade->entry_price || !$trade->amount) {
+        if (! $trade->quantity || ! $trade->entry_price || ! $trade->amount) {
             return response()->json(['success' => false, 'message' => 'Invalid trade data'], 422);
         }
 
@@ -254,14 +253,12 @@ class TradeController extends Controller
             'current_price' => $currentPrice,
         ]);
 
-        
         if ($currentPrice <= 0) {
             return response()->json(['success' => false, 'message' => "Price unavailable for {$symbol}"], 422);
         }
 
         $currentPrice = $marketService->applySpread($currentPrice, 'sell');
 
-        
         $quantity = (float) $trade->quantity;
         $buyPrice = (float) $trade->entry_price;
         $sellPrice = (float) $currentPrice;
@@ -286,14 +283,14 @@ class TradeController extends Controller
         ]);
 
         try {
-            return DB::transaction(function () use ($id, $user, $sellPrice, $profitLoss, $models, $buyValue, $sellValue, $quantity, $trade, $buyPrice) {
+            return DB::transaction(function () use ($id, $user, $sellPrice, $profitLoss, $models, $buyValue, $sellValue, $quantity, $buyPrice) {
                 // Refetch inside transaction with lock to prevent race conditions
                 $lockedTrade = $models->trade::where('id', $id)
                     ->where('user_id', $user->id)
                     ->lockForUpdate()
                     ->first();
 
-                if (!$lockedTrade) {
+                if (! $lockedTrade) {
                     throw new \Exception('Trade not found');
                 }
 
@@ -406,19 +403,19 @@ class TradeController extends Controller
 
             $trades = $models->trade::where('user_id', $user->id)
                 ->where('status', 'open')
-                ->whereHas('order', fn($query) => $query->where('market', 'GLOBAL'))
+                ->whereHas('order', fn ($query) => $query->whereIn('market', ['GLOBAL', 'CRYPTO']))
                 ->latest()
                 ->get();
 
             $orders = $models->order::where('user_id', $user->id)
-                ->where('market', 'GLOBAL')
+                ->whereIn('market', ['GLOBAL', 'CRYPTO'])
                 ->whereIn('status', ['filled', 'open', 'partially_filled'])
                 ->latest()
                 ->get();
 
             $stockSymbols = collect()
-                ->merge($trades->map(fn($trade) => strtoupper(explode('/', $trade->pair)[0])))
-                ->merge($orders->map(fn($order) => strtoupper($order->symbol)))
+                ->merge($trades->map(fn ($trade) => strtoupper(explode('/', $trade->pair)[0])))
+                ->merge($orders->map(fn ($order) => strtoupper($order->symbol)))
                 ->filter()
                 ->unique()
                 ->values();
@@ -426,6 +423,12 @@ class TradeController extends Controller
             $stockQuotes = Symbol::whereIn('symbol', $stockSymbols)
                 ->pluck('last_price', 'symbol')
                 ->toArray();
+
+            $categoryFilter = strtoupper($request->query('category', 'ALL'));
+            $validCategories = ['ALL', 'CRYPTO', 'GLOBAL'];
+            if (! in_array($categoryFilter, $validCategories, true)) {
+                $categoryFilter = 'ALL';
+            }
 
             $tradePositions = $trades->map(function ($t) use ($prices, $stockQuotes) {
                 $symbol = strtoupper(explode('/', $t->pair)[0]);
@@ -455,6 +458,7 @@ class TradeController extends Controller
                     'id' => $t->id,
                     'position_type' => 'trade',
                     'symbol' => $t->pair,
+                    'pair' => $t->pair,
                     'side' => $t->type,
                     'quantity' => (float) $t->quantity,
                     'entry_price' => $entryPrice,
@@ -494,11 +498,11 @@ class TradeController extends Controller
                 $priceDiff = $order->side === 'buy' ? $marketPrice - $entryPrice : $entryPrice - $marketPrice;
                 $unrealizedPlPercent = $entryPrice > 0 ? ($priceDiff / $entryPrice) * 100 : 0;
 
-
                 return [
                     'id' => $order->id,
                     'position_type' => 'order',
                     'symbol' => $order->symbol,
+                    'pair' => $isCrypto ? strtoupper($order->symbol).'/USDT' : null,
                     'side' => $order->side,
                     'quantity' => (float) $order->quantity,
                     'entry_price' => $entryPrice,
@@ -512,12 +516,18 @@ class TradeController extends Controller
                 ];
             });
 
+            $positions = $tradePositions->concat($orderPositions);
+
+            if ($categoryFilter !== 'ALL') {
+                $positions = $positions->filter(fn ($pos) => ($pos['category'] ?? '') === $categoryFilter);
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => $tradePositions->concat($orderPositions)->values(),
+                'data' => $positions->values(),
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Trade positions error: ' . $e->getMessage(), ['exception' => $e]);
+            \Illuminate\Support\Facades\Log::error('Trade positions error: '.$e->getMessage(), ['exception' => $e]);
 
             return response()->json([
                 'success' => false,
@@ -527,53 +537,53 @@ class TradeController extends Controller
     }
 
     public function searchSymbols(Request $request, $query = null)
-{
-    $query = $query ?? trim($request->query('q', ''));
+    {
+        $query = $query ?? trim($request->query('q', ''));
 
-    if (strlen($query) < 2) {
-        return response()->json([]);
-    }
+        if (strlen($query) < 2) {
+            return response()->json([]);
+        }
 
-    $results = Symbol::query();
+        $results = Symbol::query();
 
-    // Check if we are running in a test/SQLite environment
-    if (config('database.default') === 'sqlite') {
-        $results->where(function($q) use ($query) {
-            $q->where('symbol', 'like', "%{$query}%")
-              ->orWhere('name', 'like', "%{$query}%");
-        });
-    } else {
-        // Use high-performance Fulltext search for MySQL (Production)
-        $results->where(function($q) use ($query) {
-            $q->whereFulltext('name', $query)
-              ->orWhere('symbol', 'like', "%{$query}%");
-        });
-    }
+        // Check if we are running in a test/SQLite environment
+        if (config('database.default') === 'sqlite') {
+            $results->where(function ($q) use ($query) {
+                $q->where('symbol', 'like', "%{$query}%")
+                    ->orWhere('name', 'like', "%{$query}%");
+            });
+        } else {
+            // Use high-performance Fulltext search for MySQL (Production)
+            $results->where(function ($q) use ($query) {
+                $q->whereFulltext('name', $query)
+                    ->orWhere('symbol', 'like', "%{$query}%");
+            });
+        }
 
-    $finalResults = $results->orderBy('symbol')
-        ->limit(20)
-        ->get(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change']);
+        $finalResults = $results->orderBy('symbol')
+            ->limit(20)
+            ->get(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change']);
 
-    if ($finalResults->count() < 20) {
-        $fallback = Symbol::select(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change'])
-            ->get()
-            ->filter(fn($symbol) => $this->matchesSymbolSearch($symbol, $query));
+        if ($finalResults->count() < 20) {
+            $fallback = Symbol::select(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change'])
+                ->get()
+                ->filter(fn ($symbol) => $this->matchesSymbolSearch($symbol, $query));
 
-        foreach ($fallback as $symbol) {
-            if ($finalResults->contains('symbol', $symbol->symbol)) {
-                continue;
-            }
+            foreach ($fallback as $symbol) {
+                if ($finalResults->contains('symbol', $symbol->symbol)) {
+                    continue;
+                }
 
-            $finalResults->push($symbol);
+                $finalResults->push($symbol);
 
-            if ($finalResults->count() >= 20) {
-                break;
+                if ($finalResults->count() >= 20) {
+                    break;
+                }
             }
         }
-    }
 
-    return response()->json($finalResults->take(20));
-}
+        return response()->json($finalResults->take(20));
+    }
 
     public function placeOrder(Request $request)
     {
@@ -613,101 +623,101 @@ class TradeController extends Controller
 
         try {
             return DB::transaction(function () use ($request, $user, $totalAmount, $currentPrice, $models) {
-            // Balance Check and Deduction (For Buy Orders)
-            if ($request->side === 'buy') {
-                $wallet = $models->wallet::where('user_id', $user->id)
-                    ->where('currency', 'USD')
-                    ->lockForUpdate()
-                    ->first();
+                // Balance Check and Deduction (For Buy Orders)
+                if ($request->side === 'buy') {
+                    $wallet = $models->wallet::where('user_id', $user->id)
+                        ->where('currency', 'USD')
+                        ->lockForUpdate()
+                        ->first();
 
-                if (!$wallet || $wallet->usd_cleared < $totalAmount) {
-                    throw new \Exception('Insufficient cleared USD balance to place this order.');
+                    if (! $wallet || $wallet->usd_cleared < $totalAmount) {
+                        throw new \Exception('Insufficient cleared USD balance to place this order.');
+                    }
+
+                    // Standardize: Move to locked state instead of decrementing total balance
+                    $wallet->decrement('usd_cleared', $totalAmount);
+                    $wallet->increment('locked', $totalAmount);
                 }
 
-                // Standardize: Move to locked state instead of decrementing total balance
-                $wallet->decrement('usd_cleared', $totalAmount);
-                $wallet->increment('locked', $totalAmount);
-            }
-
-            $order = $models->order::create([
-            'user_id' => $user->id,
-            'symbol' => strtoupper($request->symbol),
-            'quantity' => $request->qty,
-            'side' => $request->side,
-            'type' => $request->type,
-            'status' => 'open',
-            'amount' => $totalAmount,
-            'market_price' => $currentPrice,
-            'limit_price' => $request->limit_price,
-            'stop_price' => $request->stop_price,
-            'take_profit' => $request->take_profit,
-            'stop_loss' => $request->stop_loss,
-            'currency' => 'USD',
-            'market' => 'GLOBAL',
-        ]);
-
-        // 2. Build Alpaca Payload
-        $payload = [
-            'symbol' => $request->symbol,
-            'qty' => (float) $request->qty, // Changed to float to support fractional shares
-            'side' => $request->side,
-            'time_in_force' => 'gtc',
-        ];
-
-        switch ($request->type) {
-            case 'market':
-                $payload['type'] = 'market';
-                break;
-            case 'limit':
-                $payload['type'] = 'limit';
-                $payload['limit_price'] = (float) $request->limit_price;
-                break;
-            case 'stop':
-                $payload['type'] = 'stop';
-                $payload['stop_price'] = (float) $request->stop_price;
-                break;
-            case 'bracket':
-                $payload['type'] = 'market';
-                $payload['order_class'] = 'bracket';
-                $payload['take_profit'] = ['limit_price' => (float) $request->take_profit];
-                $payload['stop_loss'] = ['stop_price' => (float) $request->stop_loss];
-                break;
-        }
-
-        // 3. Execute
-        try {
-            $alpaca = new AlpacaProvider;
-            $response = $alpaca->placeAdvancedOrder($payload);
-
-            $order->update([
-                'alpaca_order_id' => $response['id'] ?? null,
-            ]);
-
-            $models->transaction::create([
-                'user_id' => $user->id,
-                'type' => $request->side === 'buy' ? 'buy_stock' : 'sell_stock',
-                'amount' => $totalAmount,
-                'net_amount' => $totalAmount,
-                'currency' => 'USD',
-                'status' => 'completed',
-                'meta' => [
-                    'order_id' => $order->id,
+                $order = $models->order::create([
+                    'user_id' => $user->id,
                     'symbol' => strtoupper($request->symbol),
                     'quantity' => $request->qty,
-                    'alpaca_id' => $response['id'] ?? null,
-                    'order_type' => $request->type,
-                ],
-            ]);
+                    'side' => $request->side,
+                    'type' => $request->type,
+                    'status' => 'open',
+                    'amount' => $totalAmount,
+                    'market_price' => $currentPrice,
+                    'limit_price' => $request->limit_price,
+                    'stop_price' => $request->stop_price,
+                    'take_profit' => $request->take_profit,
+                    'stop_loss' => $request->stop_loss,
+                    'currency' => 'USD',
+                    'market' => 'GLOBAL',
+                ]);
 
-            return response()->json(['success' => true, 'data' => $order]);
-        } catch (\Exception $e) {
-            throw $e;
-        }
+                // 2. Build Alpaca Payload
+                $payload = [
+                    'symbol' => $request->symbol,
+                    'qty' => (float) $request->qty, // Changed to float to support fractional shares
+                    'side' => $request->side,
+                    'time_in_force' => 'gtc',
+                ];
+
+                switch ($request->type) {
+                    case 'market':
+                        $payload['type'] = 'market';
+                        break;
+                    case 'limit':
+                        $payload['type'] = 'limit';
+                        $payload['limit_price'] = (float) $request->limit_price;
+                        break;
+                    case 'stop':
+                        $payload['type'] = 'stop';
+                        $payload['stop_price'] = (float) $request->stop_price;
+                        break;
+                    case 'bracket':
+                        $payload['type'] = 'market';
+                        $payload['order_class'] = 'bracket';
+                        $payload['take_profit'] = ['limit_price' => (float) $request->take_profit];
+                        $payload['stop_loss'] = ['stop_price' => (float) $request->stop_loss];
+                        break;
+                }
+
+                // 3. Execute
+                try {
+                    $alpaca = new AlpacaProvider;
+                    $response = $alpaca->placeAdvancedOrder($payload);
+
+                    $order->update([
+                        'alpaca_order_id' => $response['id'] ?? null,
+                    ]);
+
+                    $models->transaction::create([
+                        'user_id' => $user->id,
+                        'type' => $request->side === 'buy' ? 'buy_stock' : 'sell_stock',
+                        'amount' => $totalAmount,
+                        'net_amount' => $totalAmount,
+                        'currency' => 'USD',
+                        'status' => 'completed',
+                        'meta' => [
+                            'order_id' => $order->id,
+                            'symbol' => strtoupper($request->symbol),
+                            'quantity' => $request->qty,
+                            'alpaca_id' => $response['id'] ?? null,
+                            'order_type' => $request->type,
+                        ],
+                    ]);
+
+                    return response()->json(['success' => true, 'data' => $order]);
+                } catch (\Exception $e) {
+                    throw $e;
+                }
             });
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order Failed: ' . $e->getMessage()
+                'message' => 'Order Failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -735,7 +745,7 @@ class TradeController extends Controller
         $order = Http::withHeaders([
             'APCA-API-KEY-ID' => env('ALPACA_API_KEY'),
             'APCA-API-SECRET-KEY' => env('ALPACA_SECRET_KEY'),
-        ])->post(env('ALPACA_BASE_URL') . '/v2/orders', [
+        ])->post(env('ALPACA_BASE_URL').'/v2/orders', [
             'symbol' => $request->symbol,
             'qty' => $request->qty,
             'side' => 'buy',
@@ -762,7 +772,7 @@ class TradeController extends Controller
         $order = Http::withHeaders([
             'APCA-API-KEY-ID' => env('ALPACA_API_KEY'),
             'APCA-API-SECRET-KEY' => env('ALPACA_SECRET_KEY'),
-        ])->post(env('ALPACA_BASE_URL') . '/v2/orders', [
+        ])->post(env('ALPACA_BASE_URL').'/v2/orders', [
             'symbol' => $request->symbol,
             'qty' => $request->qty,
             'side' => 'sell',

@@ -54,7 +54,7 @@
                   <button @click="openDetails(coin)" class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md hover:bg-[#2d4a66] transition text-xs">Details</button>
                 </td>
                 <td class="px-2 pr-6 text-center">
-                  <button @click="openTrade(coin)" class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">Trade</button>
+                  <button @click="openTrade(coin)" class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">Buy</button>
                 </td>
               </tr>
             </tbody>

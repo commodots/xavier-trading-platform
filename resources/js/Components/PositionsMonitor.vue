@@ -58,7 +58,7 @@
           </tr>
           <tr v-if="filteredPositions.length === 0 && !loading">
             <td colspan="9" class="px-4 py-12 text-xs italic text-center text-gray-500">
-              No active global stock positions.
+              No active {{ props.category === 'CRYPTO' ? 'crypto' : 'global stock' }} positions.
             </td>
           </tr>
         </tbody>
@@ -111,6 +111,13 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '@/api';
 
+const props = defineProps({
+  category: {
+    type: String,
+    default: 'GLOBAL'
+  }
+});
+
 const positions = ref([]);
 const loading = ref(false);
 const closingId = ref(null);
@@ -146,7 +153,7 @@ const nextPage = () => {
 const fetchPositions = async () => {
   loading.value = true;
   try {
-    const res = await api.get('/trade/positions');
+    const res = await api.get('/trade/positions', { params: { category: props.category } });
     positions.value = res.data.data || res.data;
   } catch (err) {
     console.error('Failed to fetch positions', err);
