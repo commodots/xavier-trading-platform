@@ -26,6 +26,11 @@
               :class="activeView === 'market' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
               Market Insights
             </button>
+
+            <button @click="openTrade()"
+              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md text-gray-500 hover:text-gray-300">
+              Buy / Sell
+            </button>
           </div>
         </div>
 
@@ -91,7 +96,7 @@
 
       <!-- Modals -->
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currencySymbol="₦" @close="isModalOpen = false" />
-      <TradeModal :show="showTradeModal" :tickers="tradeTickers" :assetCategories="assetCategories" :initialTicker="selectedTradeStock" @close="showTradeModal = false" />
+      <TradeModal :show="showTradeModal" :tickers="tradeTickers" :assetCategories="assetCategories" :initialTicker="selectedTradeStock" initialCategory="NGX" @close="showTradeModal = false" />
     </div>
   </MainLayout>
 </template>
@@ -128,21 +133,16 @@ const ngxMarketInsights = ref({ gainers: [], losers: [], most_traded: [] });
 
 const currentMarketType = ref('ngx');
 
-const fetchMarketInsights = async (tab = activeTab.value, silent = false) => {
+const fetchMarketInsights = async (silent = false) => {
   if (!silent) isInsightsLoading.value = true;
 
   try {
     const response = await api.get(`/market/${currentMarketType.value}/insights`);
-    
-    // The response returns the entire object containing all tabs ({ gainers: [], losers: [], most_traded: [] })
-    const allInsights = response.data;
-    
-   
-    marketInsights.value[tab] = allInsights[tab] || [];
-    
+    if (response.data) {
+      ngxMarketInsights.value = response.data;
+    }
   } catch (error) {
     console.error('Market Insights fetch failed:', error);
-    marketInsights.value[tab] = [];
   } finally {
     isInsightsLoading.value = false;
   }
@@ -205,7 +205,7 @@ const openTrade = (stock) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
-  selectedTradeStock.value = { ...stock, currency: 'NGN' };
+  selectedTradeStock.value = stock ? { ...stock, currency: 'NGN' } : null;
   showTradeModal.value = true;
 };
 
@@ -249,12 +249,12 @@ let interval;
 onMounted(() => {
   fetchPortfolioPerformance();
   updateMarketPrices();
+  fetchMarketInsights();
   interval = setInterval(updateMarketPrices, 10000); // 10s is safer for dummy API
 });
 
 onUnmounted(() => {
   clearInterval(interval)
-  fetchMarketInsights();
   });
 </script>
 

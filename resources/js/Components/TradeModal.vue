@@ -147,7 +147,8 @@ const props = defineProps({
   show: Boolean,
   tickers: Object,
   assetCategories: Array,
-  initialTicker: Object
+  initialTicker: Object,
+  initialCategory: String
 });
 
 const emit = defineEmits(['close', 'trade-success']);
@@ -351,6 +352,9 @@ watch(() => props.show, (newVal) => {
       selectedCategory.value = props.assetCategories.find(c => c.id === 'NGX') || props.assetCategories[0];
       selectedTicker.value = props.initialTicker;
       tradeStep.value = 3;
+    } else if (props.initialCategory) {
+      selectedCategory.value = props.assetCategories.find(c => c.id === props.initialCategory) || props.assetCategories[0];
+      tradeStep.value = 2;
     }
   } else { resetModalState(); }
 });

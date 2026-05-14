@@ -16,7 +16,7 @@
           @click="activeView = view"
           class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
           :class="activeView === view ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
-          {{ view === 'holdings' ? 'My Holdings' : view === 'market' ? 'Market Assets' : 'Trade Crypto' }}
+          {{ view === 'holdings' ? 'My Holdings' : view === 'market' ? 'Market Assets' : 'Buy / Sell' }}
         </button>
       </div>
 

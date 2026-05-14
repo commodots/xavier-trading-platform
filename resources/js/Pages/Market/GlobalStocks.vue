@@ -63,6 +63,10 @@
               :class="activeChart === 'insights' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
               Market Insights
             </button>
+            <button @click="openTrade(stocks[0])"
+              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md text-gray-500 hover:text-gray-300">
+              Buy / Sell
+            </button>
           </div>
 
           <div v-if="activeChart === 'market'" class="flex flex-wrap items-center gap-2">
@@ -70,7 +74,7 @@
             <span
               class="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded font-mono text-xs uppercase">{{
                 selectedMarketSymbol }}</span>
-            <div class="relative">
+            <div class="relative" ref="chartSearchContainer">
               <input v-model="chartSearch" @input="handleChartSearch" type="text" placeholder="Quick find symbol..."
                 class="bg-[#0B121D] border border-[#1f3348] rounded px-3 py-1 text-xs text-gray-300 focus:border-[#00D4FF] outline-none w-40" />
               <span v-if="chartSearchLoading"
@@ -227,27 +231,14 @@
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currency-symbol="$" @close="isModalOpen = false" />
 
       <!-- Trade Modal -->
-      <div v-if="showTradeModal" class="fixed inset-0 z-50 overflow-y-auto" @keydown.escape="showTradeModal = false">
-        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="showTradeModal = false"></div>
-          <div
-            class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-[#0F1724] border border-[#1f3348] shadow-xl rounded-lg">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-medium text-white">Trade {{ selectedTradeStock ? selectedTradeStock.symbol : '' }}
-              </h3>
-              <button @click="showTradeModal = false" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-            <TradePanel v-if="selectedTradeStock" :initialSymbol="selectedTradeStock.symbol"
-              @order-placed="() => { showTradeModal = false; fetchHoldings(); fetchPortfolioPerformance(); fetchWalletBalances(); }" />
-          </div>
-        </div>
-      </div>
+      <TradePanel 
+      v-if="showTradeModal && selectedTradeStock" 
+        :initialSymbol="selectedTradeStock.symbol"
+        @close="showTradeModal = false"
+        @order-placed="() => { showTradeModal = false; fetchHoldings(); fetchPortfolioPerformance(); fetchWalletBalances(); }" />
+     
     </div>
-
+ 
   </MainLayout>
 </template>
 
@@ -277,6 +268,7 @@ const search = ref("");
 const searchResults = ref([]);
 const searchLoading = ref(false);
 const searchInputRef = ref(null);
+const chartSearchContainer = ref(null);
 let refreshInterval = null;
 
 // Favorites storage
@@ -291,7 +283,6 @@ const activeChart = ref('holdings'); // 'holdings' or 'market'
 const selectedMarketSymbol = ref('AAPL');
 const isInsightsLoading = ref(false);
 const chartSearchLoading = ref(false);
-const marketInsights = ref({});
 const marketNameMap = {
   AAPL: 'Apple Inc',
   TSLA: 'Tesla Inc',
@@ -340,10 +331,6 @@ const globalApiInsights = ref({
   most_traded: []
 });
 
-const marketData = computed(() => {
-  return marketInsights.value[activeTab.value] || [];
-});
-
 const stocks = ref([
   { symbol: "AAPL", name: "Apple Inc", price: 0, change: 0, volume: 0, spark: [] },
   { symbol: "TSLA", name: "Tesla Inc", price: 0, change: 0, volume: 0, spark: [] },
@@ -389,7 +376,7 @@ const focusSearch = () => {
 
 const setActiveTab = (tab) => {
   activeTab.value = tab;
-  fetchMarketInsights(tab);
+  fetchMarketInsights();
   const symbols = marketTabSymbols[tab] || [];
   if (symbols.length > 0) {
     api.post('/stocks/track', { symbols }).catch(() => { });
@@ -398,22 +385,18 @@ const setActiveTab = (tab) => {
 
 const currentMarketType = ref('global'); // toggle this 'ngx' or 'global' depending on user view Selection
 
-const fetchMarketInsights = async (tab = activeTab.value, silent = false) => {
+const fetchMarketInsights = async (silent = false) => {
   if (!silent) isInsightsLoading.value = true;
 
   try {
-    // Dynamically fetch from the correct endpoint!
     const response = await api.get(`/market/${currentMarketType.value}/insights`);
 
-    // The response returns the entire object containing all tabs ({ gainers: [], losers: [], most_traded: [] })
-    const allInsights = response.data;
-
-   
-    marketInsights.value[tab] = allInsights[tab] || [];
+    if (response.data) {
+      globalApiInsights.value = response.data;
+    }
 
   } catch (error) {
     console.error('Market Insights fetch failed:', error);
-    marketInsights.value[tab] = [];
   } finally {
     isInsightsLoading.value = false;
   }
@@ -551,6 +534,12 @@ const selectForChart = (stock) => {
   chartSearchResults.value = [];
 };
 
+const handleClickOutside = (event) => {
+  if (chartSearchContainer.value && !chartSearchContainer.value.contains(event.target)) {
+    chartSearchResults.value = [];
+  }
+};
+
 // Methods
 const openDetails = (item) => {
   selectedItem.value = item;
@@ -630,7 +619,7 @@ const fetchHoldings = async () => {
   }
 };
 
-// Step 4: Consolidated Dashboard Initialization
+// Consolidated Dashboard Initialization
 const initDashboard = async () => {
   isGraphLoading.value = true;
   holdingsLoading.value = true;
@@ -695,17 +684,16 @@ const initDashboard = async () => {
       console.error('Failed to fetch performance', performanceResponse.reason);
     }
 
-    // Fetch market insights separately as they are tab-dependent
-    // fetchMarketInsights(); // Removed redundant call
+    fetchMarketInsights();
   } catch (e) {
     console.error('Dashboard init failed, falling back to individual calls', e);
     // Fallback to individual calls if parallel calls fail
     await Promise.all([
       fetchPortfolioPerformance(),
       fetchHoldings(),
-      fetchWalletBalances()
+      fetchWalletBalances(),
+      fetchMarketInsights()
     ]);
-    // fetchMarketInsights(); // Removed
   } finally {
     isGraphLoading.value = false;
     holdingsLoading.value = false;
@@ -725,6 +713,8 @@ onMounted(() => {
       favoriteTickers.value = [];
     }
   }
+
+  window.addEventListener('click', handleClickOutside);
 
   // Replace individual calls with consolidated init
   initDashboard();
@@ -784,6 +774,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.Echo.leave('market-channel'); // Clean up
   clearInterval(refreshInterval);
+  window.removeEventListener('click', handleClickOutside);
 });
 
 </script>

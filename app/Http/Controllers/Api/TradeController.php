@@ -807,4 +807,31 @@ class TradeController extends Controller
 
         return response()->json(['status' => 'tracking', 'symbols' => $symbols]);
     }
+
+    /**
+     * Fetch market insights (gainers, losers, most traded) for a specific market type.
+     */
+    public function insights(string $market)
+    {
+        $marketType = strtoupper($market) === 'NGX' ? 'local' : 'global';
+        $exchange = ($marketType === 'local') ? 'NGX' : 'NASDAQ';
+        
+        $baseQuery = Symbol::query()->where(function($q) use ($marketType, $exchange) {
+            $q->where('type', $marketType)
+              ->orWhere('exchange', $exchange);
+        });
+
+        $mapData = fn($s) => [
+            'symbol' => $s->symbol,
+            'name' => $s->name,
+            'price' => (float) $s->last_price,
+            'change' => (float) ($s->change ?? 0),
+        ];
+
+        return response()->json([
+            'gainers' => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
+            'losers' => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
+            'most_traded' => (clone $baseQuery)->orderByDesc('volume')->limit(5)->get()->map($mapData),
+        ]);
+    }
 }

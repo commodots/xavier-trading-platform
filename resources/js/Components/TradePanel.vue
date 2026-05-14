@@ -1,100 +1,131 @@
 <template>
-  <div class="bg-[#1f2937] p-5 rounded-xl border border-[#374151]">
-    
-    <!-- Wallet Balance Display -->
-    <div class="mb-6 space-y-1">
-      <div class="flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-500">
-        <span>Buying Power (USD)</span>
-        <span class="text-white">${{ walletBalances.cleared_balance_usd ? walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}</span>
-      </div>
-      <div class="w-full h-1 overflow-hidden bg-gray-800 rounded-full">
-        <div class="h-full bg-blue-500" :style="{ width: '100%' }"></div>
-      </div>
-    </div>
-
-    <h3 class="mb-4 text-lg font-semibold">Place Order</h3>
-
-    <div class="grid grid-cols-1 gap-4">
-      <!-- Order Type -->
-      <div>
-        <label class="block mb-2 text-sm font-medium text-gray-300">Order Type</label>
-        <select v-model="type" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none">
-          <option value="market">Market Order</option>
-          <option value="limit">Limit Order</option>
-          <option value="stop">Stop Loss</option>
-          <option value="bracket">Bracket Order</option>
-        </select>
+  <Teleport to="body">
+  <div class="fixed inset-0 overflow-y-auto flex items-center justify-center min-h-screen px-4 text-center sm:block sm:p-0 z-[100]">
+    <div class="fixed inset-0 transition-opacity bg-[#0F1724] bg-opacity-75" @click="$emit('close')"></div>
+    <div
+      class="relative z-10 inline-block w-full max-w-md p-6 overflow-hidden text-left transition-all transform bg-[#0F1724] border border-[#1f3348] shadow-xl rounded-lg align-middle mt-12">
+      <div class="flex items-center justify-between mb-4 ">
+        <h3 class="text-lg font-medium text-white">Buy {{ symbol }}</h3>
+        <button @click="$emit('close')" class="text-gray-400 hover:text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
       </div>
 
-      <!-- Symbol -->
-      <div>
-        <label class="block mb-2 text-sm font-medium text-gray-300">Symbol</label>
-        <div class="flex gap-2">
-          <input v-model="symbol" type="text" placeholder="AAPL" class="flex-1 px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-          <button @click="addToWatchlist" :disabled="watchlistLoading || !symbol" 
-            class="px-3 py-2 text-xs font-bold transition-all border rounded-lg whitespace-nowrap"
-            :class="isInWatchlist ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'">
-            <span v-if="watchlistLoading" class="inline-block w-3 h-3 mr-1 border-b-2 border-current rounded-full animate-spin"></span>
-            {{ isInWatchlist ? '★ In Watchlist' : '☆ Add to Watchlist' }}
-          </button>
+      <div class="bg-[#1C1F2E] p-6 rounded-2xl border border-[#2A314A] shadow-xl">
+
+        <!-- Wallet Balance Display -->
+        <div class="mb-6 space-y-1">
+          <div class="flex justify-between text-[12px] font-bold uppercase tracking-widest text-gray-500">
+            <span>USD Balance:</span>
+            <span class="text-[#00D4FF]">${{ walletBalances.cleared_balance_usd ?
+              walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'
+            }}</span>
+          </div>
+
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <!-- Order Type -->
+          <div>
+            <label class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">Order Type</label>
+            <div class="relative">
+              <select v-model="type"
+                class="w-full px-4 py-2.5 bg-[#0F1724] border border-gray-700 rounded-xl text-white text-sm focus:border-[#00D4FF] outline-none appearance-none transition-all">
+                <option value="market">Market Order</option>
+                <option value="limit">Limit Order</option>
+                <option value="stop">Stop Loss</option>
+                <option value="bracket">Bracket Order</option>
+              </select>
+              <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 text-xs">▼</div>
+            </div>
+          </div>
+
+          <!-- Symbol -->
+          <div>
+            <label class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">Symbol</label>
+            <div class="flex gap-2">
+              <input v-model="symbol" type="text" placeholder="AAPL"
+                class="flex-1 px-4 py-2.5 bg-[#0F1724] border border-gray-700 rounded-xl text-white text-sm font-bold placeholder-gray-600 focus:border-[#00D4FF] outline-none transition-all" />
+              <button @click="addToWatchlist" :disabled="watchlistLoading || !symbol"
+                class="px-4 py-2 text-[10px] font-bold transition-all border rounded-xl whitespace-nowrap uppercase tracking-tighter"
+                :class="isInWatchlist ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-500' : 'bg-[#0F1724] border-gray-700 text-gray-400 hover:text-white'">
+                <span v-if="watchlistLoading"
+                  class="inline-block w-3 h-3 mr-1 border-b-2 border-current rounded-full animate-spin"></span>
+                {{ isInWatchlist ? '★ In Watchlist' : '☆ Watchlist' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Quantity -->
+          <div>
+            <label class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">Shares
+              Quantity</label>
+            <input v-model.number="qty" type="number" min="1" step="1" placeholder="1"
+              class="w-full px-4 py-2.5 bg-[#0F1724] border border-gray-700 rounded-xl text-white text-sm focus:border-[#00D4FF] outline-none transition-all" />
+          </div>
+
+          <!-- Limit Price (for limit orders) -->
+          <div v-if="type === 'limit'">
+            <label class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">Limit Price
+              ($)</label>
+            <input v-model.number="limit_price" type="number" step="0.01" placeholder="170.00"
+              class="w-full px-4 py-2.5 bg-[#0F1724] border border-gray-700 rounded-xl text-white text-sm focus:border-[#00D4FF] outline-none transition-all" />
+          </div>
+
+          <!-- Stop Price (for stop orders) -->
+          <div v-if="type === 'stop'">
+            <label class="block mb-2 text-sm font-medium text-gray-300">Stop Price</label>
+            <input v-model.number="stop_price" type="number" step="0.01" placeholder="160.00"
+              class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
+          </div>
+
+          <!-- Bracket Order Fields -->
+          <div v-if="type === 'bracket'" class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block mb-2 text-sm font-medium text-gray-300">Take Profit</label>
+              <input v-model.number="take_profit" type="number" step="0.01" placeholder="180.00"
+                class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
+            </div>
+            <div>
+              <label class="block mb-2 text-sm font-medium text-gray-300">Stop Loss</label>
+              <input v-model.number="stop_loss" type="number" step="0.01" placeholder="160.00"
+                class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3 mt-4">
+            <button @click="submit('buy')" :disabled="!!sideLoading || !isValid"
+              class="flex items-center justify-center flex-1 px-4 py-3.5 font-black text-white transition-all rounded-xl bg-gradient-to-r from-[#0047AB] to-[#00D4FF] shadow-lg shadow-blue-900/20 text-sm uppercase tracking-wide disabled:opacity-40">
+              <span v-if="sideLoading === 'buy'"
+                class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
+              {{ sideLoading === 'buy' ? 'Processing...' : 'Buy' }}
+            </button>
+            <button @click="submit('sell')" :disabled="!!sideLoading || !isValid"
+              class="flex items-center justify-center flex-1 px-4 py-3.5 font-black text-white transition-all rounded-xl bg-gradient-to-r from-red-700 to-red-500 shadow-lg shadow-red-900/20 text-sm uppercase tracking-wide disabled:opacity-40">
+              <span v-if="sideLoading === 'sell'"
+                class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
+              {{ sideLoading === 'sell' ? 'Processing...' : 'Sell' }}
+            </button>
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="error" class="p-3 mt-3 border rounded-lg bg-red-900/20 border-red-500/50">
+            <p class="text-sm text-red-400">{{ error }}</p>
+          </div>
+
+          <!-- Success Message -->
+          <div v-if="success" class="p-3 mt-3 border rounded-lg bg-green-900/20 border-green-500/50">
+            <p class="text-sm text-green-400">{{ success }}</p>
+          </div>
         </div>
       </div>
 
-      <!-- Quantity -->
-      <div>
-        <label class="block mb-2 text-sm font-medium text-gray-300">Quantity</label>
-        <input v-model.number="qty" type="number" min="1" step="1" placeholder="1" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-      </div>
-
-      <!-- Limit Price (for limit orders) -->
-      <div v-if="type === 'limit'">
-        <label class="block mb-2 text-sm font-medium text-gray-300">Limit Price</label>
-        <input v-model.number="limit_price" type="number" step="0.01" placeholder="170.00" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-      </div>
-
-      <!-- Stop Price (for stop orders) -->
-      <div v-if="type === 'stop'">
-        <label class="block mb-2 text-sm font-medium text-gray-300">Stop Price</label>
-        <input v-model.number="stop_price" type="number" step="0.01" placeholder="160.00" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-      </div>
-
-      <!-- Bracket Order Fields -->
-      <div v-if="type === 'bracket'" class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block mb-2 text-sm font-medium text-gray-300">Take Profit</label>
-          <input v-model.number="take_profit" type="number" step="0.01" placeholder="180.00" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-        </div>
-        <div>
-          <label class="block mb-2 text-sm font-medium text-gray-300">Stop Loss</label>
-          <input v-model.number="stop_loss" type="number" step="0.01" placeholder="160.00" class="w-full px-3 py-2 bg-[#1F2937] border border-[#374151] rounded-lg text-white placeholder-gray-500 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="flex gap-3 mt-4">
-        <button @click="submit('buy')" :disabled="!!sideLoading || !isValid"
-         class="flex items-center justify-center flex-1 px-4 py-3 font-semibold text-white transition duration-200 bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-          <span v-if="sideLoading === 'buy'" class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
-    {{ sideLoading === 'buy' ? 'Buying...' : 'Buy' }}
-  </button>
-        <button @click="submit('sell')" :disabled="!!sideLoading || !isValid"
-         class="flex items-center justify-center flex-1 px-4 py-3 font-semibold text-white transition duration-200 bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
-          <span v-if="sideLoading === 'sell'" class="w-4 h-4 mr-2 border-b-2 border-white rounded-full animate-spin"></span>
-    {{ sideLoading === 'sell' ? 'Selling...' : 'Sell' }}
-  </button>
-      </div>
-
-      <!-- Error Message -->
-      <div v-if="error" class="p-3 mt-3 border rounded-lg bg-red-900/20 border-red-500/50">
-        <p class="text-sm text-red-400">{{ error }}</p>
-      </div>
-
-      <!-- Success Message -->
-      <div v-if="success" class="p-3 mt-3 border rounded-lg bg-green-900/20 border-green-500/50">
-        <p class="text-sm text-green-400">{{ success }}</p>
-      </div>
     </div>
   </div>
+</Teleport>
 </template>
 
 <script setup>
@@ -115,11 +146,14 @@ const limit_price = ref(null);
 const stop_price = ref(null);
 const take_profit = ref(null);
 const stop_loss = ref(null);
+const showTradeModal = ref(false);
+const selectedTradeStock = ref(null);
 
 const sideLoading = ref(null); // Tracks 'buy', 'sell', or null
-const emit = defineEmits(['order-placed']); // Define the emit
+const emit = defineEmits(['order-placed', 'close']);
 const error = ref("");
 const success = ref("");
+
 const walletBalances = ref({
   cleared_balance_usd: 0,
   cleared_balance_ngn: 0
@@ -138,7 +172,7 @@ const isValid = computed(() => {
 });
 
 const isInWatchlist = computed(() => {
-  return Array.isArray(watchlist.value) && watchlist.value.some(item => 
+  return Array.isArray(watchlist.value) && watchlist.value.some(item =>
     item.symbol === symbol.value.toUpperCase()
   );
 });
@@ -224,15 +258,17 @@ const addToWatchlist = async () => {
         added_price: 0
       });
     }
-    
+
     await fetchWatchlist();
-    
+
   } catch (err) {
     error.value = (err.response && err.response.data && err.response.data.message) ? err.response.data.message : "Failed to update watchlist.";
   } finally {
     watchlistLoading.value = false;
   }
 };
+
+
 
 // Fetch wallet balances and watchlist on component mount
 onMounted(() => {

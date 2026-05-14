@@ -140,11 +140,7 @@ const successMessage = ref('')
 const router = useRouter()
 
 const goBack = () => {
-  if (route.query.from === 'trading') {
-    router.push({ path: '/market/crypto', query: { view: 'trading' } });
-  } else {
-    router.push('/market/crypto');
-  }
+    router.push('/crypto');
 };
 
 const loadBalance = async () => {

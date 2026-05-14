@@ -3,7 +3,7 @@
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-semibold text-white"> Trade Crypto</h2>
+        <h2 class="text-lg font-semibold text-white"> Buy Crypto</h2>
         <div class="flex gap-3">
           <button @click="handleAction(depositNav)"
             class="bg-[#00D4FF]/10 text-[#00D4FF] border border-[#00D4FF]/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#00D4FF] hover:text-[#0F1724] transition">

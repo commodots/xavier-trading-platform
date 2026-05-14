@@ -10,6 +10,18 @@
         </div>
       </div>
 
+      <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
+        <button @click="activeView = 'holdings'"
+          class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+          :class="activeView === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
+          My Holdings
+        </button>
+        <button @click="openTrade(instruments[0])"
+          class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md text-gray-500 hover:text-gray-300">
+          Buy / Sell
+        </button>
+      </div>
+
       <HoldingPerformanceChart 
         title="Your Fixed Income Holdings" 
         currencySymbol="₦" 
@@ -88,6 +100,7 @@ const selectedTradeInstrument = ref(null);
 const search = ref("");
 const isGraphLoading = ref(false);
 const portfolioData = ref([]);
+const activeView = ref('holdings');
 const totalValue = ref(0);
 const changePercent = ref(0);
 
