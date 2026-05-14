@@ -3,7 +3,7 @@
     <div class="space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold">📈 Fixed Income Market</h1>
+        <h1 class="text-2xl font-semibold">📈 Fixed Income</h1>
         <div class="relative">
           <input v-model="search" type="text" placeholder="Search instruments..."
             class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-64 transition-all" />
@@ -22,7 +22,7 @@
 
       <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
         <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
-          <h2 class="font-semibold text-gray-200">Available Instruments</h2>
+          <h2 class="font-semibold text-gray-200">My Holdings</h2>
           <span class="text-xs text-gray-500">{{ filteredInstruments.length }} Listings</span>
         </div>
         <div class="overflow-x-auto">

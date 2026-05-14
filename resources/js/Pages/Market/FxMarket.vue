@@ -11,12 +11,8 @@
         </div>
 
         <div class="w-64">
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Search currency pair..."
-            class="w-full bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#00D4FF]"
-          />
+          <input v-model="search" type="text" placeholder="Search currency pair..."
+            class="w-full bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#00D4FF]" />
         </div>
       </div>
 
@@ -44,11 +40,8 @@
             </thead>
 
             <tbody>
-              <tr
-                v-for="rate in filteredRates"
-                :key="rate.from_currency + rate.to_currency"
-                class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
-              >
+              <tr v-for="rate in filteredRates" :key="rate.from_currency + rate.to_currency"
+                class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
                 <!-- Currency Pair -->
                 <td class="px-2 py-3 font-semibold">{{ rate.from_currency }}/{{ rate.to_currency }}</td>
 
@@ -60,21 +53,14 @@
 
                 <!-- Sparkline -->
                 <td class="px-2">
-                  <apexchart
-                    type="area"
-                    height="45"
-                    width="110"
-                    :options="sparkOptions"
-                    :series="[{ data: rate.sparkline || [rate.effective_rate, rate.effective_rate * 1.01, rate.effective_rate * 0.99, rate.effective_rate * 1.02] }]"
-                  />
+                  <apexchart type="area" height="45" width="110" :options="sparkOptions"
+                    :series="[{ data: rate.sparkline || [rate.effective_rate, rate.effective_rate * 1.01, rate.effective_rate * 0.99, rate.effective_rate * 1.02] }]" />
                 </td>
 
                 <!-- Action -->
                 <td class="px-2 text-right">
-                  <button
-                    @click="openConvert(rate)"
-                    class="bg-[#0047AB] hover:bg-[#0057D4] px-3 py-1 rounded-lg text-white text-xs"
-                  >Convert</button>
+                  <button @click="openConvert(rate)"
+                    class="bg-[#0047AB] hover:bg-[#0057D4] px-3 py-1 rounded-lg text-white text-xs">Convert</button>
                 </td>
               </tr>
             </tbody>
@@ -88,51 +74,41 @@
       </div>
 
       <!-- Convert Modal -->
-      <div
-        v-if="convertModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      >
+      <div v-if="convertModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-[#1C1F2E] rounded-2xl p-8 shadow-xl w-full max-w-lg relative">
-          <button
-            @click="convertModal = false"
-            class="absolute text-gray-400 top-3 right-3 hover:text-white"
-          >
+          <button @click="convertModal = false" class="absolute text-gray-400 top-3 right-3 hover:text-white">
             ✖
           </button>
 
-          <h2 class="mb-4 text-xl font-semibold">Convert {{ selectedRate.from_currency }} to {{ selectedRate.to_currency }}</h2>
+          <h2 class="mb-4 text-xl font-semibold">Convert {{ selectedRate.from_currency }} to {{ selectedRate.to_currency
+          }}</h2>
 
           <form @submit.prevent="convertCurrency">
             <div class="mb-4">
               <label class="text-sm text-gray-400">Amount ({{ selectedRate.from_currency }})</label>
-              <input
-                v-model.number="convertAmount"
-                type="number"
-                step="0.01"
+              <input v-model.number="convertAmount" type="number" step="0.01"
                 class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg"
-                @input="calcConvertedAmount"
-              />
+                @input="calcConvertedAmount" />
             </div>
 
             <div class="mb-4">
               <label class="text-sm text-gray-400">Converted Amount ({{ selectedRate.to_currency }})</label>
-              <input
-                type="text"
-                class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg"
-                :value="convertedAmount"
-                disabled
-              />
+              <input type="text" class="w-full px-4 py-2 mt-1 bg-transparent border border-gray-600 rounded-lg"
+                :value="convertedAmount" disabled />
             </div>
 
             <div class="mb-4 text-sm text-gray-400">
-              Exchange Rate: 1 {{ selectedRate.from_currency }} = {{ selectedRate.effective_rate }} {{ selectedRate.to_currency }}
+              Exchange Rate:
+              <span v-if="selectedRate.from_currency === 'NGN'">
+                {{ selectedRate.effective_rate }} {{ selectedRate.from_currency }} = 1 {{ selectedRate.to_currency }}
+              </span>
+              <span v-else>
+                1 {{ selectedRate.from_currency }} = {{ selectedRate.effective_rate }} {{ selectedRate.to_currency }}
+              </span>
             </div>
 
-            <button
-              class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg mt-2"
-              type="submit"
-              :disabled="!convertAmount || convertAmount <= 0"
-            >
+            <button class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-2 rounded-lg mt-2" type="submit"
+              :disabled="!convertAmount || convertAmount <= 0">
               Convert Currency
             </button>
 
@@ -201,7 +177,7 @@ const fetchFxRates = async () => {
     rates.value = response.data.rates.map(r => ({
       ...r,
       // Generate 10 random data points around the effective rate for the "behavior" look
-      sparkline: Array.from({ length: 10 }, () => 
+      sparkline: Array.from({ length: 10 }, () =>
         r.effective_rate * (1 + (Math.random() * 0.02 - 0.01))
       )
     }));
@@ -209,8 +185,8 @@ const fetchFxRates = async () => {
     console.error("Failed to fetch FX rates:", error);
     // Fallback dummy data
     rates.value = [ // Fallback dummy data
-      { from_currency: "NGN", to_currency: "USD", base_rate: 1500, effective_rate: 1530 },
-      { from_currency: "USD", to_currency: "NGN", base_rate: 0.00067, effective_rate: 0.000653 },
+      { from_currency: "USD", to_currency: "NGN", base_rate: 1500, effective_rate: 1530 },
+      { from_currency: "NGN", to_currency: "USD", base_rate: 0.00067, effective_rate: 0.000653 },
     ];
   } finally {
     loading.value = false;
@@ -252,28 +228,35 @@ function openConvert(rate) {
 }
 
 function calcConvertedAmount() {
-  const rate = selectedRate.value.effective_rate;
-  const amount = convertAmount.value;
-  
-  if (!rate || !amount) {
-    convertedAmount.value = 0;
+  const rate = parseFloat(selectedRate.value.effective_rate);
+  const amount = parseFloat(convertAmount.value);
+
+  if (isNaN(rate) || isNaN(amount) || amount <= 0) {
+    convertedAmount.value = "0.00";
     return;
   }
 
+  let result;
+
   /**
-   * Logical Rule: 
-   * The effective_rate is always "How much of 'TO' do I get for 1 'FROM'?"
-   * So we always multiply: Amount * Rate.
-   * Example: 10 USD * 1530 (Rate) = 15,300 NGN
-   * Example: 1530 NGN * 0.000653 (Rate) = 1 USD
+   * If the rate is a large number (like 1500), it represents the price 
+   * of 1 USD in NGN.
+   * If we are converting NGN -> USD, we MUST DIVIDE.
+   * If we are converting USD -> NGN, we MULTIPLY.
    */
-  const result = amount * rate;
-  
+  if (selectedRate.value.from_currency === 'NGN' && selectedRate.value.to_currency === 'USD') {
+    // 1500 NGN / 1500 = 1 USD
+    result = amount / rate;
+  } else {
+    // 1 USD * 1500 = 1500 NGN
+    result = amount * rate;
+  }
+
   // Apply decimals based on currency
   const decimals = selectedRate.value.to_currency === 'USD' ? 2 : 2;
-  convertedAmount.value = result.toLocaleString(undefined, { 
-    minimumFractionDigits: decimals, 
-    maximumFractionDigits: decimals 
+  convertedAmount.value = result.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
   });
 }
 
@@ -294,9 +277,9 @@ async function convertCurrency() {
 
     if (response.data.success) {
       message.value = "✅ Currency conversion successful!";
-    setTimeout(() => {
+      setTimeout(() => {
         convertModal.value = false;
-        fetchFxRates(); 
+        fetchFxRates();
       }, 2000);
     }
   } catch (e) {

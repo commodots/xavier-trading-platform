@@ -1,4 +1,3 @@
-// resources/js/router/index.js
 import { createRouter, createWebHistory } from "vue-router";
 
 // Auth
@@ -33,7 +32,6 @@ import Orders from "@/Pages/Orders.vue";
 import OrderDetails from "@/Pages/OrderDetails.vue";
 import Watchlist from "@/Pages/Watchlist.vue";
 import Advisory from "@/Pages/Advisory.vue";
-import Trading from "@/Pages/Trading.vue";
 import TradingDashboard from "@/Pages/Trading/Dashboard.vue";
 
 // Admin
@@ -194,12 +192,6 @@ const routes = [
     path: "/advisory",
     name: "advisory",
     component: Advisory,
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/trading",
-    name: "trading",
-    component: Trading,
     meta: { requiresAuth: true },
   },
   {

@@ -1,25 +1,17 @@
 <template>
-  <MainLayout>
     <div class="space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-3xl font-bold">Trading Crypto</h1>
-          <p class="mt-1 text-sm text-gray-400">Crypto spot trading with real-time prices</p>
-        </div>
+        <h2 class="text-lg font-semibold text-white"> Trade Crypto</h2>
         <div class="flex gap-3">
           <button @click="handleAction(depositNav)"
-            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
-            + Deposit
+            class="bg-[#00D4FF]/10 text-[#00D4FF] border border-[#00D4FF]/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#00D4FF] hover:text-[#0F1724] transition">
+            Deposit
           </button>
           <button @click="handleAction(withdrawNav)"
-            class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
-            - Withdraw
-          </button>
-          <button @click="fetchData"
-            class="bg-[#1f3348] text-gray-300 px-4 py-2 rounded-lg hover:bg-[#2d4a66] transition text-sm">
-            Refresh
+            class="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition">
+            Withdraw
           </button>
         </div>
       </div>
@@ -81,50 +73,11 @@
         </form>
         <p v-if="errorMessage" class="mt-3 text-sm text-red-400">{{ errorMessage }}</p>
         <p v-if="successMessage" class="mt-3 text-sm text-green-400">{{ successMessage }}</p>
-      </div>
-
-      <!-- Live Market Prices -->
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <div class="flex flex-col justify-between gap-6 mb-6 md:flex-row md:items-center">
-          <h2 class="text-xl font-semibold">Live Market Prices</h2>
-          <div class="flex flex-col md:flex-row gap-4 items-center">
-            <!-- Market Segmentation Tabs -->
-            <div class="flex p-1 bg-[#111827] rounded-lg border border-[#1f3348]">
-              <button class="px-3 py-1 rounded-md text-xs font-bold transition bg-[#00D4FF] text-black">
-                CRYPTO
-              </button>
-            </div>
-            <div class="relative w-full md:w-64">
-              <input v-model="searchQuery" type="text" placeholder="Search assets..."
-                class="w-full bg-[#111827] border border-[#1f3348] rounded-lg py-2 px-4 text-sm text-white focus:border-[#00D4FF] outline-none transition" />
-            </div>
-          </div>
-        </div>
-
-        <div v-if="market.length === 0" class="py-8 text-center text-gray-400">Loading prices...</div>
-        <div v-else-if="filteredMarket.length === 0" class="py-8 text-center text-gray-400">No assets found matching "{{
-          searchQuery }}"</div>
-        <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div v-for="coin in filteredMarket" :key="coin.symbol"
-            class="bg-[#111827] border border-[#1f2a44] rounded-lg p-4">
-            <div class="flex items-start justify-between mb-3">
-              <div>
-                <p class="font-bold text-white">{{ coin.name }}</p>
-                <p class="text-sm text-gray-400">{{ coin.symbol }}</p>
-              </div>
-              <span class="font-mono text-[#00D4FF] font-bold">{{ formatCurrency(coin.price) }}</span>
-            </div>
-            <button @click="openBuyModal(coin)" :disabled="loading"
-              class="w-full px-3 py-1 text-sm text-green-400 transition rounded bg-green-600/20 hover:bg-green-600/30">
-              Buy
-            </button>
-          </div>
-        </div>
-      </div>
+      </div> 
 
       <!-- Open Positions -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-        <h2 class="mb-4 text-xl font-semibold">Open Positions ({{ openTradesCount }})</h2>
+        <h2 class="mb-4 text-xl font-semibold">My Holdings ({{ openTradesCount }})</h2>
         <div v-if="trades.length === 0" class="py-8 text-center text-gray-400">No open trades</div>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -132,11 +85,11 @@
               <tr>
                 <th class="px-4 py-3 font-medium text-left">ID</th>
                 <th class="px-4 py-3 font-medium text-left">Pair</th>
-                <th class="px-4 py-3 font-medium text-left">Type</th>
+
                 <th class="px-4 py-3 font-medium text-right">Amount</th>
                 <th class="px-4 py-3 font-medium text-right">Entry Price</th>
                 <th class="px-4 py-3 font-medium text-right">Current</th>
-                <th class="px-4 py-3 font-medium text-right">P&L</th>
+                <th class="px-4 py-3 font-medium text-right">Gain</th>
                 <th class="px-4 py-3 font-medium text-center">Action</th>
               </tr>
             </thead>
@@ -144,12 +97,7 @@
               <tr v-for="trade in trades" :key="trade.id" class="hover:bg-[#16213A] transition">
                 <td class="px-4 py-3 font-mono text-gray-300">#{{ trade.id }}</td>
                 <td class="px-4 py-3 font-semibold">{{ trade.pair }}</td>
-                <td class="px-4 py-3">
-                  <span :class="trade.type === 'buy' ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'"
-                    class="px-2 py-1 text-xs font-semibold rounded">
-                    {{ trade.type.toUpperCase() }}
-                  </span>
-                </td>
+                
                 <td class="px-4 py-3 text-right">{{ formatCurrency(trade.amount) }}</td>
                 <td class="px-4 py-3 font-mono text-right">{{ formatCurrency(trade.entry_price) }}</td>
                 <td class="px-4 py-3 text-right text-[#00D4FF]">{{ formatCurrency(currentPrices[trade.pair] ||
@@ -285,15 +233,12 @@
         </div>
       </div>
     </div>
-
-  </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router'
 
-import MainLayout from '@/Layouts/MainLayout.vue';
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from '@/api';
 import { formatCurrency, formatDate, formatPercentage } from '@/lib/formatters';
@@ -421,7 +366,6 @@ const fetchData = async () => {
       api.get('/trade/positions', { params: { category: 'crypto' } })
     ]);
 
-    // Now assign the data
     wallet.value = walletRes.data.data || { cleared_balance_usd: 0 };
     tronAddress.value = addressRes.data;
 
@@ -551,7 +495,6 @@ const executeClose = async () => {
   }
 };
 
-// New function for "Live" data only
 const fetchUpdates = async () => {
   try {
     const [walletRes, marketRes, positionsRes] = await Promise.all([
@@ -588,9 +531,9 @@ onUnmounted(() => {
 
 
 const withdrawNav = () => {
-  router.push('/crypto/withdraw')
+  router.push({ path: '/crypto/withdraw', query: { from: 'trading' } })
 }
 const depositNav = () => {
-  router.push('/crypto/deposit')
+  router.push({ path: '/crypto/deposit', query: { from: 'trading' } })
 }
 </script>

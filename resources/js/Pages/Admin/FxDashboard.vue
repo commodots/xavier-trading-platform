@@ -74,6 +74,36 @@
         </div>
       </div>
 
+      <div class="bg-[#1C1F2E] p-6 rounded-xl border border-[#2A314A]">
+          <h3 class="mb-3 font-semibold text-white">Active FX Rates</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-300">
+              <thead class="text-xs uppercase bg-[#151a27] text-gray-400">
+                <tr>
+                  <th class="px-4 py-3">Pair</th>
+                  <th class="px-4 py-3">Effective Rate</th>
+                  <th class="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#2A314A]">
+                <tr v-for="rate in savedRates" :key="rate.id" class="hover:bg-[#252b3d]">
+                  <td class="px-4 py-3 font-medium">{{ rate.from_currency }}/{{ rate.to_currency }}</td>
+                  <td class="px-4 py-3">{{ rate.effective_rate }}</td>
+                  <td class="px-4 py-3 text-right">
+                    <button @click="deleteRate(rate.id)" class="text-red-400 hover:text-red-600 transition-colors">
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="savedRates.length === 0">
+                  <td colspan="3" class="px-4 py-4 text-center text-gray-500">No rates saved.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="mt-6">
         <div class="bg-[#1C1F2E] p-6 rounded-xl border border-[#2A314A] mt-4">
           <h3 class="mb-3 font-semibold">Daily FX Profit (last 14 days)</h3>
@@ -82,7 +112,6 @@
           </div>
         </div>
       </div>
-    </div>
   </MainLayout>
 </template>
 
@@ -93,6 +122,8 @@ import api from '@/api';
 import VueApexCharts from 'vue3-apexcharts';
 
 const apexchart = VueApexCharts;
+
+const savedRates = ref([]);
 
 const metrics = ref({ 
   todayProfit: 0, todayProfitNgn: 0,
@@ -117,10 +148,12 @@ const formatCurrency = (val) => {
 
 const fetchMetrics = async () => {
   try {
-    const res = await api.get('/admin/fx-dashboard');
+    const res = await api.get('/admin/fx/dashboard');
     if (res.data && res.data.success) {
       metrics.value = res.data.data;
-      
+
+      savedRates.value = res.data.data.all_rates || [];
+
       // PREFILL THE FORM HERE
       form.value.base_rate = metrics.value.currentRate || 0;
       form.value.markup_percent = metrics.value.currentMarkup || 0;
@@ -185,6 +218,19 @@ async function submit() {
   } finally {
     loading.value = false;
     setTimeout(() => { message.value = '' }, 3000); 
+  }
+}
+async function deleteRate(id) {
+  if (!confirm('Are you sure you want to delete this exchange rate?')) return;
+  
+  try {
+    const res = await api.delete(`/admin/fx-rates/${id}`);
+    if (res.data.success) {
+      // Refresh list
+      fetchMetrics();
+    }
+  } catch (e) {
+    alert('Failed to delete rate');
   }
 }
 </script>

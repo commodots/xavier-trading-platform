@@ -11,7 +11,7 @@ class FxRateController extends Controller
 {
     public function store(Request $request)
     {
-        
+
         $user = auth()->user();
         $isAdmin = $user && (strtolower($user->role ?? '') === 'admin' || $user->hasRole('admin'));
 
@@ -39,6 +39,10 @@ class FxRateController extends Controller
                 'effective_rate' => $effectiveRate,
             ]);
 
+            $rate->base_rate = (float) $rate->base_rate;
+            $rate->effective_rate = (float) $rate->effective_rate;
+            $rate->markup_percent = (float) $rate->markup_percent;
+
             return response()->json(['success' => true, 'data' => $rate]);
         } catch (\Exception $e) {
             Log::error('Failed to store FX rate', ['error' => $e->getMessage()]);
@@ -46,4 +50,21 @@ class FxRateController extends Controller
             return response()->json(['error' => 'Unable to save FX rate'], 500);
         }
     }
+    public function destroy($id)
+{
+    $user = auth()->user();
+    // Check if admin
+    if (!$user || strtolower($user->role ?? '') !== 'admin') {
+        return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+    }
+
+    try {
+        $rate = FxRate::findOrFail($id);
+        $rate->delete();
+
+        return response()->json(['success' => true, 'message' => 'Rate deleted successfully']);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Failed to delete rate'], 500);
+    }
+}
 }

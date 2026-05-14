@@ -133,6 +133,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/market/crypto', [MarketController::class, 'crypto']);
     Route::get('/market/fixed-income', [MarketController::class, 'fixedIncome']);
     Route::get('/companies/search/{query}', [TradeController::class, 'searchSymbols']);
+    Route::get('/market/ngx/insights', [MarketController::class, 'getNGXInsights']);
+    Route::get('/market/global/insights', [MarketController::class, 'getGlobalInsights']);
 
     /* Verified Actions (Wallet, Portfolio, Trading) */
     // Accessible to all authenticated users (even email unverified)
@@ -281,6 +283,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/services/{serviceId}/toggle', [AdminServiceController::class, 'toggleService']);
         Route::get('/services/{serviceId}/config', [AdminServiceController::class, 'getConfig']);
         Route::post('/services/{serviceId}/config', [AdminServiceController::class, 'updateConfig']);
+
+        Route::delete('/fx-rates/{id}', [FxRateController::class, 'destroy']);
 
         // FX Reconciliation
         Route::prefix('fx')->group(function () {

@@ -56,6 +56,13 @@ class FxDashboardController extends Controller
             $series[] = isset($rows[$d]) ? (float) $rows[$d] : 0.0;
         }
 
+        $allRates = FxRate::orderBy('created_at', 'desc')->get();
+
+    // Get the latest for the summary cards
+    $latestFxRecord = $allRates->first(); 
+    $latestRate = $latestFxRecord ? $latestFxRecord->base_rate : 1500;
+    $latestMarkup = $latestFxRecord ? $latestFxRecord->markup_percent : 0;
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -74,6 +81,7 @@ class FxDashboardController extends Controller
                 'currentRate'      => $latestRate,
                 'currentMarkup'    => (float) $latestMarkup,
                 'daily'            => ['labels' => $labels, 'data' => $series],
+                'all_rates'        => $allRates
             ],
         ]);
     }

@@ -29,23 +29,24 @@
 
           <div v-if="currentView === 'user'">
 
-		  <!-- PRIMARY ACTIONS -->
-		  <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Trading</div>
-		  <SidebarLink to="/trading" :icon="ShoppingCart">Trading</SidebarLink>
-		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
+      <!-- OVERVIEW -->
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
+		  <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
+		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
 
+		  <!-- PRIMARY ACTIONS -->
+		  
 		  <!-- MARKET DATA -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Markets</div>
+		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Holdings</div>
 		  <SidebarLink to="/ngx" :icon="BarChart2">NGX</SidebarLink>
 		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
 		  <SidebarLink to="/crypto" :icon="Bitcoin">Crypto</SidebarLink>
 		  <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income</SidebarLink>
-		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
+		  
 
-		  <!-- OVERVIEW -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
-		  <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
-		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
+      <!--MARKET-->
+<div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
+		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
 
 		  <!-- ACCOUNT -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
@@ -54,20 +55,14 @@
 		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
 		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
 		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
+      
+<!--WATCHLIST-->
+      <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Watchlist</div>
+		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
 
 		  <!-- INSIGHTS -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
-		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>
-
-       <!-- CTA BUTTON -->
-		  <div class="px-3 mt-6">
-			<button
-			  @click="$router.push('/trading')"
-			  class="w-full py-3 rounded-xl bg-gradient-to-r from-[#C8A951] to-[#E6C97A] text-black font-semibold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-all duration-300"
-			>
-			  ⚡ Start Trade
-			</button>
-		  </div>
+		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>		  
 
 		</div>
 

@@ -92,4 +92,85 @@ class MarketController extends Controller
             'data' => $data,
         ]);
     }
+    public function getNGXInsights()
+    {
+        $baseStocks = [
+            ['symbol' => 'ZENITH', 'name' => 'Zenith Bank', 'price' => rand(4000, 6000) / 100],
+            ['symbol' => 'GTCO', 'name' => 'GTCO Holdings', 'price' => rand(3000, 5500) / 100],
+            ['symbol' => 'ACCESS', 'name' => 'Access Bank', 'price' => rand(3000, 5500) / 100],
+            ['symbol' => 'MTNN', 'name' => 'MTN Nigeria', 'price' => rand(22000, 25000) / 100],
+            ['symbol' => 'NB', 'name' => 'Nigerian Breweries', 'price' => rand(6500, 7500) / 100],
+        ];
+
+        return response()->json($this->processMockInsights($baseStocks));
+    }
+    public function getGlobalInsights()
+    {
+        // Define which symbols map to which category for insights
+        $tabs = [
+            'gainers'      => ['AAPL', 'MSFT', 'NVDA'],
+            'losers'       => ['TSLA', 'NFLX', 'META'],
+            'most_traded'  => ['AAPL', 'AMZN', 'GOOGL'],
+        ];
+
+        $marketService = app(\App\Services\MarketService::class);
+        $insights = [];
+
+        foreach ($tabs as $tabKey => $symbols) {
+            $insights[$tabKey] = collect($symbols)
+                ->map(function ($symbol) use ($marketService) {
+                    
+                    $quote = $marketService->quoteDetails($symbol);
+
+                    if (empty($quote) || empty($quote['symbol'])) {
+                        return null;
+                    }
+
+                    return [
+                        'symbol' => $quote['symbol'],
+                        'name'   => $quote['name'] ?? $symbol,
+                        'price'  => $quote['price'] ?? 0,
+                        'change' => $quote['change'] ?? 0,
+                        'volume' => $quote['volume'] ?? 0,
+                        'spark'  => $quote['spark'] ?? [] 
+                    ];
+                })
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        return response()->json($insights);
+    }
+    private function processMockInsights(array $stocks)
+    {
+        $hydrated = collect($stocks)->map(function ($stock) {
+            $change = rand(-500, 500) / 100; 
+            $currentPrice = $stock['price'];
+            
+            $spark = [
+                $currentPrice * (1 - ($change * 0.008)),
+                $currentPrice * (1 - ($change * 0.006)),
+                $currentPrice * (1 - ($change * 0.004)),
+                $currentPrice * (1 - ($change * 0.002)),
+                $currentPrice
+            ];
+
+            return [
+                'symbol' => $stock['symbol'],
+                'name'   => $stock['name'],
+                'price'  => $currentPrice,
+                'change' => $change,
+                'volume' => rand(100000, 2500000),
+                'spark'  => $spark
+            ];
+        });
+
+        // Split into tabs by sorting values randomly/mathematically for the mock layer
+        return [
+            'gainers'     => $hydrated->sortByDesc('change')->values()->all(),
+            'losers'      => $hydrated->sortBy('change')->values()->all(),
+            'most_traded' => $hydrated->sortByDesc('volume')->values()->all(),
+        ];
+    }
 }

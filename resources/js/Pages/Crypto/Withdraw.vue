@@ -3,11 +3,11 @@
     <div class="max-w-2xl mx-auto space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       <!-- Header -->
-       <button @click="router.push('/trading')" class="flex items-center text-gray-400 hover:text-white transition group">
+       <button @click="goBack" class="flex items-center text-gray-400 hover:text-white transition group">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
-        Back to Trading
+        Back to Market
       </button>
 
       <div class="flex justify-between items-center">
@@ -116,10 +116,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue'
 import api from '@/api'
+const route = useRoute()
 
 const getUser = () => JSON.parse(localStorage.getItem('user') || '{}');
 const user = ref(getUser());
@@ -137,6 +138,14 @@ const errorMessage = ref('')
 const successMessage = ref('')
 
 const router = useRouter()
+
+const goBack = () => {
+  if (route.query.from === 'trading') {
+    router.push({ path: '/market/crypto', query: { view: 'trading' } });
+  } else {
+    router.push('/market/crypto');
+  }
+};
 
 const loadBalance = async () => {
   try {
