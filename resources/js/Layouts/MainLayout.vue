@@ -142,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/api";
 import {
@@ -172,8 +172,10 @@ const getUser = () => {
 const user = ref(getUser());
 
 const isAdmin = computed(() => {
-  return user.value?.role === "admin" ||
-    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
+  const role = (user.value?.role || '').toLowerCase();
+  return role === "admin" ||
+    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin')) ||
+    user.value?.permissions?.manage_system_settings === true;
 });
 
 const userPermissions = ref(user.value?.permissions || []);
@@ -219,24 +221,15 @@ onMounted(fetchPermissions);
 // Logic: Check if user has ANY staff/admin roles
 const hasStaffAccess = computed(() => {
   if (!user.value) return false;
-
-  
+  const role = (user.value.role || '').toLowerCase();
   const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
-  const roleString = typeof user.value.role === 'string' ? user.value.role.toLowerCase() : '';
-  const hasRole = staffRoles.includes(roleString);
-
   
-  const adminPermissions = [
-    'manage_system_settings',
-    'manage_services',
-    'manage_kyc_settings',
-    'manage_transaction_charges'
-  ];
-  
-  const hasAdminPermission = user.value.permissions && 
-    adminPermissions.some(p => user.value.permissions[p] === true);
+  const hasPermission = user.value.permissions && typeof user.value.permissions === 'object' 
+    ? Object.values(user.value.permissions).some(v => v === true) 
+    : false;
 
-  return hasRole || hasAdminPermission;
+  return staffRoles.includes(role) || hasPermission ||
+    (user.value.roles?.some(r => staffRoles.includes((typeof r === 'string' ? r : r.name)?.toLowerCase())));
 });
 
 // INITIALIZATION LOGIC FOR BUG FIX
@@ -244,32 +237,20 @@ const getInitialView = () => {
   // 1. If user previously selected a view in this session, keep it
   const saved = localStorage.getItem("active_view");
   if (saved) return saved;
-
-  if (hasStaffAccess.value) {
-    // 2. If specifically 'admin', land on staff dashboard
-    if (user.value?.role?.toLowerCase() === 'admin') {
-      return 'staff';
-    }
-    // 3. If Manager/Staff/Others, land on user dashboard first
-    return 'user';
-  }
-
-  // 4. Pure users
-  return 'user';
+  // Default to staff mode if they have access, otherwise user mode
+  return hasStaffAccess.value ? 'staff' : 'user';
 };
 
 const currentView = ref(getInitialView());
 
-const toggleAccountMode = () => {
-  currentView.value = currentView.value === 'user' ? 'staff' : 'user';
+// Synchronize currentView with route changes to ensure sidebar and dashboard match
+watch(() => route.path, (path) => {
+  currentView.value = path.startsWith('/admin') ? 'staff' : 'user';
   localStorage.setItem("active_view", currentView.value);
+}, { immediate: true });
 
-  // Redirect to relevant dashboard after toggle
-  if (currentView.value === 'staff') {
-    router.push("/admin");
-  } else {
-    router.push("/dashboard");
-  }
+const toggleAccountMode = () => {
+  router.push(currentView.value === 'user' ? '/admin' : '/dashboard');
 };
 
 const logout = async () => {

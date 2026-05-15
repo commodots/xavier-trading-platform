@@ -23,7 +23,7 @@
       <div class="space-y-6">
         <div v-if="activeView === 'holdings'" class="space-y-6">
           <HoldingPerformanceChart 
-            title="Your Crypto Holdings" 
+            title="My Crypto Holdings" 
             currencySymbol="$" 
             :seriesData="portfolioData"
             :totalValue="totalValue" 
@@ -44,7 +44,7 @@
                     <th class="px-6 py-4 font-medium text-left">Symbol</th>
                     <th class="font-medium text-left">Asset</th>
                     <th class="font-medium text-right">Price</th>
-                    <th class="font-medium text-right">Balance</th>
+                    <th class="font-medium text-right">Quantity</th>
                     <th class="font-medium text-right">Value (USD)</th>
                     <th class="px-6 font-medium text-right">Trend</th>
                     <th class="px-6 font-medium text-center">Action</th>

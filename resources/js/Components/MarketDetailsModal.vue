@@ -180,9 +180,9 @@ const fetchLiveData = async () => {
   }
 
   try {
-    const res = await api.get(`/dummy/ngx/market/${props.item.symbol}`);
-    if (res.data) {
-      const newPrice = res.data.bid;
+    const res = await api.get(`/trade/quote/${props.item.symbol}`);
+    if (res.data?.success) {
+      const newPrice = res.data.price || res.data.bid;
       const currentTime = new Date();
 
       if (props.item) {

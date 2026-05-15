@@ -103,7 +103,10 @@
             <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden w-full">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
                 <div>
-                  <h2 class="font-semibold text-gray-200">My Holdings</h2>
+                  <h2 class="font-semibold text-gray-200 mb-0.5">My Holdings</h2>
+                  <p class="text-[10px] text-gray-400 uppercase tracking-tighter">
+                    Orders marked <span class="text-yellow-500 font-bold">Pending</span> are awaiting execution or settlement.
+                  </p>
                 </div>
                 <span class="text-xs text-gray-500">{{ showSearchResults ? searchResults.length : userHoldings.length }}
                   Assets</span>
@@ -161,32 +164,35 @@
                       <tr>
                         <th class="px-6 py-4 font-medium text-left">Symbol</th>
                         <th class="font-medium text-left">Company</th>
-                        <th class="font-medium text-right">Quantity</th>
-                        <th class="font-medium text-right">Price ($)</th>
-                        <th class="font-medium text-right">Value ($)</th>
-                        <th class="font-medium text-right">24h Change</th>
-                        <th class="text-right fonts-medium">Volume</th>
-                        <th class="px-6 font-medium text-right">Trend</th>
+                        <th class="font-medium text-right">Qty</th>
+                        <th class="font-medium text-right">Avg. Cost</th>
+                        <th class="font-medium text-right">Live Price</th>
+                        <th class="font-medium text-right">Total Value</th>
+                        <th class="font-medium text-right">P&L %</th>
                         <th class="font-medium text-center" colspan="2">Action</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-[#1f3348]">
                       <tr v-for="holding in userHoldings" :key="holding.symbol" class="hover:bg-[#16213A] transition">
-                        <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ holding.symbol }}</td>
+                        <td class="px-6 py-5 font-bold text-[#00D4FF]">{{ holding.symbol }}</td>
                         <td class="text-gray-300">{{ holding.name }}</td>
                         <td class="text-right text-gray-300">{{ holding.quantity }}</td>
+                        <td class="font-mono text-right text-gray-400">
+                          ${{ Number(holding.entry_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                        </td>
                         <td class="font-mono font-semibold text-right text-white">${{ holding.price ?
                           holding.price.toFixed(2) :
                           '0.00' }}</td>
-                        <td class="text-right" :class="holding.change >= 0 ? 'text-green-400' : 'text-red-400'">
-                          {{ holding.change >= 0 ? '+' : '' }}{{ holding.change || 0 }}%
+                        <td class="font-mono text-right text-white">
+                          ${{ (holding.quantity * (holding.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
                         </td>
-                        <td class="text-right text-gray-300">{{ holding.volume ? holding.volume.toLocaleString() : '0'
-                          }}</td>
-                        <td class="w-32 px-6 text-right">
-                          <apexchart type="line" height="30"
-                            :options="{ ...sparkOptions, colors: [holding.change >= 0 ? '#10B981' : '#EF4444'] }"
-                            :series="[{ data: holding.spark || [] }]" />
+                        <td class="text-right" :class="holding.change >= 0 ? 'text-green-400' : 'text-red-400'">
+                          <div class="flex flex-col items-end">
+                            <span v-if="holding.status === 'open'" class="text-[10px] uppercase font-bold text-yellow-500 mb-0.5">Settlement Pending</span>
+                            <span>
+                              {{ holding.change >= 0 ? '+' : '' }}{{ Number(holding.change || 0).toFixed(2) }}%
+                            </span>
+                          </div>
                         </td>
                         <td class="px-2 text-center">
                           <button @click="openDetails(holding)"
@@ -195,7 +201,12 @@
                           </button>
                         </td>
                         <td class="px-2 text-center">
-                          <button @click="openTrade(holding)"
+                          <button v-if="holding.status === 'open'" @click="cancelOrder(holding.id)"
+                            :disabled="cancellingId === holding.id"
+                            class="bg-red-500/10 text-red-500 px-4 py-1.5 rounded-md font-bold hover:bg-red-500 hover:text-white transition text-xs border border-red-500/20 disabled:opacity-50">
+                            {{ cancellingId === holding.id ? '...' : 'Cancel' }}
+                          </button>
+                          <button v-else @click="openTrade(holding)"
                             class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
                             Buy
                           </button>
@@ -206,10 +217,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Open Positions / Orders Monitor -->
-            <PositionsMonitor category="GLOBAL" />
-
           </div>
           <div v-else class="space-y-4">
             <div class="flex items-center gap-3">
@@ -235,15 +242,33 @@
       v-if="showTradeModal && selectedTradeStock" 
         :initialSymbol="selectedTradeStock.symbol"
         @close="showTradeModal = false"
-        @order-placed="() => { showTradeModal = false; fetchHoldings(); fetchPortfolioPerformance(); fetchWalletBalances(); }" />
+        @order-placed="handleOrderPlaced" />
      
+      <!-- Order Success Modal -->
+      <div v-if="showOrderSuccessModal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="bg-[#0F1724] border border-[#1f3348] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in duration-300">
+          <div class="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2">Order Placed!</h3>
+          <p class="text-gray-400 mb-8">
+            Your order for <span class="text-[#00D4FF] font-bold">{{ orderSuccessData?.symbol }}</span> has been submitted successfully.
+          </p>
+          <button @click="showOrderSuccessModal = false" class="w-full bg-[#00D4FF] text-[#0F1724] py-3 rounded-xl font-black uppercase tracking-wider hover:bg-[#00b8e6] transition-all">
+            Done
+          </button>
+        </div>
+      </div>
+
     </div>
  
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import apexchart from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
@@ -546,6 +571,25 @@ const openDetails = (item) => {
   isModalOpen.value = true;
   selectedMarketSymbol.value = item.symbol;
 };
+
+const cancellingId = ref(null);
+const cancelOrder = async (id) => {
+  if (!confirm("Are you sure you want to cancel this order?")) return;
+  cancellingId.value = id;
+  try {
+    await api.post(`/orders/${id}/cancel`);
+    await fetchHoldings();
+    await fetchWalletBalances();
+  } catch (error) {
+    console.error('Failed to cancel order', error);
+  } finally {
+    cancellingId.value = null;
+  }
+};
+
+const orderSuccessData = ref(null);
+const showOrderSuccessModal = ref(false);
+
 const openTrade = (stock) => {
   if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
@@ -553,6 +597,18 @@ const openTrade = (stock) => {
     return;
   }
   selectedTradeStock.value = { ...stock, currency: 'USD' }; showTradeModal.value = true;
+};
+
+const handleOrderPlaced = (order) => {
+  showTradeModal.value = false;
+  orderSuccessData.value = order;
+  showOrderSuccessModal.value = true;
+  
+  nextTick(() => {
+    fetchHoldings();
+    fetchPortfolioPerformance();
+    fetchWalletBalances();
+  });
 };
 
 const fetchPortfolioPerformance = async (range = '1W') => {
@@ -578,35 +634,68 @@ const fetchWalletBalances = async () => {
 const fetchHoldings = async () => {
   holdingsLoading.value = true;
   try {
-    const response = await api.get('/portfolio');
-    const data = response.data.data || response.data;
-    const holdingsData = data.holdings || [];
+    const [portfolioRes, positionsRes] = await Promise.allSettled([
+      api.get('/portfolio'),
+      api.get('/trade/positions', { params: { category: 'GLOBAL' } })
+    ]);
 
-    // Filter global holdings
-    const globalHoldings = holdingsData.filter(h => ['GLOBAL', 'STOCKS', 'FOREIGN'].includes(h.category ? h.category.toUpperCase() : ''));
+    let mergedItems = [];
 
-    // Fetch live quotes for holdings in parallel
-    if (globalHoldings.length > 0) {
-      const symbols = globalHoldings.map(h => h.symbol).join(',');
+    if (portfolioRes.status === 'fulfilled') {
+      const data = portfolioRes.value.data.data || portfolioRes.value.data;
+      const holdingsData = data.holdings || [];
+      const globalHoldings = holdingsData
+        .filter(h => ['GLOBAL', 'STOCKS', 'FOREIGN'].includes(h.category ? h.category.toUpperCase() : ''))
+        .map(h => ({
+          ...h,
+          entry_price: h.avg_price || 0,
+          price: h.price || h.current_price || 0,
+          status: 'filled'
+        }));
+      mergedItems = [...globalHoldings];
+    }
+
+    if (positionsRes.status === 'fulfilled') {
+      const positionsData = positionsRes.value.data.data || positionsRes.value.data;
+      const pendingOrders = positionsData.filter(p => p.position_type === 'order' && p.status === 'open')
+        .map(p => ({
+          ...p,
+          entry_price: p.entry_price || 0,
+          price: p.market_price || 0
+        }));
+      mergedItems = [...mergedItems, ...pendingOrders];
+    }
+
+    if (mergedItems.length > 0) {
+      const symbols = [...new Set(mergedItems.map(m => m.symbol))].join(',');
       try {
         const quotesResponse = await api.get('/market/quotes', { params: { symbols } });
         const quotes = quotesResponse.data.data || [];
         const quotesMap = quotes.reduce((map, q) => {
-          map[q.symbol] = q;
-          return map;
+          map[q.symbol] = q; return map;
         }, {});
 
-        // Merge holdings with live quotes
-        holdings.value = globalHoldings.map(h => ({
-          ...h,
-          price: quotesMap[h.symbol] ? quotesMap[h.symbol].price : 0,
-          change: quotesMap[h.symbol] ? quotesMap[h.symbol].change : 0,
-          volume: quotesMap[h.symbol] ? quotesMap[h.symbol].volume : 0,
-          spark: quotesMap[h.symbol] ? quotesMap[h.symbol].spark : []
-        }));
+        holdings.value = mergedItems.map(m => {
+          const quote = quotesMap[m.symbol];
+          const marketPrice = (quote && quote.price) ? quote.price : m.price;
+          const entryPrice = m.entry_price || 0;
+          
+          let plPercent = m.unrealized_pl_percent;
+          if (entryPrice > 0 && plPercent === undefined) {
+            plPercent = ((Number(marketPrice) - Number(entryPrice)) / Number(entryPrice)) * 100;
+          }
+
+          return {
+            ...m,
+            price: Number(marketPrice),
+            change: plPercent !== undefined ? Number(plPercent) : (quote ? Number(quote.change) : 0),
+            volume: quote ? quote.volume : (m.volume || 0),
+            spark: quote ? quote.spark : (m.spark || [])
+          };
+        });
       } catch (quoteError) {
         console.error('Failed to fetch holdings quotes', quoteError);
-        holdings.value = globalHoldings;
+        holdings.value = mergedItems;
       }
     } else {
       holdings.value = [];
@@ -625,75 +714,14 @@ const initDashboard = async () => {
   holdingsLoading.value = true;
 
   try {
-    // Make parallel API calls for faster loading
-    const [portfolioResponse, walletResponse, performanceResponse] = await Promise.allSettled([
-      api.get('/portfolio'),
-      api.get('/wallet/balances'),
-      api.get('/portfolio/history', { params: { category: 'foreign', range: '1W' } })
-    ]);
-
-    // Process portfolio/holdings data
-    if (portfolioResponse.status === 'fulfilled') {
-      const data = portfolioResponse.value.data.data || portfolioResponse.value.data;
-      const holdingsData = data.holdings || [];
-      const globalHoldings = holdingsData.filter(h => ['GLOBAL', 'STOCKS', 'FOREIGN'].includes(h.category ? h.category.toUpperCase() : ''));
-
-      // Fetch quotes for holdings in parallel
-      if (globalHoldings.length > 0) {
-        try {
-          const symbols = globalHoldings.map(h => h.symbol).join(',');
-          const quotesResponse = await api.get('/market/quotes', { params: { symbols } });
-          const quotes = quotesResponse.data.data || [];
-          const quotesMap = quotes.reduce((map, q) => {
-            map[q.symbol] = q;
-            return map;
-          }, {});
-
-          holdings.value = globalHoldings.map(h => ({
-            ...h,
-            price: quotesMap[h.symbol] ? quotesMap[h.symbol].price : 0,
-            change: quotesMap[h.symbol] ? quotesMap[h.symbol].change : 0,
-            volume: quotesMap[h.symbol] ? quotesMap[h.symbol].volume : 0,
-            spark: quotesMap[h.symbol] ? quotesMap[h.symbol].spark : []
-          }));
-        } catch (quoteError) {
-          console.error('Failed to fetch holdings quotes', quoteError);
-          holdings.value = globalHoldings;
-        }
-      } else {
-        holdings.value = [];
-      }
-    } else {
-      console.error('Failed to fetch portfolio', portfolioResponse.reason);
-      holdings.value = [];
-    }
-
-    // Process wallet data
-    if (walletResponse.status === 'fulfilled') {
-      walletBalances.value = walletResponse.value.data.data;
-    } else {
-      console.error('Failed to fetch wallet balances', walletResponse.reason);
-    }
-
-    // Process performance data
-    if (performanceResponse.status === 'fulfilled') {
-      portfolioData.value = performanceResponse.value.data.series;
-      totalValue.value = performanceResponse.value.data.total;
-      changePercent.value = performanceResponse.value.data.change;
-    } else {
-      console.error('Failed to fetch performance', performanceResponse.reason);
-    }
-
-    fetchMarketInsights();
-  } catch (e) {
-    console.error('Dashboard init failed, falling back to individual calls', e);
-    // Fallback to individual calls if parallel calls fail
-    await Promise.all([
-      fetchPortfolioPerformance(),
+    await Promise.allSettled([
       fetchHoldings(),
       fetchWalletBalances(),
+      fetchPortfolioPerformance(),
       fetchMarketInsights()
     ]);
+  } catch (e) {
+    console.error('Dashboard init failed', e);
   } finally {
     isGraphLoading.value = false;
     holdingsLoading.value = false;

@@ -33,10 +33,6 @@ class ProfileController extends Controller
         $user->kyc->currency = $user->kyc->currency ?? $baseCurrency;
     }
 
-        // Get the primary role (prefer non-admin roles for staff)
-    $roleNames = $user->getRoleNames();
-    $displayRole = $roleNames->first() ?? 'user';
-
     // Attach permissions for EVERYONE (Admins get all true, Staff get calculated)
     $permissions = [];
     $isSystemAdmin = $user->hasRole('admin');
@@ -45,11 +41,22 @@ class ProfileController extends Controller
         // If admin, they get 'true' for everything automatically
         $permissions[$cap] = $isSystemAdmin ? true : StaffPermissionService::roleHasCapability($user, $cap);
     }
+
+    // Determine the primary display role
+    $roleNames = $user->getRoleNames();
+    $displayRole = $roleNames->first();
+
+    // If no explicit role is assigned but they have permissions, label accordingly for UI logic
+    if (!$displayRole) {
+        $displayRole = ($permissions['manage_system_settings'] ?? false) ? 'admin' : 
+                       (collect($permissions)->contains(true) ? 'staff' : 'user');
+    }
+
     $user->permissions = $permissions;
 
     return response()->json([
         'success' => true,
-'data' => array_merge($user->toArray(), ['role' => $displayRole])
+        'data' => array_merge($user->toArray(), ['role' => $displayRole])
     ]);
 }
     public function update(Request $r)
