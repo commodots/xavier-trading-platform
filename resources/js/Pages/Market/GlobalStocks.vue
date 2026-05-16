@@ -64,7 +64,7 @@
               Market Insights
             </button>
             <button @click="openTrade(stocks[0])"
-              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md text-gray-500 hover:text-gray-300">
+              class="px-4 py-2 text-xs font-bold text-gray-500 uppercase transition-all rounded-md hover:text-gray-300">
               Buy / Sell
             </button>
           </div>
@@ -103,9 +103,9 @@
             <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden w-full">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
                 <div>
-                  <h2 class="font-semibold text-gray-200 mb-0.5">My Holdings</h2>
+                  <h2 class="font-semibold in the comtext-gray-200 mb-0.5">My Holdings</h2>
                   <p class="text-[10px] text-gray-400 uppercase tracking-tighter">
-                    Orders marked <span class="text-yellow-500 font-bold">Pending</span> are awaiting execution or settlement.
+                    Orders marked <span class="font-bold text-yellow-500">Pending</span> are awaiting execution or settlement.
                   </p>
                 </div>
                 <span class="text-xs text-gray-500">{{ showSearchResults ? searchResults.length : userHoldings.length }}
@@ -175,7 +175,7 @@
                     <tbody class="divide-y divide-[#1f3348]">
                       <tr v-for="holding in userHoldings" :key="holding.symbol" class="hover:bg-[#16213A] transition">
                         <td class="px-6 py-5 font-bold text-[#00D4FF]">{{ holding.symbol }}</td>
-                        <td class="text-gray-300">{{ holding.name }}</td>
+                        <td class="text-gray-300 uppercase">{{ holding.name }}</td>
                         <td class="text-right text-gray-300">{{ holding.quantity }}</td>
                         <td class="font-mono text-right text-gray-400">
                           ${{ Number(holding.entry_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
@@ -247,13 +247,13 @@
       <!-- Order Success Modal -->
       <div v-if="showOrderSuccessModal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in duration-300">
-          <div class="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div class="flex items-center justify-center w-20 h-20 mx-auto mb-6 text-green-500 rounded-full bg-green-500/20">
             <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-white mb-2">Order Placed!</h3>
-          <p class="text-gray-400 mb-8">
+          <h3 class="mb-2 text-xl font-bold text-white">Order Placed!</h3>
+          <p class="mb-8 text-gray-400">
             Your order for <span class="text-[#00D4FF] font-bold">{{ orderSuccessData?.symbol }}</span> has been submitted successfully.
           </p>
           <button @click="showOrderSuccessModal = false" class="w-full bg-[#00D4FF] text-[#0F1724] py-3 rounded-xl font-black uppercase tracking-wider hover:bg-[#00b8e6] transition-all">
@@ -678,6 +678,7 @@ const fetchHoldings = async () => {
         holdings.value = mergedItems.map(m => {
           const quote = quotesMap[m.symbol];
           const marketPrice = (quote && quote.price) ? quote.price : m.price;
+          const companyName = m.name || (quote ? quote.name : m.symbol);
           const entryPrice = m.entry_price || 0;
           
           let plPercent = m.unrealized_pl_percent;
@@ -687,6 +688,7 @@ const fetchHoldings = async () => {
 
           return {
             ...m,
+            name: companyName,
             price: Number(marketPrice),
             change: plPercent !== undefined ? Number(plPercent) : (quote ? Number(quote.change) : 0),
             volume: quote ? quote.volume : (m.volume || 0),

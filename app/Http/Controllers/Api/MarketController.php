@@ -105,7 +105,7 @@ class MarketController extends Controller
             ['symbol' => 'NB', 'name' => 'Nigerian Breweries', 'price' => rand(6500, 7500) / 100],
         ];
 
-        return response()->json($this->processMockInsights($baseStocks));
+        return response()->json(['success' => true, 'data' => $this->processMockInsights($baseStocks)]);
     }
     public function getGlobalInsights()
     {
@@ -143,7 +143,7 @@ class MarketController extends Controller
                 ->all();
         }
 
-        return response()->json($insights);
+        return response()->json(['success' => true, 'data' => $insights]);
     }
     private function processMockInsights(array $stocks)
     {
@@ -174,6 +174,7 @@ class MarketController extends Controller
             'gainers'     => $hydrated->sortByDesc('change')->values()->all(),
             'losers'      => $hydrated->sortBy('change')->values()->all(),
             'most_traded' => $hydrated->sortByDesc('volume')->values()->all(),
+            'least_traded' => $hydrated->sortBy('volume')->values()->all(),
         ];
     }
 }

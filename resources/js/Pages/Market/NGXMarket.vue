@@ -142,7 +142,7 @@ const fetchMarketInsights = async (silent = false) => {
       ngxMarketInsights.value = response.data;
     }
   } catch (error) {
-    console.error('Market Insights fetch failed:', error);
+    console.error('Insights fetch failed:', error);
   } finally {
     isInsightsLoading.value = false;
   }

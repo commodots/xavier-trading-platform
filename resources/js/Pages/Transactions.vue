@@ -1,13 +1,29 @@
 <template>
   <MainLayout>
-    <div>
-      <div class="flex items-center justify-between mb-6">
+    <div class="space-y-6">
+      <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 class="text-2xl font-semibold">🔁 Transactions</h1>
           <p class="text-sm text-gray-400">Track all your wallet and trading activities.</p>
         </div>
+
+        <!-- View Toggle Buttons -->
+        <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg">
+          <button @click="activeView = 'history'"
+            class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+            :class="activeView === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
+            Transactions History
+          </button>
+
+          <button @click="activeView = 'orders'"
+            class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+            :class="activeView === 'orders' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
+            Orders Transactions
+          </button>
+        </div>
       </div>
 
+      <div v-if="activeView === 'history'" class="space-y-6">
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 mb-6">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div>
@@ -137,6 +153,11 @@
           </button>
         </div>
       </div>
+      </div>
+
+      <div v-else>
+        <Orders />
+      </div>
     </div>
 
     <TransactionDetailsModal 
@@ -150,9 +171,11 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import api from "@/api";
+import Orders from "@/Pages/Orders.vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 
+const activeView = ref('history');
 const filters = ref({ type: "", status: "", from: "", to: "" });
 const currentPage = ref(1);
 const perPage = 8;

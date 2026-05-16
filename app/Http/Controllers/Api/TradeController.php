@@ -828,10 +828,13 @@ class TradeController extends Controller
             'change' => (float) ($s->change ?? 0),
         ];
 
-        return response()->json([
+        $data = [
             'gainers' => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
             'losers' => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
             'most_traded' => (clone $baseQuery)->orderByDesc('volume')->limit(5)->get()->map($mapData),
-        ]);
+            'least_traded' => (clone $baseQuery)->orderBy('volume')->limit(5)->get()->map($mapData),
+        ];
+
+        return response()->json(['success' => true, 'data' => $data]);
     }
 }

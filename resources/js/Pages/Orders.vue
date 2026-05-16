@@ -1,12 +1,8 @@
 <template>
-  <MainLayout>
     <div class="space-y-8">
-      <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+      <div v-if="!isComponent" class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 class="text-2xl font-semibold">
-            <span v-if="isDemo" class="mr-2 font-bold text-yellow-500">DEMO</span>
-            📑 My Orders
-          </h1>
+        
           <p class="text-sm text-gray-400">
             {{ isDemo ? 'View and manage your simulated paper trades.' : 'View and manage all your investment orders.'
             }}
@@ -195,7 +191,6 @@
 
     <TradeModal :show="showTradeModal" :tickers="tickersData" :assetCategories="categoriesData"
       @close="showTradeModal = false" @trade-success="handleTradeSuccess" />
-  </MainLayout>
 </template>
 
 <script setup>
