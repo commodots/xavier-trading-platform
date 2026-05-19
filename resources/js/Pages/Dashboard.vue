@@ -2,6 +2,29 @@
   <MainLayout :isDemo="isDemo">
     <div class="space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
+
+      <!-- Subscription & Debt Banner -->
+      <div v-if="user.on_trial || user.wallet_debt > 0" 
+        class="flex flex-col md:flex-row items-center justify-between p-4 rounded-xl border bg-blue-600/10 border-blue-500/20 animate-fade-in">
+        <div class="flex items-center gap-3 mb-3 md:mb-0">
+          <div class="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-white">{{ user.on_trial ? 'Trial Active' : 'Account Balance' }}</p>
+            <p class="text-xs text-gray-400">
+              {{ user.on_trial ? `Your free trial ends in ${daysUntil(user.trial_expires_at)} days.` : '' }}
+              <span v-if="user.wallet_debt > 0" class="text-red-400 font-bold">Outstanding Debt: ₦{{ user.wallet_debt.toLocaleString() }}</span>
+            </p>
+          </div>
+        </div>
+        <button @click="$router.push({ name: 'wallet' })" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">
+          {{ user.wallet_debt > 0 ? 'Clear Debt' : 'View Plans' }}
+        </button>
+      </div>
+
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-semibold">Hi, {{ userName }}</h1>
@@ -20,7 +43,7 @@
             <div class="text-xs text-gray-400 transition-all">
               <span v-if="isDemo" class="mr-1 font-bold text-yellow-500">DEMO</span> Wallet Balance
             </div>
-            <div class="text-lg font-semibold transition-all duration-300"
+            <div class="text-2xl font-black transition-all duration-300"
               :class="[isDemo ? 'text-yellow-400' : 'text-white', loading ? 'blur-sm animate-pulse opacity-50' : '']">
               ₦{{ walletBalance.toLocaleString() }}
             </div>
@@ -301,6 +324,12 @@ const formatDate = (dateStr) => {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const daysUntil = (dateStr) => {
+  if (!dateStr) return 0;
+  const diff = new Date(dateStr) - new Date();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 };
 
 function generateTrend(currentValue) {

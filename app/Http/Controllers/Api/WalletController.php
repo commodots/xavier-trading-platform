@@ -109,6 +109,7 @@ class WalletController extends Controller
                 ->first();
 
             $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
             $walletBefore = $wallet ? $wallet->{$clearedCol} : 0;
 
             if (! $wallet || $walletBefore < $request->amount) {
@@ -125,7 +126,8 @@ class WalletController extends Controller
 
             $wallet->decrement($clearedCol, $request->amount);
             $wallet->decrement('balance', $request->amount);
-            $wallet->refresh(); // Refresh to get the latest values after decrement
+            $wallet->fresh(); 
+            
             $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
             $wallet->refresh();
 

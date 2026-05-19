@@ -8,40 +8,44 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckAdvisoryAccess
 {
-    public function handle(Request $request, Closure $next, string $requiredTier = 'regular'): Response
+    /**
+     * Handle an incoming request.
+     * 
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @param  string  $requiredTier  // Catches 'regular' or 'premium' from the route definition
+     */
+    public function handle(Request $request, Closure $next, string $requiredTier): Response
     {
         $user = $request->user();
 
+        // 1. Ensure user is authenticated
         if (!$user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return response()->json([
+                'success' => false,
+                'error' => 'Authentication required.'
+            ], 401);
         }
- 
-        // Admins always get through
-        if ($user->hasRole('admin')) {
-            return $next($request);
-        }
- 
-        // Basic check: Does the user have any active subscription or trial?
-        // The hasActiveSubscription() method on the User model already includes trials.
+
+        // 2. Validate subscription base layer status
         if (!$user->hasActiveSubscription()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Access denied. Please start a trial or subscribe.',
+                'error' => 'An active subscription is required to view advisory data.',
+                'code' => 'SUBSCRIPTION_REQUIRED'
             ], 403);
         }
- 
-        // Tier check: Does the user's current tier meet the required tier for the route?
-        if ($requiredTier === 'premium') {
-            // The `current_tier` accessor on the User model handles all the logic.
-            $userTier = $user->current_tier;
- 
-                        if ($userTier !== 'premium') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This feature requires a VIP subscription.',
-                ], 403);
-            }
+
+        // 3. Resolve Tier Logic
+        // If the route strictly demands premium tier, evaluate against user's dynamic tier attribute
+        if ($requiredTier === 'premium' && $user->current_tier !== 'premium') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Premium Advisory subscription tier required to access this feature.',
+                'code' => 'PREMIUM_TIER_REQUIRED'
+            ], 403);
         }
+
         return $next($request);
     }
 }

@@ -55,7 +55,14 @@
           </button>
           <div class="relative p-8 overflow-y-auto">
             <span class="block mb-2 text-xs font-bold tracking-wider text-blue-600 uppercase">{{ activePost.market_type
-            }}</span>
+              }}</span>
+            <div v-if="activePost.recommendation" class="mb-4">
+              <span :class="[
+                'px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest',
+                activePost.recommendation === 'BUY' ? 'bg-green-500/20 text-green-400' :
+                  activePost.recommendation === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'
+              ]">{{ activePost.recommendation }}</span>
+            </div>
             <h2 class="mb-4 text-3xl font-bold text-gray-900">{{ activePost.title }}</h2>
             <div
               :class="['text-gray-700 leading-relaxed text-lg', !(user.has_active_subscription || user.on_trial) ? 'max-h-48 overflow-hidden relative' : '']">
@@ -234,7 +241,16 @@
                     </div>
                     <div v-for="post in regularPosts" :key="post.id" @click="openPost(post)"
                       class="p-4 transition border border-gray-800 rounded-lg cursor-pointer hover:bg-gray-800/50">
-                      <h3 class="font-bold text-white">{{ post.title }}</h3>
+                      <div class="flex items-center justify-between mb-1">
+                        <h3 class="font-bold text-white">{{ post.title }}</h3>
+                        <span v-if="post.recommendation" :class="[
+                          'text-[10px] font-black px-2 py-0.5 rounded uppercase',
+                          post.recommendation === 'BUY' ? 'text-green-400' :
+                            post.recommendation === 'SELL' ? 'text-red-400' : 'text-gray-400'
+                        ]">
+                          {{ post.recommendation }}
+                        </span>
+                      </div>
                       <p class="text-sm text-gray-400 line-clamp-2">{{ post.content }}</p>
                     </div>
                   </div>
@@ -253,7 +269,14 @@
                               <div class="flex items-center gap-2 mb-1">
                                 <span
                                   class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded font-black uppercase">Premium</span>
-                                <h3 class="font-bold text-white">{{ post.title }}</h3>
+                                <h3 class="flex-1 font-bold text-white">{{ post.title }}</h3>
+                                <span v-if="post.recommendation" :class="[
+                                  'text-[10px] font-black px-2 py-0.5 rounded uppercase',
+                                  post.recommendation === 'BUY' ? 'bg-green-500/20 text-green-400' :
+                                    post.recommendation === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'
+                                ]">
+                                  {{ post.recommendation }}
+                                </span>
                               </div>
                               <p class="text-sm text-gray-400 line-clamp-2">{{ post.content }}</p>
                             </div>
@@ -380,7 +403,7 @@
                 </div>
                 <h3 class="mb-2 text-2xl font-bold text-white">Premium Trial Access</h3>
                 <p class="mb-8 text-sm text-gray-400">Get a taste of premium picks and market insights for {{ trialDays
-                }} days.
+                  }} days.
                 </p>
                 <button @click="startTrial('premium')" :disabled="isActivatingTrial || user.has_used_premium"
                   class="w-full py-4 mt-auto font-bold text-white transition-colors bg-amber-600 rounded-xl hover:bg-amber-500 disabled:opacity-50">
@@ -464,20 +487,20 @@ const showPricingModal = ref(false);
 const showPrompt = ref(false);
 
 const isAdminUser = (u) => {
-    if (!u) return false;
-    const role = (u.role || '').toString().toLowerCase();
-    return role.includes('admin');
+  if (!u) return false;
+  const role = (u.role || '').toString().toLowerCase();
+  return role.includes('admin');
 };
 
 const isUserVerified = computed(() => {
-    const u = user.value || {};
-    return Boolean(u.email_verified_at) || isAdminUser(u);
+  const u = user.value || {};
+  return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
 // --- TRIAL LOGIC ---
 const startTrial = async (tier = 'regular') => {
   if (!isUserVerified.value && !isDemo.value) return (showPrompt.value = true);
-  
+
   // Map 'vip' to 'premium' for the API call to match backend/database expectations
   const apiTier = tier === 'vip' ? 'premium' : tier;
 
@@ -657,7 +680,7 @@ const handlePaymentVerification = async (reference, planId) => {
 
 const subscribe = async (planId) => {
   if (!isUserVerified.value && !isDemo.value) return (showPrompt.value = true);
-  
+
   processingPlanId.value = planId;
   try {
     const res = await api.post('/user/advisory/subscribe', { plan_id: planId });

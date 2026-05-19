@@ -19,7 +19,7 @@
               + Deposit
             </button>
             <button @click="openTransaction('withdrawal')"
-            :disabled="!isDemo && (balances.cleared_balance_ngn <= 0 && balances.cleared_balance_usd <= 0)"
+            :disabled="!isDemo && (form.currency === 'NGN' ? balances.cleared_balance_ngn <= 0 : balances.cleared_balance_usd <= 0)"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
               - Withdraw
             </button>
@@ -70,6 +70,11 @@
                 <div class="text-sm text-red-400" v-if="balances.locked_balance_ngn > 0">
                   Locked (In Orders): ₦{{ Number(balances.locked_balance_ngn).toLocaleString() }}
                 </div>
+              </div>
+              <div v-if="user.wallet_debt > 0" class="ml-auto p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                <p class="text-[10px] text-red-400 font-bold uppercase tracking-widest">Outstanding Debt</p>
+                <p class="text-xl font-black text-white">₦{{ Number(user.wallet_debt).toLocaleString() }}</p>
+                <button @click="openTransaction('deposit')" class="mt-1 text-[10px] text-blue-400 underline font-bold">Pay Now</button>
               </div>
             </div>
 
@@ -153,6 +158,12 @@
                 Number(balances.cleared_balance_usd).toLocaleString() }}
             </span>
           </p>
+
+          <div v-if="user.wallet_debt > 0 && txnType === 'deposit'" 
+            class="p-3 mb-4 text-xs bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-300">
+            Note: Your deposit will first be used to clear your outstanding debt of 
+            <span class="font-bold text-white">₦{{ Number(user.wallet_debt).toLocaleString() }}</span>.
+          </div>
 
           <div
             v-if="txnType === 'withdrawal' && (form.currency === 'NGN' ? balances.uncleared_balance_ngn : balances.uncleared_balance_usd) > 0"
@@ -483,6 +494,7 @@ const refreshData = async () => {
     const data = balRes.data.data
     balances.value = {
       balance_ngn: data.balance_ngn ?? 0,
+      wallet_debt: data.wallet_debt ?? 0,
       cleared_balance_ngn: data.cleared_balance_ngn ?? 0,
       uncleared_balance_ngn: data.uncleared_balance_ngn ?? 0,
       locked_balance_ngn: data.locked_balance_ngn ?? 0,

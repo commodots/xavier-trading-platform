@@ -19,6 +19,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     use HasRoles;
 
     protected $_trialSubscription;
+     protected $_currentTier;
 
     protected $fillable = [
         'name',
@@ -40,7 +41,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'bvn',
         'kyc_status',
         'trading_mode',
-        'email_verified_at'
+        'email_verified_at',
+        'subscription_status', 'trial_ends_at', 'last_active_at',
+        'wallet_balance', 'wallet_debt', 'last_fee_charged_at', 'next_fee_due_at'
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -56,6 +59,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'email_verified_at' => 'datetime',
         'dob' => 'date',
         'bvn' => 'encrypted',
+        'trial_ends_at' => 'datetime',
+        'last_active_at' => 'datetime',
+        'last_fee_charged_at' => 'datetime',
+        'next_fee_due_at' => 'datetime',
+        'wallet_balance' => 'decimal:2',
+        'wallet_debt' => 'decimal:2',
     ];
 
     protected $appends = [
@@ -169,6 +178,19 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(ActivityLog::class);
     }
 
+    public function billingRecords() 
+    { 
+        return $this->hasMany(BillingRecord::class); 
+    }
+    public function fees() 
+    { 
+        return $this->hasMany(Fee::class); 
+    }
+    public function watchlists() 
+    { 
+        return $this->hasMany(Watchlist::class); 
+    }
+
     /**
      * Get FX transactions for this user
      */
@@ -275,23 +297,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public function getCurrentTierAttribute(): ?string
     {
-        // Fetch all active subscriptions (Trial OR Paid)
-        // This ensures that if a user has a long-term Regular plan but starts a Premium trial,
-        // the system correctly identifies them as Premium.
+        if (! isset($this->_currentTier)) {
         $activeSubs = $this->subscriptions()
             ->where('expires_at', '>', now())
             ->whereIn('status', ['active', 'trial'])
             ->with('plan')
             ->get();
 
-        if ($activeSubs->isEmpty()) {
-            return null;
+            if ($activeSubs->isEmpty()){
+                $this->_currentTier = null;
+            } else {
+                // If ANY active subscription is Premium, the user resolves to Premium.
+                $this->_currentTier = $activeSubs->contains(fn ($s) => $s->plan?->tier === 'premium') ? 'premium' : 'regular';
+            }
         }
-
-        // If ANY active subscription is Premium, the user is Premium.
-        return $activeSubs->contains(fn ($s) => $s->plan?->tier === 'premium')
-            ? 'premium'
-            : 'regular';
+        return $this->_currentTier;
     }
 
     public function getHasUsedRegularAttribute(): bool

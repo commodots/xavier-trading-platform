@@ -3,24 +3,35 @@
     <div class="space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       
+      <!-- Top Bar: Header and Search -->
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">₿ Crypto</h1>
         <div class="relative">
-          <input v-model="search" type="text" placeholder="Search crypto..."
-            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] outline-none w-64 transition-all" />
+          <input 
+            v-model="search" 
+            type="text" 
+            placeholder="Search crypto..."
+            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] outline-none w-64 transition-all" 
+          />
         </div>
       </div>
 
+      <!-- Segmented Control View Switching Tabs -->
       <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
-        <button v-for="view in ['holdings', 'market', 'trading']" :key="view"
+        <button 
+          v-for="view in ['holdings', 'market', 'trading']" 
+          :key="view"
           @click="activeView = view"
           class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
-          :class="activeView === view ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'">
+          :class="activeView === view ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+        >
           {{ view === 'holdings' ? 'My Holdings' : view === 'market' ? 'Market Assets' : 'Buy / Sell' }}
         </button>
       </div>
 
+      <!-- Main Display Dynamic Switchboards -->
       <div class="space-y-6">
+        <!-- Tab A: My Personal Wallet Holdings -->
         <div v-if="activeView === 'holdings'" class="space-y-6">
           <HoldingPerformanceChart 
             title="My Crypto Holdings" 
@@ -54,9 +65,9 @@
                   <tr v-for="asset in filteredHoldings" :key="asset.symbol" class="hover:bg-[#16213A] transition">
                     <td class="px-6 py-4 font-bold text-[#F7931A]">{{ asset.symbol }}</td>
                     <td class="text-gray-300">{{ asset.name }}</td>
-                    <td class="font-mono text-right text-white">${{ asset.price?.toLocaleString() }}</td>
-                    <td class="text-right text-gray-300">{{ asset.balance }} {{ asset.symbol }}</td>
-                    <td class="font-bold text-right text-white">${{ (asset.balance * asset.price).toLocaleString() }}</td>
+                    <td class="font-mono text-right text-white">${{ asset.price?.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-gray-300 font-mono">{{ asset.balance?.toLocaleString(undefined, { maximumFractionDigits: 6 }) }} {{ asset.symbol }}</td>
+                    <td class="font-bold text-right text-white font-mono">${{ (asset.balance * asset.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
                     <td class="w-32 px-6 text-right">
                       <apexchart type="line" height="25" :options="sparkOptions" :series="[{ data: asset.spark || [] }]" />
                     </td>
@@ -75,16 +86,21 @@
           </div>
         </div>
 
+        <!-- Tab B: Global Live Coins Market Asset Spotboards -->
         <div v-else-if="activeView === 'market'">
            <CryptoMarketAssets :coins="coins" :searchQuery="search" @view-details="openDetails" @trade="openTrade" />
         </div>
 
+        <!-- Tab C: Trade Executive Interface Panel Layout -->
         <div v-else-if="activeView === 'trading'">
            <Trading />
         </div>
       </div>
 
+      <!-- Details Information Pop-up Modal Box Container -->
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currencySymbol="$" @close="isModalOpen = false" />
+      
+      <!-- Instant Checkout Quick Buy Form Modal Overlay Wrapper -->
       <div v-if="buyModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl w-full max-w-md p-6 shadow-2xl">
           <h3 class="text-xl font-bold text-white mb-4">Buy {{ buyModal.asset?.name }}</h3>
@@ -103,11 +119,11 @@
 
             <div>
               <label class="block mb-2 text-sm text-gray-400">Estimated Quantity</label>
-              <p class="text-gray-300">{{ estimatedQuantity }} {{ buyModal.asset?.symbol }}</p>
+              <p class="text-gray-300 font-mono">{{ estimatedQuantity }} {{ buyModal.asset?.symbol }}</p>
             </div>
 
-            <div v-if="errorMessage" class="text-xs text-red-400">{{ errorMessage }}</div>
-            <div v-if="successMessage" class="text-xs text-green-400">{{ successMessage }}</div>
+            <div v-if="errorMessage" class="text-xs text-red-400 font-medium">{{ errorMessage }}</div>
+            <div v-if="successMessage" class="text-xs text-green-400 font-medium">{{ successMessage }}</div>
 
             <div class="flex gap-3 pt-2">
               <button @click="buyModal.show = false"
@@ -130,27 +146,33 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import apexchart from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
-import TradeModal from "@/Components/TradeModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
-import { useRoute, useRouter } from 'vue-router';
-const route = useRoute();
+import { useRoute } from 'vue-router';
 
 import CryptoMarketAssets from "@/Components/Markets/CryptoMarketAssets.vue";
 import Trading from "@/Components/Markets/Trading.vue";
 
+const route = useRoute();
+
+// Authentication & App Environment Configuration States
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
 const isDemo = ref(user.value.trading_mode === 'demo');
 const showPrompt = ref(false);
+
+// Structural Layout Navigation Control Switches
+const activeView = ref(route.query.view || 'holdings');
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
-const showTradeModal = ref(false);
-const selectedTradeCoin = ref(null);
 const search = ref("");
+
+// Chart, History Streams, Metrics Calculations Hooks
 const isGraphLoading = ref(false);
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
+
+// Order Entry Formulation State Containers
 const buyModal = ref({ show: false, asset: null });
 const buyForm = ref({ amount: 1000 });
 const tradeLoading = ref(false);
@@ -158,10 +180,20 @@ const errorMessage = ref("");
 const successMessage = ref("");
 
 const holdings = ref([]);
+const coins = ref([]);
 
-const marketButtonLabel = "Market Assets";
-const activeView = ref(route.query.view || 'holdings');
+const sparkOptions = {
+  chart: { 
+    sparkline: { enabled: true }, 
+    animations: { enabled: false },
+    toolbar: { show: false } 
+  },
+  stroke: { curve: "smooth", width: 2 },
+  colors: ["#00D4FF"],
+  tooltip: { enabled: false }
+};
 
+// Computed User Identity Access Profiles
 const isAdminUser = (u) => {
   if (!u) return false;
   const role = (u.role || '').toString().toLowerCase();
@@ -173,10 +205,23 @@ const isUserVerified = computed(() => {
   return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
-const assetCategories = [{ id: 'CRYPTO', name: 'Cryptocurrency', description: 'Digital Assets' }];
+// Computed Multi-Currency Calculated Assets Lists Evaluation
+const filteredHoldings = computed(() => {
+  if (activeView.value !== 'holdings') return [];
+  const q = search.value.toLowerCase().trim();
+  if (!q) return holdings.value;
+  return holdings.value.filter(h => 
+    h.name.toLowerCase().includes(q) || 
+    h.symbol.toLowerCase().includes(q)
+  );
+});
 
-const coins = ref([]);
+const estimatedQuantity = computed(() => {
+  if (!buyModal.value.asset?.price || !buyForm.value.amount) return (0).toFixed(6);
+  return (buyForm.value.amount / buyModal.value.asset.price).toFixed(6);
+});
 
+// Network Communications Control Architecture Channels
 const fetchCoins = async () => {
   try {
     const res = await api.get('/market/crypto');
@@ -186,10 +231,11 @@ const fetchCoins = async () => {
       marketcap: item.marketcap ?? 0,
       spark: item.spark ?? [item.price, item.price, item.price],
     }));
-    // After coins are fetched, fetch holdings to sync prices
-    fetchHoldings();
+    
+    // Sync prices with active open records immediately inside continuous callbacks
+    await fetchHoldings();
   } catch (e) {
-    console.error(e);
+    console.error('Coins payload collection failure:', e);
   }
 };
 
@@ -204,21 +250,15 @@ const fetchHoldings = async () => {
       return {
         symbol: symbol,
         name: coinData ? coinData.name : symbol,
-        price: coinData ? coinData.price : p.entry_price,
-        balance: (p.amount / p.entry_price).toFixed(6),
+        price: coinData ? Number(coinData.price) : Number(p.entry_price),
+        balance: Number(p.amount / p.entry_price),
         spark: coinData ? coinData.spark : []
       };
     });
   } catch (e) {
-    console.error("Holdings fetch failed:", e);
+    console.error("Holdings mapping failure:", e);
   }
 };
-
-
-const tradeTickers = computed(() => ({
-  CRYPTO: coins.value.map(c => ({ ...c, currency: 'NGN' }))
-}));
-
 
 const fetchPortfolioPerformance = async (range = '1W') => {
   isGraphLoading.value = true;
@@ -227,10 +267,19 @@ const fetchPortfolioPerformance = async (range = '1W') => {
     portfolioData.value = response.data.series;
     totalValue.value = response.data.total;
     changePercent.value = response.data.change;
-  } catch (e) { console.error(e); } finally { isGraphLoading.value = false; }
+  } catch (e) { 
+    console.error('Portfolio performance history fetch failed:', e); 
+  } finally { 
+    isGraphLoading.value = false; 
+  }
 };
 
-const openDetails = (item) => { selectedItem.value = item; isModalOpen.value = true; };
+// Event Submissions Action Pipelines
+const openDetails = (item) => { 
+  selectedItem.value = item; 
+  isModalOpen.value = true; 
+};
+
 const openTrade = (coin) => {
   if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
@@ -241,38 +290,11 @@ const openTrade = (coin) => {
 };
 
 const openBuyModal = (asset) => {
-  buyModal.value = {
-    show: true,
-    asset: asset
-  };
-  buyForm.value.amount = 1000; // default
+  buyModal.value = { show: true, asset: asset };
+  buyForm.value.amount = 1000;
   errorMessage.value = "";
   successMessage.value = "";
 };
-
-const filteredHoldings = computed(() => {
-  const list = activeView.value === 'holdings' ? holdings.value : [];
-  return list.filter(h => 
-    h.name.toLowerCase().includes(search.value.toLowerCase()) || 
-    h.symbol.toLowerCase().includes(search.value.toLowerCase())
-  );
-});
-
-const sparkOptions = {
-  chart: { 
-    sparkline: { enabled: true }, 
-    animations: { enabled: false }, // Crucial for performance
-    toolbar: { show: false } 
-  },
-  stroke: { curve: "smooth", width: 2 },
-  colors: ["#00D4FF"],
-  tooltip: { enabled: false }
-};
-
-const estimatedQuantity = computed(() => {
-  if (!buyModal.value.asset?.price || !buyForm.value.amount) return 0;
-  return (buyForm.value.amount / buyModal.value.asset.price).toFixed(6);
-});
 
 const executeBuy = async () => {
   if (!buyForm.value.amount || buyForm.value.amount <= 0) {
@@ -291,11 +313,11 @@ const executeBuy = async () => {
 
     successMessage.value = `Successfully bought ${buyModal.value.asset.name}!`;
 
-    // Refresh user data
-    fetchPortfolioPerformance();
-    fetchCoins();
+    await Promise.allSettled([
+      fetchPortfolioPerformance(),
+      fetchCoins()
+    ]);
 
-    // Close modal after success feedback
     setTimeout(() => {
       buyModal.value.show = false;
       successMessage.value = "";
@@ -307,6 +329,7 @@ const executeBuy = async () => {
   }
 };
 
+// Dynamic Watch Routing Pipelines 
 watch(() => route.query.view, (newView) => {
   if (newView) activeView.value = newView;
 });

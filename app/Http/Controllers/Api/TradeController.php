@@ -621,6 +621,12 @@ class TradeController extends Controller
 
         $totalAmount = (float) ($request->qty * $effectivePrice);
 
+        $settings = SystemSetting::first();
+        $maxTrade = (float) ($settings->max_trade_amount ?? 0);
+        if ($maxTrade > 0 && $totalAmount > $maxTrade) {
+            return response()->json(['success' => false, 'message' => 'Order value exceeds max trade amount.'], 422);
+        }
+
         try {
             return DB::transaction(function () use ($request, $user, $totalAmount, $currentPrice, $models) {
                 // Balance Check and Deduction (For Buy Orders)
@@ -637,6 +643,10 @@ class TradeController extends Controller
                     // Standardize: Move to locked state instead of decrementing total balance
                     $wallet->decrement('usd_cleared', $totalAmount);
                     $wallet->increment('locked', $totalAmount);
+
+                    $wallet->refresh();
+                    $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
+                    $wallet->save();
                 }
 
                 $order = $models->order::create([
@@ -809,32 +819,56 @@ class TradeController extends Controller
     }
 
     /**
-     * Fetch market insights (gainers, losers, most traded) for a specific market type.
+     * Fetch market insights (gainers, losers, most active) for a specific market type.
      */
     public function insights(string $market)
     {
-        $marketType = strtoupper($market) === 'NGX' ? 'local' : 'global';
-        $exchange = ($marketType === 'local') ? 'NGX' : 'NASDAQ';
-        
-        $baseQuery = Symbol::query()->where(function($q) use ($marketType, $exchange) {
-            $q->where('type', $marketType)
-              ->orWhere('exchange', $exchange);
-        });
+        try {
+            $normalizedMarket = strtoupper(trim($market));
+            
+            $baseQuery = Symbol::query();
 
-        $mapData = fn($s) => [
-            'symbol' => $s->symbol,
-            'name' => $s->name,
-            'price' => (float) $s->last_price,
-            'change' => (float) ($s->change ?? 0),
-        ];
+            // Align market types with the categories used in index()
+            if ($normalizedMarket === 'NGX') {
+                $baseQuery->where('exchange', 'NGX');
+            } elseif ($normalizedMarket === 'CRYPTO') {
+                $baseQuery->where(function ($q) {
+                    $q->where('type', 'crypto')
+                      ->orWhere('symbol', 'like', '%/USDT%');
+                });
+            } else {
+                // Default to Global Equities (NASDAQ/NYSE/etc)
+                $baseQuery->where('exchange', '!=', 'NGX')
+                          ->where('type', '!=', 'crypto')
+                          ->where('symbol', 'not like', '%/USDT%');
+            }
 
-        $data = [
-            'gainers' => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
-            'losers' => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
-            'most_traded' => (clone $baseQuery)->orderByDesc('volume')->limit(5)->get()->map($mapData),
-            'least_traded' => (clone $baseQuery)->orderBy('volume')->limit(5)->get()->map($mapData),
-        ];
+            $mapData = fn($s) => [
+                'symbol' => $s->symbol,
+                'name' => $s->name,
+                'price' => (float) $s->last_price,
+                'change' => (float) ($s->change ?? 0),
+            ];
 
-        return response()->json(['success' => true, 'data' => $data]);
+            $data = [
+                'gainers'      => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
+                'losers'       => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
+                'most_traded'  => (clone $baseQuery)->where('volume', '>', 0)->orderByDesc('volume')->limit(5)->get()->map($mapData),
+                'least_traded' => (clone $baseQuery)->orderBy('volume')->limit(5)->get()->map($mapData),
+            ];
+
+            return response()->json(['success' => true, 'data' => $data], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Market insights retrieval failed: ' . $e->getMessage(), [
+                'market' => $market,
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to load market insights at this time.'
+            ], 500);
+        }
     }
 }

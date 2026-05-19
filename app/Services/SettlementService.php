@@ -93,4 +93,28 @@ class SettlementService
             $order->update(['status' => 'filled']);
         }
     }
+
+    /**
+     * Cron-ready method to settle trades that have passed the 24-hour window.
+     */
+    public function processDailySettlements(): void
+    {
+        // Find trades that are pending and older than 1 day
+        $pendingTrades = Trade::where('settlement_status', 'pending')
+            ->where('created_at', '<=', now()->subDay())
+            ->get();
+
+        foreach ($pendingTrades as $trade) {
+            $order = $trade->order;
+            if (!$order) continue;
+
+            Log::info("Auto-settling trade {$trade->id} (T+1 logic)");
+            
+            try {
+                $this->processTradeSettlement($trade, $order);
+            } catch (\Exception $e) {
+                Log::error("Failed to auto-settle trade {$trade->id}: " . $e->getMessage());
+            }
+        }
+    }
 }

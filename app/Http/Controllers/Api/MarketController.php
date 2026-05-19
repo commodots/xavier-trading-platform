@@ -22,17 +22,20 @@ class MarketController extends Controller
     }
 
     public function global()
-    {
-        $data = Symbol::where('type', 'global')
-            ->orWhereIn('exchange', ['NASDAQ', 'NYSE'])
-            ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
-            ->map(function($item) {
-                $item->price = (float) $item->price;
-                return $item;
-            });
+{
+    $data = Symbol::where(function ($query) {
+        $query->where('type', 'global')
+              ->orWhereIn('exchange', ['NASDAQ', 'NYSE']);
+    })
+    ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
+    ->map(function($item) {
+        $item->price = (float) $item->price;
+        $item->change = (float) ($item->change ?? 0);
+        return $item;
+    });
 
-        return response()->json(['success' => true, 'data' => $data]);
-    }
+    return response()->json(['success' => true, 'data' => $data]);
+}
 
     public function quotes(Request $request)
     {
