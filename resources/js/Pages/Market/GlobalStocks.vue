@@ -126,7 +126,18 @@
         <div class="mt-4">
           <!-- Switch View 1: Market Insights Component -->
           <div v-if="activeChart === 'insights'">
+            <div v-if="isInsightsLoading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-4">
+              <div class="flex justify-between items-center">
+                <SkeletonLoader class="h-5 w-40 bg-gray-800" />
+                <SkeletonLoader class="h-4 w-24 bg-gray-800" />
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <SkeletonLoader v-for="i in 3" :key="i" class="h-28 w-full rounded-lg bg-gray-800/60" />
+              </div>
+              <SkeletonLoader class="h-32 w-full rounded-lg bg-gray-800/40" />
+            </div>
             <MarketInsights 
+              v-else
               :insightData="globalApiInsights" 
               :loading="isInsightsLoading" 
               currencySymbol="$"
@@ -136,7 +147,19 @@
 
           <!-- Switch View 2: Portfolio Performance & Holdings Table -->
           <div v-else-if="activeChart === 'holdings'">
+            <!-- Performance Chart Area / Skeleton State -->
+            <div v-if="isGraphLoading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-4">
+              <div class="flex justify-between items-start">
+                <div class="space-y-2">
+                  <SkeletonLoader class="h-4 w-48 bg-gray-800" />
+                  <SkeletonLoader class="h-6 w-32 bg-gray-700/80" />
+                </div>
+                <SkeletonLoader class="h-8 w-36 rounded-md bg-gray-800" />
+              </div>
+              <SkeletonLoader class="h-52 w-full rounded-lg bg-gray-800/40" />
+            </div>
             <HoldingPerformanceChart 
+              v-else
               title="My Global Stocks Holdings" 
               currencySymbol="$" 
               :seriesData="portfolioData"
@@ -219,10 +242,10 @@
 
                 <!-- Primary Holdings Grid Table -->
                 <div v-else>
-                  <div v-if="holdingsLoading" class="p-10 text-center text-gray-400">
-                    <div class="w-8 h-8 mx-auto mb-2 border-t-2 border-blue-500 rounded-full animate-spin"></div>
-                    Loading your holdings...
+                  <div v-if="holdingsLoading" class="p-6">
+                    <SkeletonLoader type="table" class="opacity-40" />
                   </div>
+                  
                   <div v-else-if="userHoldings.length === 0" class="p-10 text-center text-gray-400">
                     No global stock holdings yet. Start trading to see your assets here.
                   </div>
@@ -255,9 +278,13 @@
                         </td>
                         <td class="text-right" :class="holding.change >= 0 ? 'text-emerald-400' : 'text-rose-400'">
                           <div class="flex flex-col items-end">
-                            <span v-if="holding.status === 'open'" class="text-[9px] uppercase font-bold text-amber-500 mb-0.5 tracking-wide">
-                              Settlement Pending
-                            </span>
+                            <div v-if="holding.status === 'open' || !holding.is_settled" class="flex items-center gap-1 mb-0.5">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                </span>
+                                <span class="text-[8px] uppercase font-black text-amber-500 tracking-tighter">Unsettled</span>
+                            </div>
                             <span class="font-mono font-bold">
                               {{ holding.change >= 0 ? '+' : '' }}{{ Number(holding.change || 0).toFixed(2) }}%
                             </span>
@@ -309,8 +336,22 @@
                 @select-symbol="selectedMarketSymbol = $event" 
               />
             </div>
+            
+            
             <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4 sm:p-6 overflow-hidden min-h-[400px]">
-              <MarketChart :symbol="selectedMarketSymbol" />
+              <div v-if="!selectedMarketSymbol" class="space-y-6 animate-pulse">
+                <div class="flex justify-between items-center">
+                  <div class="space-y-2">
+                    <SkeletonLoader class="h-6 w-24 bg-gray-800" />
+                    <SkeletonLoader class="h-4 w-40 bg-gray-800/60" />
+                  </div>
+                  <div class="flex gap-2">
+                    <SkeletonLoader v-for="i in 4" :key="i" class="h-6 w-10 rounded bg-gray-800" />
+                  </div>
+                </div>
+                <SkeletonLoader class="h-64 w-full rounded-xl bg-gray-800/30" />
+              </div>
+              <MarketChart v-else :symbol="selectedMarketSymbol" />
             </div>
           </div>
         </div>
@@ -356,6 +397,7 @@
   </MainLayout>
 </template>
 
+
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
@@ -367,6 +409,7 @@ import TradePanel from "@/Components/TradePanel.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
 import MarketInsights from '@/Components/Markets/MarketInsights.vue';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 // State
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));

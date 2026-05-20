@@ -222,6 +222,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /* Advisory Subscription Logic */
         Route::prefix('advisory')->group(function () {
+            Route::get('/plans', [SubscriptionController::class, 'plans']); // Add this line
             Route::post('/activate-trial', [AdvisoryController::class, 'activateTrial']);
             Route::post('/subscribe', [SubscriptionController::class, 'initializePayment']);
             Route::get('/verify-payment', [SubscriptionController::class, 'verifyPayment']);

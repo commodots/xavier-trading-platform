@@ -3,6 +3,7 @@
     <div class="relative p-6 mx-auto max-w-7xl">
       <h1 class="mb-6 text-3xl font-bold text-white">Advisory & Subscriptions Admin</h1>
 
+      <!-- Modal Info Box -->
       <div v-if="modal.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
         <div class="w-full max-w-sm p-6 text-center bg-white rounded-lg shadow-xl">
           <div
@@ -23,8 +24,9 @@
         </div>
       </div>
 
+      <!-- Navigation Tabs -->
       <div class="flex mb-6 border-b border-gray-700">
-        <button v-for="tab in ['Posts', 'Portfolios', 'Plans',]" :key="tab" @click="activeTab = tab"
+        <button v-for="tab in ['Posts', 'Portfolios', 'Plans']" :key="tab" @click="activeTab = tab"
           :class="['py-3 px-6 font-bold transition-all duration-200', activeTab === tab ? 'border-b-2 border-blue-500 text-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50']">
           Manage {{ tab }}
         </button>
@@ -89,10 +91,12 @@
           <h2 class="mb-4 text-xl font-bold text-white">Recent Insights</h2>
           <div v-if="isLoading" class="italic text-blue-400">Loading posts...</div>
           <div v-else-if="postsList.length === 0" class="italic text-gray-400">No insights published yet.</div>
-          <div v-else class="space-y-4 flex flex-wrap items-center justify-between">
+          
+          
+          <div v-else class="flex flex-wrap items-center justify-between gap-4">
             <div v-for="post in postsList" :key="post.id"
-              class="flex flex-col md:flex-row items-start justify-between p-4 transition bg-[#0F1724] border border-gray-800 rounded-xl hover:border-gray-600 relative w-1/2">
-              <div class="flex-1">
+              class="flex flex-col md:flex-row items-start justify-between p-4 transition bg-[#0F1724] border border-gray-800 rounded-xl hover:border-gray-600 relative w-full md:w-[calc(50%-0.5rem)]">
+              <div class="flex-1 w-full">
                 <div class="flex items-center gap-3 mb-2">
                   <span v-if="post.is_premium"
                     class="px-2 py-1 text-[10px] font-bold tracking-widest text-blue-300 uppercase bg-blue-900/50 rounded">VIP
@@ -104,17 +108,17 @@
                 <h3 class="text-xl font-bold text-white">{{ post.title }}</h3>
                 <div class="mt-2 text-sm text-gray-400">
                   <span :class="{ 'line-clamp-2': !post.expanded }">{{ post.content }}</span>
-                  <button v-if="post.content.length > 100" @click="post.expanded = !post.expanded"
+                  <button v-if="post.content && post.content.length > 100" @click="post.expanded = !post.expanded"
                     class="mt-1 text-xs font-semibold text-blue-500 transition hover:text-blue-400">
                     {{ post.expanded ? 'See less' : 'See more...' }}
                   </button>
                 </div>
               </div>
-              <div class="flex gap-2 mt-4 md:mt-0 md:ml-6 md:flex-col shrink-0">
+              <div class="flex gap-2 mt-4 md:mt-0 md:ml-6 md:flex-col shrink-0 w-full md:w-auto">
                 <button @click="editItem('post', post)"
-                  class="px-6 py-2 text-sm font-bold text-blue-400 transition rounded-lg bg-blue-500/10 hover:bg-blue-500/20">Edit</button>
+                  class="flex-1 md:flex-none px-6 py-2 text-sm font-bold text-blue-400 transition rounded-lg bg-blue-500/10 hover:bg-blue-500/20">Edit</button>
                 <button @click="deleteItem('post', post.id)" :disabled="deletingId === 'post-' + post.id"
-                  class="px-6 py-2 text-sm font-bold text-red-400 transition rounded-lg bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50">
+                  class="flex-1 md:flex-none px-6 py-2 text-sm font-bold text-red-400 transition rounded-lg bg-red-500/10 hover:bg-red-500/20 disabled:opacity-50">
                   {{ deletingId === 'post-' + post.id ? 'Deleting...' : 'Delete' }}
                 </button>
               </div>
@@ -129,7 +133,6 @@
             <span class="text-blue-500">{{ isEditingPortfolio ? 'Edit' : 'Create New' }}</span> Model Portfolio
           </h2>
           <form @submit.prevent="submitPortfolio" class="space-y-6">
-
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <input v-model="portfolioForm.name" placeholder="Enter portfolio name (e.g., Aggressive Growth)"
                 class="p-3 text-white bg-gray-900 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
@@ -169,7 +172,7 @@
                 <input v-model="stock.symbol" placeholder="Enter stock symbol (e.g., TSLA)"
                   class="w-1/2 p-3 text-white uppercase bg-gray-800 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
                   required />
-                <input v-model="stock.allocation" type="number" placeholder="Enter allocation percentage"
+                <input v-model="stock.allocation" type="number" placeholder="Allocation %"
                   class="w-1/3 p-3 text-white bg-gray-800 border border-gray-700 rounded-lg outline-none focus:border-blue-500"
                   required />
                 <button type="button" @click="removeStock(index)"
@@ -211,8 +214,7 @@
                   <span v-if="portfolio.is_premium"
                     class="px-2 py-0.5 text-[10px] font-bold text-blue-300 bg-blue-900/50 rounded">VIP</span>
                 </div>
-                <p class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">{{ portfolio.risk_profile }}
-                  Strategy</p>
+                <p class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">{{ portfolio.risk_profile }} Strategy</p>
 
                 <div class="flex flex-wrap gap-2 mb-4">
                   <span v-for="stock in portfolio.stocks" :key="stock.id"
@@ -241,7 +243,7 @@
             <span class="text-blue-500">{{ isEditingPlan ? 'Edit' : 'Create New' }}</span> Subscription Plan
           </h2>
 
-          <div class=" p-4 mb-6 text-sm text-yellow-200 border border-yellow-700 rounded-lg bg-yellow-900/30">
+          <div class="p-4 mb-6 text-sm text-yellow-200 border border-yellow-700 rounded-lg bg-yellow-900/30">
             <div>
               <strong class="block mb-1 font-bold text-yellow-400">Important Note on Plan Creation</strong>
               Creating a plan here only updates the internal database. You must also create the exact same plan inside
@@ -298,7 +300,6 @@
                 Cancel Edit
               </button>
             </div>
-
           </form>
         </div>
 
@@ -313,8 +314,9 @@
                 <h3 class="text-xl font-bold text-white">{{ plan.name }}</h3>
                 <p class="my-2 text-2xl font-black text-blue-500">₦{{ Number(plan.price).toLocaleString() }}</p>
                 <p class="text-sm text-gray-400">Duration: {{ plan.duration_days }} days</p>
-                <p class="inline-block p-1 px-2 mt-3 font-mono text-xs text-yellow-500 rounded bg-yellow-500/10">{{
-                  plan.paystack_plan_code }}</p>
+                <p class="inline-block p-1 px-2 mt-3 font-mono text-xs text-yellow-500 rounded bg-yellow-500/10">
+                  {{ plan.paystack_plan_code }}
+                </p>
               </div>
               <div class="flex gap-3 pt-5 mt-5 border-t border-gray-800">
                 <button @click="editItem('plan', plan)"
@@ -338,25 +340,20 @@ import { ref, computed, onMounted } from 'vue';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
 
-// Tabs & Global Loading State
 const activeTab = ref('Posts');
 const isLoading = ref(true);
 
-// Specific Submitting States
 const isSubmittingPlan = ref(false);
 const isSubmittingPost = ref(false);
 const isSubmittingPortfolio = ref(false);
 const deletingId = ref(null);
 
-// Modal State
 const modal = ref({ show: false, title: '', message: '', isError: false });
 
-// Data Lists
 const plansList = ref([]);
 const postsList = ref([]);
 const portfoliosList = ref([]);
 
-// Edit States
 const isEditingPlan = ref(false);
 const editingPlanId = ref(null);
 
@@ -366,7 +363,6 @@ const editingPostId = ref(null);
 const isEditingPortfolio = ref(false);
 const editingPortfolioId = ref(null);
 
-// Forms
 const planForm = ref({
   name: '',
   tier: '',
@@ -384,19 +380,25 @@ const postForm = ref({
   is_premium: false
 });
 
-const portfolioForm = ref({ name: '', description: '', risk_profile: '', starting_value: null, is_premium: false, stocks: [{ symbol: '', allocation: null }] });
+const portfolioForm = ref({ 
+  name: '', 
+  description: '', 
+  risk_profile: '', 
+  starting_value: null, 
+  is_premium: false, 
+  stocks: [{ symbol: '', allocation: null }] 
+});
 
 const totalAllocation = computed(() => {
   return portfolioForm.value.stocks.reduce((sum, stock) => sum + Number(stock.allocation || 0), 0);
 });
 
 const formattedPrice = computed(() => {
-  if (!planForm.value.price) return '';
+  if (planForm.value.price === null || planForm.value.price === undefined) return '';
   return planForm.value.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 });
 
 const handlePriceInput = (e) => {
-  // Remove everything except numbers
   const rawValue = e.target.value.replace(/,/g, '');
   if (!isNaN(rawValue)) {
     planForm.value.price = rawValue;
@@ -417,11 +419,9 @@ const fetchData = async () => {
     ]);
 
     if (results[0].status === 'fulfilled') plansList.value = results[0].value.data;
-
     if (results[1].status === 'fulfilled') {
       postsList.value = results[1].value.data.map(post => ({ ...post, expanded: false }));
     }
-
     if (results[2].status === 'fulfilled') portfoliosList.value = results[2].value.data;
 
   } catch (error) {
@@ -439,8 +439,6 @@ const showModalMessage = (title, message, isError = false) => {
 const closeModal = () => {
   modal.value.show = false;
 };
-
-// --- GENERIC EDIT & CANCEL ---
 
 const editItem = (type, item) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -467,24 +465,17 @@ const cancelEdit = (type) => {
   if (type === 'plan') {
     isEditingPlan.value = false;
     editingPlanId.value = null;
-    planForm.value = {
-      name: '',
-      tier: '',
-      price: '',
-      duration_days: null,
-      features: '',
-      paystack_plan_code: ''
-    };
+    planForm.value = { name: '', tier: '', price: '', duration_days: null, features: '', paystack_plan_code: '' };
   } else if (type === 'post') {
-    isEditingPost.value = false; editingPostId.value = null;
+    isEditingPost.value = false; 
+    editingPostId.value = null;
     postForm.value = { title: '', content: '', market_type: '', risk_level: '', is_premium: false };
   } else if (type === 'portfolio') {
-    isEditingPortfolio.value = false; editingPortfolioId.value = null;
+    isEditingPortfolio.value = false; 
+    editingPortfolioId.value = null;
     portfolioForm.value = { name: '', description: '', risk_profile: '', starting_value: null, is_premium: false, stocks: [{ symbol: '', allocation: null }] };
   }
 };
-
-// --- GENERIC DELETE ---
 
 const deleteItem = async (type, id) => {
   if (!confirm(`Are you sure you want to delete this ${type}? This cannot be undone.`)) return;
@@ -507,10 +498,7 @@ const deleteItem = async (type, id) => {
   }
 };
 
-// --- SPECIFIC SUBMIT HANDLERS ---
-
 const submitPlan = async () => {
-  
   isSubmittingPlan.value = true;
   try {
     if (isEditingPlan.value) {
@@ -570,5 +558,4 @@ const submitPortfolio = async () => {
 
 const addStock = () => { portfolioForm.value.stocks.push({ symbol: '', allocation: null }); };
 const removeStock = (index) => { if (portfolioForm.value.stocks.length > 1) { portfolioForm.value.stocks.splice(index, 1); } };
-
 </script>

@@ -1,36 +1,50 @@
 <template>
   <MainLayout>
     <div class="space-y-8">
+      <!-- Top Bar Header Section -->
       <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 class="text-2xl font-semibold">⭐ Watchlist</h1>
-          <p class="text-sm text-gray-400">Track stocks you care about and compare added price with the latest market
-            price.</p>
+          <p class="text-sm text-gray-400">
+            Track stocks you care about and compare added price with the latest market price.
+          </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <input v-model="searchQuery" type="text" placeholder="Search watchlist..."
-            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-[#00D4FF] focus:ring-0 w-full md:w-72" />
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            placeholder="Search watchlist..."
+            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-white outline-none focus:border-[#00D4FF] focus:ring-0 w-full md:w-72 transition" 
+          />
 
-          <select v-model="filterMarket"
-            class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg py-2 outline-none focus:border-blue-500">
+          <select 
+            v-model="filterMarket"
+            class="bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg py-2 px-3 outline-none focus:border-[#00D4FF] transition"
+          >
             <option value="">All Markets</option>
             <option value="NGX">NGX</option>
             <option value="GLOBAL">Global</option>
             <option value="CRYPTO">Crypto</option>
             <option value="FixedIncome">Fixed Income</option>
-
           </select>
         </div>
       </div>
 
-      <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
+      <div v-if="loading" class="bg-[#0F1724] p-1 rounded-xl border border-[#1f3348]">
+        
+        <SkeletonLoader type="table" :count="5" class="opacity-40" />
+      </div>
+
+      <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
         <div class="p-4 border-b border-[#1f3348] flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 class="text-lg font-semibold">Your Watchlist</h2>
-            <p class="text-sm text-gray-400">Stocks are saved locally and updated with the latest available price.</p>
+            <p class="text-sm text-gray-400">Stocks are fetched securely and updated with the latest live price feeds.</p>
           </div>
-          <span class="text-xs text-gray-500">{{ filteredWatchlist.length }} items</span>
+          <span class="text-xs text-gray-500 bg-[#16213A] px-2.5 py-1 rounded-md border border-[#1f3348]">
+            {{ filteredWatchlist.length }} items found
+          </span>
         </div>
 
         <div class="overflow-x-auto">
@@ -47,30 +61,51 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-[#1f3348]">
-              <tr v-for="item in filteredWatchlist" :key="item.id" class="hover:bg-[#16213A] transition">
+              <tr 
+                v-for="item in filteredWatchlist" 
+                :key="item.id" 
+                class="hover:bg-[#16213A] transition relative"
+                :class="{ 'opacity-50 pointer-events-none': item.isRemoving }"
+              >
                 <td class="px-4 py-4 font-semibold text-[#00D4FF]">{{ item.symbol }}</td>
                 <td class="px-4 text-gray-300">{{ item.name }}</td>
-                <td class="px-4 text-gray-400">{{ item.market }}</td>
-                <td class="px-4 text-right text-white">{{ formatCurrency(item.addedPrice, item.currency) }}</td>
-                <td class="px-4 text-right text-white">{{ formatCurrency(item.currentPrice, item.currency) }}</td>
-                <td class="px-4 text-right" :class="item.changePercent >= 0 ? 'text-green-400' : 'text-red-400'">
+                <td class="px-4 text-gray-400">
+                  <span class="text-xs bg-[#16213A] px-2 py-0.5 rounded border border-[#1f3348]">
+                    {{ item.market }}
+                  </span>
+                </td>
+                <td class="px-4 text-right text-white font-mono">
+                  {{ formatCurrency(item.addedPrice, item.currency) }}
+                </td>
+                <td class="px-4 text-right text-white font-mono">
+                  {{ formatCurrency(item.currentPrice, item.currency) }}
+                </td>
+                <td class="px-4 text-right font-mono" :class="item.changePercent >= 0 ? 'text-green-400' : 'text-red-400'">
                   {{ item.changePercent >= 0 ? '+' : '' }}{{ item.changePercent.toFixed(2) }}%
                 </td>
                 <td class="px-4 space-x-2 text-right whitespace-nowrap">
-                  <button @click="openBuy(item)"
-                    class="bg-[#00D4FF] text-[#0F1724] px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[#00b8e6] transition">
-                    Buy/Sell
+                  <button 
+                    @click="openBuy(item)"
+                    :disabled="item.isRemoving || item.isOpeningTrade"
+                    class="bg-[#00D4FF] text-[#0F1724] px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[#00b8e6] transition disabled:opacity-40 disabled:cursor-not-allowed min-w-[75px]"
+                  >
+                    <span v-if="item.isOpeningTrade">Loading...</span>
+                    <span v-else>Buy/Sell</span>
                   </button>
-                  <button @click="removeFromWatchlist(item)"
-                    class="bg-red-500/10 text-red-400 px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-red-500/20 transition">
-                    Remove
+                  <button 
+                    @click="removeFromWatchlist(item)"
+                    :disabled="item.isRemoving || item.isOpeningTrade"
+                    class="bg-red-500/10 text-red-400 px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-red-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed min-w-[75px]"
+                  >
+                    <span v-if="item.isRemoving">Removing...</span>
+                    <span v-else>Remove</span>
                   </button>
                 </td>
               </tr>
 
               <tr v-if="filteredWatchlist.length === 0">
                 <td colspan="7" class="py-16 text-center text-gray-500">
-                  Your watchlist is empty. Add stocks from the markets to start tracking prices.
+                  Your watchlist is empty. Add assets from the markets tab to start tracking performance metrics.
                 </td>
               </tr>
             </tbody>
@@ -78,8 +113,15 @@
         </div>
       </div>
 
-      <TradeModal :show="showTradeModal" :tickers="tradeTickers" :assetCategories="assetCategories"
-        :initialTicker="selectedWatchItem" @close="showTradeModal = false" @trade-success="onTradeSuccess" />
+      <!-- Trading Action Context Overlay -->
+      <TradeModal 
+        :show="showTradeModal" 
+        :tickers="tradeTickers" 
+        :assetCategories="assetCategories"
+        :initialTicker="selectedWatchItem" 
+        @close="showTradeModal = false" 
+        @trade-success="onTradeSuccess" 
+      />
     </div>
   </MainLayout>
 </template>
@@ -89,6 +131,7 @@ import { ref, computed, onMounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue"; 
 
 const searchQuery = ref("");
 const filterMarket = ref("");
@@ -97,7 +140,6 @@ const selectedWatchItem = ref(null);
 const watchlistItems = ref([]);
 const loading = ref(false);
 
-// Ticker refs stay here for "Current Price" comparison
 const ngxTickers = ref([]);
 const globalTickers = ref([]);
 const cryptoTickers = ref([]);
@@ -121,7 +163,6 @@ const formatCurrency = (value, currency) => {
   return (currency === 'USD' ? '$' : '₦') + Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-// FETCH FROM BACKEND
 const fetchWatchlist = async () => {
   loading.value = true;
   try {
@@ -129,20 +170,21 @@ const fetchWatchlist = async () => {
     const response = await api.get("/watchlist", {
       headers: { Authorization: `Bearer ${token}` }
     });
-    // Laravel returns 'added_price', ensure it's treated as a number
     const data = response.data.data || response.data;
     watchlistItems.value = data.map(item => ({
       ...item,
-      addedPrice: parseFloat(item.added_price)
+      addedPrice: parseFloat(item.added_price),
+      isRemoving: false,      
+      isOpeningTrade: false
     }));
   } catch (error) {
-    console.error("Failed to fetch watchlist:", error);
+    console.error("Failed to fetch watchlist records:", error);
   } finally {
     loading.value = false;
   }
 };
 
-// FETCH MARKET PRICES
+// FETCH MARKET PRICES CONCURRENTLY
 const fetchMarketPrices = async () => {
   try {
     const [ngx, glob, cryp] = await Promise.all([
@@ -154,7 +196,7 @@ const fetchMarketPrices = async () => {
     globalTickers.value = glob.data.data || glob.data;
     cryptoTickers.value = cryp.data.data || cryp.data;
   } catch (error) {
-    console.error("Failed to fetch market data", error);
+    console.error("Failed to fetch market metrics", error);
   }
 };
 
@@ -167,7 +209,7 @@ const filteredWatchlist = computed(() => {
   });
 });
 
-// HYDRATE WITH CURRENT PRICES
+// HYDRATE WITH CURRENT LIVE TELEMETRY PRICES
 const watchlistWithPrices = computed(() => {
   return watchlistItems.value.map((item) => {
     const marketMap = {
@@ -185,26 +227,40 @@ const watchlistWithPrices = computed(() => {
   });
 });
 
-// REMOVE FROM BACKEND
+// REMOVE TRANSACTION WITH DEFENSIVE UX INLINE FEEDBACK
 const removeFromWatchlist = async (item) => {
+  item.isRemoving = true;
   try {
     const token = localStorage.getItem("xavier_token");
     const response = await api.delete(`/watchlist/${item.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    if (response.data.success) {
-      // Remove from local array to update UI immediately
+    if (response.data.success || response.status === 200) {
       watchlistItems.value = watchlistItems.value.filter(i => i.id !== item.id);
     }
   } catch (error) {
-    alert("Could not remove item. Please try again.");
+    console.error("Removal failure:", error);
+    alert("Could not update watchlist. Please try again.");
+    item.isRemoving = false;
   }
 };
 
 const openBuy = (item) => {
+  item.isOpeningTrade = true;
+  
   selectedWatchItem.value = item;
   showTradeModal.value = true;
+  
+  
+  setTimeout(() => {
+    item.isOpeningTrade = false;
+  }, 400);
+};
+
+const onTradeSuccess = () => {
+  showTradeModal.value = false;
+  fetchWatchlist(); 
 };
 
 onMounted(() => {

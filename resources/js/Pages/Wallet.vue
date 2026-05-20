@@ -49,9 +49,46 @@
         </div>
       </div>
 
-      <div :class="loading && !actionType ? 'blur-sm animate-pulse' : ''" class="transition-all duration-300">
-        <div class="p-8 border rounded-xl"
-          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+      <!-- Wallet Balance Section -->
+      <div>
+        <!-- SKELETON LOADER FOR BALANCES & CHART -->
+        <div v-if="loading && !actionType" class="p-8 border rounded-xl animate-pulse"
+          :class="isDemo ? 'border-yellow-600/30 bg-yellow-600/5' : 'border-[#1f3348] bg-[#0F1724]'">
+          <div class="flex flex-col md:flex-row md:items-center gap-8 md:gap-12 mb-6 border-b border-[#1f3348] pb-6">
+            <!-- NGN Wallet Skeleton -->
+            <div class="flex items-center gap-3 flex-1">
+              <div class="w-2 h-2 rounded-full bg-gray-600"></div>
+              <div class="space-y-2 w-full">
+                <div class="h-3 bg-gray-700 rounded w-20"></div>
+                <div class="h-8 bg-gray-700 rounded w-40"></div>
+                <div class="h-4 bg-gray-700 rounded w-48"></div>
+                <div class="h-4 bg-gray-700 rounded w-52"></div>
+              </div>
+            </div>
+            <!-- USD Wallet Skeleton -->
+            <div class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-[#1f3348] pt-6 md:pt-0 md:pl-12 flex-1">
+              <div class="w-2 h-2 rounded-full bg-gray-600"></div>
+              <div class="space-y-2 w-full">
+                <div class="h-3 bg-gray-700 rounded w-20"></div>
+                <div class="h-8 bg-gray-700 rounded w-36"></div>
+                <div class="h-4 bg-gray-700 rounded w-44"></div>
+                <div class="h-4 bg-gray-700 rounded w-48"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Chart Placeholder -->
+          <div class="h-[180px] w-full bg-gray-800/40 rounded-lg flex items-end p-4 gap-2">
+            <div class="bg-gray-700/30 w-full h-1/3 rounded-t"></div>
+            <div class="bg-gray-700/30 w-full h-1/2 rounded-t"></div>
+            <div class="bg-gray-700/30 w-full h-2/3 rounded-t"></div>
+            <div class="bg-gray-700/30 w-full h-1/2 rounded-t"></div>
+            <div class="bg-gray-700/30 w-full h-3/4 rounded-t"></div>
+          </div>
+        </div>
+
+        <!-- ACTUAL BALANCES CARD -->
+        <div v-else class="p-8 border rounded-xl transition-all duration-300"
+          :class="isDemo ? 'border-yellow-600 bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="flex flex-col md:flex-row md:items-center gap-8 md:gap-12 mb-6 border-b border-[#1f3348] pb-6">
 
             <div class="flex items-center gap-3">
@@ -66,6 +103,9 @@
                 </div>
                 <div class="text-sm text-yellow-400">
                   Uncleared Balance: ₦{{ Number(balances.uncleared_balance_ngn).toLocaleString() }}
+                </div>
+                <div v-if="balances.uncleared_balance_ngn > 0" class="text-[10px] text-gray-500 italic mt-1">
+                  Assets sold within T+2 settlement window. Available for withdrawal soon.
                 </div>
                 <div class="text-sm text-red-400" v-if="balances.locked_balance_ngn > 0">
                   Locked (In Orders): ₦{{ Number(balances.locked_balance_ngn).toLocaleString() }}
@@ -103,10 +143,28 @@
         </div>
       </div>
 
-      <div
-        :class="loading && !actionType ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
-        <div class="p-5 border rounded-xl"
-          :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+      <!-- Transactions Section -->
+      <div>
+        <!-- SKELETON LOADER FOR TRANSACTIONS TABLE -->
+        <div v-if="loading && !actionType" class="p-5 border rounded-xl animate-pulse"
+          :class="isDemo ? 'border-yellow-600/30 bg-yellow-600/5' : 'border-[#1f3348] bg-[#0F1724]'">
+          <div class="h-5 bg-gray-700 rounded w-40 mb-5"></div>
+          <div class="space-y-4">
+            <div v-for="i in 3" :key="i" class="flex justify-between items-center border-b border-[#1f3348]/50 pb-3">
+              <div class="space-y-2 w-1/4">
+                <div class="h-4 bg-gray-700 rounded w-24"></div>
+                <div class="h-3 bg-gray-800 rounded w-16"></div>
+              </div>
+              <div class="h-4 bg-gray-700 rounded w-16"></div>
+              <div class="h-4 bg-gray-700 rounded w-16"></div>
+              <div class="h-4 bg-gray-700 rounded w-20"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTUAL TRANSACTIONS CONTAINER -->
+        <div v-else class="p-5 border rounded-xl transition-all duration-300"
+          :class="isDemo ? 'border-yellow-600 bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Demo Transactions' : 'Recent Transactions' }}</h2>
 
           <div v-if="transactions.length === 0" class="py-10 text-center">
@@ -146,6 +204,7 @@
         </div>
       </div>
 
+      <!-- Deposit/Withdrawal Modal -->
       <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
           <button @click="showModal = false" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
@@ -247,6 +306,7 @@
         </div>
       </div>
 
+      <!-- Convert Currency Modal -->
       <div v-if="openConvert" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border"
           :class="isDemo ? 'border-yellow-600' : 'border-[#2A314A]'">
@@ -292,6 +352,7 @@
         </div>
       </div>
 
+      <!-- Payment Success/Failed Modal -->
       <div v-if="showPaymentModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
@@ -319,6 +380,7 @@
         </div>
       </div>
 
+      <!-- Confirm Reset Demo Account Modal -->
       <div v-if="showConfirmModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div
@@ -338,6 +400,7 @@
         </div>
       </div>
 
+      <!-- Generic Notification Modal -->
       <div v-if="showNotificationModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div
@@ -365,6 +428,7 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
 
 const apexchart = VueApexCharts;
 

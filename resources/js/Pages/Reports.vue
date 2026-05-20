@@ -86,11 +86,32 @@
                   <tr>
                     <th class="px-6 py-4 text-left">Report Name</th>
                     <th class="px-6 py-4 text-left">Period</th>
-                    <th class="px-6 py-4 text-left">Format</th>
+                    <th class="px-6 py-4 text-center">Format</th>
                     <th class="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-[#1f3348]">
+
+                <!-- SKELETON LOADER STATE -->
+                <tbody v-if="loading" class="divide-y divide-[#1f3348]/40">
+                  <tr v-for="i in 4" :key="i">
+                    <td class="px-6 py-5">
+                      <SkeletonLoader class="h-4 w-44 mb-2 bg-gray-700/60" />
+                      <SkeletonLoader class="h-3 w-28 bg-gray-800" />
+                    </td>
+                    <td class="px-6 py-5">
+                      <SkeletonLoader class="h-4 w-36 bg-gray-700/50" />
+                    </td>
+                    <td class="px-6 py-5 flex justify-center items-center pt-6">
+                      <SkeletonLoader class="h-4 w-10 rounded-md bg-gray-800" />
+                    </td>
+                    <td class="px-6 py-5 text-right">
+                      <SkeletonLoader class="h-4 w-16 inline-block bg-gray-800" />
+                    </td>
+                  </tr>
+                </tbody>
+
+                <!-- DATA RENDER STATE -->
+                <tbody v-else class="divide-y divide-[#1f3348]">
                   <tr v-for="report in reportHistory" :key="report.id" class="hover:bg-[#16213A] transition">
                     <td class="px-6 py-4">
                       <div class="text-white font-medium">{{ report.name }}</div>
@@ -123,6 +144,7 @@
 import { ref, reactive } from 'vue';
 import MainLayout from "@/Layouts/MainLayout.vue";
 import api from "@/api";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const loading = ref(false);
 const reportHistory = ref([]); 
@@ -145,7 +167,7 @@ const generateReport = async () => {
   try {
     const response = await api.post('/reports/generate', form);
     alert("Report generation started! Check history in a moment.");
-    refreshHistory();
+    // refreshHistory(); 
   } catch (e) {
     console.error(e);
     alert("Error generating report");

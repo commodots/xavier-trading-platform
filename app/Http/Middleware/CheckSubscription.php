@@ -13,45 +13,40 @@ class CheckSubscription
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next): Response
-    {
-        $user = $request->user();
+    
 
-        // Ensure the user is authenticated
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Unauthenticated.'
-            ], 401);
-        }
+public function handle(Request $request, Closure $next): Response
+{
+    $user = $request->user();
 
-        //Check for structural suspension (e.g., unpaid debt limits)
-        if ($user->subscription_status === 'suspended') {
-            return response()->json([
-                'success' => false,
-                'error' => 'Your subscription is suspended due to an outstanding balance or billing failure. Please top up your wallet.'
-            ], 403);
-        }
-
-        // Check for administrative inactivation (e.g., extended long-term inactivity)
-        if ($user->subscription_status === 'inactive') {
-            return response()->json([
-                'success' => false,
-                'error' => 'Your account profile is currently inactive. Please renew your subscription tier to proceed.'
-            ], 403);
-        }
-
-        //Ensure they have a valid, unexpired timeframe window
-        if (!$user->hasActiveSubscription()) {
-            return response()->json([
-                'success' => false,
-                'error' => 'An active premium subscription tier or trial is required to access this feature.'
-            ], 403);
-        }
-
-        // Update user activity timestamp dynamically during valid incoming traffic requests
-        $user->updateQuietly(['last_active_at' => now()]);
-
-        return $next($request);
+    if (!$user) {
+        return response()->json(['success' => false, 'error' => 'Unauthenticated.'], 401);
     }
+
+    if ($user->subscription_status === 'suspended') {
+        return response()->json([
+            'success' => false, 
+                'error' => 'Your subscription is suspended due to an outstanding balance or billing failure. Please top up your wallet.'
+        ], 403);
+    }
+
+    if ($user->subscription_status === 'inactive') {
+        return response()->json([
+            'success' => false, 
+            'error' => 'Your account profile is currently inactive. Please renew your subscription tier.'
+        ], 403);
+    }
+
+    if (!$user->hasActiveSubscription()) {
+        return response()->json([
+            'success' => false, 
+            'error' => 'An active subscription tier or trial is required to proceed.',
+            'code' => 'SUBSCRIPTION_REQUIRED'
+        ], 403);
+    }
+
+    $user->updateQuietly(['last_active_at' => now()]);
+
+    return $next($request);
+}
 }

@@ -69,6 +69,12 @@ class SubscriptionController extends Controller
                 'paystack_subscription_code' => $response['data']['subscription_code'] ?? null,
             ]);
 
+            $request->user()->update([
+                'subscription_status' => 'active',
+                'last_fee_charged_at' => now(),
+                'next_fee_due_at' => now()->addDays($plan->duration_days),
+            ]);
+
             return response()->json(['success' => true, 'message' => 'Subscription Activated!']);
         }
 
@@ -116,6 +122,10 @@ class SubscriptionController extends Controller
             'status' => 'cancelled',
             'expires_at' => now(),
         ]);
+        
+        // Update the User subscription status
+        // Assuming 'inactive' or 'free' is the default state after cancellation
+        $user->update(['subscription_status' => 'inactive']);
 
         return response()->json(['success' => true, 'message' => 'Subscription cancelled.']);
     }

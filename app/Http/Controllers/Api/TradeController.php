@@ -818,7 +818,7 @@ class TradeController extends Controller
         return response()->json(['status' => 'tracking', 'symbols' => $symbols]);
     }
 
-    /**
+   /**
      * Fetch market insights (gainers, losers, most active) for a specific market type.
      */
     public function insights(string $market)
@@ -826,42 +826,47 @@ class TradeController extends Controller
         try {
             $normalizedMarket = strtoupper(trim($market));
             
-            $baseQuery = Symbol::query();
+            // Cache the results for 2 minutes to prevent heavy DB strain 
+            // from rapid dashboard tab switching or concurrent users.
+            $data = Cache::remember("market_insights_{$normalizedMarket}", 120, function () use ($normalizedMarket) {
+                $baseQuery = Symbol::query();
 
-            // Align market types with the categories used in index()
-            if ($normalizedMarket === 'NGX') {
-                $baseQuery->where('exchange', 'NGX');
-            } elseif ($normalizedMarket === 'CRYPTO') {
-                $baseQuery->where(function ($q) {
-                    $q->where('type', 'crypto')
-                      ->orWhere('symbol', 'like', '%/USDT%');
-                });
-            } else {
-                // Default to Global Equities (NASDAQ/NYSE/etc)
-                $baseQuery->where('exchange', '!=', 'NGX')
-                          ->where('type', '!=', 'crypto')
-                          ->where('symbol', 'not like', '%/USDT%');
-            }
+                // Align market types with the categories used in index()
+                if ($normalizedMarket === 'NGX') {
+                    $baseQuery->where('exchange', 'NGX');
+                } elseif ($normalizedMarket === 'CRYPTO') {
+                    $baseQuery->where(function ($q) {
+                        $q->where('type', 'crypto')
+                          ->orWhere('symbol', 'like', '%/USDT%');
+                    });
+                } else {
+                    // Default to Global Equities (NASDAQ/NYSE/etc)
+                    $baseQuery->where('exchange', '!=', 'NGX')
+                              ->where('type', '!=', 'crypto')
+                              ->where('symbol', 'not like', '%/USDT%');
+                }
 
-            $mapData = fn($s) => [
-                'symbol' => $s->symbol,
-                'name' => $s->name,
-                'price' => (float) $s->last_price,
-                'change' => (float) ($s->change ?? 0),
-            ];
+                $mapData = fn($s) => [
+                    'symbol' => $s->symbol,
+                    'name'   => $s->name,
+                    'price'  => (float) $s->last_price,
+                    'change' => (float) ($s->change ?? 0),
+                ];
 
-            $data = [
-                'gainers'      => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
-                'losers'       => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
-                'most_traded'  => (clone $baseQuery)->where('volume', '>', 0)->orderByDesc('volume')->limit(5)->get()->map($mapData),
-                'least_traded' => (clone $baseQuery)->orderBy('volume')->limit(5)->get()->map($mapData),
-            ];
+                return [
+                    'gainers'      => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
+                    'losers'       => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
+                    'most_traded'  => (clone $baseQuery)->where('volume', '>', 0)->orderByDesc('volume')->limit(5)->get()->map($mapData),
+                    // Added a where('volume', '>', 0) safety boundary so uninitialized or dead tickers don't pollute stats
+                    'least_traded' => (clone $baseQuery)->where('volume', '>', 0)->orderBy('volume')->limit(5)->get()->map($mapData),
+                ];
+            });
 
             return response()->json(['success' => true, 'data' => $data], 200);
 
         } catch (\Throwable $e) {
             Log::error('Market insights retrieval failed: ' . $e->getMessage(), [
-                'market' => $market,
+                'market'    => $market,
                 'exception' => $e
             ]);
 
@@ -871,4 +876,5 @@ class TradeController extends Controller
             ], 500);
         }
     }
+}
 }

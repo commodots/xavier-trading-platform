@@ -2,10 +2,8 @@
     <div class="space-y-8">
       <div v-if="!isComponent" class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-        
           <p class="text-sm text-gray-400">
-            {{ isDemo ? 'View and manage your simulated paper trades.' : 'View and manage all your investment orders.'
-            }}
+            {{ isDemo ? 'View and manage your simulated paper trades.' : 'View and manage all your investment orders.' }}
           </p>
         </div>
 
@@ -51,16 +49,44 @@
       </div>
 
       <div class="p-6 border rounded-xl"
-        :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
+        :class="isDemo ? 'border-yellow-600 bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold">{{ isDemo ? 'Demo Order History' : 'Order History' }}</h2>
-          <span class="text-xs text-gray-500">{{ filteredOrders.length }} orders found • Page {{ currentPage }} of {{ totalPages }}</span>
+          <span class="text-xs text-gray-500">
+            <template v-if="loading">Loading orders...</template>
+            <template v-else>{{ filteredOrders.length }} orders found • Page {{ currentPage }} of {{ totalPages }}</template>
+          </span>
         </div>
 
-        <div v-if="loading" class="flex items-center justify-center py-12">
-          <div class="w-8 h-8 border-b-2 border-blue-600 rounded-full animate-spin"
-            :class="isDemo ? 'border-yellow-500' : 'border-blue-600'"></div>
-          <span class="ml-2 text-gray-400">Loading orders...</span>
+        <!-- SKELETON LOADER STATE -->
+        <div v-if="loading" class="animate-pulse overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+              <tr>
+                <th class="px-2 py-3 text-left">Date</th>
+                <th class="px-2 text-left">Market</th>
+                <th class="px-2 text-left">Asset</th>
+                <th class="px-2 text-left">Units</th>
+                <th class="px-2 text-left">Amount</th>
+                <th class="px-2 text-left">Status</th>
+                <th class="px-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#1f3348]/40">
+              <tr v-for="i in 5" :key="i">
+                <td class="px-2 py-4"><div class="h-4 bg-gray-700/50 rounded w-20"></div></td>
+                <td class="px-2"><div class="h-4 bg-gray-800 rounded w-14"></div></td>
+                <td class="px-2 py-2">
+                  <div class="h-4 bg-gray-700/60 rounded w-16 mb-1.5"></div>
+                  <div class="h-3 bg-gray-800 rounded w-24"></div>
+                </td>
+                <td class="px-2"><div class="h-4 bg-gray-700/50 rounded w-12"></div></td>
+                <td class="px-2"><div class="h-4 bg-gray-700/60 rounded w-16"></div></td>
+                <td class="px-2"><div class="h-5 bg-gray-800 rounded-full w-20"></div></td>
+                <td class="px-2 flex justify-end items-center pt-4"><div class="h-4 bg-gray-800 rounded w-12"></div></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div v-if="!loading" class="overflow-x-auto">
@@ -131,7 +157,7 @@
         </div>
 
         <!-- Pagination Controls -->
-        <div v-if="totalPages > 1" class="flex items-center justify-between mt-6">
+        <div v-if="totalPages > 1 && !loading" class="flex items-center justify-between mt-6">
           <button
             @click="prevPage"
             :disabled="currentPage === 1"
@@ -150,6 +176,7 @@
       </div>
     </div>
 
+    <!-- Cancel Confirmation Modal -->
     <div v-if="orderToCancel"
       class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div class="bg-[#0F1724] border border-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
@@ -174,6 +201,7 @@
       </div>
     </div>
 
+    <!-- Notification Modal -->
     <div v-if="showNotificationModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-sm relative border border-[#2A314A] text-center">
@@ -198,6 +226,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue"
 
 const orders = ref([]);
 const loading = ref(true);

@@ -24,135 +24,158 @@
       </div>
 
       <div v-if="activeView === 'history'" class="space-y-6">
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 mb-6">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div>
-            <label class="text-xs text-gray-400">Type</label>
-            <select v-model="filters.type" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0">
-              <option value="">All</option>
-              <option value="deposit">Deposit</option>
-              <option value="withdrawal">Withdrawal</option>
-              <option value="buy">Buy</option>
-              <option value="sell">Sell</option>
-              <option value="transfer">Transfer</option>
-            </select>
+        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 mb-6">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+              <label class="text-xs text-gray-400">Type</label>
+              <select v-model="filters.type" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0">
+                <option value="">All</option>
+                <option value="deposit">Deposit</option>
+                <option value="withdrawal">Withdrawal</option>
+                <option value="buy">Buy</option>
+                <option value="sell">Sell</option>
+                <option value="transfer">Transfer</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-xs text-gray-400">Status</label>
+              <select v-model="filters.status" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0">
+                <option value="">All</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-xs text-gray-400">From</label>
+              <input type="date" v-model="filters.from" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0" />
+            </div>
+
+            <div>
+              <label class="text-xs text-gray-400">To</label>
+              <input type="date" v-model="filters.to" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0" />
+            </div>
           </div>
 
-          <div>
-            <label class="text-xs text-gray-400">Status</label>
-            <select v-model="filters.status" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0">
-              <option value="">All</option>
-              <option value="completed">Completed</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-400">From</label>
-            <input type="date" v-model="filters.from" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0" />
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-400">To</label>
-            <input type="date" v-model="filters.to" class="w-full bg-[#1C2541] text-gray-300 rounded-lg px-3 py-2 mt-1 border border-[#1f3348] focus:border-[#00D4FF] focus:ring-0" />
+          <div class="flex justify-end gap-3 mt-4">
+            <button
+              @click="clearFilters"
+              class="bg-[#1C2541] text-gray-400 px-6 py-2 rounded-lg font-medium hover:text-white transition"
+            >
+              Clear Filters
+            </button>
+            <button
+              @click="applyFilters"
+              class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition"
+            >
+              Apply Filters
+            </button>
           </div>
         </div>
 
-        <div class="flex justify-end gap-3 mt-4">
-          <button
-            @click="clearFilters"
-            class="bg-[#1C2541] text-gray-400 px-6 py-2 rounded-lg font-medium hover:text-white transition"
-          >
-            Clear Filters
-          </button>
-          <button
-            @click="applyFilters"
-            class="bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white px-6 py-2 rounded-lg font-medium hover:opacity-90 transition"
-          >
-            Apply Filters
-          </button>
-        </div>
-      </div>
+        <!-- Transactions Table -->
+        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Transaction History</h2>
+            <span class="text-sm text-gray-400">Page {{ currentPage }} of {{ totalPages || 1 }}</span>
+          </div>
 
-      <!-- Transactions Table -->
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold">Transaction History</h2>
-          <span class="text-sm text-gray-400">Page {{ currentPage }} of {{ totalPages || 1 }}</span>
-        </div>
+          <!-- SKELETON LOADER STATE -->
+          <div v-if="loading" class="animate-pulse">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+                  <tr>
+                    <th class="px-2 py-2 text-left">Date</th>
+                    <th class="px-2 text-left">Type</th>
+                    <th class="px-2 text-left">ID</th>
+                    <th class="px-2 text-right">Amount</th>
+                    <th class="px-2 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="i in 5" :key="i" class="border-b border-[#1f3348]/40">
+                    <td class="px-2 py-4"><div class="h-4 bg-gray-700/60 rounded w-20"></div></td>
+                    <td class="px-2"><div class="h-4 bg-gray-700/60 rounded w-16"></div></td>
+                    <td class="px-2"><div class="h-3 bg-gray-800/80 rounded w-24 font-mono"></div></td>
+                    <td class="px-2 flex justify-end items-center pt-4"><div class="h-4 bg-gray-700/60 rounded w-20"></div></td>
+                    <td class="px-2"><div class="h-6 bg-gray-800/80 rounded-full w-16 mx-auto"></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        <div v-if="loading" class="py-6 text-center">
-          <div class="text-gray-400">Loading transactions...</div>
-        </div>
-
-        <div v-else-if="paginatedTransactions.length" class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
-              <tr>
-                <th class="px-2 py-2 text-left">Date</th>
-                <th class="px-2 text-left">Type</th>
-                <th class="px-2 text-left">ID</th>
-                <th class="px-2 text-right">Amount</th>
-                <th class="px-2 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="t in paginatedTransactions"
-                :key="t.id || t.ref"
-                @click="openTransactionDetails(t)"
-                class="border-b border-[#1f3348] hover:bg-[#16213A] transition cursor-pointer"
-              >
-                <td class="px-2 py-3">{{ t.date }}</td>
-                <td class="px-2 capitalize">{{ t.type }}</td>
-                <td class="px-2 font-mono text-[11px] text-gray-500 uppercase">{{ t.ref?.toString().substring(0, 10) }}</td>
-                <td
-                  class="px-2 font-semibold text-right"
-                  :class="['deposit', 'sell_crypto', 'refund'].includes(t.type?.toLowerCase()) ? 'text-green-400' : 'text-red-400'"
+          <!-- DATA RENDER STATE -->
+          <div v-else-if="paginatedTransactions.length" class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+                <tr>
+                  <th class="px-2 py-2 text-left">Date</th>
+                  <th class="px-2 text-left">Type</th>
+                  <th class="px-2 text-left">ID</th>
+                  <th class="px-2 text-right">Amount</th>
+                  <th class="px-2 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="t in paginatedTransactions"
+                  :key="t.id || t.ref"
+                  @click="openTransactionDetails(t)"
+                  class="border-b border-[#1f3348] hover:bg-[#16213A] transition cursor-pointer"
                 >
-                  {{ formatAmount(t.amount, t.currency) }}
-                </td>
-                <td class="px-2 text-center">
-                  <span
-                    :class="[
-                      'px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter',
-                      t.status?.toLowerCase() === 'completed' || t.status?.toLowerCase() === 'success'
-                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                        : t.status?.toLowerCase() === 'pending' || t.status?.toLowerCase() === 'processing'
-                        ? 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/20'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                    ]"
+                  <td class="px-2 py-3">{{ t.date }}</td>
+                  <td class="px-2 capitalize">{{ t.type }}</td>
+                  <td class="px-2 font-mono text-[11px] text-gray-500 uppercase">{{ t.ref?.toString().substring(0, 10) }}</td>
+                  <td
+                    class="px-2 font-semibold text-right"
+                    :class="['deposit', 'sell_crypto', 'refund'].includes(t.type?.toLowerCase()) ? 'text-green-400' : 'text-red-400'"
                   >
-                    {{ t.status }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                    {{ formatAmount(t.amount, t.currency) }}
+                  </td>
+                  <td class="px-2 text-center">
+                    <span
+                      :class="[
+                        'px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter',
+                        t.status?.toLowerCase() === 'completed' || t.status?.toLowerCase() === 'success'
+                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                          : t.status?.toLowerCase() === 'pending' || t.status?.toLowerCase() === 'processing'
+                          ? 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/20'
+                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      ]"
+                    >
+                      {{ t.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-        <div v-else class="py-12 text-center text-gray-500">
-          No transactions found matching those filters.
-        </div>
+          <div v-else class="py-12 text-center text-gray-500">
+            No transactions found matching those filters.
+          </div>
 
-        <div v-if="totalPages > 1" class="flex items-center justify-between mt-6">
-          <button
-            @click="prevPage"
-            :disabled="currentPage === 1"
-            class="bg-[#1C2541] px-4 py-2 rounded-lg text-sm hover:bg-[#24395C] disabled:opacity-40"
-          >
-            ← Prev
-          </button>
-          <button
-            @click="nextPage"
-            :disabled="currentPage === totalPages"
-            class="bg-[#1C2541] px-4 py-2 rounded-lg text-sm hover:bg-[#24395C] disabled:opacity-40"
-          >
-            Next →
-          </button>
+          <div v-if="totalPages > 1 && !loading" class="flex items-center justify-between mt-6">
+            <button
+              @click="prevPage"
+              :disabled="currentPage === 1"
+              class="bg-[#1C2541] px-4 py-2 rounded-lg text-sm hover:bg-[#24395C] disabled:opacity-40"
+            >
+              ← Prev
+            </button>
+            <button
+              @click="nextPage"
+              :disabled="currentPage === totalPages"
+              class="bg-[#1C2541] px-4 py-2 rounded-lg text-sm hover:bg-[#24395C] disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </div>
         </div>
-      </div>
       </div>
 
       <div v-else>
@@ -174,6 +197,7 @@ import api from "@/api";
 import Orders from "@/Pages/Orders.vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const activeView = ref('history');
 const filters = ref({ type: "", status: "", from: "", to: "" });

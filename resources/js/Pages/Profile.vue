@@ -32,35 +32,56 @@
 
       <!-- Tab Content -->
       <div v-if="activeTab === 'Personal Info'" class="bg-[#0F1724] border border-[#1F2A44] rounded-xl p-6">
-        <div class="flex items-center gap-6 mb-6">
-          <img
-            :src="user.avatar || '/images/avatar-placeholder.png'"
-            alt="User avatar"
-            class="w-24 h-24 rounded-full border border-[#1F2A44] object-cover"
-          />
-          <div>
-            <h2 class="text-xl font-semibold">{{ user.first_name }} {{ user.last_name }}</h2>
-            <p class="text-sm text-gray-400">{{ user.email }}</p>
-            <p class="text-sm text-gray-400">📱 {{ user.phone }}</p>
+        <!-- SKELETON LOADING STATE -->
+        <div v-if="pageLoading" class="space-y-6">
+          <div class="flex items-center gap-6 mb-6">
+            <SkeletonLoader class="w-24 h-24 rounded-full bg-gray-800" />
+            <div class="space-y-2">
+              <SkeletonLoader class="h-6 w-48 bg-gray-700/60" />
+              <SkeletonLoader class="h-4 w-40 bg-gray-800" />
+              <SkeletonLoader class="h-4 w-32 bg-gray-800" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div v-for="i in 4" :key="i">
+              <SkeletonLoader class="h-3 w-24 mb-1 bg-gray-800" />
+              <SkeletonLoader class="h-9 w-full rounded-lg bg-gray-800/50" />
+            </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
-          <div>
-            <label class="block mb-1 text-gray-400">Date of Birth</label>
-            <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.dob || '—' }}</div>
+        <!-- DATA RENDER STATE -->
+        <div v-else>
+          <div class="flex items-center gap-6 mb-6">
+            <img
+              :src="user.avatar || '/images/avatar-placeholder.png'"
+              alt="User avatar"
+              class="w-24 h-24 rounded-full border border-[#1F2A44] object-cover"
+            />
+            <div>
+              <h2 class="text-xl font-semibold">{{ user.first_name }} {{ user.last_name }}</h2>
+              <p class="text-sm text-gray-400">{{ user.email }}</p>
+              <p class="text-sm text-gray-400">📱 {{ user.phone }}</p>
+            </div>
           </div>
-          <div>
-            <label class="block mb-1 text-gray-400">Address</label>
-            <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.address || '—' }}</div>
-          </div>
-          <div>
-            <label class="block mb-1 text-gray-400">State</label>
-            <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.state || '—' }}</div>
-          </div>
-          <div>
-            <label class="block mb-1 text-gray-400">Country</label>
-            <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.country || '—' }}</div>
+
+          <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+            <div>
+              <label class="block mb-1 text-gray-400">Date of Birth</label>
+              <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.dob || '—' }}</div>
+            </div>
+            <div>
+              <label class="block mb-1 text-gray-400">Address</label>
+              <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.address || '—' }}</div>
+            </div>
+            <div>
+              <label class="block mb-1 text-gray-400">State</label>
+              <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.state || '—' }}</div>
+            </div>
+            <div>
+              <label class="block mb-1 text-gray-400">Country</label>
+              <div class="bg-[#1C1F2E] p-2 rounded-lg">{{ user.country || '—' }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -125,7 +146,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-import MainLayout from "@/layouts/MainLayout.vue";
+import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const activeTab = ref("Personal Info");
 const tabs = ["Personal Info", "KYC & Verification"];
@@ -133,10 +155,15 @@ const user = ref({});
 const kyc = ref({ id_type: "", id_value: "", files: {} });
 const message = ref("");
 const loading = ref(false);
+const pageLoading = ref(true);
 
 onMounted(() => {
+ 
   const storedUser = localStorage.getItem("user");
-  if (storedUser) user.value = JSON.parse(storedUser);
+  if (storedUser) {
+    user.value = JSON.parse(storedUser);
+  }
+  pageLoading.value = false;
 });
 
 const handleFile = (event, field) => {

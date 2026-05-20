@@ -12,7 +12,6 @@ class AdvisoryPost extends Model
         'content', 
         'market_type', 
         'risk_level',
-        'recommendation', // BUY, SELL, HOLD
         'tier', // free, pro, premium
         'is_premium'
     ];
@@ -23,8 +22,11 @@ class AdvisoryPost extends Model
 
     public function scopeAccessibleBy(Builder $query, ?User $user): void
     {
-        if (!$user || $user->current_tier !== 'premium') {
-            $query->where('is_premium', false)->where('tier', 'free');
+        if (!$user) {
+            $query->where('tier', 'free');
+        } elseif ($user->current_tier !== 'premium' && !$user->on_trial) {
+            // Allow free and pro (regular) posts but hide premium
+            $query->where('tier', '!=', 'premium');
         }
     }
 }

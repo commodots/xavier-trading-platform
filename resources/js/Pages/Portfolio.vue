@@ -8,8 +8,11 @@
       </h1>
       <p class="text-sm text-gray-400">Your asset allocation & performance overview.</p>
 
-      <div
-        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <!-- Total Value Block -->
+      <div v-if="loading">
+        <SkeletonLoader type="card" class="opacity-40" />
+      </div>
+      <div v-else class="transition-all duration-300">
         <div class="p-6 border rounded-xl"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="text-sm text-gray-400">
@@ -21,8 +24,10 @@
         </div>
       </div>
 
-      <div
-        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <div v-if="loading">
+        <SkeletonLoader type="card" class="opacity-40" style="height: 380px;" />
+      </div>
+      <div v-else class="transition-all duration-300">
         <div class="relative p-6 border rounded-xl"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <div class="flex items-center justify-between mb-4 relative">
@@ -40,8 +45,11 @@
         </div>
       </div>
 
-      <div
-        :class="loading ? 'blur-sm animate-pulse opacity-50 pointer-events-none transition-all duration-300' : 'transition-all duration-300'">
+      <!-- Holdings Table Block -->
+      <div v-if="loading">
+        <SkeletonLoader type="table" class="opacity-40" />
+      </div>
+      <div v-else class="transition-all duration-300">
         <div class="p-6 border rounded-xl"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-4 text-lg font-semibold">Your Holdings</h2>
@@ -49,12 +57,12 @@
             <thead class="text-gray-400 text-xs border-b border-[#1f3348] text-center py-2">
               <tr>
                 <th class="text-left">Asset</th>
-                <th >Total Qty</th>
+                <th>Total Qty</th>
                 <th>Cleared</th>
-                <th >Uncleared</th>
-                <th >Status</th>
-                <th >Avg Cost</th>
-                <th >Market Price</th>
+                <th>Uncleared</th>
+                <th>Status</th>
+                <th>Avg Cost</th>
+                <th>Market Price</th>
                 <th>P/L</th>
               </tr>
             </thead>
@@ -106,6 +114,7 @@ import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 import api from "@/api";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const apexchart = VueApexCharts;
 
@@ -157,7 +166,6 @@ const tickers = {
   ]
 };
 
-
 const handleModeSwitching = (e) => {
   isDemo.value = e.detail === 'demo';
   loading.value = true;
@@ -170,8 +178,6 @@ const refreshPortfolio = async () => {
     isDemo.value = user.trading_mode === 'demo';
 
     const res = await api.get('/portfolio');
-
-    // Extract data
     const data = res.data.data || res.data;
 
     const wallet = Number(data.wallet_balance || 0);
@@ -202,14 +208,19 @@ function formatQuantity(quantity, category) {
 
 onMounted(() => {
   refreshPortfolio();
-
   window.addEventListener('trading-mode-switching', handleModeSwitching);
-
   window.addEventListener('trading-mode-changed', refreshPortfolio);
 });
 
 onUnmounted(() => {
   window.removeEventListener('trading-mode-switching', handleModeSwitching);
   window.removeEventListener('trading-mode-changed', refreshPortfolio);
+});
+</script>
+
+<script>
+import { defineComponent } from "vue";
+export default defineComponent({
+  components: { apexchart: VueApexCharts },
 });
 </script>

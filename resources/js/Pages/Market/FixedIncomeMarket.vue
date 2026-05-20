@@ -40,12 +40,16 @@
         :seriesData="portfolioData" 
         :totalValue="totalValue"
         :percentageChange="changePercent" 
-        :loading="isGraphLoading" 
+        :loading="isGraphLoading || loading" 
         @rangeChange="fetchPortfolioPerformance" 
       />
 
       <!-- Asset Grid Portfolio List Table -->
-      <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6">
+      <div v-if="loading" class="mt-6">
+        <SkeletonLoader type="table" class="opacity-40" />
+      </div>
+      
+      <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6">
         <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
           <h2 class="font-semibold text-gray-200">My Holdings</h2>
           <span class="text-xs text-gray-500">{{ filteredInstruments.length }} Listings</span>
@@ -118,6 +122,7 @@ import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import TradeModal from "@/Components/TradeModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
+import SkeletonLoader from "@/Components/SkeletonLoader.vue"
 import api from "@/api";
 
 // Core Identity / Session Access Management Configuration 

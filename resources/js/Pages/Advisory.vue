@@ -1,462 +1,387 @@
 <template>
   <MainLayout>
-    <div class="relative p-6 mx-auto max-w-7xl">
-      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
-
-      <div v-if="feedback.show"
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-        <div class="w-full max-w-sm p-6 text-center bg-white shadow-2xl rounded-2xl">
-          <div
-            :class="['flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full', feedback.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600']">
-            <svg v-if="feedback.type === 'success'" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none"
-              viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h3 class="mb-2 text-xl font-bold text-gray-900">{{ feedback.title }}</h3>
-          <p class="mb-6 text-gray-600">{{ feedback.message }}</p>
-          <button @click="feedback.show = false"
-            class="w-full py-3 font-bold text-white transition bg-gray-900 rounded-xl hover:bg-gray-800">Got it</button>
+    <div class="min-h-screen text-slate-100 p-4 md:p-8">
+      <!-- Header Section -->
+      <header class="flex items-center justify-between max-w-6xl mx-auto mb-8">
+        <div>
+          <h1 class="text-xl font-black tracking-tight md:text-3xl uppercase">Xavier Advisory</h1>
+          <p class="text-sm text-slate-400">Expert insight allocations and model portfolios</p>
         </div>
-      </div>
 
-      <div v-if="showCancelModal"
-        class="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-gray-900/80 backdrop-blur-sm">
-        <div class="w-full max-w-md p-6 text-center bg-white shadow-2xl rounded-2xl">
-          <h3 class="mb-2 text-2xl font-bold text-gray-900">Cancel Subscription?</h3>
-          <p class="mb-8 text-gray-600">Are you sure you want to cancel?</p>
-          <div class="flex justify-center gap-3">
-            <button @click="showCancelModal = false"
-              class="px-6 py-2.5 font-bold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">No, Don't
-              Cancel</button>
-            <button @click="confirmCancelSubscription" :disabled="isCancelling"
-              class="px-6 py-2.5 font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex justify-center w-40">
-              <span v-if="isCancelling">Canceling...</span>
-              <span v-else>Yes, Cancel Plan</span>
-            </button>
+        <div class="flex items-center gap-3">
+          <!-- Active Trial Countdown Badge -->
+          <div v-if="user.on_trial" class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400">
+            <span>⏳</span> Trial: {{ trialCountdown }}
           </div>
-        </div>
-      </div>
 
-      <div v-if="activePost"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div
-          class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col relative">
-          <button @click="closePostModal"
-            class="absolute z-10 p-1 text-gray-400 bg-white rounded-full top-4 right-4 hover:text-gray-700">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <!-- Call to action button to subscribe to premium -->
+          <button 
+            v-if="!user.has_active_subscription && !user.on_trial"
+            @click="activeTab = 'premium'"
+            class="hidden md:flex items-center gap-2 px-4 py-2 text-xs font-black tracking-widest text-white uppercase bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20 active:scale-95"
+          >
+            <span>⭐</span> Get Premium
           </button>
-          <div class="relative p-8 overflow-y-auto">
-            <span class="block mb-2 text-xs font-bold tracking-wider text-blue-600 uppercase">{{ activePost.market_type
-              }}</span>
-            <div v-if="activePost.recommendation" class="mb-4">
-              <span :class="[
-                'px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest',
-                activePost.recommendation === 'BUY' ? 'bg-green-500/20 text-green-400' :
-                  activePost.recommendation === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'
-              ]">{{ activePost.recommendation }}</span>
-            </div>
-            <h2 class="mb-4 text-3xl font-bold text-gray-900">{{ activePost.title }}</h2>
+
+          <!-- Notifications Bell Interface & Menu Dropdown Parent Container -->
+          <div ref="notificationContainer" class="relative">
+            <button 
+              @click="showNotifications = !showNotifications"
+              class="relative p-2.5 transition rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800"
+            >
+              <span>🔔</span>
+              <span 
+                v-if="unreadCount > 0" 
+                class="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white"
+              >
+                {{ unreadCount }}
+              </span>
+            </button>
+
+            <!-- Dropdown Menu Box -->
             <div
-              :class="['text-gray-700 leading-relaxed text-lg', !(user.has_active_subscription || user.on_trial) ? 'max-h-48 overflow-hidden relative' : '']">
-              {{ activePost.content }}
-              <div v-if="!(user.has_active_subscription || user.on_trial)"
-                class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent"></div>
-            </div>
-            <div v-if="!(user.has_active_subscription || user.on_trial)"
-              class="flex flex-col items-center justify-center mt-6">
-              <button @click="showPricingModal = true"
-                class="px-8 py-3 font-bold text-white transition bg-blue-600 rounded-full shadow-lg hover:bg-blue-700">
-                View Plans to Read More
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="showPricingModal"
-        class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-gray-950/90 backdrop-blur-md">
-
-        <div
-          class="bg-[#0F1724] border border-[#1f3348] rounded-3xl shadow-2xl max-w-7xl w-[95%] max-h-[90vh] overflow-hidden flex flex-col relative animate-fade-in-up">
-
-          <button @click="showPricingModal = false"
-            class="absolute z-10 p-2 text-gray-400 transition top-6 right-6 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          <div class="w-full p-8 overflow-y-auto md:p-12">
-            <div class="mb-10 text-center">
-              <h2 class="mb-2 text-4xl font-black text-white">Choose Your Plan</h2>
-              <p class="text-lg text-gray-400">Secure your spot for long-term growth and premium insights.</p>
-            </div>
-
-            <div class="flex flex-col flex-wrap justify-center gap-6 md:flex-row lg:flex-nowrap">
-
-              <div v-for="plan in plans" :key="plan.id" :class="[
-                'flex-1 min-w-[260px] p-8 rounded-3xl transition-all duration-300 group flex flex-col shadow-lg border relative',
-
-                plan.name.toLowerCase().includes('premium')
-                  ? 'bg-[#1a1c2e] border-amber-500/30 shadow-amber-900/10 hover:border-amber-400 hover:shadow-amber-500/20'
-                  : 'bg-[#111827] border-blue-500/20 shadow-blue-900/10 hover:border-blue-400 hover:shadow-blue-500/20'
-              ]">
-
-                <div v-if="plan.name.toLowerCase().includes('monthly') && plan.name.toLowerCase().includes('premium')"
-                  class="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-600 to-amber-400 text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap">
-                  Most Popular
-                </div>
-
-                <h3
-                  :class="['text-xl font-bold transition-colors', plan.name.toLowerCase().includes('premium') ? 'text-amber-400 group-hover:text-amber-300' : 'text-white']">
-                  {{ plan.name }}
-                </h3>
-
-                <p
-                  :class="['my-4 text-4xl font-black transition-colors', plan.name.toLowerCase().includes('premium') ? 'text-amber-500 group-hover:text-amber-400' : 'text-blue-500 group-hover:text-blue-400']">
-                  ₦{{ Number(plan.price).toLocaleString() }}
-                </p>
-
-                <p
-                  :class="['mb-4 text-sm italic', plan.name.toLowerCase().includes('premium') ? 'text-amber-400/70' : 'text-blue-400']">
-                  Duration: {{ plan.duration_days }} days
-                </p>
-
-                <ul class="flex-grow mb-8 space-y-4 text-sm text-gray-400">
-                  <li v-for="feature in getFeaturesList(plan.features)" :key="feature" class="flex items-start gap-3">
-                    <span :class="[
-                      'flex items-center justify-center w-5 h-5 rounded-full text-[10px] mt-0.5 shrink-0 transition-colors',
-                      plan.name.toLowerCase().includes('premium') ? 'bg-amber-500/10 text-amber-500 group-hover:text-amber-400' : 'bg-blue-500/10 text-blue-500 group-hover:text-blue-400'
-                    ]">
-                      ✓
-                    </span>
-                    {{ feature }}
-                  </li>
-                </ul>
-
-                <button @click="subscribe(plan.id)" :disabled="processingPlanId === plan.id" :class="[
-                  'w-full py-4 mt-auto font-bold text-white transition-all shadow-lg rounded-2xl active:scale-95',
-                  plan.name.toLowerCase().includes('premium')
-                    ? 'bg-amber-600 hover:bg-amber-900 shadow-amber-900/40 hover:shadow-amber-500/30'
-                    : 'bg-blue-600 hover:bg-blue-900 shadow-blue-900/20 hover:shadow-blue-500/30'
-                ]">
-                  {{ processingPlanId === plan.id ? 'Processing...' : 'Subscribe Now' }}
+              v-if="showNotifications" 
+              class="absolute right-0 z-50 w-80 mt-2 overflow-hidden border rounded-xl border-slate-800 bg-slate-950 shadow-2xl animate-fade-in"
+            >
+              <div class="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/40">
+                <span class="text-xs font-bold text-slate-300">Notifications</span>
+                <button 
+                  v-if="unreadCount > 0"
+                  @click="markAllAsRead" 
+                  class="text-[11px] text-blue-400 hover:underline font-medium"
+                >
+                  Mark all read
                 </button>
+              </div>
+              <div class="max-h-64 overflow-y-auto divide-y divide-slate-900">
+                <div v-if="notifications.length === 0" class="py-8 text-center text-xs text-slate-500">
+                  No new alerts.
+                </div>
+                <div 
+                  v-for="notif in notifications" 
+                  :key="notif.id"
+                  @click="handleNotificationClick(notif)"
+                  class="p-3 text-xs cursor-pointer transition-colors hover:bg-slate-900/60"
+                  :class="[!notif.read_at ? 'bg-slate-900/30 border-l-2 border-blue-500' : '']"
+                >
+                  <p class="text-slate-200 mb-1">{{ notif.data.message || 'New publication update available' }}</p>
+                  <span class="text-[10px] text-slate-500">Click to view post details</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <h1 class="text-3xl font-bold text-white">Xavier Advisory</h1>
-        <div class="flex items-center gap-4">
-          <div class="relative" ref="notificationContainer">
-            <button @click="showNotifications = !showNotifications"
-              class="relative p-2 text-gray-600 transition bg-white border rounded-full shadow-sm hover:bg-gray-50">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span v-if="unreadCount > 0"
-                class="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white">{{
-                  unreadCount }}</span>
+      <main class="max-w-6xl mx-auto">
+        <!-- Floating Transient Feedback Alert Overlay UI -->
+        <div v-if="feedback.show" class="fixed top-5 right-5 z-50 p-4 rounded-xl border shadow-xl max-w-sm animate-fade-in"
+          :class="[feedback.type === 'error' ? 'bg-rose-950/80 border-rose-800 text-rose-200' : 'bg-slate-900/90 border-slate-800 text-emerald-400']"
+        >
+          <h4 class="text-xs font-black uppercase tracking-wider mb-0.5">{{ feedback.title }}</h4>
+          <p class="text-xs text-slate-300 leading-normal">{{ feedback.message }}</p>
+        </div>
+
+        <!-- Dynamic Verification Banner context state node -->
+        <EmailVerificationPrompt v-if="showPrompt" @close="showPrompt = false"/>
+
+        <!-- Loading State using Skeleton Loader Component -->
+        <div v-if="isInitialLoading" class="max-w-6xl mx-auto">
+          <SkeletonLoader />
+        </div>
+
+        <div v-else class="space-y-8 animate-fade-in-up">
+          <!-- Navigation Menu Tabs -->
+          <div class="flex gap-6 text-sm font-bold border-b border-slate-800">
+            <button 
+              @click="activeTab = 'regular'"
+              class="pb-3 transition-colors relative"
+              :class="[activeTab === 'regular' ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200']"
+            >
+              Regular
+              <span v-if="activeTab === 'regular'" class="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500"></span>
             </button>
+            <button 
+              @click="activeTab = 'premium'"
+              class="pb-3 transition-colors relative flex items-center gap-1.5"
+              :class="[activeTab === 'premium' ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200']"
+            >
+              Premium
+              <span v-if="activeTab === 'premium'" class="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-500"></span>
+            </button>
+          </div>
 
-            <div v-if="showNotifications"
-              class="fixed z-50 mt-2 text-left origin-top-right bg-white border border-gray-200 shadow-2xl right-4 left-4 top-20 sm:absolute sm:right-0 sm:left-auto sm:top-full sm:w-80 rounded-xl animate-fade-in-up">
-              <div class="flex items-center justify-between p-3 border-b">
-                <h3 class="font-bold text-gray-800">Notifications</h3>
-                <button v-if="unreadCount > 0" @click="markAllAsRead"
-                  class="text-xs font-semibold text-blue-600 hover:underline">Mark all as read</button>
+          <!--  REGULAR TAB VIEW -->
+          <div v-if="activeTab === 'regular'" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div class="lg:col-span-2 space-y-4">
+              <div v-if="regularPosts.length === 0" class="p-8 text-center border border-dashed rounded-xl border-slate-800 text-slate-500">
+                Nothing to see yet.
               </div>
-              <div class="overflow-y-auto max-h-96">
-                <div v-if="notifications.length === 0" class="py-12 text-center text-gray-500">
-                  <p class="text-sm">You have no notifications.</p>
-                </div>
-                <div v-else>
-                  <a v-for="notif in notifications" :key="notif.id" @click.prevent="handleNotificationClick(notif)"
-                    href="#"
-                    :class="['block p-4 border-b border-gray-100 hover:bg-gray-50', !notif.read_at ? 'bg-blue-50' : '']">
-                    <div class="flex items-start gap-3">
-                      <div
-                        :class="['w-2 h-2 rounded-full mt-1.5 flex-shrink-0', !notif.read_at ? 'bg-blue-500' : 'bg-gray-300']">
-                      </div>
-                      <div class="flex-1">
-                        <p class="text-sm leading-tight text-gray-700">{{ notif.data.message }}</p>
-                        <p class="mt-1 text-xs text-gray-400">{{ new Date(notif.created_at).toLocaleString() }}</p>
-                      </div>
-                    </div>
-                  </a>
+              <AdvisoryCard 
+                v-for="post in regularPosts" 
+                :key="post.id" 
+                :post="post" 
+                :is-unread="isPostUnread(post.id)" 
+                @select="openPost"
+                @unlock-tier="activeTab = 'premium'"
+              />
+            </div>
+
+            <!-- Subscription Promotion Sidebar Panel -->
+            <div v-if="canStartRegularTrial" class="p-6 h-fit border rounded-xl border-blue-900/30 bg-gradient-to-b from-blue-950/20 to-transparent space-y-4">
+              <div>
+                <h3 class="text-base font-bold text-blue-400 mb-2">Unlock Premium Access</h3>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                  Get access to structural model portfolios, real-time buy/sell tickers, and AI predictive model signals.
+                </p>
+              </div>
+
+              <!-- Quick Start Trial Action trigger context -->
+              <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800 text-center">
+                <p class="text-xs text-slate-300 mb-3">Want to sample indicators first?</p>
+                <button 
+                  @click="startTrial('premium')"
+                  :disabled="isActivatingTrial"
+                  class="w-full py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 transition-colors rounded-lg disabled:opacity-50"
+                >
+                  {{ isActivatingTrial ? 'Activating access layer...' : `Start ${trialDays} Days Free Trial` }}
+                </button>
+              </div>
+
+              <div v-if="plans.length > 0" class="space-y-3">
+                <div 
+                  v-for="plan in plans" 
+                  :key="plan.id"
+                  class="p-4 border rounded-lg bg-slate-950/60 border-slate-800 flex items-center justify-between"
+                >
+                  <div>
+                    <h4 class="text-xs font-bold text-slate-200">{{ plan.name }}</h4>
+                    <p class="text-sm font-black text-white mt-1">₦{{ Number(plan.price).toLocaleString() }}<span class="text-[10px] text-slate-500 font-normal">/mo</span></p>
+                  </div>
+                  <button 
+                    @click="subscribe(plan.id)" 
+                    :disabled="processingPlanId === plan.id"
+                    class="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-md transition disabled:opacity-50"
+                  >
+                    {{ processingPlanId === plan.id ? 'Connecting...' : 'Upgrade' }}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-          <template v-if="user.has_active_subscription">
-            <button @click="showCancelModal = true"
-              class="text-sm font-semibold text-gray-400 underline hover:text-red-500">Cancel Plan</button>
-          </template>
-          <template v-if="user.on_trial">
-            <div class="flex flex-col items-end">
-              <span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Trial Ends In</span>
-              <span class="font-mono text-lg font-bold text-white">{{ trialCountdown }}</span>
+
+          <!-- PREMIUM TAB VIEW -->
+          <div v-else-if="activeTab === 'premium'">
+            <!-- Access Guard Check -->
+            <div v-if="!user.has_active_subscription && !user.on_trial" class="max-w-md mx-auto py-12 text-center">
+              <span class="text-4xl mb-4 block">🔒</span>
+              <h2 class="text-lg font-bold text-white mb-2">Premium Subscription Required</h2>
+              <p class="text-sm text-slate-400 mb-4">Premium access unlocks active models, quantitative portfolio nodes, and internal indicators.</p>
+              
+              <!-- Quick CTA Link to skip straight down to the billing node models below -->
+              <button 
+                @click="plans.length > 0 && subscribe(plans[0].id)"
+                class="inline-flex items-center gap-2 mb-8 px-5 py-2 text-xs font-black tracking-widest text-slate-950 uppercase bg-gradient-to-r from-blue-400 to-blue-300 rounded-lg shadow-xl shadow-blue-500/10 hover:brightness-110 active:scale-95 transition-all"
+              >
+                Choose Plan & Unlock Access
+              </button>
+              
+              <div class="grid gap-4">
+                <div 
+                  v-for="plan in plans" 
+                  :key="plan.id"
+                  class="p-5 border rounded-xl bg-slate-900/40 border-slate-800 text-left"
+                >
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-white">{{ plan.name }}</h3>
+                    <span class="text-lg font-black text-indigo-400">₦{{ Number(plan.price).toLocaleString() }}</span>
+                  </div>
+                  <ul class="text-xs text-slate-400 space-y-1.5 mb-4">
+                    <li v-for="(feature, idx) in getFeaturesList(plan.features)" :key="idx" class="flex items-center gap-1.5">
+                      <span class="text-emerald-500">✓</span> {{ feature }}
+                    </li>
+                  </ul>
+                  <div class="grid gap-2">
+                    <button 
+                      @click="subscribe(plan.id)" 
+                      :disabled="processingPlanId === plan.id"
+                      class="w-full py-2 text-xs font-black tracking-wider text-center uppercase text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition disabled:opacity-50"
+                    >
+                      {{ processingPlanId === plan.id ? 'Processing Gateway...' : 'Purchase Node Access' }}
+                    </button>
+                    <button 
+                      v-if="canStartRegularTrial"
+                      @click="startTrial('premium')"
+                      :disabled="isActivatingTrial"
+                      class="w-full py-2 text-xs font-bold text-center text-amber-400 border border-amber-500/30 hover:bg-amber-500/10 rounded-lg transition"
+                    >
+                      Test Drive Access Node Free
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </template>
+
+            <!-- Unlocked Content Frame Layout -->
+            <div v-else class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <!-- Left Side Feed: Posts Stack -->
+              <div class="lg:col-span-2 space-y-4">
+                <h2 class="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Quantitative Signals</h2>
+                <div v-if="premiumPosts.length === 0" class="p-8 text-center border border-dashed rounded-xl border-slate-800 text-slate-500">
+                  No active premium publications logged.
+                </div>
+                <AdvisoryCard 
+                  v-for="post in premiumPosts" 
+                  :key="post.id" 
+                  :post="post" 
+                  :is-premium="true" 
+                  :is-unread="isPostUnread(post.id)" 
+                  @select="openPost"
+                  @unlock-tier="activeTab = 'premium'"
+                />
+              </div>
+
+              <!-- Right Side Panel: AI Tickers & Portfolio Engine -->
+              <div class="space-y-6">
+                <!-- AI Engine Metrics -->
+                <div class="p-5 border rounded-xl border-indigo-950/40 bg-gradient-to-b from-indigo-950/10 to-transparent">
+                  <h3 class="text-xs font-black uppercase tracking-wider text-indigo-400 mb-3">Neural Model Allocations</h3>
+                  <div v-if="aiPicks.length === 0" class="text-xs text-slate-500 py-2">Recalibrating parameters...</div>
+                  <div class="divide-y divide-slate-900">
+                    <div v-for="pick in aiPicks" :key="pick.id" class="py-2.5 flex items-center justify-between text-xs">
+                      <span class="font-bold text-slate-200">{{ pick.asset }}</span>
+                      <span class="px-2 py-0.5 rounded font-bold text-[10px]" :class="[pick.action === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+                        {{ pick.action }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Model Portfolios Engine -->
+                <div class="space-y-4">
+                  <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Active Model Portfolios</h3>
+                  <div v-if="portfolios.length === 0" class="text-xs text-slate-500 py-2">No profiles active.</div>
+                  <div 
+                    v-for="portfolio in portfolios" 
+                    :key="portfolio.id"
+                    class="p-4 border rounded-xl border-slate-800 bg-slate-950/40 space-y-3"
+                  >
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <h4 class="text-sm font-bold text-white">{{ portfolio.name }}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">{{ portfolio.description }}</p>
+                      </div>
+                      <span class="text-xs font-black text-emerald-400 text-nowrap ml-2">{{ portfolio.expected_return }} ROI</span>
+                    </div>
+                    
+                    <!-- Form Processing Input Element -->
+                    <div class="flex gap-2 pt-1">
+                      <div class="relative flex-1">
+                        <span class="absolute left-3 top-2 text-xs font-bold text-slate-500">₦</span>
+                        <input 
+                          type="number" 
+                          v-model="copyAmounts[portfolio.id]"
+                          placeholder="5,000 min"
+                          class="w-full pl-6 pr-3 py-1.5 text-xs rounded-md bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-slate-700"
+                        />
+                      </div>
+                      <button 
+                        @click="copyPortfolio(portfolio.id)"
+                        :disabled="processingPortfolioId === portfolio.id"
+                        class="px-4 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-md transition disabled:opacity-50 text-nowrap"
+                      >
+                        {{ processingPortfolioId === portfolio.id ? 'Syncing...' : 'Copy Model' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cancellation Area Context -->
+                <div v-if="user.has_active_subscription" class="pt-4 border-t border-slate-900">
+                  <button 
+                    @click="showCancelModal = true"
+                    class="text-xs text-rose-500/70 hover:text-rose-400 hover:underline"
+                  >
+                    Cancel subscription node
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+     
+      <div v-if="activePost" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div class="w-full max-w-xl p-6 border rounded-xl bg-slate-950 border-slate-800 space-y-4 shadow-2xl">
+          <div class="flex items-start justify-between">
+            <h2 class="text-lg font-bold text-white">{{ activePost.title }}</h2>
+            <button @click="closePostModal" class="p-1 text-slate-400 hover:text-white text-sm">✕</button>
+          </div>
+          <div class="text-xs text-slate-500 flex gap-3 items-center">
+            <span v-if="activePost.recommendation" class="font-bold text-blue-400 uppercase tracking-wider">
+              Action Trigger: {{ activePost.recommendation }}
+            </span>
+            <span>•</span>
+            <span>Logged: {{ new Date(activePost.created_at || Date.now()).toLocaleDateString() }}</span>
+          </div>
+          <p class="text-sm leading-relaxed text-slate-300 whitespace-pre-wrap py-2 border-t border-b border-slate-900">
+            {{ activePost.content || activePost.body }}
+          </p>
+          <div class="text-right">
+            <button @click="closePostModal" class="px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-slate-200 hover:bg-slate-700">
+              Dismiss Reader
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="relative min-h-[400px]">
-        <div v-if="isInitialLoading || isVerifying"
-          class="absolute inset-0 z-10 flex flex-col items-center justify-center text-white bg-gray-900/50 backdrop-blur-sm rounded-xl">
-          <div class="w-16 h-16 mb-4 border-t-4 border-blue-500 rounded-full animate-spin"></div>
-          <h2 class="text-2xl font-bold">{{ isVerifying ? 'Verifying Payment...' : 'Loading Advisory...' }}</h2>
-        </div>
-
-        <div v-else>
-          <div v-if="(user.has_active_subscription || user.on_trial)" class="space-y-8 animate-fade-in">
-            <div class="flex flex-col gap-6">
-              <div class="space-y-6 transition-all duration-300">
-                <div class="flex gap-8 border-b border-[#1f3348]">
-                  <button @click="activeTab = 'regular'"
-                    :class="['pb-3 text-xl font-bold transition-all', activeTab === 'regular' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']">Regular</button>
-                  <button @click="activeTab = 'premium'"
-                    :class="['pb-3 text-xl font-bold transition-all', activeTab === 'premium' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300']">Premium</button>
-                </div>
-
-                <div class="min-h-[200px]">
-                  <div v-if="activeTab === 'regular'"
-                    class="p-6 border bg-[#0F1724] border-[#1f3348] rounded-xl space-y-4">
-                    <div v-if="regularPosts.length === 0" class="py-10 text-center text-gray-500">
-                      No regular posts available.
-                    </div>
-                    <div v-for="post in regularPosts" :key="post.id" @click="openPost(post)"
-                      class="p-4 transition border border-gray-800 rounded-lg cursor-pointer hover:bg-gray-800/50">
-                      <div class="flex items-center justify-between mb-1">
-                        <h3 class="font-bold text-white">{{ post.title }}</h3>
-                        <span v-if="post.recommendation" :class="[
-                          'text-[10px] font-black px-2 py-0.5 rounded uppercase',
-                          post.recommendation === 'BUY' ? 'text-green-400' :
-                            post.recommendation === 'SELL' ? 'text-red-400' : 'text-gray-400'
-                        ]">
-                          {{ post.recommendation }}
-                        </span>
-                      </div>
-                      <p class="text-sm text-gray-400 line-clamp-2">{{ post.content }}</p>
-                    </div>
-                  </div>
-
-                  <div v-if="activeTab === 'premium'">
-                    <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                      <div class="space-y-6 lg:col-span-2">
-                        <div class="p-6 border bg-[#0F1724] border-[#1f3348] rounded-xl">
-                          <h3 class="mb-6 text-2xl font-bold text-white">Premium Posts</h3>
-                          <div v-if="premiumPosts.length === 0" class="py-8 text-center text-gray-500">
-                            No premium insights posted recently.
-                          </div>
-                          <div v-else class="space-y-4">
-                            <div v-for="post in premiumPosts" :key="post.id" @click="openPost(post)"
-                              class="p-4 transition border rounded-lg cursor-pointer border-blue-900/30 hover:bg-blue-900/10">
-                              <div class="flex items-center gap-2 mb-1">
-                                <span
-                                  class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded font-black uppercase">Premium</span>
-                                <h3 class="flex-1 font-bold text-white">{{ post.title }}</h3>
-                                <span v-if="post.recommendation" :class="[
-                                  'text-[10px] font-black px-2 py-0.5 rounded uppercase',
-                                  post.recommendation === 'BUY' ? 'bg-green-500/20 text-green-400' :
-                                    post.recommendation === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'
-                                ]">
-                                  {{ post.recommendation }}
-                                </span>
-                              </div>
-                              <p class="text-sm text-gray-400 line-clamp-2">{{ post.content }}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="space-y-6">
-                        <div v-if="portfolios.length > 0">
-                          <section
-                            class="p-6 text-white bg-[#0F1724] border border-[#1f3348] shadow-md rounded-2xl mb-4">
-                            <div>
-                              <h2 class="text-lg font-bold">What are Model Portfolios?</h2>
-                              <p class="mt-1 text-sm text-blue-50 text-balance">
-                                These are "Investment Blueprints" curated by our team. Instead of picking stocks
-                                one-by-one,
-                                you can <strong>Copy Trade</strong> a whole basket. Our engine automatically buys each
-                                stock
-                                in the blueprint based on your budget.
-                              </p>
-                            </div>
-                          </section>
-
-                          <section>
-                            <div class="grid grid-cols-1 gap-6 text-gray-600">
-                              <div v-for="portfolio in portfolios" :key="portfolio.id"
-                                class="relative flex flex-col p-6 transition bg-white border border-gray-100 shadow-sm rounded-2xl hover:shadow-lg">
-                                <h3 class="mb-1 text-xl font-black text-gray-900">{{ portfolio.name }}</h3>
-                                <p class="mb-4 text-xs font-bold tracking-widest text-gray-400 uppercase">{{
-                                  portfolio.risk_profile }} Strategy</p>
-                                <div class="mb-6 space-y-3">
-                                  <div v-for="stock in portfolio.stocks" :key="stock.id" class="space-y-1">
-                                    <div class="flex justify-between text-xs font-bold text-gray-700">
-                                      <span>{{ stock.symbol }}</span><span>{{ stock.allocation_percentage }}%</span>
-                                    </div>
-                                    <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div class="h-full bg-blue-500"
-                                        :style="{ width: stock.allocation_percentage + '%' }">
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div class="flex items-center gap-2 pt-4 mt-auto border-t">
-                                  <input type="number" v-model="copyAmounts[portfolio.id]" placeholder="Budget (₦)"
-                                    class="w-full px-4 py-2 text-sm border rounded-lg outline-none focus:border-blue-500" />
-                                  <button @click="copyPortfolio(portfolio.id)"
-                                    :disabled="processingPortfolioId === portfolio.id"
-                                    class="px-5 py-2 text-sm font-bold text-white bg-gray-900 rounded-lg hover:bg-blue-600 disabled:opacity-50">
-                                    <span v-if="processingPortfolioId === portfolio.id">Copying...</span>
-                                    <span v-else>Copy</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </section>
-                        </div>
-
-                        <div v-if="aiPicks.length > 0" class="p-6 border bg-[#0F1724] border-[#1f3348] rounded-xl">
-                          <section class="p-6 text-white bg-gray-900 shadow-2xl rounded-2xl">
-                            <h2 class="pb-4 mb-4 text-xl font-black border-b border-gray-800">🤖 AI Top Picks</h2>
-                            <ul class="space-y-3">
-                              <li v-for="pick in aiPicks" :key="pick.symbol"
-                                class="flex items-center justify-between p-4 bg-gray-800 rounded-xl">
-                                <span class="text-xl font-black">{{ pick.symbol }}</span>
-                                <span class="px-2 py-1 text-xs font-black text-green-400 rounded-md bg-green-400/10">{{
-                                  pick.confidence }}%</span>
-                              </li>
-                            </ul>
-                          </section>
-                        </div>
-
-
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="max-w-6xl py-12 mx-auto animate-fade-in">
-            <div class="mb-12 text-center">
-              <h2 class="mb-4 text-4xl font-black text-white">Unlock Xavier Advisory</h2>
-              <p class="text-gray-400">Choose how you want to access our premium market insights and AI picks.</p>
-            </div>
-
-            <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
-              <div
-                class="bg-[#111827] border-2 border-gray-700/50 p-8 rounded-3xl text-center flex flex-col hover:border-blue-500/50 transition-all">
-                <div
-                  class="flex items-center justify-center w-16 h-16 mx-auto mb-6 text-gray-400 rounded-2xl bg-gray-500/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h3 class="mb-2 text-2xl font-bold text-white">Regular Trial Access</h3>
-                <p class="mb-8 text-sm text-gray-400">Explore the fundamentals with a free {{ trialDays }}-day regular
-                  trial.
-                </p>
-                <div v-if="!user.has_active_subscription && !user.on_trial">
-                  <button v-if="!user.has_used_regular" @click="startTrial('regular')" :disabled="isActivatingTrial"
-                    class="w-full py-4 mt-auto font-bold text-gray-900 transition bg-white shadow-lg rounded-xl hover:bg-gray-100 disabled:opacity-50">
-                    <span v-if="isActivatingTrial">Starting...</span>
-                    <span v-else>Start Regular Trial</span>
-                  </button>
-                  <button v-else disabled
-                    class="w-full py-4 mt-auto font-bold text-gray-500 bg-gray-800 cursor-not-allowed rounded-xl">
-                    Regular Trial Used
-                  </button>
-                </div>
-              </div>
-
-              <div
-                class="bg-[#111827] border-2 border-amber-500/20 p-8 rounded-3xl text-center flex flex-col hover:border-amber-500/50 transition-all">
-                <div
-                  class="flex items-center justify-center w-16 h-16 mx-auto mb-6 text-amber-500 rounded-2xl bg-amber-500/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                  </svg>
-                </div>
-                <h3 class="mb-2 text-2xl font-bold text-white">Premium Trial Access</h3>
-                <p class="mb-8 text-sm text-gray-400">Get a taste of premium picks and market insights for {{ trialDays
-                  }} days.
-                </p>
-                <button @click="startTrial('premium')" :disabled="isActivatingTrial || user.has_used_premium"
-                  class="w-full py-4 mt-auto font-bold text-white transition-colors bg-amber-600 rounded-xl hover:bg-amber-500 disabled:opacity-50">
-                  <span v-if="isActivatingTrial">Starting...</span>
-                  <span v-else-if="user.has_used_premium">Premium Trial Used</span>
-                  <span v-else>Start Premium Trial</span></button>
-              </div>
-
-              <div
-                class="bg-[#111827] border-2 border-blue-500/20 p-8 rounded-3xl text-center flex flex-col hover:border-blue-500/50 relative transition-all">
-                <span
-                  class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-blue-900/40">Recommended</span>
-                <div
-                  class="flex items-center justify-center w-16 h-16 mx-auto mb-6 text-blue-500 rounded-2xl bg-blue-500/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <h3 class="mb-2 text-2xl font-bold text-white">Want to skip trials? <br> Subscribe now!</h3>
-                <p class="mb-8 text-sm text-gray-400">Skip the trial and secure your spot for long-term growth.</p>
-                <button @click="showPricingModal = true"
-                  class="w-full py-4 mt-auto font-bold text-white transition bg-blue-600 shadow-lg rounded-xl hover:bg-blue-700 shadow-blue-500/20">
-                  View Subscription Details
-                </button>
-              </div>
-            </div>
+      <div v-if="showCancelModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div class="w-full max-w-sm p-6 border rounded-xl bg-slate-950 border-slate-800 space-y-4">
+          <h3 class="text-base font-bold text-white">Confirm Cancellation Request</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Terminating access drops connection to real-time copy instances and data pipeline updates.
+          </p>
+          <div class="flex justify-end gap-3 pt-2">
+            <button 
+              @click="showCancelModal = false" 
+              :disabled="isCancelling"
+              class="px-3 py-1.5 text-xs font-bold text-slate-300 bg-slate-900 hover:bg-slate-800 rounded-md"
+            >
+              Go Back
+            </button>
+            <button 
+              @click="confirmCancelSubscription" 
+              :disabled="isCancelling"
+              class="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-md disabled:opacity-50"
+            >
+              {{ isCancelling ? 'Processing...' : 'Confirm Termination' }}
+            </button>
           </div>
         </div>
       </div>
     </div>
   </MainLayout>
 </template>
-
-
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
+import AdvisoryCard from '@/Components/AdvisoryCard.vue';
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const route = useRoute();
 const router = useRouter();
 
-// --- STATE ---
+// --- STATE MANAGEMENT ---
 const user = ref({
   has_active_subscription: false,
   on_trial: false,
   trial_expires_at: null,
-  has_used_regular: false,
-  has_used_premium: false,
+  trading_mode: 'live',
+  email_verified_at: null,
 });
 const isDemo = computed(() => user.value.trading_mode === 'demo');
 const plans = ref([]);
@@ -471,7 +396,6 @@ const notifications = ref([]);
 const unreadCount = ref(0);
 const feedback = ref({ show: false, title: '', message: '', type: 'success' });
 const isInitialLoading = ref(true);
-const showSubscribeBtn = ref(false);
 const activePost = ref(null);
 const isVerifying = ref(false);
 const showCancelModal = ref(false);
@@ -481,9 +405,7 @@ const processingPortfolioId = ref(null);
 const isActivatingTrial = ref(false);
 const trialDays = ref(7);
 
-// New state for the pricing modal
 const notificationContainer = ref(null);
-const showPricingModal = ref(false);
 const showPrompt = ref(false);
 
 const isAdminUser = (u) => {
@@ -497,11 +419,10 @@ const isUserVerified = computed(() => {
   return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
-// --- TRIAL LOGIC ---
+// --- TRIAL ACTIVATION ENGINE ---
 const startTrial = async (tier = 'regular') => {
   if (!isUserVerified.value && !isDemo.value) return (showPrompt.value = true);
 
-  // Map 'vip' to 'premium' for the API call to match backend/database expectations
   const apiTier = tier === 'vip' ? 'premium' : tier;
 
   if (apiTier === 'premium' && user.value.on_trial) {
@@ -514,21 +435,19 @@ const startTrial = async (tier = 'regular') => {
     if (res.data.success) {
       showFeedback(
         'Trial Started!',
-        `You now have ${trialDays.value} days of ${tier.toUpperCase()} access.`,
+        `You now have ${trialDays.value} days of ${tier.toUpperCase()} tier access.`,
         'success'
       );
       user.value.on_trial = true;
       await fetchAllData();
-      activeTab.value = 'premium'; // Always switch to premium tab on trial activation
+      activeTab.value = 'premium';
     }
   } catch (error) {
     showFeedback('Error', error.response?.data?.message || 'Could not start trial.', 'error');
-  } finally {
-    isActivatingTrial.value = false;
-  }
+  } 
 };
 
-// --- COUNTDOWN LOGIC ---
+// --- REAL-TIME COUNTDOWN TICKER ---
 const trialCountdown = ref('00:00:00');
 let timerInterval = null;
 
@@ -549,28 +468,26 @@ const updateCountdown = () => {
     return;
   }
 
-  // Calculate time units
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-  // Format: "2d 05:12:08" or just "05:12:08" if less than a day
   const dayStr = days > 0 ? `${days}d ` : '';
   trialCountdown.value = `${dayStr}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-// --- UTILS ---
 const showFeedback = (title, message, type = 'success') => {
   feedback.value = { show: true, title, message, type };
+  setTimeout(() => {
+    feedback.value.show = false;
+  }, 4000);
 };
 
-// --- DATA FETCHING ---
+// --- DATA SYNCHRONIZATION ---
 const fetchAllData = async () => {
   isInitialLoading.value = true;
-
   try {
-    // Fetch the Profile first
     const profileRes = await api.get('/user/profile/show');
     const userData = profileRes.data?.data;
 
@@ -578,32 +495,26 @@ const fetchAllData = async () => {
       has_active_subscription: !!userData?.has_active_subscription,
       on_trial: !!userData?.on_trial,
       trial_expires_at: userData?.trial_expires_at,
-      has_used_regular: !!userData?.has_used_regular,
-      has_used_premium: !!userData?.has_used_premium,
       trading_mode: userData?.trading_mode,
       email_verified_at: userData?.email_verified_at,
     };
 
     updateCountdown();
 
-
-    // Catch errors on regular-posts (403 Forbidden for new users) so it doesn't block plans from loading
     const [plansRes, notificationsRes, rPostsRes] = await Promise.all([
       api.get('/user/advisory/plans'),
       api.get('/user/notifications'),
       api.get('/user/advisory/regular-posts').catch(() => ({ data: { data: [] } }))
     ]);
 
-    plans.value = plansRes.data.data;
+    plans.value = plansRes.data.data || [];
     if (plansRes.data.trial_settings) {
       trialDays.value = plansRes.data.trial_settings.days;
     }
     notifications.value = notificationsRes.data.notifications || [];
     unreadCount.value = notificationsRes.data.unread_count || 0;
-    regularPosts.value = rPostsRes.data.data;
+    regularPosts.value = rPostsRes.data.data || [];
 
-    //  Fetch Premium data ONLY if authorized
-    // We add a .catch(() => null) to each to prevent global error popups
     if (user.value.has_active_subscription || user.value.on_trial) {
       const premiumResults = await Promise.allSettled([
         api.get('/user/advisory/premium-posts').catch(() => null),
@@ -616,14 +527,13 @@ const fetchAllData = async () => {
       if (premiumResults[2]?.value) aiPicks.value = premiumResults[2].value.data.data;
     }
   } catch (e) {
-    // Only log the error, don't show a popup if it's just a 403 for premium content
-    console.warn("Silent fetch check:", e.message);
+    console.warn("Silent fetch tracking:", e.message);
   } finally {
     isInitialLoading.value = false;
   }
 };
 
-// --- HANDLERS ---
+// --- NOTIFICATION HANDLERS ---
 const isPostUnread = (postId) => notifications.value.some(n => n.data.post_id === postId && !n.read_at);
 
 const openPost = (post) => {
@@ -659,7 +569,6 @@ const markAllAsRead = async () => {
 
 const getFeaturesList = (features) => {
   if (!features) return [];
-  // Splits by comma and trims whitespace from each item
   return features.split(',').map(item => item.trim());
 };
 
@@ -686,7 +595,7 @@ const subscribe = async (planId) => {
     const res = await api.post('/user/advisory/subscribe', { plan_id: planId });
     window.location.href = res.data.data.authorization_url;
   } catch (error) {
-    showFeedback('Error', 'Payment failed.', 'error');
+    showFeedback('Error', 'Payment Initialization failed.', 'error');
   } finally {
     processingPlanId.value = null;
   }
@@ -695,17 +604,17 @@ const subscribe = async (planId) => {
 const confirmCancelSubscription = async () => {
   isCancelling.value = true;
   try {
-    await api.get('/sanctum/csrf-cookie', { baseURL: '/' });
     await api.post('/user/advisory/cancel');
-
+    
     user.value.has_active_subscription = false;
     showCancelModal.value = false;
-
-    window.location.reload();
-
-    showFeedback('Cancelled', 'Your subscription was removed.');
+    showFeedback('Cancelled', 'Your subscription was removed successfully.');
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 1200);
   } catch (error) {
-    showFeedback('Error', 'Cancel failed.', 'error');
+    showFeedback('Error', 'Cancellation request failed.', 'error');
   } finally {
     isCancelling.value = false;
   }
@@ -721,14 +630,12 @@ const copyPortfolio = async (portfolioId) => {
     await api.post(`/user/advisory/model-portfolios/${portfolioId}/copy`, { amount });
     router.push('/orders');
   } catch (error) {
-    showFeedback('Error', error.response?.data?.message || 'Copy failed. Check balance.', 'error');
+    showFeedback('Error', error.response?.data?.message || 'Copy execution failed.', 'error');
     processingPortfolioId.value = null;
   }
 };
 
 const canStartRegularTrial = computed(() => {
-  // Basic check: hide if they have any sub history that isn't empty 
-  // might want to pass 'has_used_trial' from the backend profile response
   return !user.value.has_active_subscription && !user.value.on_trial;
 });
 
@@ -744,10 +651,8 @@ const handleEscape = (e) => {
   }
 };
 
-// --- LIFECYCLE ---
 onMounted(async () => {
   await fetchAllData();
-  setTimeout(() => { showSubscribeBtn.value = true; }, 1500);
   if (route.query.reference && route.query.plan_id) {
     handlePaymentVerification(route.query.reference, route.query.plan_id);
   }
@@ -762,34 +667,20 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleEscape);
 });
 </script>
+
 <style scoped>
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.2s ease-in-out forwards;
 }
-
 .animate-fade-in-up {
-  animation: fadeInUp 0.4s ease-out;
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }
-
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

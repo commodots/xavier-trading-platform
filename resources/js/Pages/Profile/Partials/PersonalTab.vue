@@ -1,11 +1,14 @@
 <template>
-  <div class="bg-[#0f172a] p-6 rounded-lg space-y-6 border border-gray-700">
+  <div class="bg-[#0f172a] p-6 rounded-xl space-y-6 border border-gray-700 max-w-3xl mx-auto">
 
     <!-- Avatar + Basic Data -->
     <div class="flex items-center space-x-4">
       <div class="relative">
-        <img :src="user.avatar ?? '/images/user.png'"
-          class="object-cover w-20 h-20 border border-gray-600 rounded-full" />
+        <img 
+          :src="user.avatar ?? '/images/user.png'"
+          class="object-cover w-20 h-20 border border-gray-600 rounded-full" 
+          alt="Profile Avatar"
+        />
       </div>
 
       <div>
@@ -14,52 +17,78 @@
         <p class="text-sm text-gray-400">{{ user.phone }}</p>
       </div>
     </div>
-    <p class="text-xs text-gray-500 -mt-4 ml-24">
-      Your profile picture is set during KYC and cannot be changed.
+    
+    <p class="text-xs text-gray-500 -mt-4 bg-gray-800/40 p-2 rounded-lg border border-gray-800">
+      Your profile picture is set during KYC and cannot be changed manually.
     </p>
 
     <!-- Edit form -->
-    <form @submit.prevent="updateProfile" class="space-y-4">
+    <form @submit.prevent="updateProfile" class="space-y-6">
+      
+      <!-- Personal Details Section -->
       <div>
-        <label class="text-sm text-gray-400">First Name</label>
-        <input v-model="form.first_name" class="input" />
+        <h3 class="text-sm font-medium text-[#00D4FF] mb-3 uppercase tracking-wider">Personal Details</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">First Name</label>
+            <input v-model="form.first_name" class="input" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Last Name</label>
+            <input v-model="form.last_name" class="input" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Email Address</label>
+            <input v-model="form.email" type="email" class="input" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Phone Number</label>
+            <input v-model="form.phone" type="tel" class="input" />
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label class="block text-xs text-gray-400 mb-1">Residential Address</label>
+          <textarea v-model="form.address" rows="2" class="input resize-none"></textarea>
+        </div>
       </div>
 
+      <hr class="border-gray-800" />
+
+      <!-- Next of Kin Section -->
       <div>
-        <label class="text-sm text-gray-400">Last Name</label>
-        <input v-model="form.last_name" class="input" />
+        <h3 class="text-sm font-medium text-[#00D4FF] mb-3 uppercase tracking-wider">Next of Kin</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-xs text-gray-400 mb-1">Full Name</label>
+            <input v-model="form.next_of_kin" class="input" placeholder="Name of next of kin" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Phone Number</label>
+            <input v-model="form.next_of_kin_phone" type="tel" class="input" placeholder="Phone number" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Email Address</label>
+            <input v-model="form.next_of_kin_email" type="email" class="input" placeholder="Email address" />
+          </div>
+        </div>
       </div>
 
-      <div>
-        <label class="text-sm text-gray-400">Email</label>
-        <input v-model="form.email" class="input" />
+      <div class="flex justify-end pt-2">
+        <button 
+          type="submit" 
+          :disabled="processing" 
+          class="w-full md:w-auto px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {{ processing ? 'Updating...' : 'Update Profile' }}
+        </button>
       </div>
 
-      <div>
-        <label class="text-sm text-gray-400">Phone Number</label>
-        <input v-model="form.phone" class="input" />
-      </div>
-
-      <div>
-        <label class="text-sm text-gray-400">Address</label>
-        <textarea v-model="form.address" class="input"></textarea>
-      </div>
-      <div>
-        <label class="text-sm text-gray-400">Name of Next of Kin</label>
-        <input v-model="form.next_of_kin" class="input" />
-      </div>
-      <div>
-        <label class="text-sm text-gray-400">Phone Number of Next of Kin</label>
-        <input v-model="form.next_of_kin_phone" class="input" />
-      </div>
-      <div>
-        <label class="text-sm text-gray-400">Email of Next of Kin</label>
-        <input v-model="form.next_of_kin_email" class="input" />
-      </div>
-
-      <button type="submit" :disabled="processing" class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">
-        {{ processing ? 'Updating...' : 'Update Profile' }}
-      </button>
     </form>
   </div>
 </template>
@@ -103,17 +132,19 @@ const updateProfile = async () => {
   processing.value = true;
   try {
     await api.put("/user/profile/update", form);
+    emit('refresh'); 
     alert("Profile updated successfully");
   } catch (error) {
     console.error("Update failed", error);
+    alert("Failed to update profile. Please try again.");
   } finally {
     processing.value = false;
   }
 };
 </script>
 
-<style>
+<style scoped>
 .input {
-  @apply w-full bg-transparent border border-gray-600 rounded-lg px-3 py-2 text-sm;
+  @apply w-full bg-[#1e293b]/40 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] transition;
 }
 </style>

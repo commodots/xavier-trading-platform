@@ -77,6 +77,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'has_used_premium',
         'avatar',
         'kyc_verified',
+        'tier',
     ];
 
     //  Relationship: One User has one Wallet
@@ -347,5 +348,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function tronAddress()
     {
         return $this->cryptoAddresses()->where('blockchain', 'TRON')->first();
+    }
+
+    public function getTierAttribute(): string
+{
+    return $this->current_tier ?? 'free';
+}
+
+    public function isPremium(): bool
+    {
+        return $this->getCurrentTierAttribute() === 'premium';
     }
 }

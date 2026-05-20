@@ -39,11 +39,14 @@
             :seriesData="portfolioData"
             :totalValue="totalValue" 
             :percentageChange="changePercent" 
-            :loading="isGraphLoading"
+            :loading="isGraphLoading || loading"
             @rangeChange="fetchPortfolioPerformance" 
           />
 
-          <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
+          <div v-if="loading" class="mt-6">
+            <SkeletonLoader type="table" class="opacity-40" />
+          </div>
+          <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
             <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
               <h2 class="font-semibold text-gray-200">My Holdings</h2>
               <span class="text-xs text-gray-500">{{ filteredHoldings.length }} Cryptos in Wallet</span>
@@ -88,7 +91,7 @@
 
         <!-- Tab B: Global Live Coins Market Asset Spotboards -->
         <div v-else-if="activeView === 'market'">
-           <CryptoMarketAssets :coins="coins" :searchQuery="search" @view-details="openDetails" @trade="openTrade" />
+           <CryptoMarketAssets :coins="coins" :searchQuery="search" :loading="loading" @view-details="openDetails" @trade="openTrade" />
         </div>
 
         <!-- Tab C: Trade Executive Interface Panel Layout -->
@@ -152,6 +155,7 @@ import { useRoute } from 'vue-router';
 
 import CryptoMarketAssets from "@/Components/Markets/CryptoMarketAssets.vue";
 import Trading from "@/Components/Markets/Trading.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue"
 
 const route = useRoute();
 

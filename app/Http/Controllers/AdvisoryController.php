@@ -34,8 +34,7 @@ class AdvisoryController extends Controller
      */
     public function regularPosts()
     {
-        $posts = AdvisoryPost::where('is_premium', false)
-            ->orderBy('created_at', 'desc')
+        $posts = AdvisoryPost::where('tier', 'free')->orderBy('created_at', 'desc')
             ->limit(10)
             ->get(['id', 'title', 'content', 'market_type', 'recommendation', 'risk_level', 'created_at']);
 
@@ -48,16 +47,8 @@ class AdvisoryController extends Controller
     public function premiumPosts(Request $request)
     {
         $user = $request->user();
-
-        // Security Gate: Block users who don't have a live premium tier or active trial
-        if (!$user || ($user->current_tier !== 'premium' && !$user->on_trial)) {
-            return response()->json([
-                'success' => false, 
-                'error' => 'Access Denied. Premium Subscription tier required.'
-            ], 403);
-        }
-
-        $posts = AdvisoryPost::where('is_premium', true)
+        
+        $posts = AdvisoryPost::where('tier', 'premium')
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get(['id', 'title', 'content', 'market_type', 'recommendation', 'risk_level', 'created_at']);
@@ -72,6 +63,13 @@ class AdvisoryController extends Controller
     {
         $request->validate(['tier' => 'required|in:regular,premium']);
         $user = $request->user();
+
+        if (in_array($user->subscription_status, ['suspended', 'inactive'])) {
+    return response()->json([
+        'success' => false, 
+        'message' => 'Cannot activate trials while your account status is suspended or inactive. Clear outstanding balances first.'
+    ], 403);
+}
 
         // Fetch all trial history (Active, Expired, or Cancelled)
         $trialHistory = $user->subscriptions()->with('plan')

@@ -23,8 +23,9 @@
           <span class="text-xs text-gray-400">Updated 2 mins ago</span>
         </div>
 
-        <div v-if="loading" class="py-6 text-center">
-          <div class="text-gray-400">Loading FX rates...</div>
+        
+        <div v-if="loading" class="py-4">
+          <SkeletonLoader type="table" class="opacity-40" />
         </div>
 
         <div v-else-if="filteredRates.length" class="overflow-x-auto">
@@ -127,6 +128,7 @@ import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const apexchart = VueApexCharts;
 

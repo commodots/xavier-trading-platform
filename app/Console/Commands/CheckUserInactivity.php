@@ -56,20 +56,18 @@ class CheckUserInactivity extends Command
         foreach ($inactiveUsers as $user) {
             try {
                 DB::transaction(function () use ($user) {
-                    //Force clear API tokens (Sanctum) to revoke stale open desktop or mobile client sessions
-                    $user->tokens()->delete();
+                    $lastActive = $user->last_login_at ?? $user->updated_at;
+                    $diff = $lastActive->diffInDays(now());
 
-                    // Dispatch a passive payload structure to their dashboard tray feed layout
-                    Notification::create([
-                        'user_id' => $user->id,
-                        'title' => 'We miss you!',
-                        'message' => 'Take a look back at market trends, your portfolio tracking views, and the latest premium advisory insights.',
-                        'type' => 'system_engagement',
-                        'read_at' => null
-                    ]);
+                    if ($diff >= 60) {
+                        // 60-Day Inactive Status: Pause billing & deactivate
+                        $user->update(['subscription_status' => 'inactive']);
+                        $user->tokens()->delete();
+                    } elseif ($diff >= 30) {
+                        // 30-Day Warning
+                        $user->notify(new \App\Notifications\InactivityWarningNotification($diff));
+                    }
 
-                    // Note: We don't flip 'is_active' to false unless you want to lock them out completely. 
-                    // Instead, we store an audit trail property marker.
                     $user->update([
                         'meta_data' => array_merge((array) ($user->meta_data ?? []), [
                             'marked_inactive_at' => now()->toIso8601String(),

@@ -22,20 +22,23 @@ class AdminAdvisoryController extends Controller
             'title' => 'required|string',
             'content' => 'required|string',
             'market_type' => 'required|in:local,international,crypto',
-            'risk_level' => 'required|in:low,medium,high',
-            'is_premium' => 'boolean'
+            'risk_level' => 'required|in:low,medium,high', 
+            'tier' => 'required|in:free,pro,premium' 
         ]);
 
-        $post = AdvisoryPost::create($validated);
+        $post = AdvisoryPost::create($validated); 
 
         if ($post->is_premium) {
-            $activeSubscriberIds = UserSubscription::where('expires_at', '>', now())->pluck('user_id');
+    $activeSubscriberIds = UserSubscription::where('expires_at', '>', now())
+        ->where('status', 'active')
+        ->pluck('user_id');
 
-            $users = User::whereIn('id', $activeSubscriberIds)->get();
-        } else {
-            // Send to everyone
-            $users = User::all();
-        }
+    $users = User::whereIn('id', $activeSubscriberIds)
+        ->whereNotIn('subscription_status', ['suspended', 'inactive'])
+        ->get();
+} else {
+    $users = User::whereNotIn('subscription_status', ['suspended', 'inactive'])->get();
+}
 
         Notification::send($users, new NewAdvisoryNotification($post));
 
@@ -52,13 +55,13 @@ class AdminAdvisoryController extends Controller
     $validated = $request->validate([
         'title' => 'required|string',
         'content' => 'required|string',
-        'market_type' => 'required|in:local,international,crypto',
-        'risk_level' => 'required|in:low,medium,high',
-        'is_premium' => 'boolean'
+        'market_type' => 'required|in:local,international,crypto', 
+        'risk_level' => 'required|in:low,medium,high', 
+        'tier' => 'required|in:free,pro,premium' 
     ]);
 
     $post = AdvisoryPost::findOrFail($id);
-    $post->update($validated);
+    $post->update($validated); 
 
     return response()->json([
         'message' => 'Advisory post updated successfully!',

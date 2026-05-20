@@ -9,6 +9,29 @@ use App\Services\MarketService;
 
 class MarketController extends Controller
 {
+    public function index(Request $request)
+    {
+        $query = Symbol::query();
+
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->has('market')) {
+            $query->where('exchange', $request->market);
+        }
+
+        $data = $query->get(['symbol', 'name', 'last_price as price', 'change', 'volume', 'type', 'exchange as market'])
+            ->map(function($item) {
+                $item->price = (float) $item->price;
+                $item->change = (float) ($item->change ?? 0);
+                $item->volume = (float) ($item->volume ?? 0);
+                return $item;
+            });
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
     public function ngx()
     {
         $data = Symbol::where('exchange', 'NGX')
@@ -22,20 +45,20 @@ class MarketController extends Controller
     }
 
     public function global()
-{
-    $data = Symbol::where(function ($query) {
-        $query->where('type', 'global')
-              ->orWhereIn('exchange', ['NASDAQ', 'NYSE']);
-    })
-    ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
-    ->map(function($item) {
-        $item->price = (float) $item->price;
-        $item->change = (float) ($item->change ?? 0);
-        return $item;
-    });
+    {
+        $data = Symbol::where(function ($query) {
+            $query->where('type', 'global')
+                  ->orWhereIn('exchange', ['NASDAQ', 'NYSE']);
+        })
+        ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
+        ->map(function($item) {
+            $item->price = (float) $item->price;
+            $item->change = (float) ($item->change ?? 0);
+            return $item;
+        });
 
-    return response()->json(['success' => true, 'data' => $data]);
-}
+        return response()->json(['success' => true, 'data' => $data]);
+    }
 
     public function quotes(Request $request)
     {
@@ -61,10 +84,9 @@ class MarketController extends Controller
     public function crypto()
     {
         $data = cache()->remember('processed_crypto_prices', 300, function () {
-            $prices = app(\App\Services\MarketService::class)->getPrices();
+            $prices = app(MarketService::class)->getPrices();
             $data = [];
 
-            // Map the internal CoinGecko IDs to the display names/symbols you want
             $coinNames = [
                 'bitcoin' => ['symbol' => 'BTC', 'name' => 'Bitcoin'],
                 'ethereum' => ['symbol' => 'ETH', 'name' => 'Ethereum'],
@@ -86,7 +108,7 @@ class MarketController extends Controller
                         'symbol' => $coinNames[$id]['symbol'],
                         'name' => $coinNames[$id]['name'],
                         'price' => is_array($val) ? ($val['usd'] ?? 0) : 0,
-                ];
+                    ];
                 }
             }
 
@@ -98,6 +120,7 @@ class MarketController extends Controller
             'data' => $data,
         ]);
     }
+
     public function getNGXInsights()
     {
         $baseStocks = [
@@ -110,22 +133,21 @@ class MarketController extends Controller
 
         return response()->json(['success' => true, 'data' => $this->processMockInsights($baseStocks)]);
     }
+
     public function getGlobalInsights()
     {
-        // Define which symbols map to which category for insights
         $tabs = [
             'gainers'      => ['AAPL', 'MSFT', 'NVDA'],
             'losers'       => ['TSLA', 'NFLX', 'META'],
             'most_traded'  => ['AAPL', 'AMZN', 'GOOGL'],
         ];
 
-        $marketService = app(\App\Services\MarketService::class);
+        $marketService = app(MarketService::class);
         $insights = [];
 
         foreach ($tabs as $tabKey => $symbols) {
             $insights[$tabKey] = collect($symbols)
                 ->map(function ($symbol) use ($marketService) {
-                    
                     $quote = $marketService->quoteDetails($symbol);
 
                     if (empty($quote) || empty($quote['symbol'])) {
@@ -148,6 +170,7 @@ class MarketController extends Controller
 
         return response()->json(['success' => true, 'data' => $insights]);
     }
+
     private function processMockInsights(array $stocks)
     {
         $hydrated = collect($stocks)->map(function ($stock) {
@@ -172,11 +195,10 @@ class MarketController extends Controller
             ];
         });
 
-        // Split into tabs by sorting values randomly/mathematically for the mock layer
         return [
-            'gainers'     => $hydrated->sortByDesc('change')->values()->all(),
-            'losers'      => $hydrated->sortBy('change')->values()->all(),
-            'most_traded' => $hydrated->sortByDesc('volume')->values()->all(),
+            'gainers'      => $hydrated->sortByDesc('change')->values()->all(),
+            'losers'       => $hydrated->sortBy('change')->values()->all(),
+            'most_traded'  => $hydrated->sortByDesc('volume')->values()->all(),
             'least_traded' => $hydrated->sortBy('volume')->values()->all(),
         ];
     }
