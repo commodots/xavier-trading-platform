@@ -127,6 +127,8 @@ Route::middleware('auth:sanctum')->group(function () {
     /* Market Data (Available to all logged in users) */
     Route::get('/market/candles', [MarketDataController::class, 'candles']);
     Route::get('/markets/stocks/{symbol}/history', [MarketDataController::class, 'stockHistory']);
+    Route::get('/markets', [MarketController::class, 'index']);
+    Route::get('/markets/insights/{market}', [TradeController::class, 'insights']);
     Route::get('/market/quotes', [MarketController::class, 'quotes']);
     Route::get('/market/ngx', [MarketController::class, 'ngx']);
     Route::get('/market/global', [MarketController::class, 'global']);
@@ -156,6 +158,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/watchlist', [WatchlistController::class, 'index']);
     Route::post('/watchlist', [WatchlistController::class, 'store']);
     Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
+    Route::post('/watchlist/toggle', [WatchlistController::class, 'store'])->name('api.watchlist.toggle');
+    Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy'])->name('api.watchlist.destroy');
 
     // Restricted to users with verified emails
     Route::middleware('verified')->group(function () {
@@ -163,17 +167,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/wallet/convert', [WalletController::class, 'convert'])->middleware('throttle:10,1');
         Route::post('/otp/send-withdrawal', [NewTransactionController::class, 'sendOtp']);
         Route::post('/deposit', [NewTransactionController::class, 'deposit']);
-        Route::post('/withdraw', [NewTransactionController::class, 'withdraw']);
+        Route::post('/withdraw', [NewTransactionController::class, 'withdraw'])->middleware('throttle:3,60'); // 3 per hour
         Route::post('/transfer', [NewTransactionController::class, 'transfer']);
 
         // Crypto Operations
-        Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw']);
+        Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw'])->middleware('throttle:3,60');
 
         // Portfolio & Trading
-        Route::post('/orders', [OmsController::class, 'placeOrder']);
+        Route::post('/orders', [OmsController::class, 'placeOrder'])->middleware('throttle:30,1'); // 30 per min
         Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
         Route::post('/trade/open', [TradeController::class, 'open']);
-        Route::post('/trade/close/{id}', [TradeController::class, 'close']);
+        Route::post('/trade/close/{id}', [TradeController::class, 'close'])->middleware('throttle:30,1');
         Route::post('/trade/place', [TradeController::class, 'placeOrder']);
         Route::get('/account', [TradeController::class, 'account']);
     });
@@ -212,6 +216,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/linked-accounts/index', [LinkedAccountController::class, 'index']);
         Route::post('/linked-accounts/store', [LinkedAccountController::class, 'store']);
         Route::delete('/linked-accounts/{id}', [LinkedAccountController::class, 'destroy']);
+
+        // Session & Device Management
+        Route::get('/sessions', [SecurityController::class, 'getActiveSessions']);
+        Route::post('/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
 
         // Notifications
         Route::get('/notifications', [NotificationController::class, 'index']);
@@ -258,6 +266,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::get('/activities', [AdminController::class, 'getActivityLogs']);
+        Route::get('/audit-logs', [AdminController::class, 'getAuditLogs']);
         Route::get('/earnings', [AdminController::class, 'getEarnings']);
 
         // KYC Management

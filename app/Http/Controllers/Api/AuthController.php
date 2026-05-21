@@ -10,6 +10,7 @@ use Illuminate\Validation\ValidationException;
 use App\Http\Resources\UserWithRelationsResource;
 use Illuminate\Support\Facades\Auth;
 use App\Models\ActivityLog;
+use App\Models\UserDevice;
 
 class AuthController extends Controller
 {
@@ -43,6 +44,17 @@ class AuthController extends Controller
         }
         $user = Auth::user();
 
+        // Update last_active_at on every login
+        $user->last_active_at = now();
+
+        // Reactivate inactive accounts on login
+        if ($user->subscription_status === 'inactive') {
+            $user->subscription_status = 'active';
+            $user->next_fee_due_at = now();
+        }
+
+        $user->save();
+
         try {
             ActivityLog::create([
                 'user_id'    => $user->id,
@@ -66,7 +78,13 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token|' . $request->userAgent() . '|' . $request->ip())->plainTextToken;
+
+        // Track device/session
+        UserDevice::updateOrCreate(
+            ['user_id' => $user->id, 'device_name' => substr($request->userAgent(), 0, 255), 'ip_address' => $request->ip()],
+            ['last_active_at' => now()]
+        );
 
         // 🛑 Log out of the temporary session 
         Auth::logout();

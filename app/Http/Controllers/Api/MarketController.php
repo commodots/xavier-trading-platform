@@ -13,23 +13,60 @@ class MarketController extends Controller
     {
         $query = Symbol::query();
 
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
+        // Trending: return top 30 by volume across all markets
+        if ($request->boolean('trending')) {
+            $data = $query
+                ->whereNotNull('last_price')
+                ->orderByDesc('volume')
+                ->limit(30)
+                ->get(['symbol', 'name', 'last_price as price', 'change', 'volume', 'type', 'exchange as market'])
+                ->map(fn ($item) => $this->formatSymbol($item));
+
+            return response()->json(['success' => true, 'data' => $data]);
         }
 
-        if ($request->has('market')) {
-            $query->where('exchange', $request->market);
+        if ($request->filled('type')) {
+            if ($request->type === 'crypto') {
+                $query->where(function ($q) {
+                    $q->where('type', 'crypto')->orWhere('exchange', 'CRYPTO');
+                });
+            } else {
+                $query->where('type', $request->type);
+            }
         }
 
-        $data = $query->get(['symbol', 'name', 'last_price as price', 'change', 'volume', 'type', 'exchange as market'])
-            ->map(function($item) {
-                $item->price = (float) $item->price;
-                $item->change = (float) ($item->change ?? 0);
-                $item->volume = (float) ($item->volume ?? 0);
-                return $item;
-            });
+        if ($request->filled('market')) {
+            $market = strtoupper($request->market);
+            if ($market === 'US') {
+                // US stocks live under NASDAQ / NYSE exchanges
+                $query->whereIn('exchange', ['NASDAQ', 'NYSE', 'US'])
+                      ->where('type', '!=', 'crypto');
+            } else {
+                $query->where('exchange', $market);
+            }
+        }
+
+        $data = $query
+            ->whereNotNull('last_price')
+            ->orderByDesc('volume')
+            ->limit(100)
+            ->get(['symbol', 'name', 'last_price as price', 'change', 'volume', 'type', 'exchange as market'])
+            ->map(fn ($item) => $this->formatSymbol($item));
 
         return response()->json(['success' => true, 'data' => $data]);
+    }
+
+    private function formatSymbol($item): array
+    {
+        return [
+            'symbol' => $item->symbol,
+            'name'   => $item->name,
+            'price'  => (float) ($item->price ?? 0),
+            'change' => (float) ($item->change ?? 0),
+            'volume' => (float) ($item->volume ?? 0),
+            'type'   => $item->type,
+            'market' => $item->market ?? $item->exchange,
+        ];
     }
 
     public function ngx()

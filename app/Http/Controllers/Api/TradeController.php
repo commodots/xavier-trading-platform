@@ -304,6 +304,8 @@ class TradeController extends Controller
                     'exit_price' => $sellPrice,
                     'profit_loss' => $profitLoss,
                     'status' => 'closed',
+                    'settlement_status' => 'pending',
+                    'settlement_date' => now()->addDay()->startOfDay(),
                 ]);
 
                 // Lock wallet to prevent concurrent updates
@@ -315,9 +317,10 @@ class TradeController extends Controller
                 $walletBeforeLocked = (float) $wallet->locked;
                 $walletBeforeCleared = (float) $wallet->usd_cleared;
 
-                // WALLET RULE: Return capital from locked + add FULL proceeds to cleared
+                // WALLET RULE (T+1): Return capital from locked + add FULL proceeds to UNCLEARED
+                // This prevents immediate withdrawal until the settlement job runs.
                 $wallet->decrement('locked', $buyValue);        // Release locked capital
-                $wallet->increment('usd_cleared', $sellValue);  // Add FULL proceeds (capital + profit)
+                $wallet->increment('usd_uncleared', $sellValue); // Add FULL proceeds to uncleared
                 $wallet->refresh(); // Refresh to get latest values after decrement/increment
                 $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
                 $wallet->save();

@@ -37,10 +37,10 @@ class TrialEndingNotification extends Notification implements ShouldQueue
     public function toArray($notifiable): array
     {
         return [
-            'title' => 'Trial Period Ending',
-            'message' => "Your premium advisory trial status expires in {$this->daysLeft} days. Fund your USD account balance to ensure automatic renewal.",
-            'type' => 'advisory_alert',
-            'action_url' => '/dashboard/settings/advisory'
+            'title'   => 'Trial Period Ending',
+            'message' => "Your premium advisory trial expires in {$this->daysLeft} days. Upgrade to keep access.",
+            'type'    => 'warning',
+            'action'  => 'Upgrade',
         ];
     }
 }

@@ -17,27 +17,30 @@ class HandleUserLifecycle
     {
         $user = $request->user();
 
-        if ($user) {
-            // Update last active tracking
-            $user->update(['last_active_at' => now()]);
+        if (! $user) {
+            return $next($request);
+        }
 
-            // Reactivation Flow
-            if ($user->subscription_status === 'inactive') {
-                $user->subscription_status = 'active';
-                // Give them a 3-day grace period to fund their wallet upon returning
-                $user->next_fee_due_at = now()->addDays(3);
-                $user->save();
+        // Update last active tracking
+        $user->timestamps = false;
+        $user->last_active_at = now();
 
-                // Optional: Trigger In-App notification "Welcome Back!" here
-            }
+        // Reactivation Flow
+        if ($user->subscription_status === 'inactive') {
+            $user->subscription_status = 'active';
+            // Give them a 3-day grace period to fund their wallet upon returning
+            $user->next_fee_due_at = now()->addDays(3);
+        }
 
-            // Strict Gatekeeping
-            if ($user->subscription_status === 'suspended') {
-                return response()->json([
-                    'error' => 'Account suspended due to outstanding debt. Please fund your wallet.',
-                    'debt' => $user->wallet_debt
-                ], 403);
-            }
+        $user->save();
+        $user->timestamps = true;
+
+        // Strict Gatekeeping
+        if ($user->subscription_status === 'suspended') {
+            return response()->json([
+                'error' => 'Account suspended due to outstanding debt. Please fund your wallet.',
+                'debt' => $user->wallet_debt
+            ], 403);
         }
 
         return $next($request);

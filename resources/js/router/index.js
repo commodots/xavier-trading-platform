@@ -27,6 +27,7 @@ import Reports from "@/Pages/Reports.vue";
 import Support from "@/Pages/Support.vue";
 import Withdraw from "@/Pages/Crypto/Withdraw.vue";
 import Deposit from "@/Pages/Crypto/Deposit.vue";
+import MarketIndex from "@/Pages/Market/MarketIndex.vue";
 // OMS
 import Orders from "@/Pages/Orders.vue";
 import OrderDetails from "@/Pages/OrderDetails.vue";
@@ -154,6 +155,12 @@ const routes = [
     component: FxMarket,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/market-index",
+    name: "market-index",
+    component: MarketIndex,
+    meta: { requiresAuth: true },
+  },
 
   /* ----------------------------------------------
      PROFILE (Details + KYC Tab)
@@ -186,6 +193,12 @@ const routes = [
     path: "/orders/:id",
     name: "order-details",
     component: OrderDetails,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/notifications",
+    name: "notifications",
+    component: () => import("@/Components/Notifications/NotificationPage.vue"),
     meta: { requiresAuth: true },
   },
   {
@@ -275,6 +288,12 @@ const routes = [
     path: "/admin/activity-log",
     name: "admin-activity-log",
     component: AdminActivityLog,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/audit-logs",
+    name: "admin-audit-logs",
+    component: () => import("@/Pages/Admin/AuditLogs.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {

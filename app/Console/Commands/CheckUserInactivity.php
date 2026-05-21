@@ -6,7 +6,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
-use App\Models\Notification;
 
 class CheckUserInactivity extends Command
 {
@@ -35,15 +34,12 @@ class CheckUserInactivity extends Command
         $this->info("Scanning profiles inactive since: {$thresholdDate->toDateTimeString()} ({$days} days)...");
 
         // Locate profiles whose last login activity or updated state is older than the threshold, ignoring already flagged records
-        $inactiveUsers = User::where(function($query) use ($thresholdDate) {
-                $query->where('last_login_at', '<', $thresholdDate)
-                      ->orWhere(function($subQuery) use ($thresholdDate) {
-                          $subQuery->whereNull('last_login_at')
-                                   ->where('updated_at', '<', $thresholdDate);
-                      });
+        $inactiveUsers = User::where(function ($query) use ($thresholdDate) {
+                $query->where('last_active_at', '<', $thresholdDate)
+                      ->orWhereNull('last_active_at');
             })
-            ->where('is_active', true)
-            ->where('role', '!=', 'admin') // Shield management staff logs
+            ->whereNotIn('subscription_status', ['inactive', 'suspended'])
+            ->where('role', '!=', 'admin')
             ->get();
 
         if ($inactiveUsers->isEmpty()) {
@@ -56,24 +52,14 @@ class CheckUserInactivity extends Command
         foreach ($inactiveUsers as $user) {
             try {
                 DB::transaction(function () use ($user) {
-                    $lastActive = $user->last_login_at ?? $user->updated_at;
-                    $diff = $lastActive->diffInDays(now());
+                    $lastActive = $user->last_active_at ?? $user->created_at;
+                    $diff = (int) $lastActive->diffInDays(now());
 
                     if ($diff >= 60) {
-                        // 60-Day Inactive Status: Pause billing & deactivate
                         $user->update(['subscription_status' => 'inactive']);
-                        $user->tokens()->delete();
                     } elseif ($diff >= 30) {
-                        // 30-Day Warning
                         $user->notify(new \App\Notifications\InactivityWarningNotification($diff));
                     }
-
-                    $user->update([
-                        'meta_data' => array_merge((array) ($user->meta_data ?? []), [
-                            'marked_inactive_at' => now()->toIso8601String(),
-                            'days_inactive_threshold' => $this->argument('days')
-                        ])
-                    ]);
                 });
 
             } catch (\Throwable $e) {

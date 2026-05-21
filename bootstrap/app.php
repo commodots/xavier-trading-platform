@@ -33,8 +33,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // --- API Middleware Stack ---
         $middleware->api(prepend: [
-            EnsureFrontendRequestsAreStateful::class, // Sanctum for SPA/token auth
-            SubstituteBindings::class,                // Enables route model binding
+            EnsureFrontendRequestsAreStateful::class,
+            SubstituteBindings::class,
+        ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\HandleUserLifecycle::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'api/*',

@@ -41,10 +41,10 @@ class BillingAlertNotification extends Notification implements ShouldQueue
     public function toArray($notifiable): array
     {
         return [
-            'title' => 'Billing Deduction Failed',
-            'message' => "Could not deduct \$" . number_format($this->amount, 2) . " due to: {$this->reason}. Please update your balances to clear outstanding dues.",
-            'type' => 'billing_error',
-            'action_url' => '/dashboard/wallet'
+            'title'   => 'Billing Deduction Failed',
+            'message' => "Could not deduct ₦" . number_format($this->amount, 2) . " due to: {$this->reason}. Please fund your wallet.",
+            'type'    => 'billing',
+            'action'  => 'Fund Wallet',
         ];
     }
 }

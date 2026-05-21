@@ -77,6 +77,12 @@ class WalletController extends Controller
         $currency = strtoupper($request->currency);
         $models = $this->resolveModels($request);
 
+        // Withdrawal protection: account status, debt, cleared balance
+        $protection = app(\App\Services\WithdrawalProtectionService::class)->check($user, $request->amount, $currency);
+        if (! $protection['allowed']) {
+            return response()->json(['success' => false, 'message' => $protection['message']], 422);
+        }
+
         // PCI/PSD2: Verify user passed SCA (2FA + email verified)
         if (! \App\Services\Compliance\PciPsd2Compliance::canProcessPayment($user, $request->amount)) {
             return response()->json([

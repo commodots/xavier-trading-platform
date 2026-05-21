@@ -60,10 +60,10 @@ class NewAdvisoryNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'title' => 'New Advisory Posted',
+            'title'   => 'New Advisory Posted',
             'message' => 'Check out the latest advisory: ' . $this->advisoryPost->title,
-            'post_id' => $this->advisoryPost->id,
-            'type' => 'advisory'
+            'type'    => 'info',
+            'action'  => null,
         ];
     }
 }

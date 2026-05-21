@@ -9,7 +9,7 @@ class ActivityLog extends Model
     protected $fillable = ['user_id', 'activity', 'ip_address', 'user_agent', 'details'];
 
     protected $casts = [
-        'details' => 'json',
+        'details' => 'array',
     ];
 
     public function user()

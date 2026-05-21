@@ -41,6 +41,8 @@
               <option value="Service Mode Update">Service Mode Update</option>
               <option value="Toggle Service">Toggle Service</option>
               <option value="Linked Account Added">Linked Account Added</option>
+              <option value="Password Changed">Password Changed</option>
+              <option value="Logged Out Other Devices">Logged Out Other Devices</option>
             </select>
           </div>
 

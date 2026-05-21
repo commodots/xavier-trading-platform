@@ -10,6 +10,8 @@ use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\UserKyc;
 use App\Models\NewTransaction;
+use App\Models\AuditLog;
+use App\Models\UserDevice;
 use App\Models\PlatformEarning;
 use App\Models\TransactionCharge;
 use App\Models\Order;
@@ -127,30 +129,37 @@ class AdminController extends Controller
 $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     ->selectRaw('(usd_cleared + usd_uncleared) as total')->value('total') ?? 0;
 
-        $transactions = Transaction::where('user_id', $id)
+        $transactions = NewTransaction::where('user_id', $id)
             ->latest()
             ->take(20)
             ->get();
 
+        $devices = UserDevice::where('user_id', $id)
+            ->orderByDesc('last_active_at')
+            ->get(['device_name', 'ip_address', 'last_active_at', 'is_trusted']);
+
         return response()->json([
             'success' => true,
             'user' => [
-                'id'         => $user->id,
-                'first_name' => $user->first_name,
-                'last_name'  => $user->last_name,
-                'email'      => $user->email,
-                'phone'      => $user->phone,
-                'role'       => $user->role,
-                'roles'      => $user->getRoleNames(),
-                'status'     => $user->status,
-                'created_at' => $user->created_at,
-                'kyc'        => $user->kyc
+                'id'                  => $user->id,
+                'first_name'          => $user->first_name,
+                'last_name'           => $user->last_name,
+                'email'               => $user->email,
+                'phone'               => $user->phone,
+                'role'                => $user->role,
+                'roles'               => $user->getRoleNames(),
+                'status'              => $user->status,
+                'subscription_status' => $user->subscription_status,
+                'wallet_debt'         => (float) $user->wallet_debt,
+                'created_at'          => $user->created_at,
+                'kyc'                 => $user->kyc,
             ],
             'wallet' => [
                 'ngn' => $walletNGN,
                 'usd' => $walletUSD,
             ],
-            'transactions' => $transactions
+            'transactions' => $transactions,
+            'devices'      => $devices,
         ]);
     }
 
@@ -782,6 +791,30 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json(['success' => true, 'message' => 'Charge updated']);
     }
+    public function getAuditLogs(Request $request)
+    {
+        $query = AuditLog::with('user:id,name,email');
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($query) use ($q) {
+                $query->where('action', 'like', "%{$q}%")
+                    ->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$q}%"));
+            });
+        }
+        if ($request->filled('action')) {
+            $query->where('action', $request->action);
+        }
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        return response()->json(['success' => true, 'data' => $query->latest()->paginate(20)]);
+    }
+
     public function getActivityLogs(Request $request)
     {
         $query = ActivityLog::with('user:id,name,email');

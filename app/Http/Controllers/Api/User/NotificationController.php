@@ -12,11 +12,21 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
+        $notifications = $user->notifications()->limit(50)->get()->map(fn ($n) => [
+            'id'      => $n->id,
+            'type'    => $n->data['type'] ?? 'info',
+            'title'   => $n->data['title'] ?? 'Notification',
+            'message' => $n->data['message'] ?? '',
+            'action'  => $n->data['action'] ?? null,
+            'read'    => !is_null($n->read_at),
+            'time'    => $n->created_at->diffForHumans(),
+        ]);
+
         return response()->json([
-            'success' => true,
+            'success'      => true,
             'unread_count' => $user->unreadNotifications->count(),
-            'notifications' => $user->notifications()->limit(20)->get() // Gets both read and unread
+            'notifications' => $notifications,
         ]);
     }
     public function markAsRead($id, Request $request)

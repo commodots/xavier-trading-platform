@@ -38,10 +38,10 @@ class InactivityWarningNotification extends Notification implements ShouldQueue
     public function toArray($notifiable): array
     {
         return [
-            'title' => 'Account Dormancy Warning',
-            'message' => "Your profile has registered lack of user interaction for {$this->inactiveDays} days. Log back in to verify active positions remain secure.",
-            'type' => 'security_engagement',
-            'action_url' => '/login'
+            'title'   => 'Account Dormancy Warning',
+            'message' => "You haven't logged in for {$this->inactiveDays} days. Log back in to verify your positions.",
+            'type'    => 'warning',
+            'action'  => 'Go to Dashboard',
         ];
     }
 }

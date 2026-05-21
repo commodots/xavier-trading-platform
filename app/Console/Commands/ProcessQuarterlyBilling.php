@@ -6,9 +6,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
+use App\Models\UserSubscription;
 use App\Models\Wallet;
-use App\Models\Transaction;
-use App\Models\Subscription;
+use App\Models\NewTransaction;
 
 class ProcessQuarterlyBilling extends Command
 {
@@ -34,7 +34,7 @@ class ProcessQuarterlyBilling extends Command
         $this->info('Starting quarterly advisory billing cycle...');
 
         // Fetch active subscriptions due or past due for renewal
-        $subscriptions = Subscription::where('status', 'active')
+        $subscriptions = UserSubscription::where('status', 'active')
             ->where('billing_cycle', 'quarterly')
             ->where('next_billing_at', '<=', now())
             ->with('user')
@@ -79,16 +79,18 @@ class ProcessQuarterlyBilling extends Command
                     $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
                     $wallet->save();
 
-                    // Create transaction history entry
-                    Transaction::create([
+                    NewTransaction::create([
                         'user_id' => $user->id,
-                        'wallet_id' => $wallet->id,
                         'type' => 'subscription_fee',
                         'amount' => $billingAmount,
                         'currency' => 'USD',
                         'status' => 'completed',
-                        'description' => "Quarterly renewal fee for advisory status tier: {$subscription->tier_level}",
-                        'reference' => 'SUB-QTR-' . strtoupper(uniqid())
+                        'charge' => 0,
+                        'net_amount' => $billingAmount,
+                        'meta' => [
+                            'description' => "Quarterly renewal fee for advisory status tier: {$subscription->tier_level}",
+                            'reference' => 'SUB-QTR-' . strtoupper(uniqid()),
+                        ],
                     ]);
 
                     // Bump billing matrix timeline forward 3 months

@@ -100,18 +100,36 @@
         <!-- WALLET + KYC -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 
-          <!-- Wallet -->
+          <!-- Wallet + Account Health -->
           <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
-            <h3 class="mb-4 font-semibold">Wallet Balances</h3>
+            <h3 class="mb-4 font-semibold">Wallet & Account Health</h3>
 
             <div class="space-y-2">
               <div class="flex justify-between">
-                <span class="text-gray-300">NGN</span>
+                <span class="text-gray-300">NGN Balance</span>
                 <span class="font-bold">₦{{ pretty(wallet.ngn) }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-300">USD</span>
+                <span class="text-gray-300">USD Balance</span>
                 <span class="font-bold">${{ pretty(wallet.usd) }}</span>
+              </div>
+              <div class="flex justify-between pt-2 border-t border-gray-700">
+                <span class="text-gray-300">Subscription Status</span>
+                <span class="px-2 py-0.5 text-xs rounded font-bold"
+                  :class="{
+                    'bg-green-600': viewedUser.subscription_status === 'active',
+                    'bg-red-600': viewedUser.subscription_status === 'suspended',
+                    'bg-yellow-600 text-black': viewedUser.subscription_status === 'inactive',
+                    'bg-blue-600': viewedUser.subscription_status === 'trial',
+                  }">
+                  {{ viewedUser.subscription_status || 'N/A' }}
+                </span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-300">Outstanding Debt</span>
+                <span class="font-bold" :class="viewedUser.wallet_debt > 0 ? 'text-red-400' : 'text-green-400'">
+                  ₦{{ pretty(viewedUser.wallet_debt) }}
+                </span>
               </div>
             </div>
           </div>
@@ -204,6 +222,34 @@
           </table>
         </div>
 
+        <!-- DEVICES -->
+        <div class="bg-[#111827] p-4 rounded-xl border border-[#1F2A44] mt-6">
+          <h4 class="font-semibold mb-3">Known Devices & Sessions</h4>
+          <div v-if="devices.length === 0" class="text-sm text-gray-500 py-4 text-center">No devices recorded.</div>
+          <table v-else class="w-full text-sm">
+            <thead class="text-left text-xs text-gray-400 border-b border-[#1F2A44]">
+              <tr>
+                <th class="py-2">Device</th>
+                <th>IP Address</th>
+                <th>Last Active</th>
+                <th>Trusted</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(d, i) in devices" :key="i" class="border-b border-[#1F2A44]">
+                <td class="py-2 text-gray-300 truncate max-w-xs">{{ d.device_name || 'Unknown' }}</td>
+                <td class="font-mono text-xs">{{ d.ip_address || '—' }}</td>
+                <td>{{ d.last_active_at ? formatDate(d.last_active_at) : '—' }}</td>
+                <td>
+                  <span :class="d.is_trusted ? 'text-green-400' : 'text-gray-500'" class="text-xs font-bold">
+                    {{ d.is_trusted ? 'Yes' : 'No' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
       <!-- ROLE MODAL -->
@@ -247,6 +293,7 @@ const kyc = ref(null);
 const transactions = ref([]);
 const showRoleModal = ref(false);
 const togglingStatus = ref(false);
+const devices = ref([]);
 
 // COMPUTED
 const fullName = computed(() => {
@@ -277,6 +324,7 @@ const loadData = async () => {
     viewedUser.value = res.data.user;
     wallet.value = res.data.wallet;
     transactions.value = res.data.transactions || [];
+    devices.value = res.data.devices || [];
     kyc.value = res.data.user.kyc || null;
 
   } catch (err) {

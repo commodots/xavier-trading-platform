@@ -2,9 +2,7 @@
   <div class="bg-[#0B132B] border-b border-gray-700 px-6 py-4 flex justify-between items-center">
     <h2 class="text-xl font-semibold text-[#00D4FF]">Xavier</h2>
     <div class="flex items-center gap-4">
-      <button class="text-gray-400 hover:text-white transition">
-        <i class="lucide-bell"></i>
-      </button>
+      <NotificationBell />
 
       <div class="relative group">
         <img src="/images/avatar.png" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-600 cursor-pointer" />
@@ -23,6 +21,9 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import NotificationBell from "@/Components/Notifications/NotificationBell.vue";
+import api from "@/lib/axios";
+
 const router = useRouter();
 const user = ref({});
 
@@ -32,14 +33,12 @@ onMounted(() => {
 
 const logout = async () => {
   try {
-
     await api.post('/logout');
   } catch (e) {
     console.warn("Session already expired on server");
   } finally {
     localStorage.clear();
     sessionStorage.clear();
-
     window.location.href = "/login";
   }
 };

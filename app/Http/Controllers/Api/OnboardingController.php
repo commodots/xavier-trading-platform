@@ -49,6 +49,8 @@ class OnboardingController extends Controller
 
         try {
             // 🧍 Step 2: Create user account first (required)
+            $trialDays = \App\Models\SystemSetting::first()?->trial_days ?? 7;
+
             $user = User::create([
                 'name' => $nameInput,
                 'first_name' => $firstName,
@@ -58,6 +60,10 @@ class OnboardingController extends Controller
                 'dob' => $validated['dob'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'trading_mode' => 'live',
+                'subscription_status' => 'trial',
+                'trial_ends_at' => now()->addDays($trialDays),
+                'next_fee_due_at' => now()->addDays($trialDays),
+                'last_active_at' => now(),
             ]);
             if ($request->hasFile('profile_image')) {
                 // Ensure file is stored before trying to get path

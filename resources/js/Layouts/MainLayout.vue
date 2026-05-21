@@ -47,6 +47,8 @@
       <!--MARKET-->
 <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
 		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
+      <SidebarLink to="/market-index" :icon="ChartNoAxesCombined">Market</SidebarLink>
+
 
 		  <!-- ACCOUNT -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
@@ -71,6 +73,7 @@
               Management</div>
             <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
+            <SidebarLink v-if="isAdmin" to="/admin/audit-logs" :icon="ShieldCheck">Audit Logs</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/reports" :icon="FileSpreadsheet">
               Generate Report</SidebarLink>
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">
@@ -129,8 +132,9 @@
         </button>
 
         <div class="hidden md:block"></div>
-        <div v-if="currentView === 'user'">
-          <DemoToggle :initialMode="user?.trading_mode || 'live'" />
+        <div class="flex items-center gap-4">
+          <NotificationBell v-if="currentView === 'user'" />
+          <DemoToggle v-if="currentView === 'user'" :initialMode="user?.trading_mode || 'live'" />
         </div>
       </div>
       <div class="flex-1 p-4 pb-20 overflow-y-auto md:p-6">
@@ -153,6 +157,7 @@ import {
 
 import SidebarLink from "@/Components/SidebarLink.vue";
 import DemoToggle from "@/Components/DemoToggle.vue";
+import NotificationBell from "@/Components/Notifications/NotificationBell.vue";
 import { Star } from "lucide-vue-next";
 
 const router = useRouter();

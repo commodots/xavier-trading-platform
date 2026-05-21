@@ -5,36 +5,46 @@ const props = defineProps({
     subscription: {
         type: Object,
         required: true,
-        // Expected payload keys shape: { status: 'suspended'|'trial', days_left: 3, next_billing_at: '2026-06-01' }
+        // Expected: { status: 'suspended'|'trial'|'active', days_left: 3, debt: 2000 }
     }
 });
 
 const emit = defineEmits(['actionClicked']);
 
 const bannerConfig = computed(() => {
-    switch (props.subscription?.status) {
-        case 'suspended':
-            return {
-                bgClass: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300',
-                title: 'Account Access Restricted',
-                description: 'Your quarterly advisory subscription billing failed due to insufficient cleared funds.',
-                btnText: 'Fund USD Wallet',
-                btnClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white'
-            };
-        case 'trial':
-            if (props.subscription?.days_left <= 5) {
-                return {
-                    bgClass: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300',
-                    title: 'Your Premium Advisory Trial is Expiring Soon',
-                    description: `You have ${props.subscription.days_left} days remaining. Fund your cleared balances to prevent downgrade interruptions.`,
-                    btnText: 'Upgrade Tier Now',
-                    btnClass: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500 text-white'
-                };
-            }
-            return null;
-        default:
-            return null;
+    const { status, days_left, debt } = props.subscription ?? {};
+
+    if (status === 'suspended') {
+        return {
+            bgClass: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300',
+            title: 'Account Access Restricted',
+            description: 'Your account has been suspended due to an outstanding balance. Fund your wallet to restore access.',
+            btnText: 'Fund Wallet',
+            btnClass: 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white'
+        };
     }
+
+    if (debt > 0) {
+        return {
+            bgClass: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/50 text-orange-800 dark:text-orange-300',
+            title: `Outstanding Balance: ₦${Number(debt).toLocaleString()}`,
+            description: 'Your wallet had insufficient funds for the last platform fee. Please top up to clear this balance.',
+            btnText: 'Pay Now',
+            btnClass: 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500 text-white'
+        };
+    }
+
+    if (status === 'trial' && days_left <= 5) {
+        return {
+            bgClass: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300',
+            title: 'Your Free Trial is Expiring Soon',
+            description: `You have ${days_left} day${days_left !== 1 ? 's' : ''} remaining. Fund your wallet to avoid interruption.`,
+            btnText: 'Fund Wallet',
+            btnClass: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500 text-white'
+        };
+    }
+
+    return null;
 });
 </script>
 

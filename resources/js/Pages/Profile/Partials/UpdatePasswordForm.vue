@@ -31,7 +31,7 @@ const updatePassword = async () => {
 
     try {
         
-        await api.put('/user/password', form);
+        await api.put('/user/security/password', form);
         form.current_password = '';
         form.password = '';
         form.password_confirmation = '';
