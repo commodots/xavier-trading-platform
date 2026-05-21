@@ -51,6 +51,7 @@ class AuthController extends Controller
         if ($user->subscription_status === 'inactive') {
             $user->subscription_status = 'active';
             $user->next_fee_due_at = now();
+            $user->notify(new \App\Notifications\BillingAlertNotification(1000, 'Account reactivated — platform fee will be charged shortly.'));
         }
 
         $user->save();

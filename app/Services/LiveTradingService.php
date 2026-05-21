@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Fee;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\Trade;
@@ -107,6 +108,14 @@ class LiveTradingService
                 $wallet->increment('balance', $actualCost); // Fix: Sell proceeds must increase total balance
             }
 
+            // 1% platform trade fee
+            $tradeFee = round($actualCost * 0.01, 2);
+            if ($tradeFee > 0 && $data['side'] === 'buy') {
+                if ($wallet->$clearedCol >= $tradeFee) {
+                    $wallet->decrement($clearedCol, $tradeFee);
+                }
+            }
+
             $order = Order::create([
                 ...$data,
                 'user_id' => $user->id,
@@ -114,6 +123,15 @@ class LiveTradingService
                 'units' => $units,
                 'quantity' => $units,
             ]);
+
+            if ($tradeFee > 0 && $data['side'] === 'buy') {
+                Fee::create([
+                    'user_id'  => $user->id,
+                    'trade_id' => null, 
+                    'amount'   => $tradeFee,
+                    'type'     => 'trade_fee',
+                ]);
+            }
 
             Trade::create([
                 'order_id' => $order->id,

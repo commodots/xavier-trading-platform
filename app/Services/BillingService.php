@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\BillingRecord;
 use App\Notifications\AccountSuspendedNotification;
 use App\Notifications\BillingAlertNotification;
+use App\Notifications\FeeChargedNotification;
 use Illuminate\Support\Facades\DB;
 
 class BillingService
@@ -24,6 +25,8 @@ class BillingService
                     'type'    => 'subscription_fee',
                     'status'  => 'paid',
                 ]);
+
+                $user->notify(new FeeChargedNotification($fee, now()->addDays(90)->toFormattedDateString()));
             } else {
                 $shortfall = $fee - $user->wallet_balance;
                 $user->wallet_debt += $shortfall;

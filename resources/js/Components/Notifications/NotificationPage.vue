@@ -1,4 +1,5 @@
 <template>
+  <MainLayout>
   <div class="p-6 max-w-3xl mx-auto min-h-screen">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
@@ -20,7 +21,7 @@
     </div>
 
     <!-- Render list cards dynamically -->
-    <div class="bg-white border border-gray-100 rounded-xl divide-y divide-gray-100 shadow-sm overflow-hidden">
+    <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl divide-y divide-gray-100 shadow-sm overflow-hidden">
       <div v-if="filteredNotifications.length === 0" class="p-8 text-center text-gray-400 text-sm">
         No notifications found in this category.
       </div>
@@ -32,12 +33,14 @@
       />
     </div>
   </div>
+</MainLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import NotificationItem from './NotificationItem.vue'
-import api from '@/lib/axios'
+import { ref, computed, onMounted } from 'vue';
+import NotificationItem from './NotificationItem.vue';
+import api from '@/api';
+import MainLayout from "@/Layouts/MainLayout.vue";
 
 const notifications = ref([])
 const filters = ['All', 'Unread', 'Billing', 'Account']

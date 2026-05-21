@@ -6,9 +6,10 @@
       <!-- Enhanced Subscription & Billing Management -->
       <DashboardBillingBanner 
         :subscription="{ 
-          status: user.subscription_status || (user.on_trial ? 'trial' : 'active'), 
+          status: user.subscription_status || (user.has_active_subscription ? 'active' : (user.on_trial ? 'trial' : 'active')), 
           days_left: daysUntil(user.trial_expires_at),
-          debt: user.wallet_debt || 0
+          debt: user.wallet_debt || 0,
+          wallet_balance: walletBalance
         }"
         @actionClicked="$router.push({ name: 'wallet' })"
       />

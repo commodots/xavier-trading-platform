@@ -144,7 +144,7 @@
                   :disabled="isActivatingTrial"
                   class="w-full py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 transition-colors rounded-lg disabled:opacity-50"
                 >
-                  {{ isActivatingTrial ? 'Activating access layer...' : `Start ${trialDays} Days Free Trial` }}
+                  {{ isActivatingTrial ? 'Activating trial access...' : `Start ${trialDays} Days Free Trial` }}
                 </button>
               </div>
 

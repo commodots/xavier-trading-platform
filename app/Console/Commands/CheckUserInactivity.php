@@ -57,6 +57,7 @@ class CheckUserInactivity extends Command
 
                     if ($diff >= 60) {
                         $user->update(['subscription_status' => 'inactive']);
+                        $user->notify(new \App\Notifications\InactivityWarningNotification($diff));
                     } elseif ($diff >= 30) {
                         $user->notify(new \App\Notifications\InactivityWarningNotification($diff));
                     }

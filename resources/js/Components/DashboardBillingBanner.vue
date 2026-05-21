@@ -5,9 +5,11 @@ const props = defineProps({
     subscription: {
         type: Object,
         required: true,
-        // Expected: { status: 'suspended'|'trial'|'active', days_left: 3, debt: 2000 }
+        // Expected: { status: 'suspended'|'trial'|'active', days_left: 3, debt: 2000, wallet_balance: 5000 }
     }
 });
+
+const PLATFORM_FEE = 1000;
 
 const emit = defineEmits(['actionClicked']);
 
@@ -25,6 +27,9 @@ const bannerConfig = computed(() => {
     }
 
     if (debt > 0) {
+        const walletCoversDebt = (props.subscription.wallet_balance ?? 0) >= debt;
+        if (walletCoversDebt) return null;
+
         return {
             bgClass: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/50 text-orange-800 dark:text-orange-300',
             title: `Outstanding Balance: ₦${Number(debt).toLocaleString()}`,
@@ -34,13 +39,21 @@ const bannerConfig = computed(() => {
         };
     }
 
-    if (status === 'trial' && days_left <= 5) {
+    if (status === 'trial' && days_left > 0 && days_left <= 5) {
+        const walletCoversFee = (props.subscription.wallet_balance ?? 0) >= PLATFORM_FEE;
+        
+        if (walletCoversFee) return null;
+
         return {
             bgClass: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300',
             title: 'Your Free Trial is Expiring Soon',
-            description: `You have ${days_left} day${days_left !== 1 ? 's' : ''} remaining. Fund your wallet to avoid interruption.`,
-            btnText: 'Fund Wallet',
-            btnClass: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500 text-white'
+            description: walletCoversFee
+                ? `You have ${days_left} day${days_left !== 1 ? 's' : ''} remaining. Your wallet is ready — the ₦${PLATFORM_FEE.toLocaleString()} fee will be auto-charged when your trial ends.`
+                : `You have ${days_left} day${days_left !== 1 ? 's' : ''} remaining. Fund your wallet with at least ₦${PLATFORM_FEE.toLocaleString()} to avoid interruption.`,
+            btnText: walletCoversFee ? 'View Wallet' : 'Fund Wallet',
+            btnClass: walletCoversFee
+                ? 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-400 text-white'
+                : 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500 text-white'
         };
     }
 

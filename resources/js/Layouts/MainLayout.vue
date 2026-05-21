@@ -57,6 +57,7 @@
 		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
 		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
 		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
+      <SidebarLink to="/notifications" :icon="MessageCircleQuestionMark">Notifications</SidebarLink>
       
 <!--WATCHLIST-->
       <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Watchlist</div>
