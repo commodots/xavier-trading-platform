@@ -5,11 +5,13 @@
       <!-- Logo + Title -->
       <div class="mb-10 text-center">
         <img src="/images/xavier-logo.png" class="h-20 mx-auto mb-4 drop-shadow-lg" />
-        <h1 class="text-3xl font-bold">Welcome Back</h1>
-        <p class="mt-1 text-gray-400">Sign in to continue</p>
+        <h1 class="text-3xl font-bold">{{ requires2FA ? 'Two-Factor Auth' : 'Welcome Back' }}</h1>
+        <p class="mt-1 text-gray-400">
+          {{ requires2FA ? 'Enter the security code from your authenticator app' : 'Sign in to continue' }}
+        </p>
       </div>
 
-      <form @submit.prevent="submit">
+      <form v-if="!requires2FA" @submit.prevent="submitLogin">
         <div class="mb-4">
           <label class="block mb-1 text-gray-300">Email</label>
           <input v-model="email" type="email" class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg outline-none focus:border-[#00D4FF]"
@@ -54,13 +56,47 @@
         </button>
       </form>
 
-      <p class="mt-6 text-sm text-center text-gray-400">
-        Don’t have an account?
-        <a href="/register" class="text-[#00D4FF] hover:underline">Create one</a>
-      </p>
-      <p class="mt-6 text-sm text-center text-[#00D4FF] hover:underline">
-        <a href="/forgot-password">Forgot password?</a>
-      </p>
+      <form v-else @submit.prevent="submit2FA">
+        <div class="mb-6">
+          <label class="block mb-1 text-gray-300">6-Digit Verification Code</label>
+          <input 
+            v-model="twoFactorCode" 
+            type="text" 
+            maxlength="6"
+            placeholder="000000"
+            class="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-lg outline-none focus:border-[#00D4FF] text-center text-2xl tracking-[0.5em] font-mono"
+            required 
+            autofocus
+          />
+          <p class="mt-2 text-xs text-center text-gray-400">Sent to your registered device credentials</p>
+        </div>
+
+        <div v-if="errorMessage" class="p-3 mb-4 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/50 animate-fadeIn">
+          {{ errorMessage }}
+        </div>
+
+        <button type="submit" :disabled="loading"
+          class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2 transition-all">
+          <span v-if="loading" class="w-4 h-4 border-2 rounded-full border-white/30 border-t-white animate-spin"></span>
+          {{ loading ? 'Verifying Token...' : 'Verify & Log In' }}
+        </button>
+
+        <button type="button" @click="resetFormState" class="w-full mt-4 text-xs text-gray-400 hover:text-white transition-colors">
+          ← Back to password login
+        </button>
+      </form>
+
+      
+      <div v-if="!requires2FA">
+        <p class="mt-6 text-sm text-center text-gray-400">
+          Don’t have an account?
+          <a href="/register" class="text-[#00D4FF] hover:underline">Create one</a>
+        </p>
+        <p class="mt-6 text-sm text-center text-[#00D4FF] hover:underline">
+          <a href="/forgot-password">Forgot password?</a>
+        </p>
+      </div>
+      
     </div>
   </div>
 </template>
@@ -78,7 +114,11 @@ const showPassword = ref(false);
 const loading = ref(false);
 const errorMessage = ref("");
 
-const submit = async () => {
+const requires2FA = ref(false);
+const twoFactorCode = ref("");
+
+
+const submitLogin = async () => {
   loading.value = true;
   errorMessage.value = "";
 
@@ -88,20 +128,63 @@ const submit = async () => {
       password: password.value
     });
 
-    localStorage.setItem("xavier_token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-
-    if (res.data.user.role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push("/dashboard");
+    
+    if (res.data.requires_2fa) {
+      requires2FA.value = true;
+      return; 
     }
+
+    saveSessionAndRedirect(res.data);
+
   } catch (err) {
     console.error("Login failed:", err);
     errorMessage.value = err.response?.data?.message || "Invalid credentials. Please try again.";
   } finally {
     loading.value = false;
   }
+};
+
+/**
+ * Handle 2FA Token submission
+ */
+const submit2FA = async () => {
+  loading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const res = await axios.post("/login/2fa", {
+      email: email.value,
+      token: twoFactorCode.value
+    });
+
+    
+    saveSessionAndRedirect(res.data);
+
+  } catch (err) {
+    console.error("2FA Verification failed:", err);
+    errorMessage.value = err.response?.data?.message || "Invalid 2FA code. Please try again.";
+  } finally {
+    loading.value = false;
+  }
+};
+
+
+const saveSessionAndRedirect = (payload) => {
+  localStorage.setItem("xavier_token", payload.token);
+  localStorage.setItem("user", JSON.stringify(payload.user));
+
+  if (payload.user?.role === "admin") {
+    router.push("/admin");
+  } else {
+    router.push("/dashboard");
+  }
+};
+
+
+const resetFormState = () => {
+  requires2FA.value = false;
+  twoFactorCode.value = "";
+  errorMessage.value = "";
 };
 </script>
 

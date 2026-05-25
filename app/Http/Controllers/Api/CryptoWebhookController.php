@@ -43,12 +43,11 @@ class CryptoWebhookController extends Controller
                 'tx_hash' => $txHash,
             ]);
 
-            Wallet::where('user_id', $cryptoAddress->user_id)
+            $wallet = Wallet::where('user_id', $cryptoAddress->user_id)
                 ->where('currency', 'USD')
-                ->update([
-                    'usd_cleared' => DB::raw("usd_cleared + $amount"),
-                    'balance' => DB::raw("balance + $amount"),
-                ]);
+                ->first();
+            $wallet->increment('usd_cleared', $amount);
+            $wallet->increment('balance', $amount);
 
             return response()->json(['status' => 'ok']);
         });

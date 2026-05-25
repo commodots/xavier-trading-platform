@@ -172,6 +172,11 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     public function toggleStatus($id)
     {
         $user = User::findOrFail($id);
+        
+        $admin = auth()->user();
+        if (!$admin->isAdmin() && !\App\Services\StaffPermissionService::roleHasCapability($admin, 'manage_system_settings')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
 
         $oldStatus = $user->status;
 

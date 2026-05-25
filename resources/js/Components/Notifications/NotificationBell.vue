@@ -37,7 +37,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import NotificationDropdown from './NotificationDropdown.vue'
-import api from '@/lib/axios'
+import api from '@/api'
 
 const open = ref(false)
 const notifications = ref([])
@@ -49,24 +49,38 @@ const toggleDropdown = () => {
 const fetchNotifications = async () => {
   try {
     const res = await api.get('/user/notifications')
-    notifications.value = res.data.notifications ?? res.data
+    
+   
+    if (res.data && res.data.notifications) {
+      notifications.value = Array.isArray(res.data.notifications.data) 
+        ? res.data.notifications.data 
+        : (Array.isArray(res.data.notifications) ? res.data.notifications : []);
+    } else if (res.data && res.data.data) {
+      notifications.value = res.data.data;
+    } else {
+      notifications.value = Array.isArray(res.data) ? res.data : [];
+    }
   } catch (error) {
     console.error('Failed to load notifications:', error)
+    notifications.value = [] 
   }
 }
 
-const unreadCount = computed(() => 
-  notifications.value.filter(n => !n.read).length
-)
+
+const unreadCount = computed(() => {
+  if (!Array.isArray(notifications.value)) return 0;
+  return notifications.value.filter(n => !n.read_at).length
+})
 
 const markAsRead = async (id) => {
   const notif = notifications.value.find(n => n.id === id)
-  if (notif && !notif.read) {
-    notif.read = true
+  if (notif && !notif.read_at) {
+    notif.read_at = new Date().toISOString() 
     try {
       await api.post(`/user/notifications/${id}/read`)
     } catch (error) {
       console.error('Failed to sync read status to backend:', error)
+      notif.read_at = null 
     }
   }
 }

@@ -44,23 +44,25 @@ class MatchingEngine
     protected function executeDummyMatch(Order $incoming): void
     {
         $marketPrice = app(PriceService::class)->getCurrentPrice($incoming->symbol, 'local');
-        $qtyToFill = $incoming->quantity - $incoming->filled_quantity;
+        $qtyToFill = $incoming->units - $incoming->filled_units;
 
-        if ($qtyToFill <= 0) return;
+        if ($qtyToFill <= 0) {
+            return;
+        }
 
         // Calculate T+2 date using business days logic
-        $settlementDate = now()->addDays(2); 
+        $settlementDate = now()->addDays(2);
 
         Trade::create([
             'order_id' => $incoming->id,
             'price' => $marketPrice,
             'quantity' => $qtyToFill,
-            'settlement_status' => 'pending', 
+            'settlement_status' => 'pending',
             'settlement_date' => $settlementDate->toDateString(),
         ]);
 
         // Add the filled quantity
-        $incoming->increment('filled_quantity', $qtyToFill);
+        $incoming->increment('filled_units', $qtyToFill);
         
         
         $this->syncStatus($incoming); 
@@ -80,27 +82,35 @@ class MatchingEngine
             ->orderBy('price', $incoming->side === 'buy' ? 'asc' : 'desc')
             ->lockForUpdate()
             ->get();
+            
+        $settlementDate = now()->addDays(2);
 
         foreach ($matches as $counter) {
-            $remaining = $incoming->quantity - $incoming->filled_quantity;
-            if ($remaining <= 0) break;
+            $remaining = $incoming->units - $incoming->filled_units;
+            if ($remaining <= 0) {
+                break;
+            }
 
-            if (!$this->priceMatch($incoming, $counter)) continue;
+            if (!$this->priceMatch($incoming, $counter)) {
+                continue;
+            }
 
-            $qty = min($remaining, $counter->quantity - $counter->filled_quantity);
+            $qty = min($remaining, $counter->units - $counter->filled_units);
 
             $trade = Trade::create([
                 'order_id' => $incoming->id,
                 'counterparty_order_id' => $counter->id,
                 'price' => $counter->price,
                 'quantity' => $qty,
+                'settlement_status' => 'pending',
+                'settlement_date' => $settlementDate->toDateString(),
             ]);
             
             app(\App\Services\ContractNote\ContractNoteService::class)->generate($trade);
             app(CSCSSettlementSimulator::class)->settleTrade($trade);
 
-            $incoming->increment('filled_quantity', $qty);
-            $counter->increment('filled_quantity', $qty);
+            $incoming->increment('filled_units', $qty);
+            $counter->increment('filled_units', $qty);
 
             $this->syncStatus($incoming);
             $this->syncStatus($counter);
@@ -124,9 +134,9 @@ class MatchingEngine
 
     protected function syncStatus(Order $order): void
     {
-        if ($order->filled_quantity >= $order->quantity) {
+        if ($order->filled_units >= $order->units) {
             $order->update(['status' => 'filled']);
-        } elseif ($order->filled_quantity > 0) {
+        } elseif ($order->filled_units > 0) {
             $order->update(['status' => 'partially_filled']);
         }
     }

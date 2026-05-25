@@ -34,16 +34,23 @@
               class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
               :class="activeView === 'market' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
-              Market Insights
+              Market
             </button>
-
             <button 
-              @click="openTrade(null)"
-              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md text-gray-500 hover:text-gray-300"
+              @click="activeView = 'history'"
+              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+              :class="activeView === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
-              Buy / Sell
+              History
             </button>
           </div>
+
+          <button 
+            @click="openTrade(null)"
+            class="px-6 py-2 text-xs font-bold uppercase transition-all rounded-lg bg-blue-600 text-white shadow-lg hover:bg-blue-700"
+          >
+            Buy / Sell
+          </button>
         </div>
 
         <!-- Dashboard Workspace Switchboards -->
@@ -123,6 +130,11 @@
               @trade="openTrade"
             />
           </div>
+
+          <div v-else-if="activeView === 'history'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
+            Local market transaction history coming soon.
+          </div>
+
         </div>
       </div>
 

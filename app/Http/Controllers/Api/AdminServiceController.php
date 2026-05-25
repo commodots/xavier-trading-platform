@@ -10,10 +10,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Services\StaffPermissionService;
 use App\Models\ServiceConfig;
+use Illuminate\Http\JsonResponse;
 
 class AdminServiceController extends Controller
 {
-    public function index()
+    public function index(): JsonResponse
     {
         $services = Service::all()->map(function ($service) {
             return [
@@ -31,7 +32,7 @@ class AdminServiceController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $user = auth()->user();
 
@@ -60,7 +61,7 @@ class AdminServiceController extends Controller
     }
 
     
-    public function update(Request $request, $id)
+    public function update(Request $request, $id): JsonResponse
     {
         // Check permissions
         $user = auth()->user();
@@ -95,7 +96,7 @@ class AdminServiceController extends Controller
         ]);
     }
 
-    public function addConnection(Request $request, $serviceId)
+    public function addConnection(Request $request, $serviceId): JsonResponse
     {
         $user = auth()->user();
         if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
@@ -141,8 +142,13 @@ class AdminServiceController extends Controller
         return response()->json(['success' => true], 201);
     }
 
-    public function toggleService($id)
+    public function toggleService($id): JsonResponse
     {
+        $user = auth()->user();
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
         $service = Service::findOrFail($id);
         $old = $service->is_active;
         $service->is_active = !$service->is_active;
@@ -165,8 +171,13 @@ class AdminServiceController extends Controller
         ]);
     }
 
-    public function updateMode(Request $request, $id)
+    public function updateMode(Request $request, $id): JsonResponse
     {
+        $user = auth()->user();
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
         $service = Service::findOrFail($id);
         $oldMode = $service->mode;
         $service->update(['mode' => $request->mode]);
@@ -184,7 +195,7 @@ class AdminServiceController extends Controller
         return response()->json(['message' => 'Mode updated']);
     }
 
-    public function getConnections($serviceId)
+    public function getConnections($serviceId): JsonResponse
     {
         $service = Service::findOrFail($serviceId);
         $connections = ServiceConnection::where('service_id', $serviceId)->get();
@@ -195,7 +206,7 @@ class AdminServiceController extends Controller
         ]);
     }
 
-    public function updateConnection(Request $request, $connectionId)
+    public function updateConnection(Request $request, $connectionId): JsonResponse
     {
         $user = auth()->user();
         if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
@@ -236,7 +247,7 @@ class AdminServiceController extends Controller
         ]);
     }
 
-    public function getConfig($serviceId)
+    public function getConfig($serviceId): JsonResponse
     {
         $service = Service::findOrFail($serviceId);
         $config = ServiceConfig::where('service', strtoupper($service->type))->first();
@@ -247,9 +258,10 @@ class AdminServiceController extends Controller
         ]);
     }
 
-    public function updateConfig(Request $request, $serviceId)
+    public function updateConfig(Request $request, $serviceId): JsonResponse
     {
-        if (!auth()->user()->hasRole('admin') && !StaffPermissionService::roleHasCapability(auth()->user(), 'manage_services')) {
+        $user = auth()->user();
+        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         
@@ -260,7 +272,7 @@ class AdminServiceController extends Controller
             ['service' => strtoupper($service->type)],
             [
                 'params' => empty($request->params) ? null : $request->params,
-                'is_active' => $request->is_active ?? true,
+                'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
                 'mode' => 'live' // Defaulting to live to fulfill DB constraints
             ]
         );

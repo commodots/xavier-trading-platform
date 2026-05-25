@@ -1,16 +1,16 @@
 <template>
   <div 
     @click="handleClick"
-    :class="['flex items-start gap-3 p-3 transition-colors duration-150 cursor-pointer relative border-b border-gray-50 last:border-0', notification.read ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/20 hover:bg-blue-50/40']"
+    :class="['flex items-start gap-3 p-3 transition-colors duration-150 cursor-pointer relative border-b border-[#1f3348]/30 last:border-0', notification.read ? 'bg-transparent hover:bg-[#1f3348]/20' : 'bg-blue-500/5 hover:bg-blue-500/10']"
   >
     <!-- Dynamic Icon Badge based on Notification Type -->
-    <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0', badgeStyle.bg]">
+    <div :class="['w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0', badgeStyle.bg]">
       {{ badgeStyle.icon }}
     </div>
 
     <!-- Text Body context -->
     <div class="flex-1 min-w-0">
-      <div class="font-semibold text-sm text-gray-900 flex items-center gap-1.5">
+      <div class="font-semibold text-sm text-white flex items-center gap-1.5">
         {{ notification.title }}
         <!-- Unread Blue Dot Indicator -->
         <span v-if="!notification.read" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
@@ -20,7 +20,7 @@
       </p>
 
       <!-- Footer elements: Time and Custom Action buttons -->
-      <div class="flex justify-between items-center mt-2 gap-2">
+      <div class="flex justify-between items-center mt-3 gap-2">
         <span class="text-[11px] text-gray-400 font-medium">
           {{ notification.time }}
         </span>
@@ -52,15 +52,15 @@ const router = useRouter()
 const badgeStyle = computed(() => {
   switch (props.notification.type) {
     case 'billing':
-      return { icon: '💰', bg: 'bg-emerald-50 text-emerald-700' }
+      return { icon: '💰', bg: 'bg-emerald-500/10 text-emerald-400' }
     case 'warning':
-      return { icon: '⚠', bg: 'bg-amber-50 text-amber-700' }
+      return { icon: '⚠', bg: 'bg-amber-500/10 text-amber-400' }
     case 'account':
-      return { icon: '🔐', bg: 'bg-rose-50 text-rose-700' }
+      return { icon: '🔐', bg: 'bg-rose-500/10 text-rose-400' }
     case 'success':
-      return { icon: '✔', bg: 'bg-emerald-50 text-emerald-700' }
+      return { icon: '✔', bg: 'bg-emerald-500/10 text-emerald-400' }
     default:
-      return { icon: 'ℹ', bg: 'bg-blue-50 text-blue-700' }
+      return { icon: 'ℹ', bg: 'bg-blue-500/10 text-blue-400' }
   }
 })
 

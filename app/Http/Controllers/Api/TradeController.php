@@ -11,15 +11,19 @@ use App\Models\Trade;
 use App\Models\Wallet;
 use App\Providers\AlpacaProvider;
 use App\Services\MarketService;
+use App\Models\Ledger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\JsonResponse;
+
 
 class TradeController extends Controller
 {
-    private function resolveModels($user)
+    private function resolveModels($user): object
     {
         $isDemo = $user->trading_mode === 'demo';
 
@@ -33,7 +37,7 @@ class TradeController extends Controller
     }
 
     // ADD THIS HELPER METHOD to map symbols to CoinGecko IDs
-    private function lookupPrice($symbol, $prices)
+    private function lookupPrice($symbol, $prices): float
     {
         $map = [
             'BTC' => 'bitcoin',
@@ -72,7 +76,7 @@ class TradeController extends Controller
         return levenshtein($normalizedSymbol, $normalizedQuery) <= 1;
     }
 
-    public function updateMarket(Request $request)
+    public function updateMarket(Request $request): JsonResponse
     {
         $secret = config('services.finnhub.secret');
 
@@ -101,7 +105,7 @@ class TradeController extends Controller
         }
     }
 
-    public function open(Request $request)
+    public function open(Request $request): JsonResponse
     {
         $request->validate([
             'amount' => 'required|numeric|min:1',
@@ -210,7 +214,7 @@ class TradeController extends Controller
         });
     }
 
-    public function close($id)
+    public function close($id): JsonResponse
     {
         $user = auth()->user();
         $models = $this->resolveModels($user);
@@ -231,6 +235,7 @@ class TradeController extends Controller
         $symbol = strtoupper(explode('/', $trade->pair)[0]);
 
         $marketService = app(MarketService::class);
+        $prices = null;
 
         // LIVE API: Fetch real-time quote
         if (str_contains($trade->pair, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'])) {
@@ -340,7 +345,7 @@ class TradeController extends Controller
                 ]);
 
                 // Create ledger entry for wallet update
-                \App\Models\Ledger::create([
+                Ledger::create([
                     'user_id' => $user->id,
                     'currency' => 'USD',
                     'amount' => $profitLoss,
@@ -395,7 +400,7 @@ class TradeController extends Controller
         }
     }
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -539,7 +544,7 @@ class TradeController extends Controller
         }
     }
 
-    public function searchSymbols(Request $request, $query = null)
+    public function searchSymbols(Request $request, $query = null): JsonResponse
     {
         $query = $query ?? trim($request->query('q', ''));
 
@@ -588,7 +593,7 @@ class TradeController extends Controller
         return response()->json($finalResults->take(20));
     }
 
-    public function placeOrder(Request $request)
+    public function placeOrder(Request $request): JsonResponse
     {
         $request->validate([
             'symbol' => 'required|string',
@@ -735,14 +740,14 @@ class TradeController extends Controller
         }
     }
 
-    public function account()
+    public function account(): JsonResponse
     {
         $alpaca = new AlpacaProvider;
 
         return response()->json($alpaca->getAccount());
     }
 
-    public function buy(Request $request)
+    public function buy(Request $request): JsonResponse
     {
         $price = app(MarketService::class)->quote($request->symbol);
 
@@ -756,9 +761,9 @@ class TradeController extends Controller
         $alpaca = new AlpacaProvider;
 
         $order = Http::withHeaders([
-            'APCA-API-KEY-ID' => env('ALPACA_API_KEY'),
-            'APCA-API-SECRET-KEY' => env('ALPACA_SECRET_KEY'),
-        ])->post(env('ALPACA_BASE_URL').'/v2/orders', [
+            'APCA-API-KEY-ID' => config('services.alpaca.api_key'),
+            'APCA-API-SECRET-KEY' => config('services.alpaca.secret_key'),
+        ])->post(config('services.alpaca.base_url').'/v2/orders', [
             'symbol' => $request->symbol,
             'qty' => $request->qty,
             'side' => 'buy',
@@ -769,7 +774,7 @@ class TradeController extends Controller
         return $order->json();
     }
 
-    public function sell(Request $request)
+    public function sell(Request $request): JsonResponse
     {
         $price = app(MarketService::class)->quote($request->symbol);
 
@@ -783,9 +788,9 @@ class TradeController extends Controller
         $alpaca = new AlpacaProvider;
 
         $order = Http::withHeaders([
-            'APCA-API-KEY-ID' => env('ALPACA_API_KEY'),
-            'APCA-API-SECRET-KEY' => env('ALPACA_SECRET_KEY'),
-        ])->post(env('ALPACA_BASE_URL').'/v2/orders', [
+            'APCA-API-KEY-ID' => config('services.alpaca.api_key'),
+            'APCA-API-SECRET-KEY' => config('services.alpaca.secret_key'),
+        ])->post(config('services.alpaca.base_url').'/v2/orders', [
             'symbol' => $request->symbol,
             'qty' => $request->qty,
             'side' => 'sell',
@@ -796,7 +801,7 @@ class TradeController extends Controller
         return $order->json();
     }
 
-    public function trackSymbol(Request $request)
+    public function trackSymbol(Request $request): JsonResponse
     {
         // Handle both single symbol and array of symbols
         $symbols = $request->input('symbol') ? [$request->input('symbol')] : ($request->input('symbols') ?? []);
@@ -824,7 +829,7 @@ class TradeController extends Controller
    /**
      * Fetch market insights (gainers, losers, most active) for a specific market type.
      */
-    public function insights(string $market)
+    public function insights(string $market): JsonResponse
     {
         try {
             $normalizedMarket = strtoupper(trim($market));
@@ -879,5 +884,4 @@ class TradeController extends Controller
             ], 500);
         }
     }
-}
 }

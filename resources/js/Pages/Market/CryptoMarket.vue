@@ -17,15 +17,23 @@
       </div>
 
       <!-- Segmented Control View Switching Tabs -->
-      <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
+          <button 
+            v-for="view in ['holdings', 'market', 'history']" 
+            :key="view"
+            @click="activeView = view"
+            class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+            :class="activeView === view ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+          >
+            {{ view === 'holdings' ? 'My Holdings' : view === 'market' ? 'Market' : 'History' }}
+          </button>
+        </div>
         <button 
-          v-for="view in ['holdings', 'market', 'trading']" 
-          :key="view"
-          @click="activeView = view"
-          class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
-          :class="activeView === view ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+          @click="activeView = 'trading'"
+          class="px-6 py-2 text-xs font-bold uppercase transition-all rounded-lg bg-blue-600 text-white shadow-lg hover:bg-blue-700"
         >
-          {{ view === 'holdings' ? 'My Holdings' : view === 'market' ? 'Market Assets' : 'Buy / Sell' }}
+          Buy / Sell
         </button>
       </div>
 
@@ -97,6 +105,10 @@
         <!-- Tab C: Trade Executive Interface Panel Layout -->
         <div v-else-if="activeView === 'trading'">
            <Trading />
+        </div>
+
+        <div v-else-if="activeView === 'history'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
+           Crypto transaction history coming soon.
         </div>
       </div>
 

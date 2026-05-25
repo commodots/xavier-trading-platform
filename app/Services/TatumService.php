@@ -18,7 +18,11 @@ class TatumService
         $data = $res->json();
 
         if ($res->failed() || ! isset($data['xpub'])) {
-            Log::error('Tatum Generation Failed', ['user_id' => $userId, 'status' => $res->status(), 'data' => $data, 'url' => config('services.tatum.base_url').'/tron/wallet']);
+            Log::error('Tatum Generation Failed', [
+                'user_id' => $userId, 
+                'status' => $res->status(), 
+                'message' => 'API Error - Sensitive data hidden'
+            ]);
 
             throw new \Exception('Tatum API error: Unable to generate wallet');
         }
@@ -33,7 +37,10 @@ class TatumService
         $addressData = $addressRes->json();
 
         if ($addressRes->failed() || ! isset($addressData['address'])) {
-            Log::error('Tatum Address Generation Failed', ['user_id' => $userId, 'status' => $addressRes->status(), 'data' => $addressData, 'xpub' => $xpub]);
+            Log::error('Tatum Address Generation Failed', [
+                'user_id' => $userId, 
+                'status' => $addressRes->status()
+            ]);
 
             throw new \Exception('Tatum API error: Unable to generate address');
         }
@@ -46,7 +53,7 @@ class TatumService
 
         $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='.urlencode($address);
 
-        // Save to database and encrypt the mnemonic for security (not recommended)
+        // Save to database and encrypt the mnemonic for security 
         CryptoAddress::create([
             'user_id' => $userId,
             'blockchain' => 'TRON',

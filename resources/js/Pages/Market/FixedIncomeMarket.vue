@@ -17,85 +17,112 @@
       </div>
 
       <!-- Quick Control Action Row -->
-      <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
-        <button 
-          @click="activeView = 'holdings'"
-          class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
-          :class="activeView === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
-        >
-          My Holdings
-        </button>
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
+          <button 
+            @click="activeView = 'holdings'"
+            class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+            :class="activeView === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+          >
+            My Holdings
+          </button>
+          <button 
+            @click="activeView = 'market'"
+            class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+            :class="activeView === 'market' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+          >
+            Market
+          </button>
+          <button 
+            @click="activeView = 'history'"
+            class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
+            :class="activeView === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+          >
+            History
+          </button>
+        </div>
+
         <button 
           @click="openTrade(instruments[0] || {})"
-          class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md text-gray-500 hover:text-gray-300"
+          class="px-6 py-2 text-xs font-bold uppercase transition-all rounded-lg bg-blue-600 text-white shadow-lg hover:bg-blue-700"
         >
           Buy / Sell
         </button>
       </div>
 
-      <!-- Performance Stream Rendering Component -->
-      <HoldingPerformanceChart 
-        title="Your Fixed Income Holdings" 
-        currencySymbol="₦" 
-        :seriesData="portfolioData" 
-        :totalValue="totalValue"
-        :percentageChange="changePercent" 
-        :loading="isGraphLoading || loading" 
-        @rangeChange="fetchPortfolioPerformance" 
-      />
+      <div v-if="activeView === 'holdings'" class="space-y-6">
+        <!-- Performance Stream Rendering Component -->
+        <HoldingPerformanceChart 
+          title="Your Fixed Income Holdings" 
+          currencySymbol="₦" 
+          :seriesData="portfolioData" 
+          :totalValue="totalValue"
+          :percentageChange="changePercent" 
+          :loading="isGraphLoading || loading" 
+          @rangeChange="fetchPortfolioPerformance" 
+        />
 
-      <!-- Asset Grid Portfolio List Table -->
-      <div v-if="loading" class="mt-6">
-        <SkeletonLoader type="table" class="opacity-40" />
+        <!-- Asset Grid Portfolio List Table -->
+        <div v-if="loading" class="mt-6">
+          <SkeletonLoader type="table" class="opacity-40" />
+        </div>
+        
+        <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6">
+          <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
+            <h2 class="font-semibold text-gray-200">My Holdings</h2>
+            <span class="text-xs text-gray-500">{{ filteredInstruments.length }} Listings</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-gray-400 border-b border-[#1f3348] bg-[#0B121D]">
+                <tr>
+                  <th class="px-6 py-4 font-medium text-left">Instrument</th>
+                  <th class="font-medium text-left">Issuer</th>
+                  <th class="font-medium text-right">Yield (%)</th>
+                  <th class="font-medium text-right">24h Change</th>
+                  <th class="font-medium text-right">Volume</th>
+                  <th class="px-6 font-medium text-right">Trend</th>
+                  <th class="font-medium text-center" colspan="2">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#1f3348]">
+                <tr v-for="instrument in filteredInstruments" :key="instrument.symbol" class="hover:bg-[#16213A] transition">
+                  <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ instrument.symbol }}</td>
+                  <td class="text-gray-300">{{ instrument.name }}</td>
+                  <td class="font-mono font-semibold text-right text-white">{{ instrument.yield?.toFixed(2) }}%</td>
+                  <td class="text-right font-mono" :class="instrument.change >= 0 ? 'text-green-400' : 'text-red-400'">
+                    {{ instrument.change >= 0 ? '+' : '' }}{{ instrument.change }}%
+                  </td>
+                  <td class="text-right text-gray-400 font-mono">{{ instrument.volume?.toLocaleString() }}</td>
+                  <td class="w-32 px-6 text-right">
+                    <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: instrument.spark || [] }]" />
+                  </td>
+                  <td class="px-2 text-center">
+                    <button @click="openDetails(instrument)" class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md hover:bg-[#2d4a66] transition text-xs">
+                      Details
+                    </button>
+                  </td>
+                  <td class="px-2 pr-6 text-center">
+                    <button @click="openTrade(instrument)" class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
+                      Trade
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="filteredInstruments.length === 0">
+                  <td colspan="8" class="p-10 text-center text-gray-500 italic">No asset lines matched your query parameters.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      
-      <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6">
-        <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
-          <h2 class="font-semibold text-gray-200">My Holdings</h2>
-          <span class="text-xs text-gray-500">{{ filteredInstruments.length }} Listings</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-gray-400 border-b border-[#1f3348] bg-[#0B121D]">
-              <tr>
-                <th class="px-6 py-4 font-medium text-left">Instrument</th>
-                <th class="font-medium text-left">Issuer</th>
-                <th class="font-medium text-right">Yield (%)</th>
-                <th class="font-medium text-right">24h Change</th>
-                <th class="font-medium text-right">Volume</th>
-                <th class="px-6 font-medium text-right">Trend</th>
-                <th class="font-medium text-center" colspan="2">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#1f3348]">
-              <tr v-for="instrument in filteredInstruments" :key="instrument.symbol" class="hover:bg-[#16213A] transition">
-                <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ instrument.symbol }}</td>
-                <td class="text-gray-300">{{ instrument.name }}</td>
-                <td class="font-mono font-semibold text-right text-white">{{ instrument.yield?.toFixed(2) }}%</td>
-                <td class="text-right font-mono" :class="instrument.change >= 0 ? 'text-green-400' : 'text-red-400'">
-                  {{ instrument.change >= 0 ? '+' : '' }}{{ instrument.change }}%
-                </td>
-                <td class="text-right text-gray-400 font-mono">{{ instrument.volume?.toLocaleString() }}</td>
-                <td class="w-32 px-6 text-right">
-                  <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: instrument.spark || [] }]" />
-                </td>
-                <td class="px-2 text-center">
-                  <button @click="openDetails(instrument)" class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md hover:bg-[#2d4a66] transition text-xs">
-                    Details
-                  </button>
-                </td>
-                <td class="px-2 pr-6 text-center">
-                  <button @click="openTrade(instrument)" class="bg-[#00D4FF] text-[#0F1724] px-4 py-1.5 rounded-md font-bold hover:bg-[#00b8e6] transition text-xs">
-                    Trade
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="filteredInstruments.length === 0">
-                <td colspan="8" class="p-10 text-center text-gray-500 italic">No asset lines matched your query parameters.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+
+      <div v-else-if="activeView === 'market'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
+        Market listing overview coming soon.
+      </div>
+
+      <div v-else-if="activeView === 'history'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
+        Your fixed income transaction history will appear here.
       </div>
 
       <!-- Modal Overlays Injection Portals -->

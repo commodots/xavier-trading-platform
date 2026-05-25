@@ -8,13 +8,14 @@
         </div>
       </div>
 
-      <div v-if="currentStep === 1" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
+
+     <div v-if="currentStep === 1" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
         <h2 class="mb-4 text-lg font-semibold">Step 1: User Selection</h2>
 
         <div class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2 lg:grid-cols-3">
           <div>
             <label class="block mb-2 text-sm font-medium text-gray-300">Search Users</label>
-            <input v-model="searchQuery" type="text" placeholder="Search by name, email..."
+            <input v-model="searchQuery" @keyup.enter="searchUsers" type="text" placeholder="Search by name, email..."
               class="w-full bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500" />
           </div>
 
@@ -47,7 +48,9 @@
                   <th class="px-2 text-left">Email</th>
                   <th class="px-2 text-left">KYC Status</th>
                   <th class="px-2 text-left">Joined</th>
-                  <th class="px-2 text-center">Select</th>
+                  <th class="px-2 text-center">
+                    <input type="checkbox" v-model="selectAll" class="rounded border-[#1f3348] bg-[#16213A] focus:ring-blue-500" />
+                  </th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#1f3348]">
@@ -61,7 +64,10 @@
                   </td>
                   <td class="px-2 text-gray-300">{{ formatDate(user.created_at) }}</td>
                   <td class="px-2 text-center">
-                    <input type="checkbox" v-model="selectedUsers" :value="user.id" class="rounded" />
+                    <input type="checkbox" 
+                      :checked="selectedUsers.includes(user.id)" 
+                      @change="toggleUserSelection(user.id)"
+                      class="rounded border-[#1f3348] bg-[#16213A] focus:ring-blue-500" />
                   </td>
                 </tr>
               </tbody>
@@ -187,6 +193,31 @@ const canSend = computed(() => {
          notificationMessage.value.trim();
 });
 
+const selectAll = computed({
+  get: () => users.value.length > 0 && users.value.every(u => selectedUsers.value.includes(u.id)),
+  set: (val) => {
+    if (val) {
+      users.value.forEach(u => {
+        if (!selectedUsers.value.includes(u.id)) selectedUsers.value.push(u.id);
+      });
+    } else {
+      users.value.forEach(u => {
+        const index = selectedUsers.value.indexOf(u.id);
+        if (index > -1) selectedUsers.value.splice(index, 1);
+      });
+    }
+  }
+});
+
+function toggleUserSelection(userId) {
+  const index = selectedUsers.value.indexOf(userId);
+  if (index > -1) {
+    selectedUsers.value.splice(index, 1);
+  } else {
+    selectedUsers.value.push(userId);
+  }
+}
+
 onMounted(() => {
   loadNotifications();
 });
@@ -214,12 +245,13 @@ async function sendNotification() {
   try {
     const data = {
       user_ids: selectedUsers.value,
-      title: notificationTitle.value,
-      message: notificationMessage.value,
+      title: notificationTitle.value.trim(),
+      message: notificationMessage.value.trim(),
       send_email: sendEmail.value,
       send_message: sendMessage.value
     };
     await api.post("/admin/notifications/send", data);
+    alert("Notifications sent successfully!");
 
     // Reset form
     notificationTitle.value = "";

@@ -191,8 +191,14 @@ async function handleSuccessfulLogin(token, user) {
   localStorage.setItem("xavier_token", token);
   localStorage.setItem("user", JSON.stringify(user));
 
-  
-  if (user.role === 'admin' || user.role === 'compliance') {
+  const isAdmin = (u) => {
+    if (!u) return false;
+    const role = (u.role || '').toString().toLowerCase();
+    const roles = Array.isArray(u.roles) ? u.roles.map(r => (typeof r === 'string' ? r : r.name).toLowerCase()) : [];
+    return role === 'admin' || role === 'compliance' || roles.includes('admin') || roles.includes('compliance');
+  };
+
+  if (isAdmin(user)) {
     window.location.href = "/admin/dashboard";
   } else {
     window.location.href = "/dashboard";

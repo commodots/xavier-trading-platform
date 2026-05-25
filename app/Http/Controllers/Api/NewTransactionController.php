@@ -155,8 +155,6 @@ class NewTransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'A verification code has been sent to your registered email/phone.',
-            // Remove 'debug_otp' in production!
-            'debug_otp' => app()->environment('local') ? $otp : null,
         ]);
     }
 
@@ -245,7 +243,21 @@ class NewTransactionController extends Controller
         $totalDeduction = $request->amount + $chargeAmount;
 
         try {
-            return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount, $models) {
+            return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount, $models, $tierSettings) {
+                if (! $models->isDemo) {
+                    $dailyLimit = $tierSettings ? $tierSettings->daily_limit : 0;
+                    $todayWithdrawn = $models->transaction->where('user_id', $user->id)
+                        ->where('type', 'withdrawal')
+                        ->whereIn('status', ['completed', 'pending'])
+                        ->whereDate('created_at', now())
+                        ->lockForUpdate()
+                        ->sum('amount');
+
+                    if (($todayWithdrawn + $request->amount) > $dailyLimit) {
+                        $remaining = max(0, $dailyLimit - $todayWithdrawn);
+                        throw new \Exception('Daily limit exceeded. Remaining: '.number_format($remaining, 2));
+                    }
+                }
 
                 $wallet = $models->wallet->where('user_id', $user->id)
                     ->where('currency', $request->currency)

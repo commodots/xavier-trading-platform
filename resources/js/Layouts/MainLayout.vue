@@ -47,7 +47,7 @@
       <!--MARKET-->
 <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
 		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
-      <SidebarLink to="/market-index" :icon="ChartNoAxesCombined">Market</SidebarLink>
+      <SidebarLink to="/market-index" :icon="Store">Market</SidebarLink>
 
 
 		  <!-- ACCOUNT -->
@@ -57,7 +57,7 @@
 		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
 		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
 		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
-      <SidebarLink to="/notifications" :icon="MessageCircleQuestionMark">Notifications</SidebarLink>
+      <SidebarLink to="/notifications" :icon="Bell">Notifications</SidebarLink>
       
 <!--WATCHLIST-->
       <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Watchlist</div>
@@ -153,7 +153,7 @@ import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

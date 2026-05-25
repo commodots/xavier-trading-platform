@@ -74,6 +74,7 @@ return [
     'alpaca' => [
         'api_key' => env('ALPACA_API_KEY'),
         'secret_key' => env('ALPACA_SECRET_KEY'),
+        'base_url' => env('ALPACA_BASE_URL'),
     ],
     'pusher' => [
         'pusher_app_id' => env('PUSHER_APP_ID'),

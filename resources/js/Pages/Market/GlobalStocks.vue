@@ -61,8 +61,9 @@
       <!-- View Navigation & Layout Engine -->
       <div class="space-y-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg self-start overflow-x-auto max-w-full">
-            <button 
+          <div class="flex items-center justify-between w-full gap-2">
+            <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg self-start overflow-x-auto max-w-full">
+              <button 
               @click="activeChart = 'holdings'"
               class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
               :class="activeChart === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
@@ -81,11 +82,20 @@
               class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
               :class="activeChart === 'insights' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
-              Market Insights
+              Market
             </button>
             <button 
+              @click="activeChart = 'history'"
+              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
+              :class="activeChart === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
+            >
+              History
+            </button>
+            </div>
+            
+            <button 
               @click="stocks && stocks.length > 0 ? openTrade(stocks[0]) : openTrade(null)"
-              class="px-4 py-2 text-xs font-bold text-gray-500 uppercase transition-all rounded-md hover:text-gray-300 whitespace-nowrap"
+              class="px-6 py-2 text-xs font-bold text-white uppercase transition-all rounded-lg hover:bg-blue-700 whitespace-nowrap bg-blue-600 shadow-lg"
             >
               Buy / Sell
             </button>

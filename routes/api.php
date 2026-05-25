@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\FxDashboardController;
 use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
 use App\Http\Controllers\Admin\SystemSettingsController;
+use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\AdvisoryController;
 // Feature Controllers
 use App\Http\Controllers\AlpacaWebhookController;
@@ -57,6 +58,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+
+Route::post('/login/2fa', [TwoFactorController::class, 'verify2FA'])->middleware('throttle:5,1');
+
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
 Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
@@ -105,7 +109,7 @@ Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
 
 Route::middleware('auth:sanctum')->group(function () {
     /* User & Auth Management */
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/email/verification-notification', function (Request $request) {
@@ -118,7 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (\Exception $e) {
-            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
@@ -256,6 +260,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/advisory-posts', AdminAdvisoryController::class);
         Route::apiResource('/model-portfolios', AdminModelPortfolioController::class);
 
+         //Notifications
+        Route::get('/notifications', [AdminNotificationController::class, 'index']);
+        Route::get('/users/search', [AdminNotificationController::class, 'searchUsers']);
+        Route::post('/notifications/send', [AdminNotificationController::class, 'send']);
+
         // User & Transaction Admin
         Route::get('/stats', [AdminController::class, 'stats']);
         Route::get('/orders', [AdminController::class, 'orders']);
@@ -263,11 +272,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users/{id}', [AdminController::class, 'userDetail']);
         Route::post('/users/{id}/toggle-status', [AdminController::class, 'toggleStatus']);
         Route::post('/users/{id}/role', [AdminController::class, 'updateUserRole']);
-        Route::get('/notifications', [NotificationController::class, 'index']);
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::get('/activities', [AdminController::class, 'getActivityLogs']);
         Route::get('/audit-logs', [AdminController::class, 'getAuditLogs']);
         Route::get('/earnings', [AdminController::class, 'getEarnings']);
+
+       
 
         // KYC Management
         Route::get('/kycs', [AdminController::class, 'kycs']);
