@@ -59,34 +59,8 @@
         </div>
 
         <!-- SKELETON LOADER STATE -->
-        <div v-if="loading" class="animate-pulse overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
-              <tr>
-                <th class="px-2 py-3 text-left">Date</th>
-                <th class="px-2 text-left">Market</th>
-                <th class="px-2 text-left">Asset</th>
-                <th class="px-2 text-left">Units</th>
-                <th class="px-2 text-left">Amount</th>
-                <th class="px-2 text-left">Status</th>
-                <th class="px-2 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#1f3348]/40">
-              <tr v-for="i in 5" :key="i">
-                <td class="px-2 py-4"><div class="h-4 bg-gray-700/50 rounded w-20"></div></td>
-                <td class="px-2"><div class="h-4 bg-gray-800 rounded w-14"></div></td>
-                <td class="px-2 py-2">
-                  <div class="h-4 bg-gray-700/60 rounded w-16 mb-1.5"></div>
-                  <div class="h-3 bg-gray-800 rounded w-24"></div>
-                </td>
-                <td class="px-2"><div class="h-4 bg-gray-700/50 rounded w-12"></div></td>
-                <td class="px-2"><div class="h-4 bg-gray-700/60 rounded w-16"></div></td>
-                <td class="px-2"><div class="h-5 bg-gray-800 rounded-full w-20"></div></td>
-                <td class="px-2 flex justify-end items-center pt-4"><div class="h-4 bg-gray-800 rounded w-12"></div></td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="loading">
+          <SkeletonLoader type="table" class="opacity-40" />
         </div>
 
         <div v-if="!loading" class="overflow-x-auto">

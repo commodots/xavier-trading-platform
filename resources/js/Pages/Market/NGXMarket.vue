@@ -91,7 +91,7 @@
             <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6 transition-all duration-300">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
                 
-                <span class="text-xs text-gray-500">{{ filteredStocks.length }} Assets available</span>
+                <span class="text-xs text-gray-500">{{ filteredStocks.length }} Assets Available</span>
               </div>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -266,8 +266,8 @@ const fetchMarketInsights = async (silent = false) => {
   if (!silent) isInsightsLoading.value = true;
   try {
     const response = await api.get(`/market/${currentMarketType.value}/insights`);
-    if (response.data) {
-      ngxMarketInsights.value = response.data;
+    if (response.data && response.data.data) {
+      ngxMarketInsights.value = response.data.data;
     }
   } catch (error) {
     console.error('Insights fetch payload failure:', error);

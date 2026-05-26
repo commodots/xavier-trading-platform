@@ -11,8 +11,12 @@
         <p class="text-sm text-gray-400">Full breakdown of your investment order.</p>
       </div>
 
-      <div v-if="loading" class="py-10 text-center text-gray-400">
-        Loading order details...
+      <div v-if="loading" class="space-y-6">
+        <SkeletonLoader class="h-48 w-full rounded-xl bg-gray-800/40" />
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <SkeletonLoader v-for="i in 4" :key="i" class="h-20 w-full rounded-lg bg-gray-800" />
+        </div>
+        <SkeletonLoader class="h-48 w-full rounded-xl bg-gray-800/30" />
       </div>
 
       <div v-if="error" class="py-10 text-center text-red-400">
@@ -152,6 +156,7 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 import { useRoute, useRouter } from "vue-router";
 
 const order = ref(null);

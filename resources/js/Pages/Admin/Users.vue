@@ -45,8 +45,8 @@
       >
         <h2 class="mb-4 text-xl font-semibold text-green-400">Client Accounts</h2>
 
-        <div v-if="loading" class="py-10 text-center text-gray-400 animate-pulse">
-          Loading clients...
+        <div v-if="loading" class="space-y-2">
+          <SkeletonLoader v-for="i in 5" :key="i" class="h-12 w-full rounded bg-gray-800" />
         </div>
 
         <table v-else class="w-full text-sm">
@@ -129,8 +129,8 @@
       >
         <h2 class="mb-4 text-xl font-semibold text-blue-400">Staff Accounts</h2>
 
-        <div v-if="loading" class="py-10 text-center text-gray-400 animate-pulse">
-          Loading staff...
+        <div v-if="loading" class="space-y-2">
+          <SkeletonLoader v-for="i in 5" :key="i" class="h-12 w-full rounded bg-gray-800" />
         </div>
 
         <table v-else class="w-full text-sm">
@@ -223,6 +223,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from "@/Components/SkeletonLoader.vue";
 
 const user = ref({});
 try {

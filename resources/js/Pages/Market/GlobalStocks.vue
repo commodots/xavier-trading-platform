@@ -4,8 +4,8 @@
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       
       <!-- Top Actions Bar -->
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+      <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight text-white">
           <span>🌍</span> Global Stocks
         </h1>
         
@@ -45,7 +45,7 @@
       <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-8">
         <div>
           <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">USD Balance</p>
-          <p class="text-base font-mono font-bold text-white">
+          <p class="font-mono text-base font-bold text-white">
             ${{ walletBalances?.cleared_balance_usd ? walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
           </p>
         </div>
@@ -88,14 +88,14 @@
             
             <button 
               @click="stocks && stocks.length > 0 ? openTrade(stocks[0]) : openTrade(null)"
-              class="px-6 py-2 text-xs font-bold text-white uppercase transition-all rounded-lg hover:bg-blue-700 whitespace-nowrap bg-blue-600 shadow-lg"
+              class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 whitespace-nowrap"
             >
               Buy / Sell
             </button>
           </div>
 
           <!-- Market Chart Specific Controls -->
-          <div v-if="activeChart === 'insights'" class="flex flex-wrap items-center gap-2 justify-end mt-4">
+          <div v-if="activeChart === 'insights'" class="flex flex-wrap items-center justify-end gap-2 mt-4">
             <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Market:</span>
             <span class="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded font-mono text-xs uppercase">
               {{ selectedMarketSymbol }}
@@ -144,30 +144,30 @@
             
             <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4 sm:p-6 overflow-hidden min-h-[400px]">
               <div v-if="!selectedMarketSymbol" class="space-y-6 animate-pulse">
-                <div class="flex justify-between items-center">
+                <div class="flex items-center justify-between">
                   <div class="space-y-2">
-                    <SkeletonLoader class="h-6 w-24 bg-gray-800" />
-                    <SkeletonLoader class="h-4 w-40 bg-gray-800/60" />
+                    <SkeletonLoader class="w-24 h-6 bg-gray-800" />
+                    <SkeletonLoader class="w-40 h-4 bg-gray-800/60" />
                   </div>
                   <div class="flex gap-2">
-                    <SkeletonLoader v-for="i in 4" :key="i" class="h-6 w-10 rounded bg-gray-800" />
+                    <SkeletonLoader v-for="i in 4" :key="i" class="w-10 h-6 bg-gray-800 rounded" />
                   </div>
                 </div>
-                <SkeletonLoader class="h-64 w-full rounded-xl bg-gray-800/30" />
+                <SkeletonLoader class="w-full h-64 rounded-xl bg-gray-800/30" />
               </div>
               <MarketChart v-else :symbol="selectedMarketSymbol" />
             </div>
 
             <!-- Insights Table -->
             <div v-if="isInsightsLoading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-4">
-              <div class="flex justify-between items-center">
-                <SkeletonLoader class="h-5 w-40 bg-gray-800" />
-                <SkeletonLoader class="h-4 w-24 bg-gray-800" />
+              <div class="flex items-center justify-between">
+                <SkeletonLoader class="w-40 h-5 bg-gray-800" />
+                <SkeletonLoader class="w-24 h-4 bg-gray-800" />
               </div>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <SkeletonLoader v-for="i in 3" :key="i" class="h-28 w-full rounded-lg bg-gray-800/60" />
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <SkeletonLoader v-for="i in 3" :key="i" class="w-full rounded-lg h-28 bg-gray-800/60" />
               </div>
-              <SkeletonLoader class="h-32 w-full rounded-lg bg-gray-800/40" />
+              <SkeletonLoader class="w-full h-32 rounded-lg bg-gray-800/40" />
             </div>
             <MarketInsights 
               v-else
@@ -182,14 +182,14 @@
           <div v-else-if="activeChart === 'holdings'">
             <!-- Performance Chart Area / Skeleton State -->
             <div v-if="isGraphLoading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-4">
-              <div class="flex justify-between items-start">
+              <div class="flex items-start justify-between">
                 <div class="space-y-2">
-                  <SkeletonLoader class="h-4 w-48 bg-gray-800" />
-                  <SkeletonLoader class="h-6 w-32 bg-gray-700/80" />
+                  <SkeletonLoader class="w-48 h-4 bg-gray-800" />
+                  <SkeletonLoader class="w-32 h-6 bg-gray-700/80" />
                 </div>
-                <SkeletonLoader class="h-8 w-36 rounded-md bg-gray-800" />
+                <SkeletonLoader class="h-8 bg-gray-800 rounded-md w-36" />
               </div>
-              <SkeletonLoader class="h-52 w-full rounded-lg bg-gray-800/40" />
+              <SkeletonLoader class="w-full rounded-lg h-52 bg-gray-800/40" />
             </div>
             <HoldingPerformanceChart 
               v-else
@@ -205,15 +205,15 @@
             <!-- Holdings Panel Wrapper -->
             <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden w-full mt-4">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
+                <span class="text-xs text-gray-500">
+                  {{ showSearchResults ? searchResults.length : userHoldings.length }} Assets Available
+                </span>
                 <div>
                   
                   <p class="text-[10px] text-gray-400 uppercase tracking-tight">
                     Orders marked <span class="font-bold text-yellow-500">Pending</span> are awaiting execution or settlement.
                   </p>
                 </div>
-                <span class="text-xs text-gray-500">
-                  {{ showSearchResults ? searchResults.length : userHoldings.length }} Assets
-                </span>
               </div>
               
               <div class="overflow-x-auto">
@@ -235,7 +235,7 @@
                     >
                       <div>
                         <div class="flex items-center gap-2 mb-1">
-                          <div class="font-bold text-white font-mono">{{ stock.symbol }}</div>
+                          <div class="font-mono font-bold text-white">{{ stock.symbol }}</div>
                           <span class="text-[8px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-black tracking-widest">{{ stock.market || 'US' }}</span>
                           <span :class="['text-xs font-bold', stock.change >= 0 ? 'text-emerald-500' : 'text-rose-500']">
                             {{ stock.change >= 0 ? '▲' : '▼' }} {{ Math.abs(stock.change).toFixed(2) }}%
@@ -299,7 +299,7 @@
                       <tr v-for="holding in userHoldings" :key="holding.symbol" class="hover:bg-[#16213A] transition">
                         <td class="px-6 py-5 font-bold text-[#00D4FF] font-mono">{{ holding.symbol }}</td>
                         <td class="text-gray-300 uppercase truncate max-w-[180px]">{{ holding.name }}</td>
-                        <td class="text-right text-gray-300 font-mono">{{ holding.quantity }}</td>
+                        <td class="font-mono text-right text-gray-300">{{ holding.quantity }}</td>
                         <td class="font-mono text-right text-gray-400">
                           ${{ Number(holding.entry_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
                         </td>
@@ -312,9 +312,9 @@
                         <td class="text-right" :class="holding.change >= 0 ? 'text-emerald-400' : 'text-rose-400'">
                           <div class="flex flex-col items-end">
                             <div v-if="holding.status === 'open' || !holding.is_settled" class="flex items-center gap-1 mb-0.5">
-                                <span class="relative flex h-2 w-2">
-                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                <span class="relative flex w-2 h-2">
+                                    <span class="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-amber-400"></span>
+                                    <span class="relative inline-flex w-2 h-2 rounded-full bg-amber-500"></span>
                                 </span>
                                 <span class="text-[8px] uppercase font-black text-amber-500 tracking-tighter">Unsettled</span>
                             </div>
@@ -384,13 +384,13 @@
       <!-- Transaction Order Notification Overlay -->
       <div v-if="showOrderSuccessModal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in duration-200">
-          <div class="flex items-center justify-center w-16 h-16 mx-auto mb-5 text-emerald-400 rounded-full bg-emerald-500/10">
+          <div class="flex items-center justify-center w-16 h-16 mx-auto mb-5 rounded-full text-emerald-400 bg-emerald-500/10">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
           <h3 class="mb-1 text-xl font-bold text-white">Order Placed!</h3>
-          <p class="mb-6 text-xs text-gray-400 leading-relaxed">
+          <p class="mb-6 text-xs leading-relaxed text-gray-400">
             Your order for <span class="text-[#00D4FF] font-bold font-mono">{{ orderSuccessData?.symbol }}</span> has been submitted successfully.
           </p>
           <button 
@@ -529,8 +529,8 @@ const fetchMarketInsights = async (silent = false) => {
   if (!silent) isInsightsLoading.value = true;
   try {
     const response = await api.get(`/market/${currentMarketType.value}/insights`);
-    if (response.data) {
-      globalApiInsights.value = response.data;
+    if (response.data && response.data.data) {
+      globalApiInsights.value = response.data.data;
     }
   } catch (error) {
     console.error('Market Insights fetch failed:', error);

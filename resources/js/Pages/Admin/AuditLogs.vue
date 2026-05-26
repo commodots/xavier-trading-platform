@@ -54,7 +54,11 @@
           </thead>
           <tbody class="divide-y divide-gray-800">
             <tr v-if="loading">
-              <td colspan="5" class="py-10 text-center text-gray-500 animate-pulse">Loading...</td>
+              <td colspan="5" class="py-4">
+                <div class="space-y-2">
+                  <SkeletonLoader v-for="i in 5" :key="i" class="h-12 w-full rounded bg-gray-800" />
+                </div>
+              </td>
             </tr>
             <tr v-else-if="logsData.data?.length === 0">
               <td colspan="5" class="py-10 text-center text-gray-600 italic">No audit events found.</td>
@@ -139,6 +143,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import api from '@/api'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
 
 const logsData = ref({ data: [], current_page: 1, last_page: 1 })
 const loading = ref(false)
