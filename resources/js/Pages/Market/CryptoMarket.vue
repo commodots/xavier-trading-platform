@@ -16,7 +16,23 @@
         </div>
       </div>
 
-      <!-- Segmented Control View Switching Tabs -->
+      <!-- Portfolio Summary Bar -->
+      <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-8">
+        <div>
+          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">USD Balance</p>
+          <p class="text-base font-mono font-bold text-white">
+            ${{ walletBalances?.cleared_balance_usd ? walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
+          </p>
+        </div>
+        <div class="hidden sm:block h-8 w-px bg-[#1f3348]"></div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Crypto Assets</p>
+          <p class="text-base font-mono font-bold text-[#00D4FF]">
+            ${{ totalValue ? totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
+          </p>
+        </div>
+      </div>
+
       <div class="flex items-center justify-between mb-4">
         <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg w-fit">
           <button 
@@ -26,11 +42,11 @@
             class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
             :class="activeView === view ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
           >
-            {{ view === 'holdings' ? 'My Holdings' : view === 'market' ? 'Market' : 'History' }}
+            {{ view === 'holdings' ? 'Holdings' : view === 'market' ? 'Market' : 'History' }}
           </button>
         </div>
         <button 
-          @click="activeView = 'trading'"
+          @click="showTradingModal = true"
           class="px-6 py-2 text-xs font-bold uppercase transition-all rounded-lg bg-blue-600 text-white shadow-lg hover:bg-blue-700"
         >
           Buy / Sell
@@ -56,8 +72,8 @@
           </div>
           <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
             <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
-              <h2 class="font-semibold text-gray-200">My Holdings</h2>
-              <span class="text-xs text-gray-500">{{ filteredHoldings.length }} Cryptos in Wallet</span>
+             
+              <span class="text-xs text-gray-500">{{ filteredHoldings.length }} Assets Available</span>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -102,15 +118,15 @@
            <CryptoMarketAssets :coins="coins" :searchQuery="search" :loading="loading" @view-details="openDetails" @trade="openTrade" />
         </div>
 
-        <!-- Tab C: Trade Executive Interface Panel Layout -->
-        <div v-else-if="activeView === 'trading'">
-           <Trading />
-        </div>
-
         <div v-else-if="activeView === 'history'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
            Crypto transaction history coming soon.
         </div>
       </div>
+
+      <Trading 
+        :show="showTradingModal" 
+        @close="showTradingModal = false" 
+      />
 
       <!-- Details Information Pop-up Modal Box Container -->
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currencySymbol="$" @close="isModalOpen = false" />
@@ -181,9 +197,11 @@ const activeView = ref(route.query.view || 'holdings');
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
 const search = ref("");
+const showTradingModal = ref(false);
 
 // Chart, History Streams, Metrics Calculations Hooks
 const isGraphLoading = ref(false);
+const walletBalances = ref({ cleared_balance_usd: 0 });
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
@@ -276,6 +294,15 @@ const fetchHoldings = async () => {
   }
 };
 
+const fetchWalletBalances = async () => {
+  try {
+    const response = await api.get('/wallet/balances');
+    walletBalances.value = response.data.data;
+  } catch (error) {
+    console.error('Failed to fetch wallet balances', error);
+  }
+};
+
 const fetchPortfolioPerformance = async (range = '1W') => {
   isGraphLoading.value = true;
   try {
@@ -356,6 +383,7 @@ watch(activeView, (newVal) => {
 
 onMounted(() => {
   fetchPortfolioPerformance();
+  fetchWalletBalances();
   fetchCoins();
 });
 </script>

@@ -1,7 +1,7 @@
 <template>
   <div 
     @click="handleClick"
-    :class="['flex items-start gap-3 p-3 transition-colors duration-150 cursor-pointer relative border-b border-[#1f3348]/30 last:border-0', notification.read ? 'bg-transparent hover:bg-[#1f3348]/20' : 'bg-blue-500/5 hover:bg-blue-500/10']"
+    :class="['flex items-start gap-3 p-3 transition-colors duration-150 cursor-pointer relative border-b border-[#1f3348]/30 last:border-0', notification.read_at ? 'bg-transparent hover:bg-[#1f3348]/20' : 'bg-blue-500/5 hover:bg-blue-500/10']"
   >
     <!-- Dynamic Icon Badge based on Notification Type -->
     <div :class="['w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0', badgeStyle.bg]">
@@ -13,7 +13,7 @@
       <div class="font-semibold text-sm text-white flex items-center gap-1.5">
         {{ notification.title }}
         <!-- Unread Blue Dot Indicator -->
-        <span v-if="!notification.read" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+        <span v-if="!notification.read_at" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
       </div>
       <p class="text-xs text-gray-600 mt-0.5 leading-relaxed break-words">
         {{ notification.message }}
@@ -30,7 +30,7 @@
           @click.stop="handleAction"
           class="text-[10px] uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-md shadow-sm transition duration-150 active:scale-95"
         >
-          {{ notification.action }}
+          {{ actionLabel }}
         </button>
       </div>
     </div>
@@ -45,8 +45,13 @@ const props = defineProps({
   notification: Object
 })
 
-const emit = defineEmits(['markRead'])
+const emit = defineEmits(['markRead', 'view'])
 const router = useRouter()
+
+const actionLabel = computed(() => {
+  if (props.notification.action?.startsWith('/')) return 'View'
+  return props.notification.action || 'Open'
+})
 
 // UI Type Mapping config
 const badgeStyle = computed(() => {
@@ -66,6 +71,7 @@ const badgeStyle = computed(() => {
 
 const handleClick = () => {
   emit('markRead')
+  emit('view', props.notification)
 }
 
 const handleAction = () => {
@@ -79,6 +85,7 @@ const handleAction = () => {
   }
 
   const target = actionMap[props.notification.action]
+  
   if (target) {
     router.push(target)
   } else {

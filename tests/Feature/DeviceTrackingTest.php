@@ -69,13 +69,18 @@ class DeviceTrackingTest extends TestCase
     public function test_logout_other_devices_only_keeps_current_session(): void
     {
         $user = User::factory()->create();
+
+        // Create all tokens upfront - test-device will be the "current" token
+        $currentToken = $user->createToken('test-device');
         $user->createToken('device-2');
         $user->createToken('device-3');
 
-        // 3 tokens total (1 from actingAs + 2 above)
+        // 3 tokens total
         $this->assertEquals(3, $user->tokens()->count());
 
-        $response = $this->actingAs($user)->postJson('/api/user/sessions/logout-others');
+        // Make request using the current token
+        $response = $this->withHeader('Authorization', 'Bearer ' . $currentToken->plainTextToken)
+            ->postJson('/api/user/sessions/logout-others');
 
         $response->assertStatus(200);
         $this->assertEquals(1, $user->fresh()->tokens()->count());

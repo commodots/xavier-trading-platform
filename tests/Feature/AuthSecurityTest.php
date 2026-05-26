@@ -115,12 +115,14 @@ class AuthSecurityTest extends TestCase
     public function test_logout_other_devices_revokes_other_tokens(): void
     {
         $user = User::factory()->create();
+        $currentToken = $user->createToken('current-device');
         // Create an extra token simulating another device
         $user->createToken('other-device');
 
         $this->assertEquals(2, $user->tokens()->count());
 
-        $response = $this->actingAs($user)->postJson('/api/user/sessions/logout-others');
+        $response = $this->withHeader('Authorization', 'Bearer ' . $currentToken->plainTextToken)
+            ->postJson('/api/user/sessions/logout-others');
 
         $response->assertStatus(200)->assertJsonPath('success', true);
         // Only the current token should remain
@@ -177,15 +179,17 @@ class AuthSecurityTest extends TestCase
     public function test_password_change_revokes_other_tokens(): void
     {
         $user = User::factory()->create(['password' => Hash::make('OldPass123')]);
+        $currentToken = $user->createToken('current-device');
         $user->createToken('other-device');
 
         $this->assertEquals(2, $user->tokens()->count());
 
-        $this->actingAs($user)->putJson('/api/user/security/password', [
-            'current_password'      => 'OldPass123',
-            'password'              => 'NewPass456!',
-            'password_confirmation' => 'NewPass456!',
-        ]);
+        $this->withHeader('Authorization', 'Bearer ' . $currentToken->plainTextToken)
+            ->putJson('/api/user/security/password', [
+                'current_password'      => 'OldPass123',
+                'password'              => 'NewPass456!',
+                'password_confirmation' => 'NewPass456!',
+            ]);
 
         $this->assertEquals(1, $user->fresh()->tokens()->count());
     }

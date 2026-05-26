@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class SecurityController extends Controller
 {
@@ -27,21 +28,26 @@ class SecurityController extends Controller
 
         ActivityLog::log($user->id, 'Password Changed', ['ip' => $request->ip()]);
 
-        // Revoke all other tokens to force re-login on other devices
-        $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
+        $currentTokenId = $this->resolveCurrentTokenId($request);
+
+        if ($currentTokenId !== null) {
+            $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+        }
 
         return response()->json(['success' => true, 'message' => 'Password updated successfully.']);
     }
 
     public function getActiveSessions(Request $request)
     {
+        $currentTokenId = $this->resolveCurrentTokenId($request);
+
         $tokens = $request->user()->tokens()->select('id', 'name', 'last_used_at', 'created_at')->get()
             ->map(fn ($t) => [
                 'id'           => $t->id,
                 'device'       => $t->name,
                 'last_active'  => $t->last_used_at?->diffForHumans() ?? 'Never',
                 'created_at'   => $t->created_at->toDateTimeString(),
-                'is_current'   => $t->id === $request->user()->currentAccessToken()->id,
+                'is_current'   => $t->id === $currentTokenId,
             ]);
 
         return response()->json(['success' => true, 'sessions' => $tokens]);
@@ -50,11 +56,30 @@ class SecurityController extends Controller
     public function logoutOtherDevices(Request $request)
     {
         $user = $request->user();
-        $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
+        $currentTokenId = $this->resolveCurrentTokenId($request);
+
+        if ($currentTokenId !== null) {
+            $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+        }
 
         ActivityLog::log($user->id, 'Logged Out Other Devices', ['ip' => $request->ip()]);
 
         return response()->json(['success' => true, 'message' => 'All other sessions have been terminated.']);
+    }
+
+    private function resolveCurrentTokenId(Request $request): ?int
+    {
+        $currentAccessToken = $request->user()->currentAccessToken();
+
+        if ($currentAccessToken instanceof PersonalAccessToken) {
+            return $currentAccessToken->id;
+        }
+
+        if ($token = $request->bearerToken()) {
+            return PersonalAccessToken::findToken($token)?->id;
+        }
+
+        return null;
     }
 
     public function enable2FA(Request $request)

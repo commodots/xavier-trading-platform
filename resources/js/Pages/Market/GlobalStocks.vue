@@ -42,16 +42,16 @@
       </div>
 
       <!-- Portfolio Summary Bar -->
-      <div class="flex flex-col gap-4 p-4 bg-[#0F1724]/40 border border-[#1f3348]/40 rounded-xl sm:flex-row sm:items-center sm:gap-8">
+      <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-8">
         <div>
-          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">USD Wallet Balance</p>
+          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">USD Balance</p>
           <p class="text-base font-mono font-bold text-white">
             ${{ walletBalances?.cleared_balance_usd ? walletBalances.cleared_balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
           </p>
         </div>
         <div class="hidden sm:block h-8 w-px bg-[#1f3348]"></div>
         <div>
-          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Global Stocks Value</p>
+          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Global Stocks</p>
           <p class="text-base font-mono font-bold text-[#00D4FF]">
             ${{ totalValue ? totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
           </p>
@@ -60,7 +60,7 @@
 
       <!-- View Navigation & Layout Engine -->
       <div class="space-y-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
           <div class="flex items-center justify-between w-full gap-2">
             <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg self-start overflow-x-auto max-w-full">
               <button 
@@ -68,14 +68,7 @@
               class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
               :class="activeChart === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
-              My Holdings
-            </button>
-            <button 
-              @click="activeChart = 'market'"
-              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
-              :class="activeChart === 'market' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
-            >
-              Live Chart
+              Holdings
             </button>
             <button 
               @click="activeChart = 'insights'"
@@ -102,7 +95,7 @@
           </div>
 
           <!-- Market Chart Specific Controls -->
-          <div v-if="activeChart === 'market'" class="flex flex-wrap items-center gap-2">
+          <div v-if="activeChart === 'insights'" class="flex flex-wrap items-center gap-2 justify-end mt-4">
             <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Market:</span>
             <span class="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded font-mono text-xs uppercase">
               {{ selectedMarketSymbol }}
@@ -135,7 +128,37 @@
         <!-- Render Target Switch -->
         <div class="mt-4">
           <!-- Switch View 1: Market Insights Component -->
-          <div v-if="activeChart === 'insights'">
+          <div v-if="activeChart === 'insights'" class="space-y-6">
+            <!-- Live Chart & Ticker -->
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <span class="text-[10px] text-gray-400 uppercase font-bold tracking-widest whitespace-nowrap bg-[#16213A] px-2 py-1 rounded border border-[#1f3348] self-start">
+                My Favorite Tickers
+              </span>
+              <MarketTicker 
+                class="flex-1 w-full" 
+                :selected-symbol="selectedMarketSymbol" 
+                :additional-tickers="searchedTickers"
+                @select-symbol="selectedMarketSymbol = $event" 
+              />
+            </div>
+            
+            <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4 sm:p-6 overflow-hidden min-h-[400px]">
+              <div v-if="!selectedMarketSymbol" class="space-y-6 animate-pulse">
+                <div class="flex justify-between items-center">
+                  <div class="space-y-2">
+                    <SkeletonLoader class="h-6 w-24 bg-gray-800" />
+                    <SkeletonLoader class="h-4 w-40 bg-gray-800/60" />
+                  </div>
+                  <div class="flex gap-2">
+                    <SkeletonLoader v-for="i in 4" :key="i" class="h-6 w-10 rounded bg-gray-800" />
+                  </div>
+                </div>
+                <SkeletonLoader class="h-64 w-full rounded-xl bg-gray-800/30" />
+              </div>
+              <MarketChart v-else :symbol="selectedMarketSymbol" />
+            </div>
+
+            <!-- Insights Table -->
             <div v-if="isInsightsLoading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-4">
               <div class="flex justify-between items-center">
                 <SkeletonLoader class="h-5 w-40 bg-gray-800" />
@@ -183,7 +206,7 @@
             <div class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden w-full mt-4">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
                 <div>
-                  <h2 class="font-semibold text-gray-200 mb-0.5">My Holdings</h2>
+                  
                   <p class="text-[10px] text-gray-400 uppercase tracking-tight">
                     Orders marked <span class="font-bold text-yellow-500">Pending</span> are awaiting execution or settlement.
                   </p>
@@ -333,35 +356,10 @@
             </div>
           </div>
 
-          <!-- Switch View 3: Live Chart Window Area -->
-          <div v-else class="space-y-4">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <span class="text-[10px] text-gray-400 uppercase font-bold tracking-widest whitespace-nowrap bg-[#16213A] px-2 py-1 rounded border border-[#1f3348] self-start">
-                My Favorite Tickers
-              </span>
-              <MarketTicker 
-                class="flex-1 w-full" 
-                :selected-symbol="selectedMarketSymbol" 
-                :additional-tickers="searchedTickers"
-                @select-symbol="selectedMarketSymbol = $event" 
-              />
-            </div>
-            
-            
-            <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4 sm:p-6 overflow-hidden min-h-[400px]">
-              <div v-if="!selectedMarketSymbol" class="space-y-6 animate-pulse">
-                <div class="flex justify-between items-center">
-                  <div class="space-y-2">
-                    <SkeletonLoader class="h-6 w-24 bg-gray-800" />
-                    <SkeletonLoader class="h-4 w-40 bg-gray-800/60" />
-                  </div>
-                  <div class="flex gap-2">
-                    <SkeletonLoader v-for="i in 4" :key="i" class="h-6 w-10 rounded bg-gray-800" />
-                  </div>
-                </div>
-                <SkeletonLoader class="h-64 w-full rounded-xl bg-gray-800/30" />
-              </div>
-              <MarketChart v-else :symbol="selectedMarketSymbol" />
+          <!-- Switch View 3: History -->
+          <div v-else-if="activeChart === 'history'">
+            <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-10 text-center text-gray-500">
+              Transaction and trade history for global stocks will appear here.
             </div>
           </div>
         </div>
@@ -375,11 +373,12 @@
         @close="isModalOpen = false" 
       />
 
-      <TradePanel 
-        v-if="showTradeModal && selectedTradeStock" 
-        :initialSymbol="selectedTradeStock.symbol"
+      <TradePanel
+        v-if="showTradeModal"
+        :show="showTradeModal"
+        :initialSymbol="selectedTradeStock?.symbol || 'AAPL'"
         @close="showTradeModal = false"
-        @order-placed="handleOrderPlaced" 
+        @order-placed="handleOrderPlaced"
       />
      
       <!-- Transaction Order Notification Overlay -->
@@ -608,7 +607,7 @@ const selectSuggestion = (stock) => {
     favoriteTickers.value.push(stock);
   }
 
-  activeChart.value = 'market';
+  activeChart.value = 'insights';
   selectedMarketSymbol.value = stock.symbol;
 
   localStorage.setItem('global_favorite_tickers', JSON.stringify(favoriteTickers.value));

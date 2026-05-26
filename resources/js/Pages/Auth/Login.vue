@@ -78,7 +78,7 @@
         <button type="submit" :disabled="loading"
           class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2 transition-all">
           <span v-if="loading" class="w-4 h-4 border-2 rounded-full border-white/30 border-t-white animate-spin"></span>
-          {{ loading ? 'Verifying Token...' : 'Verify & Log In' }}
+          {{ loading ? 'Verifying...' : 'Verify & Log In' }}
         </button>
 
         <button type="button" @click="resetFormState" class="w-full mt-4 text-xs text-gray-400 hover:text-white transition-colors">

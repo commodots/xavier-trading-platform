@@ -65,6 +65,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'next_fee_due_at' => 'datetime',
         'wallet_balance' => 'decimal:2',
         'wallet_debt' => 'decimal:2',
+        'google2fa_enabled' => 'boolean',
     ];
 
     protected $appends = [
@@ -141,7 +142,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return new Attribute(
             get: fn ($value) => $value ? Crypt::decryptString($value) : null,
-            set: fn ($value) => Crypt::encryptString($value),
+            set: fn ($value) => $value === null ? null : Crypt::encryptString($value),
         );
     }
 

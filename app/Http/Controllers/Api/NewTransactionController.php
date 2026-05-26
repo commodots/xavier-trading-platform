@@ -12,6 +12,7 @@ use App\Models\TransactionCharge;
 use App\Models\TransactionType;
 use App\Models\Wallet;
 use App\Notifications\WithdrawalOtpNotification;
+use App\Services\WithdrawalProtectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -180,6 +181,12 @@ class NewTransactionController extends Controller
         }
 
         $request->validate($rules);
+
+        // Check withdrawal protection (account status, debt, cleared balance)
+        $protection = app(WithdrawalProtectionService::class)->check($user, (float) $request->amount, $request->currency);
+        if (! $protection['allowed']) {
+            return response()->json(['success' => false, 'message' => $protection['message']], 422);
+        }
 
         if (! $models->isDemo) {
             $cacheKey = 'withdrawal_otp_'.$user->id;

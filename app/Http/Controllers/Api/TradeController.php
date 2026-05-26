@@ -411,12 +411,12 @@ class TradeController extends Controller
 
             $trades = $models->trade::where('user_id', $user->id)
                 ->where('status', 'open')
-                ->whereHas('order', fn ($query) => $query->whereIn('market', ['GLOBAL', 'CRYPTO']))
+                ->whereHas('order', fn ($query) => $query->whereIn('market', ['GLOBAL', 'CRYPTO', 'NGX', 'LOCAL']))
                 ->latest()
                 ->get();
 
             $orders = $models->order::where('user_id', $user->id)
-                ->whereIn('market', ['GLOBAL', 'CRYPTO'])
+                ->whereIn('market', ['GLOBAL', 'CRYPTO', 'NGX', 'LOCAL'])
                 ->whereIn('status', ['filled', 'open', 'partially_filled'])
                 ->latest()
                 ->get();
@@ -444,7 +444,8 @@ class TradeController extends Controller
                 $marketPrice = $entryPrice;
 
                 $isCrypto = str_contains($t->pair, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC']);
-                $category = $isCrypto ? 'CRYPTO' : 'GLOBAL';
+                $isLocal = str_contains($t->pair, '/NGN') || (isset($t->order) && in_array($t->order->market, ['NGX', 'LOCAL']));
+                $category = $isCrypto ? 'CRYPTO' : ($isLocal ? 'NGX' : 'GLOBAL');
 
                 if ($isCrypto) {
                     $marketPrice = $this->lookupPrice($symbol, $prices);
@@ -487,7 +488,8 @@ class TradeController extends Controller
                 $marketPrice = $entryPrice;
 
                 $isCrypto = str_contains($order->symbol, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC']) || $order->market === 'CRYPTO';
-                $category = $isCrypto ? 'CRYPTO' : 'GLOBAL';
+                $isLocal = in_array($order->market, ['NGX', 'LOCAL']);
+                $category = $isCrypto ? 'CRYPTO' : ($isLocal ? 'NGX' : 'GLOBAL');
 
                 if ($isCrypto) {
                     $cryptoPrice = $this->lookupPrice($symbol, $prices);
@@ -840,8 +842,13 @@ class TradeController extends Controller
                 $baseQuery = Symbol::query();
 
                 // Align market types with the categories used in index()
-                if ($normalizedMarket === 'NGX') {
-                    $baseQuery->where('exchange', 'NGX');
+                if ($normalizedMarket === 'NGX' || $normalizedMarket === 'LOCAL') {
+                    $baseQuery->where(function ($q) {
+                        $q->where('exchange', 'NGX')
+                          ->orWhere('exchange', 'local')
+                          ->orWhere('type', 'local')
+                          ->orWhere('symbol', 'like', '%.NG%');
+                    });
                 } elseif ($normalizedMarket === 'CRYPTO') {
                     $baseQuery->where(function ($q) {
                         $q->where('type', 'crypto')
@@ -849,9 +856,11 @@ class TradeController extends Controller
                     });
                 } else {
                     // Default to Global Equities (NASDAQ/NYSE/etc)
-                    $baseQuery->where('exchange', '!=', 'NGX')
-                              ->where('type', '!=', 'crypto')
-                              ->where('symbol', 'not like', '%/USDT%');
+                    $baseQuery->where(function ($q) {
+                        $q->whereNotIn('exchange', ['NGX', 'local'])
+                          ->whereNotIn('type', ['crypto', 'local'])
+                          ->orWhereNull('type');
+                    })->where('symbol', 'not like', '%/USDT%');
                 }
 
                 $mapData = fn($s) => [
@@ -864,9 +873,8 @@ class TradeController extends Controller
                 return [
                     'gainers'      => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
                     'losers'       => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
-                    'most_traded'  => (clone $baseQuery)->where('volume', '>', 0)->orderByDesc('volume')->limit(5)->get()->map($mapData),
-                    // Added a where('volume', '>', 0) safety boundary so uninitialized or dead tickers don't pollute stats
-                    'least_traded' => (clone $baseQuery)->where('volume', '>', 0)->orderBy('volume')->limit(5)->get()->map($mapData),
+                    'most_traded'  => (clone $baseQuery)->orderByDesc('volume')->limit(5)->get()->map($mapData),
+                    'least_traded' => (clone $baseQuery)->orderBy('volume')->limit(5)->get()->map($mapData),
                 ];
             });
 

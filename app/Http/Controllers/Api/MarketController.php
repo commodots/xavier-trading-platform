@@ -71,10 +71,16 @@ class MarketController extends Controller
 
     public function ngx()
     {
-        $data = Symbol::where('exchange', 'NGX')
+        $data = Symbol::where(function ($query) {
+            $query->where('exchange', 'NGX')
+                  ->orWhere('exchange', 'local')
+                  ->orWhere('type', 'local')
+                  ->orWhere('symbol', 'like', '%.NG%');
+        })
             ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
             ->map(function($item) {
                 $item->price = (float) $item->price;
+                $item->change = (float) ($item->change ?? 0);
                 return $item;
             });
 
@@ -84,9 +90,11 @@ class MarketController extends Controller
     public function global()
     {
         $data = Symbol::where(function ($query) {
-            $query->where('type', 'global')
-                  ->orWhereIn('exchange', ['NASDAQ', 'NYSE']);
+            $query->whereIn('exchange', ['NASDAQ', 'NYSE', 'US'])
+                  ->orWhere('type', 'global')
+                  ->orWhereNull('type');
         })
+        ->where('symbol', 'not like', '%/USDT%')
         ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
         ->map(function($item) {
             $item->price = (float) $item->price;

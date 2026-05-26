@@ -97,15 +97,29 @@ class WithdrawalProtectionTest extends TestCase
     {
         $user = $this->makeUser(['subscription_status' => 'suspended']);
         $this->makeWallet($user, 10000);
+        
+        // Verify user is actually suspended in the database
+        $this->assertEquals('suspended', $user->fresh()->subscription_status);
+        
+        // Create a linked bank account for the withdrawal
+        $account = \App\Models\LinkedAccount::create([
+            'user_id' => $user->id,
+            'type' => 'bank',
+            'provider' => 'GTBank',
+            'account_number' => '1234567890',
+            'account_name' => 'Test Account',
+            'currency' => 'NGN',
+        ]);
 
         $response = $this->actingAs($user)->postJson('/api/withdraw', [
             'amount'            => 1000,
             'currency'          => 'NGN',
-            'linked_account_id' => 1,
+            'linked_account_id' => $account->id,
             'withdrawal_otp'    => '123456',
         ]);
 
-        $response->assertStatus(422);
-        $response->assertJsonPath('success', false);
+        // Suspended users are blocked by middleware with 403, not by controller validation
+        $response->assertStatus(403);
+        $response->assertJsonPath('error', 'Account suspended due to outstanding debt. Please fund your wallet.');
     }
 }

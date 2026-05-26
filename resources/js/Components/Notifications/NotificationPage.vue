@@ -42,7 +42,40 @@
           :key="n.id" 
           :notification="n"
           @markRead="markOneAsRead(n.id)"
+          @view="openDetails"
         />
+      </div>
+
+      <!-- Notification Detail Modal -->
+      <div v-if="selectedNotification" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#111827] border border-[#1F2A44] rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-fadeIn">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-bold text-white">{{ selectedNotification.title }}</h2>
+              <button @click="selectedNotification = null" class="text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div class="text-gray-300 space-y-4 text-sm leading-relaxed">
+              <p>{{ selectedNotification.message }}</p>
+            </div>
+
+            <div class="mt-8 flex items-center justify-between border-t border-[#1F2A44] pt-4">
+              <span class="text-xs text-gray-500">{{ selectedNotification.time }}</span>
+              <div >
+                <button 
+                  @click="selectedNotification = null" 
+                  class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </MainLayout>
@@ -53,11 +86,14 @@ import { ref, computed, onMounted } from 'vue';
 import NotificationItem from './NotificationItem.vue';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const loading = ref(false);
 const notifications = ref([]);
 const filters = ['All', 'Unread', 'Billing', 'Account']
 const activeFilter = ref('All')
+const selectedNotification = ref(null);
 
 const fetchNotifications = async () => {
   try {
@@ -123,6 +159,28 @@ const clearAll = async () => {
   } catch (error) {
     console.error(error)
     notifications.value = previousState 
+  }
+}
+
+const openDetails = (notification) => {
+  selectedNotification.value = notification;
+}
+
+const handleModalAction = () => {
+  if (!selectedNotification.value?.action) return;
+  
+  const action = selectedNotification.value.action;
+  selectedNotification.value = null;
+  
+  const actionMap = {
+    'Fund Wallet': '/wallet',
+    'Pay Now': '/wallet',
+    'Upgrade': '/user/advisory/plans',
+  }
+
+  const target = actionMap[action] || (action.startsWith('/') ? action : null);
+  if (target) {
+    router.push(target);
   }
 }
 

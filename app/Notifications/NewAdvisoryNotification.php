@@ -2,13 +2,11 @@
 
 namespace App\Notifications;
 
-
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class NewAdvisoryNotification extends Notification
 {
-
     public $advisoryPost;
 
     /**
@@ -28,7 +26,7 @@ class NewAdvisoryNotification extends Notification
         $channels = ['database'];
 
         // 2. Safely check if they have preferences set. Default to true if they don't.
-        $wantsEmail = $notifiable->notificationPreference ? $notifiable->notificationPreference->email : true;
+        $wantsEmail = $notifiable->notificationPreferences ? $notifiable->notificationPreferences->email : true;
 
         if ($wantsEmail) {
             $channels[] = 'mail';
@@ -46,11 +44,11 @@ class NewAdvisoryNotification extends Notification
         $userName = $notifiable->first_name ?? $notifiable->name ?? 'Valued User';
 
         return (new MailMessage)
-            ->subject('New Advisory Update: ' . $this->advisoryPost->title)
-            ->greeting('Hello ' . $userName . ',')
+            ->subject('New Advisory Update: '.$this->advisoryPost->title)
+            ->greeting('Hello '.$userName.',')
             ->line('A new advisory post has been published.')
-            ->line('Title: ' . $this->advisoryPost->title)
-            ->action('View Advisory', url('/advisory/' . $this->advisoryPost->id))
+            ->line('Title: '.$this->advisoryPost->title)
+            ->action('View Advisory', url('/advisory/'.$this->advisoryPost->id))
             ->line('Thank you for using our platform!');
     }
 
@@ -60,10 +58,10 @@ class NewAdvisoryNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'title'   => 'New Advisory Posted',
-            'message' => 'Check out the latest advisory: ' . $this->advisoryPost->title,
-            'type'    => 'info',
-            'action'  => null,
+            'title' => 'New Advisory Posted',
+            'message' => 'Check out the latest advisory: '.$this->advisoryPost->title,
+            'type' => 'info',
+            'action' => '/advisory/'.$this->advisoryPost->id,
         ];
     }
 }

@@ -16,6 +16,23 @@
         </div>
       </div>
 
+      <!-- Portfolio Summary Bar -->
+      <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-8">
+        <div>
+          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">NGN Balance</p>
+          <p class="font-mono text-base font-bold text-white">
+             ₦{{ walletBalances?.cleared_balance_ngn ? walletBalances.cleared_balance_ngn.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
+          </p>
+        </div>
+        <div class="hidden sm:block h-8 w-px bg-[#1f3348]"></div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">NGX Assets</p>
+          <p class="text-base font-mono font-bold text-[#00D4FF]">
+            ₦{{ totalValue ? totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}
+          </p>
+        </div>
+      </div>
+
       <!-- Main Display Structural Grid Layout -->
       <div class="space-y-4 lg:col-span-2">
         <!-- View Toggle Segment Buttons -->
@@ -26,7 +43,7 @@
               class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md"
               :class="activeView === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
-              My Holdings
+            Holdings
             </button>
 
             <button 
@@ -47,7 +64,7 @@
 
           <button 
             @click="openTrade(null)"
-            class="px-6 py-2 text-xs font-bold uppercase transition-all rounded-lg bg-blue-600 text-white shadow-lg hover:bg-blue-700"
+            class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700"
           >
             Buy / Sell
           </button>
@@ -73,7 +90,7 @@
             </div>
             <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6 transition-all duration-300">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
-                <h2 class="font-semibold text-gray-200">My Holdings</h2>
+                
                 <span class="text-xs text-gray-500">{{ filteredStocks.length }} Assets available</span>
               </div>
               <div class="overflow-x-auto">
@@ -94,10 +111,10 @@
                       <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ stock.symbol }}</td>
                       <td class="text-gray-300">{{ stock.name }}</td>
                       <td class="font-mono font-semibold text-right text-white">₦{{ stock.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-                      <td class="text-right font-mono" :class="stock.change >= 0 ? 'text-green-400' : 'text-red-400'">
+                      <td class="font-mono text-right" :class="stock.change >= 0 ? 'text-green-400' : 'text-red-400'">
                         {{ stock.change >= 0 ? '+' : '' }}{{ stock.change }}%
                       </td>
-                      <td class="text-right text-gray-400 font-mono">{{ stock.volume.toLocaleString() }}</td>
+                      <td class="font-mono text-right text-gray-400">{{ stock.volume.toLocaleString() }}</td>
                       <td class="w-32 px-6 text-right">
                         <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: stock.spark || [] }]" />
                       </td>
@@ -113,7 +130,7 @@
                       </td>
                     </tr>
                     <tr v-if="filteredStocks.length === 0">
-                      <td colspan="8" class="p-10 text-center text-gray-500 italic">No tickers matching your criteria are listed.</td>
+                      <td colspan="8" class="p-10 italic text-center text-gray-500">No tickers matching your criteria are listed.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -180,6 +197,7 @@ const selectedTradeStock = ref(null);
 // Quantitative Data Pipelines
 const isGraphLoading = ref(false);
 const isInsightsLoading = ref(false);
+const walletBalances = ref({ cleared_balance_ngn: 0 });
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
@@ -258,6 +276,15 @@ const fetchMarketInsights = async (silent = false) => {
   }
 };
 
+const fetchWalletBalances = async () => {
+  try {
+    const response = await api.get('/wallet/balances');
+    walletBalances.value = response.data.data;
+  } catch (error) {
+    console.error('Failed to fetch wallet balances', error);
+  }
+};
+
 const fetchPortfolioPerformance = async (range = '1W') => {
   isGraphLoading.value = true;
   try {
@@ -310,6 +337,7 @@ let pollingInterval = null;
 onMounted(() => {
   fetchPortfolioPerformance();
   updateMarketPrices();
+  fetchWalletBalances();
   fetchMarketInsights();
   pollingInterval = setInterval(updateMarketPrices, 10000);
 });
