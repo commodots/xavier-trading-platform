@@ -61,7 +61,6 @@ const props = defineProps({
   coins: Array,
   searchQuery: String,
   loading: Boolean,
-  loading: Boolean
 });
 
 const emit = defineEmits(['view-details', 'trade']);

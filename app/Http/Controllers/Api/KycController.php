@@ -13,31 +13,40 @@ class KycController extends Controller
 {
     /**
      * Update or create user KYC record
+     * Formats data to drop into an explicit pending state for QoreID handling
      */
     public function update(Request $request)
     {
         $request->validate([
             'id_type' => 'required|in:bvn,nin,tin,passport,dl,id_card',
             'id_number' => 'required|string',
-            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', 
+            'profile_image' => 'nullable|file|mimes:jpg,jpeg,png|max:5120', // Matches Vue form key name
             'proof_of_address' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         $user = Auth::user();
 
+        // Force a clear pending baseline so frontend triggers polling loop
         $updateData = [
             'user_id' => $user->id,
             'id_type' => $request->id_type,
             'id_number' => $request->id_number,
-            'status' => 'pending'
+            'status' => 'pending', 
+            'verified_at' => null // Clear any stale verification dates
         ];
+
+        // Handle standard registration selfie stream or formal file documents
+        if ($request->hasFile('profile_image')) {
+            $updateData['profile_photo_path'] = $request->file('profile_image')->store('kyc/biometrics', 'public');
+        }
 
         if ($request->hasFile('document')) {
             $column = match ($request->id_type) {
                 'passport' => 'intl_passport',
                 'dl' => 'drivers_license',
                 'id_card' => 'national_id',
-                default => 'id_number'
+                default => 'id_number_file'
             };
             $updateData[$column] = $request->file('document')->store('kyc/docs', 'public');
         }
@@ -48,7 +57,22 @@ class KycController extends Controller
 
         $kyc = KycProfile::updateOrCreate(['user_id' => $user->id], $updateData);
 
-        return response()->json(['success' => true, 'message' => 'Documents submitted for review.', 'data' => $kyc]);
+        if ($kyc->profile_photo_path && ($kyc->bvn || $kyc->nin)) {
+            ProcessKycVerification::dispatch(
+                $user->id,
+                $kyc->bvn ?? '',
+                $kyc->nin ?? $kyc->bvn ?? '',
+                $kyc->profile_photo_path,
+                $user->first_name,
+                $user->last_name
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Identity profile locked. Verification sequence started.',
+            'data' => $kyc
+        ]);
     }
 
     /**
@@ -59,15 +83,11 @@ class KycController extends Controller
         $user = Auth::user();
         $kyc = KycProfile::where('user_id', $user->id)->firstOrFail();
         
-        // Explicitly format data for the frontend to show "Inputed details"
         $data = $kyc->toArray();
         
-        // Mask sensitive data for display (Assumes raw storage for now)
-        if ($kyc->bvn) {
-            $data['bvn_display'] = '*******' . substr($kyc->bvn, -4);
-        }
-        if ($kyc->nin) {
-            $data['nin_display'] = '*******' . substr($kyc->nin, -4);
+        // Dynamically mask digits via standard string manipulation
+        if (!empty($kyc->id_number)) {
+            $data['id_number_display'] = '*******' . substr($kyc->id_number, -4);
         }
 
         return response()->json(['success' => true, 'data' => $data]);

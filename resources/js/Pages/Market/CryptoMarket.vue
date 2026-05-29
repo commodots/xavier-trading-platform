@@ -46,7 +46,7 @@
           </button>
         </div>
         <button 
-          @click="showTradingModal = true"
+          @click="showTradeModal = true"
           class="px-6 py-2 text-xs font-bold uppercase transition-all rounded-lg bg-blue-600 text-white shadow-lg hover:bg-blue-700"
         >
           Buy / Sell
@@ -99,8 +99,8 @@
                       <apexchart type="line" height="25" :options="sparkOptions" :series="[{ data: asset.spark || [] }]" />
                     </td>
                     <td class="px-6 text-center">
-                      <button @click="openBuyModal(asset)" class="bg-[#00D4FF]/10 text-[#00D4FF] border border-[#00D4FF]/20 px-3 py-1 rounded hover:bg-[#00D4FF] hover:text-[#0F1724] transition text-xs font-bold">
-                        Buy
+                      <button @click="openTrade(asset)" class="bg-[#00D4FF]/10 text-[#00D4FF] border border-[#00D4FF]/20 px-3 py-1 rounded hover:bg-[#00D4FF] hover:text-[#0F1724] transition text-xs font-bold">
+                        Trade
                       </button>
                     </td>
                   </tr>
@@ -124,49 +124,16 @@
       </div>
 
       <Trading 
-        :show="showTradingModal" 
-        @close="showTradingModal = false" 
+        :show="showTradeModal" 
+        :coins="coins"
+        :selectedAsset="selectedTradeAsset"
+        @close="closeTradeModal"
+        @trade-success="handleTradeSuccess"
       />
 
       <!-- Details Information Pop-up Modal Box Container -->
       <MarketDetailsModal :isOpen="isModalOpen" :item="selectedItem" currencySymbol="$" @close="isModalOpen = false" />
       
-      <!-- Instant Checkout Quick Buy Form Modal Overlay Wrapper -->
-      <div v-if="buyModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl w-full max-w-md p-6 shadow-2xl">
-          <h3 class="text-xl font-bold text-white mb-4">Buy {{ buyModal.asset?.name }}</h3>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block mb-2 text-sm text-gray-400">Current Price</label>
-              <p class="text-[#00D4FF] font-bold">${{ (buyModal.asset?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</p>
-            </div>
-
-            <div>
-              <label class="block mb-2 text-sm text-gray-400">Amount (USD)</label>
-              <input v-model.number="buyForm.amount" type="number" placeholder="1000" min="1" step="1"
-                class="w-full px-4 py-2 bg-[#111827] border border-[#1f3348] rounded-lg text-white placeholder-gray-600 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none" />
-            </div>
-
-            <div>
-              <label class="block mb-2 text-sm text-gray-400">Estimated Quantity</label>
-              <p class="text-gray-300 font-mono">{{ estimatedQuantity }} {{ buyModal.asset?.symbol }}</p>
-            </div>
-
-            <div v-if="errorMessage" class="text-xs text-red-400 font-medium">{{ errorMessage }}</div>
-            <div v-if="successMessage" class="text-xs text-green-400 font-medium">{{ successMessage }}</div>
-
-            <div class="flex gap-3 pt-2">
-              <button @click="buyModal.show = false"
-                class="flex-1 px-4 py-2 text-gray-300 transition bg-gray-800 rounded-lg hover:bg-gray-700">Cancel</button>
-              <button @click="executeBuy" :disabled="tradeLoading || !buyForm.amount"
-                class="flex-1 px-4 py-2 font-bold text-black transition bg-[#00D4FF] rounded-lg hover:bg-[#00b8e6] disabled:opacity-50">
-                {{ tradeLoading ? 'Processing...' : 'Confirm Buy' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </MainLayout>
 </template>
@@ -197,21 +164,17 @@ const activeView = ref(route.query.view || 'holdings');
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
 const search = ref("");
-const showTradingModal = ref(false);
 
 // Chart, History Streams, Metrics Calculations Hooks
 const isGraphLoading = ref(false);
+const loading = ref(false);
 const walletBalances = ref({ cleared_balance_usd: 0 });
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
 
-// Order Entry Formulation State Containers
-const buyModal = ref({ show: false, asset: null });
-const buyForm = ref({ amount: 1000 });
-const tradeLoading = ref(false);
-const errorMessage = ref("");
-const successMessage = ref("");
+const showTradeModal = ref(false);
+const selectedTradeAsset = ref(null);
 
 const holdings = ref([]);
 const coins = ref([]);
@@ -250,13 +213,9 @@ const filteredHoldings = computed(() => {
   );
 });
 
-const estimatedQuantity = computed(() => {
-  if (!buyModal.value.asset?.price || !buyForm.value.amount) return (0).toFixed(6);
-  return (buyForm.value.amount / buyModal.value.asset.price).toFixed(6);
-});
-
 // Network Communications Control Architecture Channels
 const fetchCoins = async () => {
+  loading.value = true;
   try {
     const res = await api.get('/market/crypto');
     coins.value = (res.data.data || []).map(item => ({
@@ -270,6 +229,8 @@ const fetchCoins = async () => {
     await fetchHoldings();
   } catch (e) {
     console.error('Coins payload collection failure:', e);
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -329,47 +290,21 @@ const openTrade = (coin) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
-  openBuyModal(coin);
+  selectedTradeAsset.value = coin;
+  showTradeModal.value = true;
 };
 
-const openBuyModal = (asset) => {
-  buyModal.value = { show: true, asset: asset };
-  buyForm.value.amount = 1000;
-  errorMessage.value = "";
-  successMessage.value = "";
+const closeTradeModal = () => {
+  showTradeModal.value = false;
+  selectedTradeAsset.value = null;
 };
 
-const executeBuy = async () => {
-  if (!buyForm.value.amount || buyForm.value.amount <= 0) {
-    errorMessage.value = 'Please enter a valid amount';
-    return;
-  }
-
-  tradeLoading.value = true;
-  errorMessage.value = "";
-  try {
-    await api.post('/trade/open', {
-      pair: buyModal.value.asset.symbol.toUpperCase() + '/USDT',
-      amount: buyForm.value.amount,
-      type: 'buy',
-    });
-
-    successMessage.value = `Successfully bought ${buyModal.value.asset.name}!`;
-
-    await Promise.allSettled([
-      fetchPortfolioPerformance(),
-      fetchCoins()
-    ]);
-
-    setTimeout(() => {
-      buyModal.value.show = false;
-      successMessage.value = "";
-    }, 2000);
-  } catch (e) {
-    errorMessage.value = e.response?.data?.message || 'Failed to execute trade';
-  } finally {
-    tradeLoading.value = false;
-  }
+const handleTradeSuccess = async () => {
+  await Promise.allSettled([
+    fetchPortfolioPerformance(),
+    fetchCoins(),
+    fetchHoldings()
+  ]);
 };
 
 // Dynamic Watch Routing Pipelines 

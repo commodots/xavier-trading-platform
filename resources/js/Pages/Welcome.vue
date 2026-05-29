@@ -93,9 +93,8 @@ const goToDashboard = () => {
       <div v-if="user" class="bg-[#0B132B]/70 rounded-xl py-4 mb-6 border border-[#00D4FF]/20">
         <p class="text-lg font-semibold text-[#00D4FF]">{{ user.first_name }} {{ user.last_name }}</p>
         <p class="text-sm text-gray-400">{{ user.email }}</p>
-        <p class="text-sm text-gray-400">DOB: {{ new Date(user.dob).toLocaleDateString() }}</p>
+        <p class="text-sm text-gray-400">Visit your profile to finish setting up.</p>
       </div>
-
 
       <button
         @click="goToDashboard"

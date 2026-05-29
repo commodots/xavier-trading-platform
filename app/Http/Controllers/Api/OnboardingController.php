@@ -27,7 +27,7 @@ class OnboardingController extends Controller
         // Step 1: Validate registration data (KYC fields are optional)
         $validated = $request->validate([
             'password' => 'required|string|min:8',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'first_name' => 'nullable|string|max:100',
             'last_name' => 'nullable|string|max:100',
@@ -40,7 +40,15 @@ class OnboardingController extends Controller
             'profile_image' => 'nullable|image|max:10240',
         ]);
 
-        $nameInput = $request->input('name');
+        $nameInput = $request->input('name') ?: trim(sprintf('%s %s', $request->input('first_name', ''), $request->input('last_name', '')));
+
+        if (empty($nameInput)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please provide a first name or last name.'
+            ], 422);
+        }
+
         $nameParts = explode(' ', $nameInput, 2);
         $firstName = trim($nameParts[0]);
         $lastName = trim($nameParts[1] ?? '');
@@ -99,7 +107,7 @@ class OnboardingController extends Controller
                     'balance' => ($curr === 'NGN') ? 1000000.00 : 0.00,
                     'ngn_cleared' => ($curr === 'NGN') ? 1000000.00 : 0,
                     'ngn_uncleared' => 0.00,
-                    'usd_cleared' => ($curr === 'USD') ? 0.00 : 0,
+                    'usd_cleared' => ($curr === 'USD') ? 1000.00 : 0,
                     'usd_uncleared' => 0.00,
                     'locked' => 0.00,
                     'currency' => $curr,

@@ -57,9 +57,9 @@ class NotificationController extends Controller
     /**
      * Get user notification settings
      */
-    public function showPreferences()
+    public function showPreferences(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
         $prefs = NotificationPreference::firstOrCreate(
             ['user_id' => $user->id],
             [
@@ -90,7 +90,7 @@ class NotificationController extends Controller
             'newsletters' => 'required|boolean',
         ]);
 
-        $user = Auth::user();
+        $user = $request->user();
         $prefs = NotificationPreference::updateOrCreate(
             ['user_id' => $user->id],
             $request->only(['email', 'sms', 'push', 'monthly_statements', 'newsletters'])

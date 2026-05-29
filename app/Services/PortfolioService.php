@@ -93,8 +93,7 @@ class PortfolioService
         }
 
         // Fallback to symbol/pair check
-        $cryptoSymbols = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'];
-        $isCrypto = in_array(strtoupper($symbol), $cryptoSymbols, true) || str_contains(strtoupper($trade->pair ?? ''), 'USDT');
+        $isCrypto = app(MarketService::class)->isCryptoPair($trade->pair ?? $symbol);
 
         return $isCrypto ? 'crypto' : 'foreign';
     }

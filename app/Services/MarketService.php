@@ -47,31 +47,7 @@ class MarketService
 
     private function isCrypto(string $symbol): bool
     {
-        $cryptoList = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'];
-
-        return in_array($symbol, $cryptoList, true) || str_contains($symbol, '/USDT');
-    }
-
-    private function lookupCryptoPrice(string $symbol, array $prices): float
-    {
-        $map = [
-            'BTC' => 'bitcoin',
-            'ETH' => 'ethereum',
-            'USDT' => 'tether',
-            'BNB' => 'binancecoin',
-            'SOL' => 'solana',
-            'XRP' => 'ripple',
-            'ADA' => 'cardano',
-            'DOGE' => 'dogecoin',
-            'DOT' => 'polkadot',
-            'TRX' => 'tron',
-            'LINK' => 'chainlink',
-            'MATIC' => 'matic-network',
-        ];
-
-        $id = $map[strtoupper($symbol)] ?? null;
-
-        return $id ? (float) ($prices[$id]['usd'] ?? 0.0) : 0.0;
+        return in_array($symbol, $this->getCryptoSymbols(), true) || str_contains($symbol, '/USDT');
     }
 
     public function quoteDetails(string $symbol): array
@@ -159,5 +135,46 @@ class MarketService
         $feePercent = (float) ($settings->crypto_fee ?? 0);
 
         return $amount * $feePercent / 100;
+    }
+
+    /**
+     * Get list of supported crypto symbols
+     */
+    public function getCryptoSymbols(): array
+    {
+        return ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'];
+    }
+
+    /**
+     * Check if a symbol or pair is cryptocurrency
+     */
+    public function isCryptoPair(string $symbolOrPair): bool
+    {
+        $symbol = strtoupper(explode('/', $symbolOrPair)[0]);
+        return in_array($symbol, $this->getCryptoSymbols(), true) || str_contains($symbolOrPair, '/USDT');
+    }
+
+    /**
+     * Lookup crypto price by symbol from prices array
+     */
+    public function lookupCryptoPrice(string $symbol, array $prices): float
+    {
+        $map = [
+            'BTC' => 'bitcoin',
+            'ETH' => 'ethereum',
+            'USDT' => 'tether',
+            'BNB' => 'binancecoin',
+            'SOL' => 'solana',
+            'XRP' => 'ripple',
+            'ADA' => 'cardano',
+            'DOGE' => 'dogecoin',
+            'DOT' => 'polkadot',
+            'TRX' => 'tron',
+            'LINK' => 'chainlink',
+            'MATIC' => 'matic-network',
+        ];
+
+        $id = $map[strtoupper($symbol)] ?? null;
+        return $id ? (float) ($prices[$id]['usd'] ?? 0.0) : 0.0;
     }
 }

@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import NotificationDropdown from './NotificationDropdown.vue'
 import api from '@/api'
 
@@ -49,38 +49,43 @@ const toggleDropdown = () => {
 const fetchNotifications = async () => {
   try {
     const res = await api.get('/user/notifications')
-    
-   
-    if (res.data && res.data.notifications) {
-      notifications.value = Array.isArray(res.data.notifications.data) 
-        ? res.data.notifications.data 
-        : (Array.isArray(res.data.notifications) ? res.data.notifications : []);
-    } else if (res.data && res.data.data) {
-      notifications.value = res.data.data;
+
+    if (res.data?.notifications) {
+      notifications.value = Array.isArray(res.data.notifications)
+        ? res.data.notifications
+        : []
+    } else if (Array.isArray(res.data)) {
+      notifications.value = res.data
     } else {
-      notifications.value = Array.isArray(res.data) ? res.data : [];
+      notifications.value = []
     }
   } catch (error) {
     console.error('Failed to load notifications:', error)
-    notifications.value = [] 
+    notifications.value = []
   }
 }
 
+watch(open, (value) => {
+  if (value) {
+    fetchNotifications()
+  }
+})
 
 const unreadCount = computed(() => {
-  if (!Array.isArray(notifications.value)) return 0;
-  return notifications.value.filter(n => !n.read_at).length
+  if (!Array.isArray(notifications.value)) return 0
+  return notifications.value.filter(n => !n.read).length
 })
 
 const markAsRead = async (id) => {
   const notif = notifications.value.find(n => n.id === id)
-  if (notif && !notif.read_at) {
-    notif.read_at = new Date().toISOString() 
+  if (notif && !notif.read) {
+    notif.read = true
+
     try {
       await api.post(`/user/notifications/${id}/read`)
     } catch (error) {
       console.error('Failed to sync read status to backend:', error)
-      notif.read_at = null 
+      notif.read = false
     }
   }
 }

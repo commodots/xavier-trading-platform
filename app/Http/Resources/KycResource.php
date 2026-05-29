@@ -22,10 +22,16 @@ class KycResource extends JsonResource
             'phone_number' => $this->phone_number,
             'email' => $this->email,
             'photo' => $this->photo,
-            'bvn' => $this->bvn,
-            'nin' => $this->nin,
+
+            'bvn' => $this->bvn ? '******' . substr($this->bvn, -4) : null,
+            'nin' => $this->nin ? '******' . substr($this->nin, -4) : null,
+
             'address' => $this->address,
-            'status' => $this->status,
+            'status' => $this->status, // pending, verified, rejected
+            'level' => $this->level,   // none, basic, standard, full
+            'tier' => $this->tier,     // 0, 1, 2
+            'daily_limit' => $this->daily_limit,
+            'rejection_reason' => $this->rejection_reason,
             'created_at' => $this->created_at,
         ];
     }

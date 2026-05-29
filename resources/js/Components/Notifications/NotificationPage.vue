@@ -19,7 +19,7 @@
         <div v-for="i in 3" :key="i" class="h-24 bg-[#0F1724] border border-[#1f3348] rounded-xl animate-pulse"></div>
       </div>
 
-      <div v-else-if="Array.isArray(notifications) && notifications.length > 0" class="flex flex-wrap gap-2 mb-6">
+      <div v-else-if="Array.isArray(sortedNotifications) && sortedNotifications.length > 0" class="flex flex-wrap gap-2 mb-6">
         <button 
           v-for="f in filters" 
           :key="f"
@@ -31,7 +31,6 @@
       </div>
 
       <div v-else class="flex flex-col items-center justify-center py-20 bg-[#0F1724] border border-[#1f3348] rounded-2xl text-center">
-        
         <h3 class="text-lg font-medium text-white">All caught up!</h3>
         <p class="text-gray-400 max-w-xs mx-auto mt-2">You don't have any notifications at the moment.</p>
       </div>
@@ -63,14 +62,21 @@
               <p>{{ selectedNotification.message }}</p>
             </div>
 
-            <div class="mt-8 flex items-center justify-between border-t border-[#1F2A44] pt-4">
+            <div class="mt-8 flex flex-col gap-3 border-t border-[#1F2A44] pt-4 sm:flex-row sm:items-center sm:justify-between">
               <span class="text-xs text-gray-500">{{ selectedNotification.time }}</span>
-              <div >
+              <div class="flex items-center gap-2 justify-end">
                 <button 
                   @click="selectedNotification = null" 
                   class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition"
                 >
                   Close
+                </button>
+                <button
+                  v-if="selectedNotification.action"
+                  @click="handleModalAction"
+                  class="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                >
+                  {{ selectedNotification.action }}
                 </button>
               </div>
             </div>
@@ -99,14 +105,15 @@ const fetchNotifications = async () => {
   try {
     loading.value = true;
     const res = await api.get('/user/notifications')
-    
-  
-    if (res.data && res.data.notifications) {
-      notifications.value = Array.isArray(res.data.notifications) 
-        ? res.data.notifications 
-        : (res.data.notifications.data || []);
+
+    if (res.data?.notifications) {
+      notifications.value = Array.isArray(res.data.notifications)
+        ? res.data.notifications
+        : []
+    } else if (Array.isArray(res.data)) {
+      notifications.value = res.data
     } else {
-      notifications.value = Array.isArray(res.data) ? res.data : [];
+      notifications.value = []
     }
   } catch (error) {
     console.error('Failed to parse user feed listings:', error)
@@ -116,49 +123,67 @@ const fetchNotifications = async () => {
   }
 }
 
+const sortedNotifications = computed(() => {
+  const base = Array.isArray(notifications.value) ? [...notifications.value] : []
+
+  const priority = {
+    account: 1,
+    billing: 2,
+    warning: 3,
+    error: 4,
+    success: 5,
+    info: 6,
+  }
+
+  return base.sort((a, b) => {
+    const aPriority = priority[a?.type] ?? 99
+    const bPriority = priority[b?.type] ?? 99
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority
+    }
+
+    return 0
+  })
+})
+
 const filteredNotifications = computed(() => {
-  const base = Array.isArray(notifications.value) ? notifications.value : []
-  
+  const base = sortedNotifications.value
+
   switch (activeFilter.value) {
-  
-    case 'Unread': 
-      return base.filter(n => n && !n.read_at)
-    case 'Billing': 
+    case 'Unread':
+      return base.filter(n => n && !n.read)
+    case 'Billing':
       return base.filter(n => n && n.type === 'billing')
-    case 'Account': 
+    case 'Account':
       return base.filter(n => n && n.type === 'account')
-    default: 
+    default:
       return base
   }
 })
 
 const markOneAsRead = async (id) => {
   const notif = notifications.value.find(n => n.id === id)
-  if (notif && !notif.read_at) {
-    notif.read_at = new Date().toISOString() 
+  if (notif && !notif.read) {
+    notif.read = true
     try {
       await api.post(`/user/notifications/${id}/read`)
     } catch (e) {
       console.error(e)
-      notif.read_at = null 
+      notif.read = false
     }
   }
 }
 
 const clearAll = async () => {
   const previousState = JSON.parse(JSON.stringify(notifications.value))
-  const nowTimestamp = new Date().toISOString()
-  
-  notifications.value.forEach(n => {
-    if (!n.read_at) n.read_at = nowTimestamp
-  })
+  notifications.value = notifications.value.map((n) => ({ ...n, read: true }))
 
   try {
-    
-    await api.post('/user/notifications/read-all') 
+    await api.post('/user/notifications/read-all')
   } catch (error) {
     console.error(error)
-    notifications.value = previousState 
+    notifications.value = previousState
   }
 }
 
@@ -168,19 +193,22 @@ const openDetails = (notification) => {
 
 const handleModalAction = () => {
   if (!selectedNotification.value?.action) return;
-  
+
   const action = selectedNotification.value.action;
   selectedNotification.value = null;
-  
+
   const actionMap = {
     'Fund Wallet': '/wallet',
     'Pay Now': '/wallet',
+    'Resolve Now': '/settings',
     'Upgrade': '/user/advisory/plans',
+    'Resume': '/dashboard',
+    'Go to Dashboard': '/dashboard',
   }
 
-  const target = actionMap[action] || (action.startsWith('/') ? action : null);
+  const target = actionMap[action] || (action.startsWith('/') ? action : null)
   if (target) {
-    router.push(target);
+    router.push(target)
   }
 }
 

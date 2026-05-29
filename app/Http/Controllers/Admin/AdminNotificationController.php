@@ -64,6 +64,13 @@ class AdminNotificationController extends Controller
             return response()->json(['success' => false, 'message' => 'No valid recipients selected'], 422);
         }
 
+        if (! $validated['send_email'] && ! $validated['send_message']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please choose at least one delivery channel.',
+            ], 422);
+        }
+
         Notification::send($users, new AdminBroadcastNotification(
             $validated['title'],
             $validated['message'],

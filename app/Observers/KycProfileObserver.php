@@ -3,6 +3,8 @@
 namespace App\Observers;
 
 use App\Models\KycProfile;
+use App\Services\KycService;
+use App\Notifications\KycStatusNotification;
 
 class KycProfileObserver
 {
@@ -45,16 +47,46 @@ class KycProfileObserver
     {
         //
     }
-    public function saved(KycProfile $kyc)
-{
-    if ($kyc->user) {
-        
-        if ($kyc->wasChanged('status') || $kyc->wasChanged('bvn') || $kyc->wasRecentlyCreated) {
+    public function saved(KycProfile $kyc): void
+    {
+        if (! $kyc->user) {
+            return;
+        }
+
+        if ($kyc->wasChanged('status') || $kyc->wasChanged('bvn') || $kyc->wasChanged('nin') || $kyc->wasRecentlyCreated) {
             $kyc->user->update([
                 'kyc_status' => $kyc->status,
-                'bvn'        => $kyc->bvn,
+                'bvn' => $kyc->bvn,
+                'nin' => $kyc->nin,
             ]);
         }
+
+        if ($kyc->wasChanged('status')) {
+            $kyc->user->notify(new KycStatusNotification(
+                $kyc->status,
+                $kyc->tier,
+                $kyc->rejection_reason
+            ));
+        }
+
+        if ($kyc->isVerified()) {
+            $targetTier = KycService::determineTier($kyc);
+
+            if ($targetTier && (int) $targetTier !== (int) $kyc->tier) {
+                $tierSetting = KycService::getKycSetting($targetTier);
+                
+                KycProfile::withoutEvents(function () use ($kyc, $targetTier, $tierSetting) {
+                    $kyc->update([
+                        'tier' => $targetTier,
+                        'level' => match ($targetTier) {
+                            2 => 'mid',
+                            3 => 'full',
+                            default => 'basic',
+                        }, 
+                        'daily_limit' => $tierSetting?->daily_limit ?? $kyc->daily_limit,
+                    ]);
+                });
+            }
+        }
     }
-}
 }

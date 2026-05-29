@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\NotificationPreference;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -39,6 +40,52 @@ class NotificationSystemTest extends TestCase
         $response = $this->actingAs($user)->getJson('/api/user/notifications');
 
         $response->assertJsonPath('unread_count', 2);
+    }
+
+    public function test_user_can_read_and_update_notification_preferences(): void
+    {
+        $user = User::factory()->create();
+        $user->notificationPreferences()->create([
+            'email' => true,
+            'sms' => true,
+            'push' => false,
+            'monthly_statements' => false,
+            'newsletters' => true,
+        ]);
+
+        $response = $this->actingAs($user)->getJson('/api/user/notifications/preferences');
+        $response->assertStatus(200)
+            ->assertJsonPath('data.email', true)
+            ->assertJsonPath('data.push', false);
+
+        $updateResponse = $this->actingAs($user)->putJson('/api/user/notifications/preferences', [
+            'email' => false,
+            'sms' => false,
+            'push' => true,
+            'monthly_statements' => true,
+            'newsletters' => false,
+        ]);
+
+        $updateResponse->assertStatus(200)
+            ->assertJsonPath('data.email', false)
+            ->assertJsonPath('data.push', true);
+    }
+
+    public function test_notification_respects_email_preference(): void
+    {
+        $user = User::factory()->create();
+        NotificationPreference::create([
+            'user_id' => $user->id,
+            'email' => false,
+            'sms' => true,
+            'push' => true,
+            'monthly_statements' => true,
+            'newsletters' => false,
+        ]);
+
+        $notification = new \App\Notifications\BillingAlertNotification(1000, 'Pref test');
+
+        $this->assertEquals(['database'], $notification->via($user));
     }
 
     public function test_mark_single_notification_as_read(): void

@@ -1,34 +1,34 @@
 <template>
-  <div 
+  <div
     @click="handleClick"
-    :class="['flex items-start gap-3 p-3 transition-colors duration-150 cursor-pointer relative border-b border-[#1f3348]/30 last:border-0', notification.read_at ? 'bg-transparent hover:bg-[#1f3348]/20' : 'bg-blue-500/5 hover:bg-blue-500/10']"
+    :class="['flex items-start gap-3 p-3 transition duration-150 cursor-pointer relative border-b border-[#1f3348]/30 last:border-0', notification.read ? 'bg-transparent hover:bg-[#1f3348]/20' : 'bg-blue-500/5 hover:bg-blue-500/10']"
   >
     <!-- Dynamic Icon Badge based on Notification Type -->
-    <div :class="['w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0', badgeStyle.bg]">
+    <div :class="['w-10 h-10 rounded-2xl flex items-center justify-center text-base shrink-0', badgeStyle.bg]">
       {{ badgeStyle.icon }}
     </div>
 
     <!-- Text Body context -->
     <div class="flex-1 min-w-0">
-      <div class="font-semibold text-sm text-white flex items-center gap-1.5">
+      <div class="font-semibold text-sm text-white flex items-center gap-2">
         {{ notification.title }}
         <!-- Unread Blue Dot Indicator -->
-        <span v-if="!notification.read_at" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+        <span v-if="!notification.read" class="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
       </div>
-      <p class="text-xs text-gray-600 mt-0.5 leading-relaxed break-words">
+      <p class="text-xs text-gray-400 mt-1 leading-relaxed break-words">
         {{ notification.message }}
       </p>
 
       <!-- Footer elements: Time and Custom Action buttons -->
       <div class="flex justify-between items-center mt-3 gap-2">
-        <span class="text-[11px] text-gray-400 font-medium">
+        <span class="text-[11px] text-gray-500 font-medium">
           {{ notification.time }}
         </span>
 
-        <button 
-          v-if="notification.action" 
+        <button
+          v-if="notification.action"
           @click.stop="handleAction"
-          class="text-[10px] uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-md shadow-sm transition duration-150 active:scale-95"
+          class="text-[10px] uppercase tracking-[0.12em] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2.5 py-1 rounded-md shadow-sm transition duration-150 active:scale-95"
         >
           {{ actionLabel }}
         </button>
@@ -75,6 +75,8 @@ const handleClick = () => {
 }
 
 const handleAction = () => {
+  emit('markRead')
+
   const actionMap = {
     'Fund Wallet': '/wallet',
     'Pay Now': '/wallet',
@@ -85,9 +87,10 @@ const handleAction = () => {
   }
 
   const target = actionMap[props.notification.action]
-  
   if (target) {
     router.push(target)
+  } else if (props.notification.action?.startsWith('/')) {
+    router.push(props.notification.action)
   } else {
     console.log('Action unmapped:', props.notification.action)
   }

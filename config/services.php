@@ -45,6 +45,8 @@ return [
         'client_id' => env('QOREID_CLIENT_ID'),
         'client_secret' => env('QOREID_CLIENT_SECRET'),
         'dummy_mode' => env('QOREID_DUMMY_MODE', false),
+        'webhook_secret' => env('QOREID_WEBHOOK_SECRET'),
+        'webhook_signature_header' => env('QOREID_WEBHOOK_SIGNATURE_HEADER', 'X-Qoreid-Signature'),
     ],
 
     'tatum' => [

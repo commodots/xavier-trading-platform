@@ -39,28 +39,7 @@ class TradeController extends Controller
     // ADD THIS HELPER METHOD to map symbols to CoinGecko IDs
     private function lookupPrice($symbol, $prices): float
     {
-        $map = [
-            'BTC' => 'bitcoin',
-            'ETH' => 'ethereum',
-            'USDT' => 'tether',
-            'BNB' => 'binancecoin',
-            'SOL' => 'solana',
-            'XRP' => 'ripple',
-            'ADA' => 'cardano',
-            'DOGE' => 'dogecoin',
-            'DOT' => 'polkadot',
-            'TRX' => 'tron',
-            'LINK' => 'chainlink',
-            'MATIC' => 'matic-network',
-        ];
-
-        $id = $map[strtoupper($symbol)] ?? null;
-
-        if (! $id) {
-            return 0;
-        } // Don't guess. If it's not in the map, price is 0 (unavailable).
-
-        return (float) ($prices[$id]['usd'] ?? 0);
+        return app(MarketService::class)->lookupCryptoPrice($symbol, $prices);
     }
 
     private function matchesSymbolSearch(Symbol $symbol, string $query): bool
@@ -238,7 +217,7 @@ class TradeController extends Controller
         $prices = null;
 
         // LIVE API: Fetch real-time quote
-        if (str_contains($trade->pair, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC'])) {
+        if ($marketService->isCryptoPair($trade->pair)) {
             // For crypto, use CoinGecko prices
             $prices = $marketService->getPrices();
             $currentPrice = $this->lookupPrice($symbol, $prices);
@@ -438,12 +417,12 @@ class TradeController extends Controller
                 $categoryFilter = 'ALL';
             }
 
-            $tradePositions = $trades->map(function ($t) use ($prices, $stockQuotes) {
+            $tradePositions = $trades->map(function ($t) use ($prices, $stockQuotes, $marketService) {
                 $symbol = strtoupper(explode('/', $t->pair)[0]);
                 $entryPrice = (float) $t->entry_price;
                 $marketPrice = $entryPrice;
 
-                $isCrypto = str_contains($t->pair, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC']);
+                $isCrypto = $marketService->isCryptoPair($t->pair);
                 $isLocal = str_contains($t->pair, '/NGN') || (isset($t->order) && in_array($t->order->market, ['NGX', 'LOCAL']));
                 $category = $isCrypto ? 'CRYPTO' : ($isLocal ? 'NGX' : 'GLOBAL');
 
@@ -482,12 +461,12 @@ class TradeController extends Controller
                 ];
             });
 
-            $orderPositions = $orders->map(function ($order) use ($prices, $stockQuotes) {
+            $orderPositions = $orders->map(function ($order) use ($prices, $stockQuotes, $marketService) {
                 $symbol = strtoupper($order->symbol);
                 $entryPrice = (float) $order->market_price;
                 $marketPrice = $entryPrice;
 
-                $isCrypto = str_contains($order->symbol, '/USDT') || in_array($symbol, ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'TRX', 'LINK', 'MATIC']) || $order->market === 'CRYPTO';
+                $isCrypto = $marketService->isCryptoPair($order->symbol) || $order->market === 'CRYPTO';
                 $isLocal = in_array($order->market, ['NGX', 'LOCAL']);
                 $category = $isCrypto ? 'CRYPTO' : ($isLocal ? 'NGX' : 'GLOBAL');
 
