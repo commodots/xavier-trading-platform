@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\KycProfile;
 use App\Models\ActivityLog;
+use App\Models\KycProfile;
+use App\Models\User;
 use App\Services\KycService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,8 +18,8 @@ class QoreidWebhookController extends Controller
     public function handle(Request $request)
     {
         if ($request->isMethod('get')) {
-    return response()->json(['status' => 'webhook gateway online'], 200);
-}
+            return response()->json(['status' => 'webhook gateway online'], 200);
+        }
 
         $secret = config('services.qoreid.webhook_secret');
         $sigHeader = config('services.qoreid.webhook_signature_header', 'X-Qoreid-Signature');
@@ -30,12 +30,13 @@ class QoreidWebhookController extends Controller
             $headerSig = $request->header($sigHeader);
             $expected = hash_hmac('sha256', $payload, $secret);
 
-            if (!$headerSig || !hash_equals($expected, $headerSig)) {
+            if (! $headerSig || ! hash_equals($expected, $headerSig)) {
                 Log::warning('QoreID Webhook signature mismatch', [
                     'header' => $headerSig,
                     'expected' => $expected,
-                    'payload_size' => strlen($payload)
+                    'payload_size' => strlen($payload),
                 ]);
+
                 return response()->json(['message' => 'Invalid signature'], 401);
             }
         }
@@ -45,9 +46,9 @@ class QoreidWebhookController extends Controller
             'reference' => $request->input('reference'),
         ]);
 
-        // Normalize status strings to safe uppercase comparison baselines $status = strtoupper($request->input('status', '')); 
-        
-       
+        // Normalize status strings to safe uppercase comparison baselines
+        $status = strtoupper($request->input('status', ''));
+
         $payloadArray = $request->all();
 
         $reference = data_get($payloadArray, 'reference')
@@ -57,11 +58,12 @@ class QoreidWebhookController extends Controller
         // Find user by reference tracking property identity mapping
         $user = User::find($reference);
 
-        if (!$user) {
+        if (! $user) {
             Log::error('QoreID Webhook: User reference not found inside system memory', [
                 'extracted_reference' => $reference,
-                'raw_payload' => $payloadArray
+                'raw_payload' => $payloadArray,
             ]);
+
             return response()->json(['message' => 'User reference not found'], 404);
         }
 
@@ -77,7 +79,7 @@ class QoreidWebhookController extends Controller
 
         Log::warning('QoreID Webhook: Unhandled validation status state detected', [
             'status' => $status,
-            'user_id' => $user->id
+            'user_id' => $user->id,
         ]);
 
         return response()->json(['success' => false, 'message' => 'Unknown status processing loop'], 400);
@@ -137,19 +139,19 @@ class QoreidWebhookController extends Controller
                     'kyc_id' => $kyc->id,
                     'status' => $kyc->status,
                     'tier' => $kyc->tier,
-                ]
+                ],
             ], 200);
 
         } catch (\Exception $e) {
             Log::error('Error processing QoreID verification success track:', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error processing metrics payload data stream'
+                'message' => 'Error processing metrics payload data stream',
             ], 500);
         }
     }
@@ -173,7 +175,7 @@ class QoreidWebhookController extends Controller
                 ['user_id' => $user->id],
                 [
                     'status' => 'rejected',
-                    'rejection_reason' => $reason
+                    'rejection_reason' => $reason,
                 ]
             );
 
@@ -181,12 +183,12 @@ class QoreidWebhookController extends Controller
 
             ActivityLog::log($user->id, 'KYC Verification Failed', [
                 'method' => 'QoreID Webhook',
-                'reason' => $reason
+                'reason' => $reason,
             ]);
 
             Log::warning('QoreID Verification Triage Rejected tracking metrics:', [
                 'user_id' => $user->id,
-                'reason' => $reason
+                'reason' => $reason,
             ]);
 
             return response()->json([
@@ -196,18 +198,18 @@ class QoreidWebhookController extends Controller
                     'kyc_id' => $kyc->id,
                     'status' => $kyc->status,
                     'rejection_reason' => $kyc->rejection_reason,
-                ]
+                ],
             ], 200);
 
         } catch (\Exception $e) {
             Log::error('Error processing QoreID verification failure payload trace mapping:', [
                 'user_id' => $user->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error processing rejection logging metrics backend track.'
+                'message' => 'Error processing rejection logging metrics backend track.',
             ], 500);
         }
     }
