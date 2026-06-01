@@ -26,11 +26,8 @@ class KycService
         }
 
         $length = strlen($value);
-        if ($length <= $showDigits) {
-            return str_repeat('*', $length - $showDigits) . substr($value, -$showDigits);
-        }
+        $maskLength = max(0, $length - $showDigits);
 
-        $maskLength = $length - $showDigits;
         return str_repeat('*', $maskLength) . substr($value, -$showDigits);
     }
 
@@ -92,26 +89,28 @@ class KycService
      */
     public static function determineTier(KycProfile $kyc): int
     {
-        if ($kyc->status !== 'verified' && $kyc->status !== 'approved') {
+        if (!$kyc->isVerified()) {
             return 0;
         }
 
-        // Tier 1: Basic (BVN + NIN)
+        if (!empty($kyc->bvn)
+            && !empty($kyc->nin)
+            && !empty($kyc->intl_passport)
+            && !empty($kyc->proof_of_address)) {
+            return 3;
+        }
+
+        if (!empty($kyc->bvn)
+            && !empty($kyc->nin)
+            && !empty($kyc->intl_passport)) {
+            return 2;
+        }
+
         if (!empty($kyc->bvn) && !empty($kyc->nin)) {
             return 1;
         }
 
-        // Tier 2: Mid-level (Tier 1 + International Passport)
-        if (!empty($kyc->intl_passport)) {
-            return 2;
-        }
-
-        // Tier 3: Full Access (All documents)
-        if (!empty($kyc->drivers_license) && !empty($kyc->proof_of_address)) {
-            return 3;
-        }
-
-        return 1;
+        return (int) $kyc->tier;
     }
 
     /**

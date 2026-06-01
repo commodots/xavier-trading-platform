@@ -14,12 +14,13 @@ class QoreidWebhookController extends Controller
 {
     /**
      * Handle incoming QoreID webhook notifications
-     *
-     * QoreID sends webhook events when verification is complete
-     * This handler validates the signature, extracts identity data, and updates KYC status
      */
     public function handle(Request $request)
     {
+        if ($request->isMethod('get')) {
+    return response()->json(['status' => 'webhook gateway online'], 200);
+}
+
         $secret = config('services.qoreid.webhook_secret');
         $sigHeader = config('services.qoreid.webhook_signature_header', 'X-Qoreid-Signature');
 
@@ -44,60 +45,57 @@ class QoreidWebhookController extends Controller
             'reference' => $request->input('reference'),
         ]);
 
-        // Extract verification status from QoreID
-        $status = strtoupper($request->input('status')); // 'VERIFIED', 'SUCCESS', or 'FAILED'
+        // Normalize status strings to safe uppercase comparison baselines $status = strtoupper($request->input('status', '')); 
         
-        // QoreID passes user reference in custom parameters
-        
-        $reference = $request->input('reference') 
-            ?? $request->input('userData.reference') 
-            ?? $request->input('customData.user_id');
+       
+        $payloadArray = $request->all();
 
-        // Find user by reference (typically user ID)
+        $reference = data_get($payloadArray, 'reference')
+            ?? data_get($payloadArray, 'userData.reference')
+            ?? data_get($payloadArray, 'customData.user_id');
+
+        // Find user by reference tracking property identity mapping
         $user = User::find($reference);
 
         if (!$user) {
-            Log::error('QoreID Webhook: User not found', [
-                'reference' => $reference
+            Log::error('QoreID Webhook: User reference not found inside system memory', [
+                'extracted_reference' => $reference,
+                'raw_payload' => $payloadArray
             ]);
-            return response()->json(['message' => 'User not found'], 404);
+            return response()->json(['message' => 'User reference not found'], 404);
         }
 
-        // Handle successful verification
-        if ($status === 'VERIFIED' || $status === 'SUCCESS') {
+        // Handle successful validation pathways
+        if ($status === 'VERIFIED' || $status === 'SUCCESS' || $status === 'APPROVED') {
             return $this->handleVerificationSuccess($user, $request);
         }
 
-        // Handle failed verification
+        // Handle negative verification thresholds
         if ($status === 'FAILED' || $status === 'REJECTED') {
             return $this->handleVerificationFailed($user, $request);
         }
 
-        Log::warning('QoreID Webhook: Unknown status', [
+        Log::warning('QoreID Webhook: Unhandled validation status state detected', [
             'status' => $status,
             'user_id' => $user->id
         ]);
 
-        return response()->json(['success' => false, 'message' => 'Unknown status'], 400);
+        return response()->json(['success' => false, 'message' => 'Unknown status processing loop'], 400);
     }
 
     /**
      * Handle successful KYC verification
-     *
-     * Extract identity data from QoreID response and update KYC profile
      */
     private function handleVerificationSuccess(User $user, Request $request)
     {
         try {
-            // Extract data from QoreID webhook
             $qoreidData = $request->all();
             $mappedData = KycService::extractQoreidData($qoreidData);
 
-            // Get tier 1 settings for basic verification
             $tier1Setting = \App\Models\KycSetting::where('tier', 1)->first();
             $dailyLimit = $tier1Setting?->daily_limit ?? 500000;
 
-            // Update or create KYC profile with verified data
+            // Explicit array fallback protection blocks for update fields
             $kyc = KycProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
@@ -116,10 +114,9 @@ class QoreidWebhookController extends Controller
                 ]
             );
 
-            // Update user KYC status
+            // Keep status columns in sync across tables
             $user->update(['kyc_status' => 'verified']);
 
-            // Log successful verification
             ActivityLog::log($user->id, 'KYC Verification Successful', [
                 'method' => 'QoreID Webhook',
                 'bvn_masked' => KycService::maskPii($kyc->bvn),
@@ -128,10 +125,9 @@ class QoreidWebhookController extends Controller
                 'daily_limit' => $kyc->daily_limit,
             ]);
 
-            Log::info('QoreID Verification Success', [
+            Log::info('QoreID Verification Success Integration complete', [
                 'user_id' => $user->id,
                 'kyc_id' => $kyc->id,
-                'tier' => $kyc->tier
             ]);
 
             return response()->json([
@@ -145,7 +141,7 @@ class QoreidWebhookController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error processing QoreID verification success', [
+            Log::error('Error processing QoreID verification success track:', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -153,25 +149,26 @@ class QoreidWebhookController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error processing verification'
+                'message' => 'Error processing metrics payload data stream'
             ], 500);
         }
     }
 
     /**
      * Handle failed KYC verification
-     *
-     * Mark KYC as rejected and store rejection reason
      */
     private function handleVerificationFailed(User $user, Request $request)
     {
         try {
-            $reason = $request->input('reason') 
-                ?? $request->input('summary.biometrics.reason')
-                ?? $request->input('error_message')
-                ?? 'Verification failed';
+            $payloadArray = $request->all();
 
-            // Update KYC status to rejected
+            // Safe recursive collection fallback extraction mapping
+            $reason = data_get($payloadArray, 'reason')
+                ?? data_get($payloadArray, 'summary.biometrics.reason')
+                ?? data_get($payloadArray, 'summary.id_status.reason')
+                ?? data_get($payloadArray, 'error_message')
+                ?? 'Verification data parameters failed matching criteria verification thresholds.';
+
             $kyc = KycProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
@@ -180,23 +177,21 @@ class QoreidWebhookController extends Controller
                 ]
             );
 
-            // Update user KYC status
             $user->update(['kyc_status' => 'rejected']);
 
-            // Log rejection
             ActivityLog::log($user->id, 'KYC Verification Failed', [
                 'method' => 'QoreID Webhook',
                 'reason' => $reason
             ]);
 
-            Log::warning('QoreID Verification Failed', [
+            Log::warning('QoreID Verification Triage Rejected tracking metrics:', [
                 'user_id' => $user->id,
                 'reason' => $reason
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'KYC verification rejected',
+                'message' => 'KYC verification rejected status logs populated',
                 'data' => [
                     'kyc_id' => $kyc->id,
                     'status' => $kyc->status,
@@ -205,14 +200,14 @@ class QoreidWebhookController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error processing QoreID verification failure', [
+            Log::error('Error processing QoreID verification failure payload trace mapping:', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error processing rejection'
+                'message' => 'Error processing rejection logging metrics backend track.'
             ], 500);
         }
     }

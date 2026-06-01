@@ -72,7 +72,7 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA'])->middlewar
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
-Route::post('/qoreid/webhook', [QoreidWebhookController::class, 'handle']);
+Route::match(['get', 'post'], '/qoreid/webhook', [QoreidWebhookController::class, 'handle']);
 Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle']);
 Route::post('/market/update', [TradeController::class, 'updateMarket']);
 

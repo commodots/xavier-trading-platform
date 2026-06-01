@@ -72,7 +72,8 @@ class KycProfileObserver
         if ($kyc->isVerified()) {
             $targetTier = KycService::determineTier($kyc);
 
-            if ($targetTier && (int) $targetTier !== (int) $kyc->tier) {
+            // Only auto-upgrade based on available documents. Do not downgrade a manually assigned tier.
+            if ($targetTier > 0 && $targetTier > (int) $kyc->tier) {
                 $tierSetting = KycService::getKycSetting($targetTier);
                 
                 KycProfile::withoutEvents(function () use ($kyc, $targetTier, $tierSetting) {
@@ -82,7 +83,7 @@ class KycProfileObserver
                             2 => 'mid',
                             3 => 'full',
                             default => 'basic',
-                        }, 
+                        },
                         'daily_limit' => $tierSetting?->daily_limit ?? $kyc->daily_limit,
                     ]);
                 });

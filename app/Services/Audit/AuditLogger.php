@@ -25,8 +25,8 @@ class AuditLogger
                 'action'     => $event,
                 'entity'     => $data['entity'] ?? null,
                 'entity_id'  => $data['entity_id'] ?? null,
-                'ip_address' => $data['ip'] ?? request()->ip(),
-                'user_agent' => $data['user_agent'] ?? request()->userAgent(),
+                'ip_address' => $data['ip'] ?? request()?->ip(),
+                'user_agent' => $data['user_agent'] ?? request()?->userAgent(),
                 'payload'    => array_diff_key($data, array_flip(['user_id', 'entity', 'entity_id', 'ip', 'user_agent'])),
             ]);
         } catch (\Throwable $e) {

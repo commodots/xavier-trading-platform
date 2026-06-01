@@ -23,11 +23,17 @@ class KycWorkflowTest extends TestCase
         parent::setUp();
         Storage::fake('public');
         $this->user = User::factory()->create();
-        KycSetting::factory()->sequence(
+
+        foreach ([
             ['tier' => 1, 'tier_name' => 'Basic', 'daily_limit' => 50000],
             ['tier' => 2, 'tier_name' => 'Mid', 'daily_limit' => 1000000],
             ['tier' => 3, 'tier_name' => 'Full', 'daily_limit' => 999999999],
-        )->create();
+        ] as $setting) {
+            KycSetting::updateOrCreate(
+                ['tier' => $setting['tier']],
+                $setting
+            );
+        }
     }
 
     /**
@@ -72,6 +78,10 @@ class KycWorkflowTest extends TestCase
      */
     public function test_kyc_submission_with_file_uploads()
     {
+        if (! extension_loaded('gd')) {
+            $this->markTestSkipped('GD extension is required for image fake uploads.');
+        }
+
         $photo = UploadedFile::fake()->image('selfie.jpg');
         $document = UploadedFile::fake()->image('id.png');
 
@@ -252,7 +262,7 @@ class KycWorkflowTest extends TestCase
 
         $this->assertDatabaseHas('activity_logs', [
             'user_id' => $this->user->id,
-            'action' => 'KYC Submission Started',
+            'activity' => 'KYC Submission Started',
         ]);
     }
 
