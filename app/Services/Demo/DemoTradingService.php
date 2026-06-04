@@ -2,10 +2,13 @@
 
 namespace App\Services\Demo;
 
+use App\Exceptions\FxRateUnavailableException;
+use App\Exceptions\InsufficientBalanceException;
 use App\Models\Demo\DemoLedger;
 use App\Models\Demo\DemoPortfolio;
 use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoWallet;
+use App\Models\FxRate;
 use App\Repositories\DemoOrderRepository;
 use App\Repositories\DemoWalletRepository;
 use App\Services\PriceService;
@@ -27,6 +30,18 @@ class DemoTradingService
         $this->walletRepo = $walletRepo;
         $this->orderRepo = $orderRepo;
         $this->priceService = $priceService;
+    }
+
+    private function getFxRate(): float
+    {
+        $rate = cache()->remember('usd_ngn_rate', 3600, function () {
+            return FxRate::where('from_currency', 'USD')
+                ->where('to_currency', 'NGN')
+                ->latest()
+                ->value('effective_rate');
+        });
+
+        return ($rate && $rate > 0) ? (float) $rate : throw new FxRateUnavailableException();
     }
 
     public function executeTrade($user, array $data)
@@ -52,7 +67,7 @@ class DemoTradingService
             $type = $data['side'];
             $amount = $data['amount'];
             $price = $data['market_price'];
-            $fxRate = 1500;
+            $fxRate = $this->getFxRate();
 
             $isUsdMarket = in_array($market, ['foreign', 'crypto']);
 
@@ -83,7 +98,7 @@ class DemoTradingService
             if ($type === 'buy') {
                 $clearedBalanceCol = $isUsdMarket ? 'usd_cleared' : 'ngn_cleared';
                 if ($wallet->{$clearedBalanceCol} < $totalCost) {
-                    throw new \Exception("Insufficient demo {$currency} balance.");
+                    throw new InsufficientBalanceException($currency, $totalCost, $wallet->{$clearedBalanceCol});
                 }
                 $wallet->decrement('balance', $totalCost);
                 $wallet->decrement($clearedBalanceCol, $totalCost);
@@ -94,6 +109,17 @@ class DemoTradingService
                 };
             } else {
                 $clearedBalanceCol = $isUsdMarket ? 'usd_cleared' : 'ngn_cleared';
+
+                // Validate the user actually holds enough to sell
+                $portfolio = DemoPortfolio::where('user_id', $user->id)
+                    ->where('symbol', $symbol)
+                    ->first();
+
+                if (!$portfolio || (float) $portfolio->cleared_quantity < $quantity) {
+                    $available = (float) ($portfolio?->cleared_quantity ?? 0);
+                    throw new InsufficientBalanceException($symbol . ' holdings', $quantity, $available);
+                }
+
                 $wallet->increment('balance', $totalCost);
                 $wallet->increment($clearedBalanceCol, $totalCost);
                 $transactionType = match ($market) {
@@ -172,7 +198,7 @@ class DemoTradingService
     {
         $portfolios = DemoPortfolio::where('user_id', $userId)->get();
         $wallets = DemoWallet::where('user_id', $userId)->get();
-        $fxRate = 1500;
+        $fxRate = $this->getFxRate();
 
         $ngxValue = 0;
         $globalValueNgn = 0;

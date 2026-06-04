@@ -36,17 +36,13 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'bvn' => 'nullable|string',
             'nin' => 'nullable|string',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_image' => 'nullable|string',
         ]);
 
         $nameParts = explode(' ', $request->name, 2);
         $firstName = trim($nameParts[0]);
         $lastName = trim($nameParts[1] ?? '');
 
-        $profileImagePath = null;
-        if ($request->hasFile('profile_image')) {
-            $profileImagePath = $request->file('profile_image')->store('profile_images', 'public');
-        }
 
         $user = User::create([
             'name' => $request->name,
@@ -56,8 +52,7 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
             'bvn' => $request->bvn,
             'nin' => $request->nin,
-            'profile_image' => $profileImagePath,
-        ]);
+'profile_image' => $request->profile_image,        ]);
 
         event(new Registered($user));
 

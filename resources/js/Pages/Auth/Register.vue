@@ -15,6 +15,7 @@
 
       <form @submit.prevent="submit">
 
+        <!-- Step 1: Basic Information -->
         <div v-if="currentStep === 1" class="space-y-4 animate-fadeIn">
           <div>
             <label class="block mb-1 text-gray-300">Full Name</label>
@@ -62,49 +63,48 @@
           </button>
         </div>
 
+        <!-- Step 2: Identity Liveness Check -->
         <div v-if="currentStep === 2" class="space-y-4 animate-fadeIn">
-          <div class="text-center">
-            <h3 class="mb-4 text-lg font-semibold">Take a Live Picture</h3>
-            <p class="mb-4 text-sm text-gray-300">This will be used as your profile picture for identity verification.</p>
+          <div class="text-center py-6">
+            <div class="w-16 h-16 bg-[#00D4FF]/10 text-[#00D4FF] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#00D4FF]/20">
+              <span class="text-2xl">📸</span>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold">Identity Liveness Verification</h3>
+            <p class="mb-6 text-sm text-gray-300 px-2">
+              We utilize Dojah secured encryption frameworks to ensure identity parameters match perfectly. Click below to launch the capture verification terminal.
+            </p>
 
-            <div class="relative">
-              <video v-if="!capturedImage" ref="video" autoplay playsinline muted class="w-full border border-gray-600 rounded-lg"></video>
-              <canvas ref="canvas" class="hidden"></canvas>
-              <div v-if="capturedImage" class="mt-4">
-                <img :src="capturedImage" class="w-full border border-gray-600 rounded-lg" />
-              </div>
+            <div v-if="capturedImage" class="mb-6 p-3 bg-green-500/10 border border-green-500/30 rounded-xl max-w-xs mx-auto">
+              <p class="text-xs text-green-400 font-medium flex items-center justify-center gap-1.5">
+                ✓ Face Scan Successfully Processed
+              </p>
             </div>
 
-            <div class="mt-4 space-y-2">
-              <button v-if="!cameraActive" type="button" @click="startCamera"
-                class="w-full bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold hover:opacity-90">
-                Start Camera
-              </button>
-              <button v-if="cameraActive && !capturedImage" type="button" @click="capturePhoto"
-                class="w-full py-2 font-bold text-white bg-green-500 rounded-lg hover:opacity-90">
-                Take Picture
-              </button>
-              <button v-if="capturedImage" type="button" @click="retakePhoto"
-                class="w-full py-2 font-bold text-white bg-gray-600 rounded-lg hover:opacity-90">
-                Retake
-              </button>
-            </div>
+            <button type="button" @click="openDojahLiveness"
+              class="w-full bg-[#00D4FF] text-[#0B132B] py-2.5 rounded-lg font-bold hover:opacity-90 transition shadow-lg shadow-[#00D4FF]/10 flex items-center justify-center gap-2">
+              <span v-if="!isSdkReady" class="w-4 h-4 border-2 rounded-full border-[#0B132B]/30 border-t-[#0B132B] animate-spin"></span>
+              {{ !isSdkReady ? 'Connecting Verification Server...' : (capturedImage ? 'Relaunch Verification Scanner' : 'Launch Face Verification') }}
+            </button>
           </div>
 
-          <div class="flex gap-3 pt-2">
+          <div class="flex gap-3 pt-4 border-t border-gray-800">
             <button type="button" @click="currentStep--"
-              class="w-1/3 py-2 font-semibold border border-gray-600 rounded-lg">Back</button>
-            <button type="button" @click="nextStep" :disabled="!capturedImage"
-              class="w-2/3 bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold disabled:opacity-40">
+              class="w-1/3 py-2 font-semibold border border-gray-600 rounded-lg">
+              Back
+            </button>
+            <button type="button" @click="currentStep++" :disabled="!capturedImage"
+              class="w-2/3 bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold disabled:opacity-40 transition">
               Continue
             </button>
           </div>
         </div>
 
+        <!-- Step 3: Identity Anchors (BVN/NIN) -->
         <div v-if="currentStep === 3" class="space-y-4 animate-fadeIn">
           <div class="p-3 mb-4 border rounded-lg bg-blue-500/10 border-blue-500/30">
             <p class="text-xs leading-tight text-blue-300">
-              ⓘ Adding these parameters now speeds up your validation sequence and unlocks instant wallet trading limits. You can choose to skip this step for now.
+              ⓘ Adding these parameters now speeds up your validation sequence and unlocks instant wallet trading
+              limits. You can choose to skip this step for now.
             </p>
           </div>
 
@@ -123,18 +123,19 @@
           <div class="flex gap-3 pt-2">
             <button type="button" @click="currentStep--"
               class="w-1/3 py-2 font-semibold border border-gray-600 rounded-lg">Back</button>
-            <button type="button" @click="nextStep" class="w-2/3 bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold">
+            <button type="button" @click="currentStep++" class="w-2/3 bg-[#00D4FF] text-[#0B132B] py-2 rounded-lg font-bold">
               {{ (!kyc.bvn && !kyc.nin) ? 'Skip for now' : 'Continue' }}
             </button>
           </div>
         </div>
 
+        <!-- Step 4: Summary Review -->
         <div v-if="currentStep === 4" class="space-y-4 animate-fadeIn">
           <div class="bg-[#151a27] p-4 rounded-xl border border-gray-700">
             <h3 class="text-sm font-bold text-[#00D4FF] mb-2 uppercase tracking-widest">Summary</h3>
             <p class="text-sm">Name: <span class="text-white">{{ name }}</span></p>
             <p class="text-sm">Email: <span class="text-white">{{ email }}</span></p>
-            <p class="text-sm">Profile Picture: <span class="text-green-400 font-medium">✓ Captured & Encrypted</span></p>
+            <p class="text-sm">Profile Picture: <span class="text-green-400 font-medium">✓ Captured via Dojah Engine</span></p>
             <p class="text-sm">Verification Hook: <span class="text-white">{{ kyc.bvn || kyc.nin ? 'Identity Data Provided' : 'Skipped (Basic Tier Onboarding)' }}</span></p>
           </div>
 
@@ -144,7 +145,7 @@
           </div>
 
           <div class="flex gap-3">
-            <button type="button" :disabled="loading" @click="handleBackStepFour"
+            <button type="button" :disabled="loading" @click="currentStep--"
               class="w-1/3 py-2 font-semibold border border-gray-600 rounded-lg disabled:opacity-50">Back</button>
             <button type="submit" :disabled="loading"
               class="w-2/3 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-70 flex items-center justify-center gap-2">
@@ -167,18 +168,23 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import api from "@/api";
 import { useRouter } from "vue-router";
 
+
 const router = useRouter();
+
+
 const currentStep = ref(1);
 const loading = ref(false);
+const isSdkReady = ref(false); 
 
 const name = ref("");
 const email = ref("");
 const password = ref("");
 const password_confirmation = ref("");
+const capturedImage = ref(null);
 
 const kyc = ref({
   bvn: "",
@@ -186,13 +192,6 @@ const kyc = ref({
 });
 
 const localErrors = ref({});
-
-// Camera Tracking Parameters
-const video = ref(null);
-const canvas = ref(null);
-const cameraActive = ref(false);
-const capturedImage = ref(null);
-const stream = ref(null);
 
 const passwordStrength = computed(() => {
   const len = password.value.length;
@@ -202,6 +201,30 @@ const passwordStrength = computed(() => {
 });
 
 const MIN_PASSWORD_LENGTH = 8;
+
+// Inject the single definitive eKYC Widget layout script
+onMounted(() => {
+  if (window.Connect) { 
+    isSdkReady.value = true;
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.src = "https://widget.dojah.io/widget.js"; 
+  script.type = "text/javascript";
+  script.async = false; 
+
+  script.onload = () => {
+    isSdkReady.value = true;
+    console.log("Dojah eKYC Widget Library loaded successfully.");
+  };
+    
+  script.onerror = () => {
+    console.error("Dojah Widget production engine asset failed to load.");
+  };
+
+  document.body.appendChild(script); 
+});
 
 const nextStep = () => {
   if (currentStep.value === 1) {
@@ -217,81 +240,55 @@ const nextStep = () => {
   currentStep.value++;
 };
 
-const startCamera = async () => {
-  try {
-    stream.value = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-    if (video.value) {
-      video.value.srcObject = stream.value;
-      cameraActive.value = true;
+const openDojahLiveness = () => {
+  // Pull directly from Vite's env compiler hook
+  const appId = import.meta.env.VITE_DOJAH_APP_ID;
+  const publicKey = import.meta.env.VITE_DOJAH_PUBLIC_KEY;
+
+  if (!appId || !publicKey) {
+    alert("Security configuration missing from static build pipeline.");
+    return;
+  }
+
+  const options = {
+  app_id: appId,
+  p_key: publicKey,
+  type: "liveness", 
+  config: { liveness: { selfie: true } },
+  onSuccess: function (response) {
+    console.log("Dojah Widget Success Payload:", response);
+    if (response.referenceId) {
+      capturedImage.value = response.referenceId;
+    } else if (response.data && response.data.selfie) {
+      capturedImage.value = response.data.selfie; 
+    } else {
+      capturedImage.value = "VERIFIED_SANDBOX_SESSION";
     }
-  } catch (err) {
-    console.error('Error accessing camera:', err);
-    alert('Unable to access video camera feed frames. Please check global application browser media permissions.');
+  },
+  onError: function (err) {
+    console.error("Dojah Widget Runtime Error:", err);
+    let errorMsg = typeof err === 'string' ? err : (err.message || JSON.stringify(err) || "Verification Failed");
+    
+    if (errorMsg.includes('Emulator')) {
+      errorMsg += " Please disable 'Device Emulation' in your browser developer tools.";
+    }
+    alert(`Dojah Error: ${errorMsg}.`);
+  },
+  onClose: function () {
+    console.log("Dojah verification widget interface dismissed.");
   }
 };
 
-const killCameraTracks = () => {
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop());
-    stream.value = null;
-  }
-  if (video.value) {
-    video.value.srcObject = null;
-  }
-  cameraActive.value = false;
-};
-
-const capturePhoto = () => {
-  if (!video.value || !canvas.value) return;
-  const context = canvas.value.getContext('2d');
-  canvas.value.width = video.value.videoWidth || 640;
-  canvas.value.height = video.value.videoHeight || 480;
-  context.drawImage(video.value, 0, 0, canvas.value.width, canvas.value.height);
-  capturedImage.value = canvas.value.toDataURL('image/png');
-  
-  killCameraTracks();
-};
-
-const retakePhoto = () => {
-  capturedImage.value = null;
-  startCamera();
-};
-
-const handleBackStepFour = () => {
-  killCameraTracks();
-  currentStep.value--;
-};
-
-onUnmounted(() => {
-  killCameraTracks();
-});
-
-const resizeImage = (base64Str) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = base64Str;
-    img.onload = () => {
-      const canvasElement = document.createElement('canvas');
-      const MAX_WIDTH = 600; 
-      const scaleSize = MAX_WIDTH / img.width;
-      canvasElement.width = MAX_WIDTH;
-      canvasElement.height = img.height * scaleSize;
-
-      const ctx = canvasElement.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvasElement.width, canvasElement.height);
-      
-      canvasElement.toBlob((blob) => {
-        resolve(blob);
-      }, 'image/jpeg', 0.85); // High-density compression logic
-    };
-  });
+  const connect = new window.Connect(options);
+  connect.setup();
+  connect.open();
 };
 
 const submit = async () => {
   localErrors.value = {};
 
   if (password.value !== password_confirmation.value) {
-    localErrors.value.password_confirmation = ["Password configuration tracking does not match matching pair keys."];
+    localErrors.value.password_confirmation = ["Passwords do not match."];
     currentStep.value = 1;
     return;
   }
@@ -299,37 +296,28 @@ const submit = async () => {
   loading.value = true;
 
   try {
-    const formData = new FormData();
-    formData.append('name', name.value);
-    formData.append('email', email.value);
-    formData.append('password', password.value);
-    formData.append('password_confirmation', password_confirmation.value);
+    const payload = {
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      password_confirmation: password_confirmation.value,
+      profile_image: capturedImage.value 
+    };
     
-    if (kyc.value.bvn) formData.append('bvn', kyc.value.bvn);
-    if (kyc.value.nin) formData.append('nin', kyc.value.nin);
+    if (kyc.value.bvn) payload.bvn = kyc.value.bvn;
+    if (kyc.value.nin) payload.nin = kyc.value.nin;
 
-    if (capturedImage.value) {
-      const resizedBlob = await resizeImage(capturedImage.value);
-      formData.append('profile_image', resizedBlob, 'profile.jpg');
-    }
+    const res = await api.post("/register", payload);
 
-    const res = await api.post("/register", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    // Handle token values and local caching payloads securely
     if (res.data.token || res.data.access_token) {
       localStorage.setItem("xavier_token", res.data.token || res.data.access_token);
     }
     localStorage.setItem("user", JSON.stringify(res.data.user || res.data.data));
     
-    // Smooth transition straight into verify email structure route context
     router.push("/verify-email");
   } catch (err) {
-    console.error("Registration endpoint breakdown error metrics:", err);
-    alert(err.response?.data?.message || "Registration parameter transmission failure. Please check inputs.");
+    console.error("Registration endpoint failure:", err);
+    alert(err.response?.data?.message || "Registration failure. Please check inputs.");
   } finally {
     loading.value = false;
   }

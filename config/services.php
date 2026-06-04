@@ -83,4 +83,10 @@ return [
         'pusher_app_key' => env('PUSHER_APP_KEY'),
         'pusher_app_secret' => env('PUSHER_APP_SECRET'),
     ],
+    'dojah' => [
+        'public_key' => env('DOJAH_PUBLIC_KEY'),
+        'secret_key' => env('DOJAH_SECRET_KEY'),
+        'base_url' => env('DOJAH_BASE_URL', 'https://sandbox.dojah.io'),
+        'app_id' => env('DOJAH_APP_ID'),
+    ],
 ];

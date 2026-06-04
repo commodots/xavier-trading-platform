@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\FxRateUnavailableException;
+use App\Exceptions\InsufficientBalanceException;
 use App\Models\Fee;
+use App\Models\FxRate;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\Trade;
@@ -10,9 +13,29 @@ use App\Models\User;
 use App\Models\Wallet;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class LiveTradingService
 {
+    /**
+     * Resolve the USD/NGN rate from cache, falling back to the DB.
+     * No hardcoded fallback — if the rate is missing we fail loudly.
+     */
+    private function getFxRate(): float
+    {
+        $rate = cache()->remember('usd_ngn_rate', 3600, function () {
+            return FxRate::where('from_currency', 'USD')
+                ->where('to_currency', 'NGN')
+                ->latest()
+                ->value('effective_rate');
+        });
+
+        if (!$rate || $rate <= 0) {
+            throw new FxRateUnavailableException();
+        }
+
+        return (float) $rate;
+    }
     public function executeTrade($user, array $data)
     {
         return DB::transaction(function () use ($user, $data) {
@@ -28,12 +51,7 @@ class LiveTradingService
             $category = $marketMap['category'];
 
             // Quantity & Cost Calculation
-            $FX_RATE = cache()->remember('usd_ngn_rate', 3600, function () {
-                return \App\Models\FxRate::where('from_currency', 'USD')
-                    ->where('to_currency', 'NGN')
-                    ->latest()
-                    ->value('effective_rate') ?? 1500;
-            });
+            $FX_RATE = $this->getFxRate();
             $priceInNaira = ($currency === 'USD') ? ($data['market_price'] * $FX_RATE) : $data['market_price'];
 
             $units = ($category === 'crypto')
@@ -76,7 +94,7 @@ class LiveTradingService
 
             if ($data['side'] === 'buy') {
                 if ($actualCost > $wallet->$clearedCol) {
-                    throw new \Exception("Insufficient cleared {$currency} balance.");
+                    throw new InsufficientBalanceException($currency, $actualCost, $wallet->$clearedCol);
                 }
 
                 $wallet->decrement($clearedCol, $actualCost);
@@ -94,7 +112,7 @@ class LiveTradingService
                 }
             } else {
                 if ($holding && $holding->cleared_quantity < $units) {
-                    throw new \Exception("Insufficient cleared holdings to sell. Available: {$holding->cleared_quantity}");
+                    throw new InsufficientBalanceException($currency . ' holdings', $units, $holding->cleared_quantity);
                 }
 
                 if ($holding) {
@@ -108,11 +126,19 @@ class LiveTradingService
                 $wallet->increment('balance', $actualCost); // Fix: Sell proceeds must increase total balance
             }
 
-            // 1% platform trade fee
+            // 1% platform trade fee (deducted from same cleared balance on buy)
             $tradeFee = round($actualCost * 0.01, 2);
             if ($tradeFee > 0 && $data['side'] === 'buy') {
+                $wallet->refresh();
                 if ($wallet->$clearedCol >= $tradeFee) {
                     $wallet->decrement($clearedCol, $tradeFee);
+                } else {
+                    // Not enough cleared balance for fee — skip silently but log
+                    Log::warning('LiveTradingService: insufficient balance for trade fee', [
+                        'user_id'   => $user->id,
+                        'trade_fee' => $tradeFee,
+                        'available' => $wallet->$clearedCol,
+                    ]);
                 }
             }
 
@@ -152,9 +178,7 @@ class LiveTradingService
     {
         $user = User::findOrFail($userId);
 
-        $FX_RATE = cache()->get('usd_ngn_rate', function () {
-            return \App\Models\FxRate::where('from_currency', 'USD')->where('to_currency', 'NGN')->latest()->value('effective_rate') ?? 1500; // Ensure consistency
-        });
+        $FX_RATE = $this->getFxRate();
 
         $portfolioHoldings = Portfolio::where('user_id', $userId)
             ->where('quantity', '>', 0)
@@ -194,7 +218,14 @@ class LiveTradingService
 
         $tradeHoldings = app(PortfolioService::class)->getUserPortfolio($userId);
         $tradeHoldings = app(PortfolioService::class)->attachMarketPrices($tradeHoldings);
-        $holdings = $groupedHoldings->concat($tradeHoldings)->values();
+
+        // Merge: Portfolio table is the primary record. Trade-derived holdings
+        // fill in any symbols not already present (e.g. crypto bypasses Portfolio).
+        $existingSymbols = $groupedHoldings->pluck('symbol')->flip();
+        $additionalHoldings = collect($tradeHoldings)->filter(
+            fn ($h) => !isset($existingSymbols[$h['symbol'] ?? ''])
+        );
+        $holdings = $groupedHoldings->concat($additionalHoldings)->values();
 
         $wallets = Wallet::where('user_id', $userId)->get();
         $ngnBalance = (float) ($wallets->where('currency', 'NGN')->first()->ngn_cleared ?? 0);

@@ -8,7 +8,7 @@ use App\Services\SettlementService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
-class ProcessSettlements extends Command
+class ProcessTradeSettlements extends Command
 {
     /**
      * The name and signature of the console command.

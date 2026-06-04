@@ -5,12 +5,19 @@
     "description": "The skeleton application for the Laravel framework.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
+    "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/dojah-inc/dojah-php-sdk.git"
+    }
+  ],
     "require": {
         "php": "^8.2",
         "bacon/bacon-qr-code": "^3.0",
         "barryvdh/laravel-dompdf": "^3.1",
         "doctrine/dbal": "^4.4",
         "inertiajs/inertia-laravel": "^2.0",
+        "konfig/dojah-php-sdk": "4.1.0",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.2",
         "laravel/tinker": "^2.10.1",

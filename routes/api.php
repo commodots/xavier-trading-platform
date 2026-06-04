@@ -3,12 +3,12 @@
 use App\Http\Controllers\Admin\AdminAdvisoryController;
 use App\Http\Controllers\Admin\AdminModelPortfolioController;
 // Auth Controllers
+use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Admin\FxDashboardController;
 use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
 use App\Http\Controllers\Admin\SystemSettingsController;
-use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\AdvisoryController;
 // Feature Controllers
 use App\Http\Controllers\AlpacaWebhookController;
@@ -18,6 +18,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CryptoController;
 use App\Http\Controllers\Api\CryptoWebhookController;
 use App\Http\Controllers\Api\DummyCscsController;
+use App\Http\Controllers\Api\Security\AuditLogController;
+use App\Http\Controllers\Api\Security\TwoFactorController as SecurityTwoFactorController;
+use App\Http\Controllers\Api\Security\UserDeviceController;
+use App\Http\Controllers\Api\Security\WithdrawalController;
 use App\Http\Controllers\Api\DummyNgxController;
 use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\MarketController;
@@ -28,7 +32,6 @@ use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
-use App\Http\Controllers\Api\QoreidWebhookController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransactionTypeController;
@@ -46,6 +49,8 @@ use App\Http\Controllers\DemoController;
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\Api\DojahKycController;
+use App\Http\Controllers\DojahController;
 use Illuminate\Http\Request;
 // Dummy/Testing
 use Illuminate\Support\Facades\Log;
@@ -72,7 +77,6 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA'])->middlewar
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
 Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
 Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
-Route::match(['get', 'post'], '/qoreid/webhook', [QoreidWebhookController::class, 'handle']);
 Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle']);
 Route::post('/market/update', [TradeController::class, 'updateMarket']);
 
@@ -102,7 +106,15 @@ Route::prefix('dummy')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
-    // Moved verification outside of auth:sanctum to allow guest verification
+    Route::post('/kyc/verify-liveness', [DojahController::class, 'verifyLiveness']);
+
+    /* Dojah KYC — primary identity verification provider */
+    Route::prefix('kyc')->group(function () {
+        Route::post('/bvn',    [DojahKycController::class, 'verifyBvn']);
+        Route::post('/nin',    [DojahKycController::class, 'verifyNin']);
+        Route::post('/selfie', [DojahKycController::class, 'verifySelfie']);
+        Route::get('/status',  [DojahKycController::class, 'status']);
+    });
 });
 
 Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
@@ -111,7 +123,7 @@ Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
 
 Route::middleware('auth:sanctum')->group(function () {
     /* User & Auth Management */
-    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/email/verification-notification', function (Request $request) {
@@ -124,7 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (\Exception $e) {
-            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
@@ -135,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/markets/stocks/{symbol}/history', [MarketDataController::class, 'stockHistory']);
     Route::get('/markets', [MarketController::class, 'index']);
     Route::get('/markets/insights/{market}', [TradeController::class, 'insights']);
+    Route::get('/advisories', [AdvisoryController::class, 'index']);
     Route::get('/market/quotes', [MarketController::class, 'quotes']);
     Route::get('/market/ngx', [MarketController::class, 'ngx']);
     Route::get('/market/global', [MarketController::class, 'global']);
@@ -172,19 +185,26 @@ Route::middleware('auth:sanctum')->group(function () {
         // Wallet & Transactions
         Route::post('/wallet/convert', [WalletController::class, 'convert'])->middleware('throttle:10,1');
         Route::post('/otp/send-withdrawal', [NewTransactionController::class, 'sendOtp']);
-        Route::post('/deposit', [NewTransactionController::class, 'deposit']);
-        Route::post('/withdraw', [NewTransactionController::class, 'withdraw'])->middleware('throttle:3,60'); // 3 per hour
         Route::post('/transfer', [NewTransactionController::class, 'transfer']);
 
-        // Crypto Operations
-        Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw'])->middleware('throttle:3,60');
+        // Deposits require KYC level 2
+        Route::post('/deposit', [NewTransactionController::class, 'deposit'])->middleware('kyc:2');
+        Route::post('/withdraw', [NewTransactionController::class, 'withdraw'])
+            ->middleware(['kyc:3', 'throttle:3,60']);
 
-        // Portfolio & Trading
-        Route::post('/orders', [OmsController::class, 'placeOrder'])->middleware('throttle:30,1'); // 30 per min
-        Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
-        Route::post('/trade/open', [TradeController::class, 'open']);
-        Route::post('/trade/close/{id}', [TradeController::class, 'close'])->middleware('throttle:30,1');
-        Route::post('/trade/place', [TradeController::class, 'placeOrder']);
+        // Crypto Operations
+        Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw'])
+            ->middleware(['kyc:3', 'throttle:3,60']);
+
+        // Portfolio & Trading — require KYC level 2
+        Route::middleware('kyc:2')->group(function () {
+            Route::post('/orders', [OmsController::class, 'placeOrder'])->middleware('throttle:30,1');
+            Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
+            Route::post('/trade/open', [TradeController::class, 'open']);
+            Route::post('/trade/close/{id}', [TradeController::class, 'close'])->middleware('throttle:30,1');
+            Route::post('/trade/place', [TradeController::class, 'placeOrder']);
+        });
+
         Route::get('/account', [TradeController::class, 'account']);
     });
 
@@ -255,6 +275,36 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
+    /* Security & Account Protection */
+    Route::prefix('security')->group(function () {
+        Route::prefix('2fa')->group(function () {
+            Route::post('/setup', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'setup']);
+            Route::post('/verify', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'verify']);
+            Route::post('/disable', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'disable']);
+            Route::get('/status', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'status']);
+        });
+
+        Route::prefix('withdrawals')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'store']);
+            Route::get('/{withdrawal}', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'show']);
+            Route::post('/{withdrawal}/approve', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'approve']);
+            Route::post('/{withdrawal}/reject', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'reject']);
+        });
+
+        Route::prefix('audit-logs')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\Security\AuditLogController::class, 'index']);
+            Route::get('/summary', [\App\Http\Controllers\Api\Security\AuditLogController::class, 'summary']);
+        });
+
+        Route::prefix('devices')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'index']);
+            Route::post('/register', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'register']);
+            Route::post('/{device}/trust', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'trust']);
+            Route::delete('/{device}', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'revoke']);
+        });
+    });
+
     /* Admin Control Panel */
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
@@ -262,7 +312,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/advisory-posts', AdminAdvisoryController::class);
         Route::apiResource('/model-portfolios', AdminModelPortfolioController::class);
 
-         //Notifications
+        // Notifications
         Route::get('/notifications', [AdminNotificationController::class, 'index']);
         Route::get('/users/search', [AdminNotificationController::class, 'searchUsers']);
         Route::post('/notifications/send', [AdminNotificationController::class, 'send']);
@@ -278,8 +328,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/activities', [AdminController::class, 'getActivityLogs']);
         Route::get('/audit-logs', [AdminController::class, 'getAuditLogs']);
         Route::get('/earnings', [AdminController::class, 'getEarnings']);
-
-       
 
         // KYC Management
         Route::get('/kycs', [AdminController::class, 'kycs']);
