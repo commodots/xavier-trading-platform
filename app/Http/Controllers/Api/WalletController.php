@@ -114,52 +114,50 @@ class WalletController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            $clearedCol = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $clearedCol  = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
             $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
-            $walletBefore = $wallet ? $wallet->{$clearedCol} : 0;
+            $walletBefore = $wallet ? (float) $wallet->{$clearedCol} : 0;
 
-            if (! $wallet || $walletBefore < $request->amount) {
+            if (!$wallet || $walletBefore < $request->amount) {
                 return response()->json(['message' => 'Insufficient cleared funds'], 400);
             }
 
             Log::info('Wallet Withdrawal Initiated', [
-                'user_id' => $user->id,
-                'amount' => $request->amount,
-                'currency' => $currency,
+                'user_id'       => $user->id,
+                'amount'        => $request->amount,
+                'currency'      => $currency,
                 'wallet_before' => $walletBefore,
-                'mode' => $models->mode
+                'mode'          => $models->mode,
             ]);
 
             $wallet->decrement($clearedCol, $request->amount);
-            $wallet->decrement('balance', $request->amount);
-            $wallet->fresh(); 
-            
-            $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
             $wallet->refresh();
+            $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
+            $wallet->save();
 
             $models->transaction->create([
-                'user_id' => $user->id,
-                'type' => 'withdrawal',
-                'amount' => $request->amount,
-                'currency' => $currency,
-                'status' => 'completed',
-                'charge' => 0,
+                'user_id'    => $user->id,
+                'type'       => 'withdrawal',
+                'amount'     => $request->amount,
+                'currency'   => $currency,
+                'status'     => 'completed',
+                'charge'     => 0,
                 'net_amount' => $request->amount,
-                'meta' => [
+                'meta'       => [
                     'note' => 'User initiated withdrawal',
                     'mode' => $models->mode,
                 ],
             ]);
 
             Log::info('Wallet Withdrawal Completed', [
-                'user_id' => $user->id,
+                'user_id'            => $user->id,
                 'wallet_after_cleared' => $wallet->{$clearedCol},
-                'wallet_after_total' => $wallet->balance
+                'wallet_after_total'  => $wallet->balance,
             ]);
 
             // PCI-DSS: Audit log for all payment operations
             \App\Services\Compliance\PciPsd2Compliance::logPaymentOperation($user, 'withdrawal', [
-                'amount' => $request->amount,
+                'amount'   => $request->amount,
                 'currency' => $currency,
             ]);
 
@@ -201,9 +199,9 @@ class WalletController extends Controller
 
             $wallet->increment($clearedCol, $request->amount);
             $wallet->increment('balance', $request->amount);
-            $wallet->refresh(); // Refresh to get the latest values after increment
-            $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
             $wallet->refresh();
+            $wallet->balance = $wallet->{$clearedCol} + ($wallet->{$currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared'} ?? 0) + $wallet->locked;
+            $wallet->save();
 
             $models->transaction->create([
                 'user_id' => $user->id,
@@ -361,19 +359,21 @@ class WalletController extends Controller
         }
     }
 
-    private function getTotalBalance($user, $currency)
+    private function getTotalBalance($user, string $currency): float
     {
-        $models = $this->resolveModels($user);
+        $models = $this->resolveModels();
 
-        $w = $models->wallet->where('currency', $currency)->first();
+        $w = $models->wallet->where('user_id', $user->id)->where('currency', $currency)->first();
 
         if ($currency === 'NGN') {
             return (float) (($w?->ngn_cleared ?? 0) + ($w?->ngn_uncleared ?? 0));
-        } elseif ($currency === 'USD') {
+        }
+
+        if ($currency === 'USD') {
             return (float) (($w?->usd_cleared ?? 0) + ($w?->usd_uncleared ?? 0));
         }
 
-        return 0;
+        return 0.0;
     }
 
     public function recentTransactions(Request $request)
@@ -406,8 +406,13 @@ class WalletController extends Controller
 
     public function preview(Request $request)
     {
-        $amount = $request->query('amount', 0);
-        $from = $request->query('from', 'NGN');
+        $request->validate([
+            'amount' => 'required|numeric|min:0',
+            'from'   => 'sometimes|in:NGN,USD',
+        ]);
+
+        $amount = (float) $request->query('amount', 0);
+        $from   = strtoupper($request->query('from', 'NGN'));
 
         $fxRate = FxRate::where('from_currency', 'NGN')
             ->where('to_currency', 'USD')
@@ -417,7 +422,11 @@ class WalletController extends Controller
             return response()->json(['error' => 'FX rate not available'], 400);
         }
 
-        $rate = $fxRate->effective_rate; // e.g. 1500
+        $rate = $fxRate->effective_rate;
+
+        if ($rate <= 0) {
+            return response()->json(['error' => 'FX rate is invalid'], 400);
+        }
 
         if ($from === 'NGN') {
             $preview = $amount / $rate;

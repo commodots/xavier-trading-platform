@@ -8,7 +8,6 @@ use App\Models\Wallet;
 use App\Models\Portfolio;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class SettlementService
@@ -86,11 +85,8 @@ class SettlementService
                 $wallet->decrement($unclearedCol, $toDeduct);
             }
 
-            // Also keep aggregate legacy balance parameters synced 
-            if (Schema::hasColumn('wallets', 'balance')) {
-                $wallet->decrement('balance', $totalValue);
-                $wallet->decrement('locked', $totalValue);
-            }
+            $wallet->decrement('balance', $totalValue);
+            $wallet->decrement('locked', $totalValue);
 
             // Move asset tokens out of holding status directly into clear balances
             $portfolio->decrement('uncleared_quantity', $trade->quantity);
@@ -120,7 +116,8 @@ class SettlementService
         //  Mark the trade records as officially settled
         $trade->update([
             'settlement_status' => 'settled',
-            'settlement_date' => Carbon::now()->toDateString(),
+            'is_settled'        => true,
+            'settlement_date'   => Carbon::now()->toDateString(),
         ]);
 
         // Update parent order state if all child trades have been cleared out

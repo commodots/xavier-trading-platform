@@ -69,22 +69,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
     ];
 
     protected $appends = [
-        'has_active_subscription',
-        'on_trial',
-        'trial_days_left',
-        'trial_expires_at',
-        'current_tier',
-        'has_used_regular',
-        'has_used_premium',
         'avatar',
         'kyc_verified',
-        'tier',
+        'verification_level',
     ];
 
-    //  Relationship: One User has one Wallet
-    public function wallet()
+    // hasMany — named wallets() to match Laravel convention
+    public function wallets()
     {
         return $this->hasMany(\App\Models\Wallet::class);
+    }
+
+    /** @deprecated Use wallets() */
+    public function wallet()
+    {
+        return $this->wallets();
     }
 
     /**
@@ -107,7 +106,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function getKycVerifiedAttribute(): bool
     {
-        return $this->kyc()->where('status', 'verified')->exists();
+        return $this->kyc()->whereIn('status', \App\Services\KycService::VERIFIED_STATUSES)->exists();
     }
 
     public function orders()
@@ -212,7 +211,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function fxWallet(string $currency)
     {
-        return $this->wallet()->firstOrCreate(
+        return $this->wallets()->firstOrCreate(
             ['currency' => $currency],
             ['ngn_cleared' => 0, 'ngn_uncleared' => 0, 'usd_cleared' => 0, 'usd_uncleared' => 0]
         );
@@ -299,20 +298,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public function getCurrentTierAttribute(): ?string
     {
-        if (! isset($this->_currentTier)) {
-        $activeSubs = $this->subscriptions()
-            ->where('expires_at', '>', now())
-            ->whereIn('status', ['active', 'trial'])
-            ->with('plan')
-            ->get();
+        if (!isset($this->_currentTier)) {
+            $activeSubs = $this->subscriptions()
+                ->where('expires_at', '>', now())
+                ->whereIn('status', ['active', 'trial'])
+                ->with('plan')
+                ->get();
 
-            if ($activeSubs->isEmpty()){
-                $this->_currentTier = null;
-            } else {
-                // If ANY active subscription is Premium, the user resolves to Premium.
-                $this->_currentTier = $activeSubs->contains(fn ($s) => $s->plan?->tier === 'premium') ? 'premium' : 'regular';
-            }
+            $this->_currentTier = $activeSubs->isEmpty()
+                ? null
+                : ($activeSubs->contains(fn ($s) => $s->plan?->tier === 'premium') ? 'premium' : 'regular');
         }
+
         return $this->_currentTier;
     }
 
@@ -352,12 +349,22 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     public function getTierAttribute(): string
-{
-    return $this->current_tier ?? 'free';
-}
+    {
+        return $this->current_tier ?? 'free';
+    }
 
     public function isPremium(): bool
     {
         return $this->getCurrentTierAttribute() === 'premium';
+    }
+
+    public function getVerificationLevelAttribute(): string
+    {
+        return $this->kyc?->level ?? 'none';
+    }
+
+    public function getKycTierAttribute(): int
+    {
+        return $this->kyc?->tier ?? 0;
     }
 }

@@ -14,6 +14,28 @@
         @actionClicked="$router.push({ name: 'wallet' })"
       />
 
+      <div 
+      v-if="(user.verification_level ==='none' || user.kyc.tier < 3)"
+      class="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-950/20 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn"
+    >
+      <div class="flex items-center gap-3">
+        <span class="text-2xl text-amber-400">⚠️</span>
+        <div>
+          <h4 class="font-bold text-amber-400">Complete Your KYC Verification</h4>
+          <p class="text-xs text-amber-200/70">
+            Current Tier: {{ user.kyc.tier ?? 0 }}/3. 
+            {{ getLevelMessage(user.verification_level ?? 0) }}
+          </p>
+        </div>
+      </div>
+      <button 
+        @click="showKycModal = true" 
+        class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white uppercase font-bold text-sm rounded-lg transition whitespace-nowrap shadow-lg shadow-amber-500/10"
+      >
+        Verify Identity
+      </button>
+    </div>
+
       
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -216,22 +238,32 @@
 
       <TransactionDetailsModal :show="showDetailsModal" :txn="selectedTransaction" @close="showDetailsModal = false" />
     </div>
+
+    <div 
+      v-if="showKycModal" 
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fadeIn"
+    >
+      <VerifyIdentity 
+        @close="showKycModal = false" 
+        @verified="syncUserProfile" 
+      />
+    </div>
+    
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from "vue";
+import { ref, onMounted, computed, onUnmounted, watch } from "vue";
 import api from "@/api";
 import { formatCurrency } from '@/lib/formatters';
-import VueApexCharts from "vue3-apexcharts";
+import apexchart from "vue3-apexcharts"; 
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
+import VerifyIdentity from "@/Pages/Kyc/VerifyIdentity.vue";
 import DashboardBillingBanner from "@/Components/DashboardBillingBanner.vue";
 import SkeletonLoader from "@/Components/SkeletonLoader.vue";
-
-const apexchart = VueApexCharts;
 
 // state
 const loading = ref(true);
@@ -243,6 +275,7 @@ const showTradeModal = ref(false);
 const selectedTransaction = ref(null);
 const showDetailsModal = ref(false);
 const showPrompt = ref(false);
+const showKycModal = ref(false);
 const showWatchlistMenu = ref(false);
 
 const getUser = () => JSON.parse(localStorage.getItem('user') || '{}'); 
@@ -250,6 +283,15 @@ const user = ref(getUser());
 const isDemo = ref(user.value.trading_mode === 'demo');
 
 const userName = computed(() => user.value.name || 'User');
+
+const getLevelMessage = (level) => {
+  switch (level) {
+    case 0: return "Verify your email address to unlock market access.";
+    case 1: return "Add your BVN and NIN to start trading.";
+    case 2: return "Perform biometric face verification to enable withdrawals.";
+    default: return "Complete your identity profile to unlock all features.";
+  }
+};
 
 // Menu toggle method logic
 const toggleWatchlistMenu = () => {
@@ -281,9 +323,10 @@ const isAdminUser = (u) => {
 const syncUserProfile = async () => {
   try {
     const res = await api.get('/profile/me');
+   
     const updatedUser = res.data?.data || res.data;
     if (updatedUser) {
-      user.value = updatedUser;
+      user.value = { ...updatedUser }; 
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
   } catch (err) {
@@ -458,7 +501,6 @@ async function fetchDashboard() {
   }
 }
 
-
 const vClickOutside = {
   mounted(el, binding) {
     el.clickOutsideEvent = (event) => {
@@ -477,6 +519,10 @@ onMounted(async () => {
   syncModeWithStorage(); 
   await syncUserProfile();
   await fetchDashboard();
+
+  if (!isUserVerified.value && !isDemo.value) {
+    showPrompt.value = true;
+  }
 
   window.addEventListener('trading-mode-switching', handleModeSwitching);
   window.addEventListener('trading-mode-changed', fetchDashboard);

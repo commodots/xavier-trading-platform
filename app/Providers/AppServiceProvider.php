@@ -18,8 +18,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->singleton(\App\Services\BvnService::class);
-
         if ($this->app->environment('local', 'testing')) {
             $this->app->bind(StockBroker::class, function () {
                 return new MockDriveWealthService;

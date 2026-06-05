@@ -7,42 +7,47 @@ use App\Models\FxRate;
 
 class FxEngine
 {
-    public function calculateEffectiveRate($baseRate)
+    public function calculateEffectiveRate(float $baseRate): array
     {
+        if ($baseRate <= 0) {
+            throw new \InvalidArgumentException('Base rate must be positive.');
+        }
+
         $config = FxConfig::first();
 
         $volatility = $this->getVolatility();
 
-        $dynamicMarkup = $config->target_margin_percent ?? 2;
+        $dynamicMarkup = (float) ($config?->target_margin_percent ?? 2);
+        $minMarkup     = (float) ($config?->min_markup ?? 1);
+        $maxMarkup     = (float) ($config?->max_markup ?? 5);
 
-        if ($volatility > ($config->volatility_threshold ?? 3)) {
+        if ($volatility > (float) ($config?->volatility_threshold ?? 3)) {
             $dynamicMarkup += 1;
         }
 
-        if ($dynamicMarkup > ($config->max_markup ?? 5)) {
-            $dynamicMarkup = $config->max_markup;
-        }
+        $dynamicMarkup = max($minMarkup, min($dynamicMarkup, $maxMarkup));
 
-        if ($dynamicMarkup < ($config->min_markup ?? 1)) {
-            $dynamicMarkup = $config->min_markup;
-        }
-
-        $effectiveRate = $baseRate + ($baseRate * ($dynamicMarkup / 100));
+        $effectiveRate = $baseRate * (1 + $dynamicMarkup / 100);
 
         return [
             'effective_rate' => $effectiveRate,
-            'markup_used' => $dynamicMarkup,
+            'markup_used'    => $dynamicMarkup,
         ];
     }
 
-    private function getVolatility()
+    private function getVolatility(): float
     {
         $rates = FxRate::latest()->take(5)->pluck('base_rate');
 
         if ($rates->count() < 2) {
-            return 0;
+            return 0.0;
         }
 
-        return abs(($rates->max() - $rates->min()) / $rates->min() * 100);
+        $min = (float) $rates->min();
+        if ($min <= 0) {
+            return 0.0;
+        }
+
+        return abs(($rates->max() - $min) / $min * 100);
     }
 }

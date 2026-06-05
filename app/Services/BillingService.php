@@ -4,73 +4,26 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\BillingRecord;
-use App\Notifications\AccountSuspendedNotification;
-use App\Notifications\BillingAlertNotification;
-use App\Notifications\FeeChargedNotification;
+use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\DB;
 
 class BillingService
 {
+    /**
+     * Charge the quarterly platform fee.
+     * Delegates to SubscriptionService — single source of truth for fee logic.
+     */
     public function chargePlatformFee(User $user): void
     {
-        $fee = 1000;
-
-        DB::transaction(function () use ($user, $fee) {
-            if ($user->wallet_balance >= $fee) {
-                $user->wallet_balance -= $fee;
-
-                BillingRecord::create([
-                    'user_id' => $user->id,
-                    'amount'  => $fee,
-                    'type'    => 'subscription_fee',
-                    'status'  => 'paid',
-                ]);
-
-                $user->notify(new FeeChargedNotification($fee, now()->addDays(90)->toFormattedDateString()));
-            } else {
-                $shortfall = $fee - $user->wallet_balance;
-                $user->wallet_debt += $shortfall;
-                $user->wallet_balance = 0;
-
-                BillingRecord::create([
-                    'user_id' => $user->id,
-                    'amount'  => $fee,
-                    'type'    => 'subscription_fee',
-                    'status'  => 'pending',
-                ]);
-
-                // Notify user of debt creation
-                $user->notify(new BillingAlertNotification($shortfall, 'Insufficient wallet balance'));
-            }
-
-            $user->subscription_status = 'active';
-            $user->last_fee_charged_at = now();
-            $user->next_fee_due_at     = now()->addDays(90);
-
-            if ($user->wallet_debt > 5000) {
-                $user->subscription_status = 'suspended';
-                $user->notify(new AccountSuspendedNotification('Debt limit exceeded — outstanding balance ₦' . number_format($user->wallet_debt, 2)));
-            }
-
-            $user->save();
-        });
+        app(SubscriptionService::class)->chargePlatformFee($user);
     }
 
     /**
      * Clear debt when user tops up wallet.
+     * Delegates to SubscriptionService for consistent debt reconciliation.
      */
-    public function clearDebt(User $user, float $topUpAmount): void
+    public function clearDebt(User $user, float $topUpAmount): float
     {
-        if ($user->wallet_debt <= 0) return;
-
-        $deduct = min($topUpAmount, $user->wallet_debt);
-        $user->wallet_debt    -= $deduct;
-        $user->wallet_balance += ($topUpAmount - $deduct);
-
-        if ($user->wallet_debt <= 0 && $user->subscription_status === 'suspended') {
-            $user->subscription_status = 'active';
-        }
-
-        $user->save();
+        return app(SubscriptionService::class)->reconcileDebt($user, $topUpAmount);
     }
 }

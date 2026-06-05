@@ -24,6 +24,11 @@ class AuthController extends Controller
     // Login
     public function login(Request $request)
     {
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
+        ]);
+
         $credentials = $request->only('email', 'password');
 
         if (!Auth::attempt($credentials)) {
@@ -32,9 +37,9 @@ class AuthController extends Controller
                 $attemptedUser = User::where('email', $request->email)->first();
 
                 ActivityLog::create([
-                    'user_id'    => $attemptedUser ? $attemptedUser->id : null,
+                    'user_id'    => $attemptedUser?->id,
                     'activity'   => 'Failed Login',
-                    'details'    => "Failed login attempt for email: {$request->email} from " . $request->userAgent(),
+                    'details'    => 'Failed login attempt for email: ' . $request->email,
                     'ip_address' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ]);
@@ -67,15 +72,14 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
         }
 
-        // 1. Check for 2FA requirement
+        // Check for 2FA requirement
         if ($user->google2fa_enabled) {
 
             Auth::logout();
-
             return response()->json([
-                'success' => true,
+                'success'      => true,
                 'requires_2fa' => true,
-                'email' => $user->email
+                'email'        => $user->email,
             ]);
         }
 
@@ -122,22 +126,21 @@ class AuthController extends Controller
 
         if ($user) {
         // 2. Log the activity BEFORE deleting the token
-        try {
-            ActivityLog::create([
-                'user_id'    => $user->id,
-                'activity'   => 'Logout',
-                'details'    => "User ended session successfully.",
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-        } catch (\Throwable $e) {
-            
-        }
+            try {
+                ActivityLog::create([
+                    'user_id'    => $user->id,
+                    'activity'   => 'Logout',
+                    'details'    => 'User ended session successfully.',
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            } catch (\Throwable $e) {
+            }
 
-        if ($user->currentAccessToken()) {
-            $user->currentAccessToken()->delete();
+            if ($user->currentAccessToken()) {
+                $user->currentAccessToken()->delete();
+            }
         }
-    }
 
         return response()->json(['success' => true, 'message' => 'Logged out']);
     }

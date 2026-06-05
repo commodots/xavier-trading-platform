@@ -12,6 +12,22 @@ use Illuminate\Support\Str;
 class KycService
 {
     /**
+     * Canonical verified statuses. Use this everywhere instead of
+     * ad-hoc in_array checks to prevent status string scatter.
+     */
+    public const VERIFIED_STATUSES = ['verified', 'approved'];
+
+    /**
+     * Check if status matches canonical verified formats
+     * * @param string|null $status
+     * @return bool
+     */
+    public static function isVerified(?string $status): bool
+    {
+        return in_array($status, self::VERIFIED_STATUSES, true);
+    }
+
+    /**
      * Mask PII (Personally Identifiable Information) for safe display
      * Shows only last 4 digits, masks the rest with asterisks
      *
@@ -49,7 +65,7 @@ class KycService
         // Mask sensitive fields
         $data['bvn'] = self::maskPii($kyc->bvn);
         $data['nin'] = self::maskPii($kyc->nin);
-        $data['tin'] = self::maskPii($kyc->tin);
+        $data['tin'] = self::maskPii($kyc->tin ?? null);
         
         return $data;
     }
@@ -59,7 +75,7 @@ class KycService
      * This should only be called in controllers where authentication is verified
      *
      * @param KycProfile|null $kyc
-     * @return array Full KYC data with decrypted values
+     * @return array Full KYC data
      */
     public static function getFullKycData(?KycProfile $kyc): array
     {
@@ -82,14 +98,14 @@ class KycService
     }
 
     /**
-     * Determine KYC tier based on verification level
+     * Determine KYC tier based on verification level attributes
      *
      * @param KycProfile $kyc
-     * @return int Tier level (1, 2, or 3)
+     * @return int Tier level (0, 1, 2, or 3)
      */
     public static function determineTier(KycProfile $kyc): int
     {
-        if (!$kyc->isVerified()) {
+        if (!self::isVerified($kyc->status)) {
             return 0;
         }
 
@@ -110,7 +126,7 @@ class KycService
             return 1;
         }
 
-        return (int) $kyc->tier;
+        return (int) ($kyc->tier ?? 0);
     }
 
     /**
@@ -127,6 +143,7 @@ class KycService
                 'verified' => false,
                 'status' => 'not_started',
                 'tier' => 0,
+                'level' => 'none',
                 'daily_limit' => 0,
                 'bvn' => 'Not Available',
                 'nin' => 'Not Available',
@@ -139,7 +156,7 @@ class KycService
         return [
             'id' => $kyc->id,
             'status' => $kyc->status,
-            'verified' => in_array($kyc->status, ['approved', 'verified']),
+            'verified' => self::isVerified($kyc->status),
             'tier' => $tier,
             'level' => $kyc->level ?? 'none',
             'daily_limit' => $setting?->daily_limit ?? 0,
@@ -150,51 +167,6 @@ class KycService
             'created_at' => $kyc->created_at,
             'updated_at' => $kyc->updated_at,
         ];
-    }
-
-    /**
-     * Extract QoreID webhook data and map to KYC fields
-     * QoreID returns verification data that needs to be mapped to our schema
-     *
-     * @param array $webhookData
-     * @return array Mapped data for KycProfile update
-     */
-    public static function extractQoreidData(array $webhookData): array
-    {
-        $mapped = [];
-
-        // Map common QoreID response fields
-        if (isset($webhookData['identity']['document']['type'])) {
-            $mapped['id_type'] = $webhookData['identity']['document']['type'];
-        }
-
-        if (isset($webhookData['identity']['document']['number'])) {
-            $mapped['id_number'] = $webhookData['identity']['document']['number'];
-        }
-
-        // Extract BVN if present
-        if (isset($webhookData['identity']['bvn'])) {
-            $mapped['bvn'] = $webhookData['identity']['bvn'];
-        }
-
-        // Extract NIN if present
-        if (isset($webhookData['identity']['nin'])) {
-            $mapped['nin'] = $webhookData['identity']['nin'];
-        }
-
-        // Extract personal info
-        if (isset($webhookData['identity']['first_name'])) {
-            $mapped['first_name'] = $webhookData['identity']['first_name'];
-        }
-
-        if (isset($webhookData['identity']['last_name'])) {
-            $mapped['last_name'] = $webhookData['identity']['last_name'];
-        }
-
-        // Store the raw webhook response in meta for audit trail
-        $mapped['meta'] = $webhookData;
-
-        return $mapped;
     }
 
     /**

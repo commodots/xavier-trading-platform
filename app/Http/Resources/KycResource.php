@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Services\KycService;
 
 class KycResource extends JsonResource
 {
@@ -23,14 +24,15 @@ class KycResource extends JsonResource
             'email' => $this->email,
             'photo' => $this->photo,
 
-            'bvn' => $this->bvn ? '******' . substr($this->bvn, -4) : null,
-            'nin' => $this->nin ? '******' . substr($this->nin, -4) : null,
+            
+            'bvn' => $this->bvn ? KycService::maskPii($this->bvn) : null,
+            'nin' => $this->nin ? KycService::maskPii($this->nin) : null,
 
             'address' => $this->address,
-            'status' => $this->status, // pending, verified, rejected
-            'level' => $this->level,   // none, basic, standard, full
-            'tier' => $this->tier,     // 0, 1, 2
-            'daily_limit' => $this->daily_limit,
+            'status' => $this->status ?? 'pending', 
+            'level' => $this->level ?? 'none',   
+            'tier' => (int) ($this->tier ?? 0),     
+            'daily_limit' => $this->daily_limit ?? 500000,
             'rejection_reason' => $this->rejection_reason,
             'created_at' => $this->created_at,
         ];

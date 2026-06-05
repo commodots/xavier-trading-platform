@@ -176,6 +176,10 @@
               currencySymbol="$"
               @trade="openTrade" 
             />
+
+            <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
+              <MarketList />
+            </div>
           </div>
 
           <!-- Switch View 2: Portfolio Performance & Holdings Table -->
@@ -357,11 +361,71 @@
           </div>
 
           <!-- Switch View 3: History -->
-          <div v-else-if="activeChart === 'history'">
-            <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-10 text-center text-gray-500">
-              Transaction and trade history for global stocks will appear here.
+          <div v-else-if="activeChart === 'history'" class="space-y-6">
+            <div class="p-5 border border-[#1f3348] rounded-xl bg-[#0F1724]">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Global Stocks Activity History</h2>
+                <span class="text-sm text-gray-400">{{ historyRecords.length }} Records</span>
+              </div>
+
+              <!-- Empty State -->
+              <div v-if="historyRecords.length === 0" class="py-12 text-center text-gray-500">
+                <p class="text-sm">No transaction or trade history for global stocks yet.</p>
+                <p class="text-xs mt-2 text-gray-600">Your activity will appear here once you start trading.</p>
+              </div>
+
+              <!-- History Table -->
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="text-gray-400 text-xs border-b border-[#1f3348]">
+                    <tr>
+                      <th class="px-4 py-3 text-left">Date</th>
+                      <th class="px-4 text-left">Type</th>
+                      <th class="px-4 text-left">Asset</th>
+                      <th class="px-4 text-center">Quantity</th>
+                      <th class="px-4 text-right">Amount</th>
+                      <th class="px-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr 
+                      v-for="record in historyRecords" 
+                      :key="record.id"
+                      class="border-b border-[#1f3348] hover:bg-[#16213A] transition"
+                    >
+                      <td class="px-4 py-3 text-gray-300 whitespace-nowrap">{{ formatDate(record.created_at) }}</td>
+                      <td class="px-4 capitalize">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400">
+                          {{ record.type }}
+                        </span>
+                      </td>
+                      <td class="px-4">
+                        <div class="font-semibold text-white uppercase">{{ record.symbol }}</div>
+                        <div class="text-[11px] text-gray-500 truncate max-w-[120px]">{{ record.name }}</div>
+                      </td>
+                      <td class="px-4 text-center text-gray-300">{{ record.quantity }}</td>
+                      <td class="px-4 text-right font-medium text-white">{{ formatCurrency(record.amount) }}</td>
+                      <td class="px-4 text-center">
+                        <span 
+                          :class="[
+                            'px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap',
+                            record.status?.toLowerCase() === 'completed' || record.status?.toLowerCase() === 'success'
+                              ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                              : record.status?.toLowerCase() === 'pending' || record.status?.toLowerCase() === 'processing'
+                              ? 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/20'
+                              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          ]"
+                        >
+                          {{ record.status }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -419,6 +483,7 @@ import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
 import MarketInsights from '@/Components/Markets/MarketInsights.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
+import MarketList from '@/Pages/Market/MarketList.vue';
 
 // State
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -446,7 +511,7 @@ const totalValue = ref(0);
 const changePercent = ref(0);
 
 // Chart Toggle & Navigation States
-const activeChart = ref('holdings'); // 'holdings', 'market', 'insights'
+const activeChart = ref('holdings'); // 'holdings', 'insights', 'history'
 const selectedMarketSymbol = ref('AAPL');
 const isInsightsLoading = ref(false);
 const isGraphLoading = ref(false);
@@ -479,6 +544,8 @@ const stocks = ref([
 
 const holdings = ref([]);
 const holdingsLoading = ref(false);
+const historyRecords = ref([]);
+const historyLoading = ref(false);
 
 // Computed Layout Bounds
 const showSearchResults = computed(() => search.value.trim().length >= 2);
@@ -493,6 +560,12 @@ const isAdminUser = (u) => {
 const isUserVerified = computed(() => {
   const u = user.value || {};
   return Boolean(u.email_verified_at) || isAdminUser(u);
+});
+
+const canTrade = computed(() => {
+  if (isDemo.value) return true;
+  const level = user.value.verification_level || 0;
+  return level >= 2;
 });
 
 const userHoldings = computed(() => {
@@ -684,7 +757,7 @@ const orderSuccessData = ref(null);
 const showOrderSuccessModal = ref(false);
 
 const openTrade = (stock) => {
-  if (!isUserVerified.value && !isDemo.value) {
+  if (!canTrade.value) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -722,6 +795,60 @@ const fetchWalletBalances = async () => {
     walletBalances.value = response.data.data;
   } catch (error) {
     console.error('Failed to fetch wallet balances', error);
+  }
+};
+
+const fetchHistoryRecords = async () => {
+  historyLoading.value = true;
+  try {
+    const [ordersRes, transactionsRes] = await Promise.allSettled([
+      api.get('/trade/positions', { params: { category: 'GLOBAL', include_completed: true } }),
+      api.get('/transactions')
+    ]);
+
+    let records = [];
+
+    // Process completed orders
+    if (ordersRes.status === 'fulfilled') {
+      const orders = (ordersRes.value.data.data || []).filter(o => ['completed', 'filled', 'canceled'].includes(o.status?.toLowerCase()));
+      records = records.concat(orders.map(o => ({
+        id: o.id,
+        type: o.order_type === 'buy' ? 'Buy' : 'Sell',
+        symbol: o.symbol,
+        name: o.company || o.symbol,
+        quantity: o.units || o.quantity,
+        amount: o.total_amount || (o.units * o.unit_price),
+        status: o.status,
+        created_at: o.created_at
+      })));
+    }
+
+    // Process global stock transactions
+    if (transactionsRes.status === 'fulfilled') {
+      const transactions = (transactionsRes.value.data.data || []).filter(t => 
+        ['buy', 'sell'].includes(t.type?.toLowerCase())
+      );
+      records = records.concat(transactions.map(t => ({
+        id: t.id,
+        type: t.type,
+        symbol: t.asset_symbol || 'N/A',
+        name: t.asset_name || 'N/A',
+        quantity: t.quantity || t.units,
+        amount: t.amount,
+        status: t.status,
+        created_at: t.created_at || t.date
+      })));
+    }
+
+    // Sort by date descending
+    historyRecords.value = records.sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    );
+  } catch (error) {
+    console.error('Failed to fetch history records', error);
+    historyRecords.value = [];
+  } finally {
+    historyLoading.value = false;
   }
 };
 
@@ -812,7 +939,8 @@ const initDashboard = async () => {
       fetchHoldings(),
       fetchWalletBalances(),
       fetchPortfolioPerformance(),
-      fetchMarketInsights()
+      fetchMarketInsights(),
+      fetchHistoryRecords()
     ]);
   } catch (e) {
     console.error('Dashboard init failed', e);
@@ -882,6 +1010,29 @@ onMounted(() => {
     fetchHoldingsQuotes(true);
   }, 30000);
 });
+
+// Helper Functions for History Tab
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (date.toDateString() === today.toDateString()) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+  }
+};
+
+const formatCurrency = (amount, currency = 'USD') => {
+  const symbol = currency === 'USD' ? '$' : '₦';
+  const num = Number(amount) || 0;
+  return `${symbol}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 onUnmounted(() => {
   window.Echo.leave('market-channel');

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdvisoryPost;
-use Illuminate\Http\Request;
 use App\Models\SubscriptionPlan;
+use Illuminate\Http\Request;
 
 class AdvisoryController extends Controller
 {
@@ -17,6 +17,15 @@ class AdvisoryController extends Controller
         $tier = $request->query('tier');
 
         $query = AdvisoryPost::query();
+
+        if ($request->filled('market_type')) {
+            $query->where('market_type', $request->query('market_type'));
+        }
+
+        if ($request->filled('asset_symbol')) {
+            $query->where('asset_symbol', strtoupper($request->query('asset_symbol')));
+        }
+
         if ($tier) {
             $query->where('tier', $tier);
         }
@@ -24,7 +33,7 @@ class AdvisoryController extends Controller
         // Apply our strict model level visibility boundary
         $query->accessibleBy($user);
 
-        $posts = $query->latest()->paginate(10);
+        $posts = $query->latest()->paginate(10, ['id', 'title', 'content', 'asset_symbol', 'recommendation', 'tier', 'market_type', 'created_at']);
 
         return response()->json(['success' => true, 'data' => $posts]);
     }
@@ -47,7 +56,7 @@ class AdvisoryController extends Controller
     public function premiumPosts(Request $request)
     {
         $user = $request->user();
-        
+
         $posts = AdvisoryPost::where('tier', 'premium')
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -65,19 +74,19 @@ class AdvisoryController extends Controller
         $user = $request->user();
 
         if (in_array($user->subscription_status, ['suspended', 'inactive'])) {
-    return response()->json([
-        'success' => false, 
-        'message' => 'Cannot activate trials while your account status is suspended or inactive. Clear outstanding balances first.'
-    ], 403);
-}
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot activate trials while your account status is suspended or inactive. Clear outstanding balances first.',
+            ], 403);
+        }
 
         // Fetch all trial history (Active, Expired, or Cancelled)
         $trialHistory = $user->subscriptions()->with('plan')
             ->whereIn('status', ['trial', 'expired', 'cancelled'])
             ->get();
 
-        $hasUsedRegular = $trialHistory->contains(fn($s) => $s->plan?->tier === 'regular');
-        $hasUsedVip = $trialHistory->contains(fn($s) => $s->plan?->tier === 'premium');
+        $hasUsedRegular = $trialHistory->contains(fn ($s) => $s->plan?->tier === 'regular');
+        $hasUsedVip = $trialHistory->contains(fn ($s) => $s->plan?->tier === 'premium');
 
         // Hierarchy Gates
         if ($request->tier === 'regular') {
@@ -94,14 +103,14 @@ class AdvisoryController extends Controller
             // UPGRADE PATH: If currently on active 'regular' trial, gracefully expire it
             $user->subscriptions()
                 ->where('status', 'trial')
-                ->whereHas('plan', fn($q) => $q->where('tier', 'regular'))
+                ->whereHas('plan', fn ($q) => $q->where('tier', 'regular'))
                 ->update(['status' => 'expired']);
         }
 
         // Create the trial
         $plan = SubscriptionPlan::where('tier', $request->tier)->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return response()->json(['success' => false, 'message' => "Subscription plan not found for tier: {$request->tier}"], 404);
         }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use App\Jobs\ProcessKycVerification;
 use App\Models\KycProfile;
 use App\Models\ActivityLog;
 
@@ -13,7 +14,6 @@ class KycController extends Controller
 {
     /**
      * Update or create user KYC record
-     * Formats data to drop into an explicit pending state for QoreID handling
      */
     public function update(Request $request)
     {

@@ -47,7 +47,6 @@
       <!--MARKET-->
 <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
 		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
-      <SidebarLink to="/market-index" :icon="Store">Market</SidebarLink>
 
 
 		  <!-- ACCOUNT -->

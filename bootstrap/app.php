@@ -24,11 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // --- Middleware Aliases ---
         $middleware->alias([
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
-            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
-            'subscribed' => \App\Http\Middleware\CheckSubscription::class,
-            'advisory.access' => \App\Http\Middleware\CheckAdvisoryAccess::class,
+            'admin'                => \App\Http\Middleware\AdminMiddleware::class,
+            'verified'             => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'subscribed'           => \App\Http\Middleware\CheckSubscription::class,
+            'advisory.access'      => \App\Http\Middleware\CheckAdvisoryAccess::class,
             'rate-limit-sensitive' => \App\Http\Middleware\RateLimitSensitiveOperations::class,
+            'kyc'                  => \App\Http\Middleware\KycLevelMiddleware::class,
         ]);
 
         // --- API Middleware Stack ---

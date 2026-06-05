@@ -20,7 +20,6 @@ class DojahKycController extends Controller
     public function verifyBvn(Request $request): JsonResponse
     {
         $request->validate(['bvn' => 'required|digits:11']);
-
         $user = $request->user();
 
         if (KycVerification::where('user_id', $user->id)
@@ -31,6 +30,8 @@ class DojahKycController extends Controller
         }
 
         $result = $this->dojah->verifyBvn($request->bvn);
+        
+      
         $this->dojah->storeResult($user->id, 'bvn', $result);
 
         if (!($result['success'] ?? false)) {
@@ -50,7 +51,6 @@ class DojahKycController extends Controller
     public function verifyNin(Request $request): JsonResponse
     {
         $request->validate(['nin' => 'required|digits:11']);
-
         $user = $request->user();
 
         if (KycVerification::where('user_id', $user->id)
@@ -79,7 +79,8 @@ class DojahKycController extends Controller
     /** POST /api/kyc/selfie */
     public function verifySelfie(Request $request): JsonResponse
     {
-        $request->validate(['image' => 'required|string|min:100']);
+        
+        $request->validate(['profile_image' => 'required|string|min:10']);
 
         $user = $request->user();
 
@@ -90,13 +91,14 @@ class DojahKycController extends Controller
             ], 403);
         }
 
-        $image = $request->image;
+        $image = $request->profile_image;
+        
+        // If it's a Dojah reference token instead of base64, skip string transformations
         if (str_contains($image, 'base64,')) {
             $image = substr($image, strpos($image, 'base64,') + 7);
-        }
-
-        if (base64_decode($image, true) === false) {
-            return response()->json(['message' => 'Invalid image data.'], 422);
+            if (base64_decode($image, true) === false) {
+                return response()->json(['message' => 'Invalid image data.'], 422);
+            }
         }
 
         $result     = $this->dojah->checkLiveness($image);
@@ -132,7 +134,7 @@ class DojahKycController extends Controller
     {
         $user  = $request->user();
         $steps = KycVerification::where('user_id', $user->id)
-            ->get(['verification_type', 'status', 'updated_at'])
+            ->get(['verification_type', 'status'])
             ->keyBy('verification_type');
 
         $bvnDone    = ($steps['bvn']->status    ?? '') === 'approved';
@@ -168,18 +170,19 @@ class DojahKycController extends Controller
                 [$field => $value, 'status' => 'pending']
             );
 
-            // Check if both BVN and NIN are now approved → level 2
             $bvnApproved = KycVerification::where('user_id', $user->id)
                 ->where('verification_type', 'bvn')
-                ->where('status', 'approved')
-                ->exists();
+                ->where(function($query) {
+                    $query->where('status', 'approved')->orWhere('status', 'success');
+                })->exists();
 
             $ninApproved = KycVerification::where('user_id', $user->id)
                 ->where('verification_type', 'nin')
-                ->where('status', 'approved')
-                ->exists();
+                ->where(function($query) {
+                    $query->where('status', 'approved')->orWhere('status', 'success');
+                })->exists();
 
-            if ($bvnApproved && $ninApproved && $user->verification_level < 2) {
+            if ($bvnApproved && $ninApproved) {
                 $user->update(['verification_level' => 2]);
             } elseif ($user->verification_level < 1 && $user->hasVerifiedEmail()) {
                 // Ensure at least level 1 for email-verified users

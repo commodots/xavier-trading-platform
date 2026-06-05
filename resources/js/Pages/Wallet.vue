@@ -428,7 +428,7 @@ import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
 import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
-import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 const apexchart = VueApexCharts;
 
@@ -453,6 +453,16 @@ const isAdminUser = (u) => {
 const isUserVerified = computed(() => {
   const u = user.value || {};
   return Boolean(u.email_verified_at) || isAdminUser(u);
+});
+
+const canDeposit = computed(() => {
+  if (isDemo.value) return true;
+  return (user.value.verification_level || 0) >= 2;
+});
+
+const canWithdraw = computed(() => {
+  if (isDemo.value) return true;
+  return (user.value.verification_level || 0) >= 3;
 });
 
 const balances = ref({
@@ -555,7 +565,7 @@ const refreshData = async () => {
       api.get("/transactions?limit=10")
     ]);
 
-    const data = balRes.data.data
+    const data = balRes.data.data;
     balances.value = {
       balance_ngn: data.balance_ngn ?? 0,
       wallet_debt: data.wallet_debt ?? 0,
@@ -628,6 +638,23 @@ const openTransaction = async (type) => {
     showPrompt.value = true;
     return;
   }
+  if (!isDemo.value) {
+    const level = user.value.verification_level || 0;
+    if (type === 'deposit' && level < 2) {
+      showPrompt.value = true;
+      return;
+    }
+    if (type === 'withdrawal') {
+      if (level < 3) {
+        showPrompt.value = true;
+        return;
+      }
+      if (!user.value.two_factor_enabled && !user.value.google2fa_enabled) {
+        alert("Please enable Two-Factor Authentication (2FA) in your security settings to withdraw funds.");
+        return;
+      }
+    }
+  }
   txnType.value = type;
   form.value = { amount: 0, currency: 'NGN', withdrawal_otp: "" };
   selectedAccountId.value = "";
@@ -655,6 +682,10 @@ const sendWithdrawalOtp = async () => {
 
 const openConvertModal = () => {
   if (!isUserVerified.value && !isDemo.value) {
+    showPrompt.value = true;
+    return;
+  }
+  if (!isDemo.value && (user.value.verification_level || 0) < 2) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -710,8 +741,14 @@ const submitTransaction = async () => {
         withdrawal_otp: form.value.withdrawal_otp
       });
       const currencySymbol = form.value.currency === 'NGN' ? '₦' : '$';
-      message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited from ${form.value.currency} wallet.`; setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
-    } catch (e) { message.value = e.response?.data?.message || "Transaction failed"; } finally { loading.value = false; actionType.value = ""; }
+      message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited from ${form.value.currency} wallet.`; 
+      setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
+    } catch (e) { 
+      message.value = e.response?.data?.message || "Transaction failed"; 
+    } finally { 
+      loading.value = false; 
+      actionType.value = ""; 
+    }
   }
 };
 
@@ -769,7 +806,6 @@ const combinedOptions = {
   legend: { show: false }
 };
 
-// Check for payment result parameters on page load
 const checkPaymentResult = async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const paymentSuccess = urlParams.get('payment_success');
@@ -778,7 +814,6 @@ const checkPaymentResult = async () => {
 
   if (paymentSuccess && reference) {
     loading.value = true;
-
     try {
       // Verify only when auth token is present; this avoids a hard 401 failure on callback.
       const token = localStorage.getItem('xavier_token');
@@ -851,17 +886,12 @@ const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
 };
 
 async function openTransactionDetails(t) {
- 
-  const localTxn = typeof t === 'object' ? t : transactions.value.find(t => t.id === t);
-
+  const localTxn = typeof t === 'object' ? t : transactions.value.find(txn => txn.id === t);
   if (localTxn) {
     selectedTransaction.value = { ...localTxn };
     showDetailsModal.value = true;
-
-    
     try {
       const resp = await api.get(`/transactions/${localTxn.id}`);
-      
       selectedTransaction.value = resp.data.data;
     } catch (e) {
       console.error("Background detail fetch failed", e);

@@ -41,12 +41,17 @@ class ProcessKycVerification implements ShouldQueue
         $user = User::find($this->userId);
         if (!$user) return;
 
+        // Fetch existing profile to preserve already verified data
+        $existingProfile = KycProfile::where('user_id', $this->userId)->first();
+        $currentTier = $existingProfile?->tier ?? 0;
+        $idVerified = ($currentTier > 0);
+
         try {
             $dojah = app(DojahService::class);
             $livenessSuccess = false;
 
             // Process Liveness verification if it's base64 data
-            if (str_starts_with($this->profileImageRaw, 'data:image')) {
+            if (!empty($this->profileImageRaw) && str_starts_with($this->profileImageRaw, 'data:image')) {
                 $base64Image = substr($this->profileImageRaw, strpos($this->profileImageRaw, ',') + 1);
                 $livenessResult = $dojah->checkLiveness($base64Image);
                 $confidence = $livenessResult['entity']['confidence'] ?? 0;
@@ -55,9 +60,12 @@ class ProcessKycVerification implements ShouldQueue
                     $livenessSuccess = true;
                     $dojah->storeResult($user->id, 'selfie', $livenessResult);
                 }
-            } else {
+            } elseif (!empty($this->profileImageRaw)) {
                 // If it is an authorized referenceId token generated from sandbox/widget session
                 $livenessSuccess = true; 
+            } else {
+                // No image provided at all
+                $livenessSuccess = false;
             }
 
             if (!$livenessSuccess) {
@@ -66,9 +74,9 @@ class ProcessKycVerification implements ShouldQueue
             }
 
             // Validate Identity Document Records
-            $tier = 1; 
-            $idVerified = false;
+            $tier = $currentTier ?: 1; 
 
+            // Only verify if new data is provided, otherwise trust existing state
             if (!empty($this->bvn)) {
                 $bvnResult = $dojah->verifyBvn($this->bvn);
                 $dojah->storeResult($user->id, 'bvn', $bvnResult);
@@ -82,29 +90,40 @@ class ProcessKycVerification implements ShouldQueue
                 $dojah->storeResult($user->id, 'nin', $ninResult);
                 if ($ninResult['success'] ?? false) {
                     $idVerified = true;
-                    // If both clear, bump tracking up to Tier 2
-                    if (!empty($this->bvn) && $tier === 1) {
+                    $hasBvn = !empty($this->bvn) || !empty($existingProfile?->bvn);
+                    if ($hasBvn && $tier === 1) {
                         $tier = 2;
                     }
                 }
             }
 
+            // If they tried to verify something but everything failed
             if (!$idVerified && (!empty($this->bvn) || !empty($this->nin))) {
                 $this->updateKycStatus($user, 'rejected', 'Provided identity verification checks rejected.', 0);
                 return;
             }
 
-            $this->updateKycStatus($user, 'verified', null, $tier);
+            // If no data was provided to evaluate, drop to none
+            if (!$idVerified && empty($this->bvn) && empty($this->nin)) {
+                $this->updateKycStatus($user, 'pending', 'No identity documents provided.', 0);
+                return;
+            }
+
+            $this->updateKycStatus($user, 'verified', null, max($tier, $currentTier));
 
         } catch (Exception $e) {
             Log::error("ProcessKycVerification failed for user {$this->userId}: " . $e->getMessage());
-            $this->updateKycStatus($user, 'pending', 'Verification engine exception. Admin review required.');
+            $this->updateKycStatus($user, 'pending', 'Verification failed. Admin review required.', $currentTier);
         }
     }
 
-    protected function updateKycStatus(User $user, string $status, ?string $reason, int $tier): void
+    // Swapped parameter positions so $reason can be safely null or omitted without shifting $tier
+    protected function updateKycStatus(User $user, string $status, ?string $reason = null, int $tier = 0): void
     {
-        $user->update(['kyc_status' => $status]);
+        $user->update([
+            'kyc_status' => $status,
+            'verification_level' => $tier
+        ]);
 
         $level = match($tier) {
             1 => 'basic',

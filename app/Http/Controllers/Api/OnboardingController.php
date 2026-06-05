@@ -32,7 +32,7 @@ class OnboardingController extends Controller
             'dob' => 'nullable|date',
             'bvn' => 'nullable|string|digits:11',
             'nin' => 'nullable|string|digits:11',
-            'profile_image' => 'required|string', // referenceId or base64 string from Dojah widget
+            'profile_image' => 'nullable|string', // Changed from required to nullable
         ]);
 
         // Break name down into parts helper
@@ -62,22 +62,27 @@ class OnboardingController extends Controller
                 'kyc_status' => 'pending',
             ]);
 
-            // Step 2: Handle saving profile image string/metadata
-            $savedImagePath = 'avatars/' . uniqid() . '.txt';
-            if (str_starts_with($validated['profile_image'], 'data:image')) {
-                if (preg_match('/^data:image\/(\w+);base64,/', $validated['profile_image'], $matches)) {
-                    $imageType = in_array($matches[1], ['jpeg', 'jpg', 'png', 'webp']) ? $matches[1] : 'jpg';
-                    $imageData = base64_decode(substr($validated['profile_image'], strpos($validated['profile_image'], ',') + 1), true);
-                    if ($imageData !== false) {
-                        $savedImagePath = 'avatars/' . uniqid() . '.' . $imageType;
-                        Storage::disk('public')->put($savedImagePath, $imageData);
+            // Step 2: Handle saving profile image string/metadata safely
+            $savedImagePath = null; // Default fallback to null or a default asset path
+
+            if (!empty($validated['profile_image'])) {
+                $savedImagePath = 'avatars/' . uniqid() . '.txt';
+                if (str_starts_with($validated['profile_image'], 'data:image')) {
+                    if (preg_match('/^data:image\/(\w+);base64,/', $validated['profile_image'], $matches)) {
+                        $imageType = in_array($matches[1], ['jpeg', 'jpg', 'png', 'webp']) ? $matches[1] : 'jpg';
+                        $imageData = base64_decode(substr($validated['profile_image'], strpos($validated['profile_image'], ',') + 1), true);
+                        if ($imageData !== false) {
+                            $savedImagePath = 'avatars/' . uniqid() . '.' . $imageType;
+                            Storage::disk('public')->put($savedImagePath, $imageData);
+                        }
                     }
+                } else {
+                    // If it's a Dojah reference ID string, keep the text reference
+                    Storage::disk('public')->put($savedImagePath, $validated['profile_image']);
                 }
-            } else {
-                // If it's a Dojah reference ID string, keep the text reference
-                Storage::disk('public')->put($savedImagePath, $validated['profile_image']);
             }
 
+            
             $user->update(['profile_image' => $savedImagePath]);
 
             // Step 3: Create Live Wallets
@@ -132,15 +137,17 @@ class OnboardingController extends Controller
 
             DB::commit();
 
+            /*
             // Step 6: Dispatch async verifying processing job
             ProcessKycVerification::dispatch(
                 $user->id,
                 $validated['bvn'] ?? '',
                 $validated['nin'] ?? '',
-                $validated['profile_image'], // Pass raw ref token or data maps directly
+                $validated['profile_image'] ?? '', // Added null fallback operator safely
                 $firstName,
                 $lastName
             );
+            */
 
             ActivityLog::log($user->id, 'Registration', [
                 'message' => "New user registered: {$user->email}. Verification job queued."

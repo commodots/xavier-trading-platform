@@ -24,6 +24,7 @@ let series = null;
 let lastCandle = null;
 let resizeObserver = null;
 let abortController = null;
+let animationInterval = null;
 
 const historyCache = new Map();
 
@@ -74,6 +75,32 @@ const fetchHistory = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+
+const startLiveAnimation = () => {
+  // Stop any existing animation
+  if (animationInterval) clearInterval(animationInterval);
+
+  // Animate chart with small price movements every 2 seconds
+  animationInterval = setInterval(() => {
+    if (!lastCandle || !series) return;
+
+    // Generate small realistic price movements (±0.1% to ±0.5%)
+    const volatility = 0.005; // 0.5% max movement
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const movement = direction * (Math.random() * volatility * lastCandle.close);
+
+    const newPrice = lastCandle.close + movement;
+
+    // Update candle
+    lastCandle.close = newPrice;
+    lastCandle.high = Math.max(lastCandle.high, newPrice);
+    lastCandle.low = Math.min(lastCandle.low, newPrice);
+
+    // Update chart
+    if (series) series.update(lastCandle);
+  }, 2000);
 };
 
 
@@ -141,6 +168,7 @@ onMounted(() => {
 
   fetchHistory();
   setupEchoListener();
+  startLiveAnimation();
 
   
   resizeObserver = new ResizeObserver(() => {
@@ -161,6 +189,7 @@ watch(() => props.symbol, () => {
 
 onUnmounted(() => {
   window.Echo.leave("market-channel");
+  if (animationInterval) clearInterval(animationInterval);
   if (resizeObserver) resizeObserver.disconnect();
   if (chartInstance) chartInstance.remove();
   if (abortController) abortController.abort();

@@ -16,8 +16,9 @@ const watchlistMap = ref({}); // symbol -> watchlist item id
 let pollInterval = null;
 
 const tabs = [
-    { id: 'TRENDING', label: '🔥 Trending' },
+    { id: 'TRENDING', label: 'Trending' },
     { id: 'US',       label: 'US Markets' },
+    { id: 'UK',       label: 'UK Markets' },
     { id: 'NGX',      label: 'NGX (Local)' },
     { id: 'CRYPTO',   label: 'Crypto' },
 ];
@@ -26,6 +27,7 @@ const tabs = [
 const tabParams = {
     TRENDING: { trending: 1 },
     US:       { market: 'US', type: 'stock' },
+    UK:       { market: 'UK', type: 'stock' },
     NGX:      { market: 'NGX', type: 'stock' },
     CRYPTO:   { type: 'crypto' },
 };
@@ -113,137 +115,18 @@ const toggleWatchlist = async (asset) => {
         }
     }
 };
-
-const navigateToAsset = (asset) => {
-    if (asset.market === 'NGX') {
-        router.push(`/market/ngx/${asset.symbol}`);
-    } else if (asset.currency === 'USD' && asset.market !== 'CRYPTO') {
-        router.push({ name: 'global-stocks' });
-    } else if (asset.market === 'CRYPTO' || asset.currency === 'USD') {
-        router.push({ name: 'crypto' });
-    }
-};
-
-onMounted(async () => {
-    await Promise.all([fetchMarkets(), fetchWatchlist()]);
-    pollInterval = setInterval(() => fetchMarkets(true), 30000);
-});
-
-onUnmounted(() => {
-    if (pollInterval) clearInterval(pollInterval);
-});
-
-watch(activeTab, () => fetchMarkets());
 </script>
 
+
 <template>
-    <MainLayout>
-        <div class="space-y-6">
-            <!-- Header & Search -->
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span>📊</span> Market
-                    </h1>
-                    <p class="text-sm text-gray-400">Real-time data across global and local exchanges.</p>
-                </div>
-
-                <div class="relative w-full sm:w-72">
-                    <input
-                        v-model="search"
-                        type="text"
-                        placeholder="Search assets..."
-                        class="w-full bg-[#0F1724] border border-[#1f3348] rounded-xl px-4 py-2.5 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none transition-all"
-                    />
-                </div>
-            </div>
-
-            <!-- Market Navigation Tabs -->
-            <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-xl self-start overflow-x-auto max-w-full">
-                <button
-                    v-for="tab in tabs"
-                    :key="tab.id"
-                    @click="activeTab = tab.id"
-                    class="px-5 py-2 text-xs font-bold uppercase transition-all rounded-lg whitespace-nowrap"
-                    :class="activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
-                >
-                    {{ tab.label }}
-                </button>
-            </div>
-
-            <!-- Market Table -->
-            <div class="bg-[#0F1724] border border-[#1f3348] rounded-2xl overflow-hidden shadow-sm">
-                <div v-if="isFetching" class="p-8">
-                    <SkeletonLoader type="table" />
-                </div>
-
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="text-gray-400 text-[10px] font-bold uppercase tracking-widest bg-[#0B121D] border-b border-[#1f3348]">
-                            <tr>
-                                <th class="px-6 py-4 text-left">Asset</th>
-                                <th class="px-6 py-4 text-left">Exchange</th>
-                                <th class="px-6 py-4 text-right">Last Price</th>
-                                <th class="px-6 py-4 text-right">24h Change</th>
-                                <th class="px-6 py-4 text-right">Volume</th>
-                                <th class="px-6 py-4 text-center">Watch</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[#1f3348]">
-                            <tr
-                                v-for="asset in filteredAssets"
-                                :key="asset.symbol"
-                                class="hover:bg-[#16213A] transition cursor-pointer group"
-                                @click="navigateToAsset(asset)"
-                            >
-                                <td class="px-6 py-4">
-                                    <div class="flex flex-col">
-                                        <span class="font-bold text-[#00D4FF] font-mono">{{ asset.symbol }}</span>
-                                        <span class="text-xs text-gray-500 truncate max-w-[150px]">{{ asset.name }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="px-2 py-0.5 text-[10px] font-black rounded bg-gray-800 text-gray-400 border border-gray-700 uppercase">
-                                        {{ asset.market }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-right font-mono text-white font-semibold">
-                                    {{ asset.currency === 'NGN' ? '₦' : '$' }}{{ asset.price.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
-                                </td>
-                                <td class="px-6 py-4 text-right font-mono font-bold"
-                                    :class="asset.changeDirection === 'up' ? 'text-emerald-500' : 'text-rose-500'">
-                                    {{ asset.changeDirection === 'up' ? '▲' : '▼' }} {{ asset.percentageChange }}%
-                                </td>
-                                <td class="px-6 py-4 text-right text-gray-500 text-xs font-mono">
-                                    {{ asset.volume }}
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <button
-                                        @click.stop="toggleWatchlist(asset)"
-                                        class="p-2 rounded-full hover:bg-white/5 transition focus:outline-none"
-                                        :title="watchlistSymbols.includes(asset.symbol) ? 'Remove from watchlist' : 'Add to watchlist'"
-                                    >
-                                        <svg class="h-5 w-5 transition-colors"
-                                            :class="watchlistSymbols.includes(asset.symbol) ? 'fill-amber-400 text-amber-400' : 'fill-none text-gray-600 group-hover:text-gray-400'"
-                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                        </svg>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div v-if="filteredAssets.length === 0 && !isFetching" class="p-20 text-center text-gray-500">
-                        No assets found{{ search ? ` matching "${search}"` : ' for this market.' }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </MainLayout>
+  <MainLayout>
+    <div class="p-4">
+      <MarketList />
+    </div>
+  </MainLayout>
 </template>
 
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
 </style>
+ 

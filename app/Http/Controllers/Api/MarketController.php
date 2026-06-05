@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Symbol;
 use App\Services\MarketService;
+use Illuminate\Http\Request;
 
 class MarketController extends Controller
 {
@@ -37,10 +37,16 @@ class MarketController extends Controller
 
         if ($request->filled('market')) {
             $market = strtoupper($request->market);
+
             if ($market === 'US') {
-                // US stocks live under NASDAQ / NYSE exchanges
                 $query->whereIn('exchange', ['NASDAQ', 'NYSE', 'US'])
-                      ->where('type', '!=', 'crypto');
+                    ->where('type', '!=', 'crypto');
+            } elseif ($market === 'UK') {
+                $query->whereIn('exchange', ['LSE', 'LONDON', 'UK'])
+                    ->where('type', '!=', 'crypto');
+            } elseif ($market === 'NGX') {
+                $query->whereIn('exchange', ['NGX', 'LOCAL', 'NIGERIA'])
+                    ->where('type', '!=', 'crypto');
             } else {
                 $query->where('exchange', $market);
             }
@@ -58,30 +64,70 @@ class MarketController extends Controller
 
     private function formatSymbol($item): array
     {
+        $market = $this->normalizeMarket($item->market ?? $item->exchange ?? null, $item->type ?? null);
+        $type = $this->resolveType($item->type ?? null, $market);
+
+        $change = is_numeric($item->change) ? (float) $item->change : 0.0;
+
         return [
             'symbol' => $item->symbol,
-            'name'   => $item->name,
-            'price'  => (float) ($item->price ?? 0),
-            'change' => (float) ($item->change ?? 0),
+            'name' => $item->name,
+            'price' => (float) ($item->price ?? 0),
+            'change' => $change,
+            'trend' => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'flat'),
             'volume' => (float) ($item->volume ?? 0),
-            'type'   => $item->type,
-            'market' => $item->market ?? $item->exchange,
+            'type' => $type,
+            'market' => $market,
         ];
+    }
+
+    private function normalizeMarket(?string $market, ?string $type = null): string
+    {
+        $market = strtoupper(trim((string) ($market ?? '')));
+
+        if (in_array($market, ['NASDAQ', 'NYSE', 'US', 'GLOBAL', 'INTERNATIONAL'], true)) {
+            return 'US';
+        }
+
+        if (in_array($market, ['LSE', 'LONDON', 'UK'], true)) {
+            return 'UK';
+        }
+
+        if (in_array($market, ['NGX', 'LOCAL', 'NIGERIA'], true)) {
+            return 'NGX';
+        }
+
+        if ($market === 'CRYPTO' || strtolower($type) === 'crypto' || str_contains($market, 'USDT')) {
+            return 'CRYPTO';
+        }
+
+        return $market ?: ($type === 'crypto' ? 'CRYPTO' : 'US');
+    }
+
+    private function resolveType(?string $type, ?string $market): string
+    {
+        $type = strtolower(trim((string) ($type ?? '')));
+        if ($type === 'crypto' || strtoupper($market) === 'CRYPTO') {
+            return 'crypto';
+        }
+
+        return 'stock';
     }
 
     public function ngx()
     {
         $data = Symbol::where(function ($query) {
             $query->where('exchange', 'NGX')
-                  ->orWhere('exchange', 'local')
-                  ->orWhere('type', 'local')
-                  ->orWhere('symbol', 'like', '%.NG%');
+                ->orWhere('exchange', 'local')
+                ->orWhere('type', 'local')
+                ->orWhere('symbol', 'like', '%.NG%');
         })
             ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
-            ->map(function($item) {
-                $item->price = (float) $item->price;
-                $item->change = (float) ($item->change ?? 0);
-                return $item;
+            ->map(function ($item) {
+                $item->exchange = 'NGX';
+                $item->type = 'stock';
+
+                return $this->formatSymbol($item);
             });
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -91,16 +137,14 @@ class MarketController extends Controller
     {
         $data = Symbol::where(function ($query) {
             $query->whereIn('exchange', ['NASDAQ', 'NYSE', 'US'])
-                  ->orWhere('type', 'global')
-                  ->orWhereNull('type');
+                ->orWhere('type', 'global')
+                ->orWhereNull('type');
         })
-        ->where('symbol', 'not like', '%/USDT%')
-        ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
-        ->map(function($item) {
-            $item->price = (float) $item->price;
-            $item->change = (float) ($item->change ?? 0);
-            return $item;
-        });
+            ->where('symbol', 'not like', '%/USDT%')
+            ->get(['symbol', 'name', 'last_price as price', 'change', 'volume', 'type', 'exchange'])
+            ->map(function ($item) {
+                return $this->formatSymbol($item);
+            });
 
         return response()->json(['success' => true, 'data' => $data]);
     }
@@ -149,11 +193,17 @@ class MarketController extends Controller
 
             foreach ($prices as $id => $val) {
                 if (isset($coinNames[$id])) {
-                    $data[] = [
+                    $item = (object) [
                         'symbol' => $coinNames[$id]['symbol'],
                         'name' => $coinNames[$id]['name'],
                         'price' => is_array($val) ? ($val['usd'] ?? 0) : 0,
+                        'change' => 0,
+                        'volume' => 0,
+                        'exchange' => 'CRYPTO',
+                        'type' => 'crypto',
                     ];
+
+                    $data[] = $this->formatSymbol($item);
                 }
             }
 
@@ -182,9 +232,9 @@ class MarketController extends Controller
     public function getGlobalInsights()
     {
         $tabs = [
-            'gainers'      => ['AAPL', 'MSFT', 'NVDA'],
-            'losers'       => ['TSLA', 'NFLX', 'META'],
-            'most_traded'  => ['AAPL', 'AMZN', 'GOOGL'],
+            'gainers' => ['AAPL', 'MSFT', 'NVDA'],
+            'losers' => ['TSLA', 'NFLX', 'META'],
+            'most_traded' => ['AAPL', 'AMZN', 'GOOGL'],
         ];
 
         $marketService = app(MarketService::class);
@@ -201,11 +251,11 @@ class MarketController extends Controller
 
                     return [
                         'symbol' => $quote['symbol'],
-                        'name'   => $quote['name'] ?? $symbol,
-                        'price'  => $quote['price'] ?? 0,
+                        'name' => $quote['name'] ?? $symbol,
+                        'price' => $quote['price'] ?? 0,
                         'change' => $quote['change'] ?? 0,
                         'volume' => $quote['volume'] ?? 0,
-                        'spark'  => $quote['spark'] ?? [] 
+                        'spark' => $quote['spark'] ?? [],
                     ];
                 })
                 ->filter()
@@ -219,31 +269,31 @@ class MarketController extends Controller
     private function processMockInsights(array $stocks)
     {
         $hydrated = collect($stocks)->map(function ($stock) {
-            $change = rand(-500, 500) / 100; 
+            $change = rand(-500, 500) / 100;
             $currentPrice = $stock['price'];
-            
+
             $spark = [
                 $currentPrice * (1 - ($change * 0.008)),
                 $currentPrice * (1 - ($change * 0.006)),
                 $currentPrice * (1 - ($change * 0.004)),
                 $currentPrice * (1 - ($change * 0.002)),
-                $currentPrice
+                $currentPrice,
             ];
 
             return [
                 'symbol' => $stock['symbol'],
-                'name'   => $stock['name'],
-                'price'  => $currentPrice,
+                'name' => $stock['name'],
+                'price' => $currentPrice,
                 'change' => $change,
                 'volume' => rand(100000, 2500000),
-                'spark'  => $spark
+                'spark' => $spark,
             ];
         });
 
         return [
-            'gainers'      => $hydrated->sortByDesc('change')->values()->all(),
-            'losers'       => $hydrated->sortBy('change')->values()->all(),
-            'most_traded'  => $hydrated->sortByDesc('volume')->values()->all(),
+            'gainers' => $hydrated->sortByDesc('change')->values()->all(),
+            'losers' => $hydrated->sortBy('change')->values()->all(),
+            'most_traded' => $hydrated->sortByDesc('volume')->values()->all(),
             'least_traded' => $hydrated->sortBy('volume')->values()->all(),
         ];
     }

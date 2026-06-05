@@ -14,7 +14,7 @@ class SubscriptionService
     /**
      * Process the quarterly platform fee for a user.
      */
-    public function chargePlatformFee(User $user)
+    public function chargePlatformFee(User $user): mixed
     {
         return DB::transaction(function () use ($user) {
             // Skip if inactive for more than 60 days
@@ -23,46 +23,45 @@ class SubscriptionService
                 return;
             }
 
-            $wallet = $user->wallets()->where('currency', 'NGN')->first();
-            
-            if ($wallet && $wallet->balance >= $this->fee) {
-                // Full Payment
+            $wallet = $user->wallets()->where('currency', 'NGN')->lockForUpdate()->first();
+
+            if ($wallet && $wallet->ngn_cleared >= $this->fee) {
+                $wallet->decrement('ngn_cleared', $this->fee);
                 $wallet->decrement('balance', $this->fee);
-                
+
                 BillingRecord::create([
                     'user_id' => $user->id,
-                    'amount' => $this->fee,
-                    'type' => 'subscription_fee',
-                    'status' => 'paid'
+                    'amount'  => $this->fee,
+                    'type'    => 'subscription_fee',
+                    'status'  => 'paid',
                 ]);
-                
+
                 $user->notify(new \App\Notifications\BillingAlertNotification('charged', $this->fee));
             } else {
-                // Insufficient Balance -> Add to Debt
-                $currentBalance = $wallet ? $wallet->balance : 0;
+                $currentBalance = $wallet ? (float) $wallet->ngn_cleared : 0.0;
                 $shortfall = $this->fee - $currentBalance;
 
                 if ($wallet && $currentBalance > 0) {
-                    $wallet->update(['balance' => 0]);
+                    $wallet->update(['ngn_cleared' => 0, 'balance' => max(0, $wallet->balance - $currentBalance)]);
                 }
 
                 $user->increment('wallet_debt', $shortfall);
 
                 BillingRecord::create([
                     'user_id' => $user->id,
-                    'amount' => $this->fee,
-                    'type' => 'subscription_fee',
-                    'status' => 'pending_debt'
+                    'amount'  => $this->fee,
+                    'type'    => 'subscription_fee',
+                    'status'  => 'pending_debt',
                 ]);
-                
-               $user->notify(new \App\Notifications\BillingAlertNotification('debt', $shortfall));
+
+                $user->notify(new \App\Notifications\BillingAlertNotification('debt', $shortfall));
             }
 
-            // Update user subscription state
+            $user->refresh();
             $user->update([
                 'subscription_status' => $user->wallet_debt > 5000 ? 'suspended' : 'active',
                 'last_fee_charged_at' => now(),
-                'next_fee_due_at' => now()->addDays(90)
+                'next_fee_due_at'     => now()->addDays(90),
             ]);
         });
     }
@@ -70,15 +69,15 @@ class SubscriptionService
     /**
      * Logic to clear debt when a user tops up their wallet.
      */
-    public function reconcileDebt(User $user, $topupAmount)
+    public function reconcileDebt(User $user, float $topupAmount): float
     {
         if ($user->wallet_debt <= 0) return $topupAmount;
 
         $paymentToDebt = min($user->wallet_debt, $topupAmount);
-        
+
         $user->decrement('wallet_debt', $paymentToDebt);
-        
-        // If debt is cleared below threshold, unsuspend
+        $user->refresh();
+
         if ($user->wallet_debt < 5000 && $user->subscription_status === 'suspended') {
             $user->update(['subscription_status' => 'active']);
         }

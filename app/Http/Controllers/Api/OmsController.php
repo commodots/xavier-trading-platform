@@ -102,6 +102,10 @@ class OmsController extends Controller
         $orderClass = $models->order;
         $order = $orderClass::find($id);
 
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Order not found'], 404);
+        }
+
         // RBAC: User can only cancel their own orders
         $this->authorize('cancel', $order);
 

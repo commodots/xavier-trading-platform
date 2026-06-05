@@ -16,7 +16,6 @@
         </div>
       </div>
 
-      <!-- Portfolio Summary Bar -->
       <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-8">
         <div>
           <p class="text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">NGN Balance</p>
@@ -90,7 +89,6 @@
             </div>
             <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6 transition-all duration-300">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
-                
                 <span class="text-xs text-gray-500">{{ filteredStocks.length }} Assets Available</span>
               </div>
               <div class="overflow-x-auto">
@@ -148,6 +146,57 @@
             />
           </div>
 
+          <div v-else-if="activeView === 'history'">
+            <div v-if="historyLoading" class="mt-6">
+              <SkeletonLoader type="table" class="opacity-40" />
+            </div>
+            <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden">
+              <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
+                <span class="text-sm font-semibold text-gray-300">Transaction History</span>
+                <span class="text-xs text-gray-500">{{ historyRecords.length }} Transactions</span>
+              </div>
+              <div v-if="historyRecords.length === 0" class="p-10 text-center text-gray-500 italic">
+                No transaction history available yet.
+              </div>
+              <div v-else class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="text-gray-400 border-b border-[#1f3348] bg-[#0B121D]">
+                    <tr>
+                      <th class="px-6 py-4 font-medium text-left">Date</th>
+                      <th class="px-6 font-medium text-left">Type</th>
+                      <th class="px-6 font-medium text-left">Asset</th>
+                      <th class="px-6 font-medium text-right">Quantity</th>
+                      <th class="px-6 font-medium text-right">Amount</th>
+                      <th class="px-6 font-medium text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#1f3348]">
+                    <tr v-for="record in historyRecords" :key="record.id" class="hover:bg-[#16213A] transition">
+                      <td class="px-6 py-4 text-gray-400">{{ formatDate(record.date) }}</td>
+                      <td class="px-6 font-semibold" :class="record.type === 'BUY' ? 'text-green-400' : 'text-red-400'">
+                        {{ record.type }}
+                      </td>
+                      <td class="px-6 text-[#00D4FF] font-medium">{{ record.symbol }}</td>
+                      <td class="px-6 text-right font-mono text-gray-300">{{ record.quantity.toFixed(2) }}</td>
+                      <td class="px-6 text-right font-mono font-semibold text-white">₦{{ formatCurrency(record.amount) }}</td>
+                      <td class="px-6 text-center">
+                        <span v-if="record.status === 'completed'" class="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-bold">
+                          Completed
+                        </span>
+                        <span v-else-if="record.status === 'pending'" class="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-bold">
+                          Pending
+                        </span>
+                        <span v-else class="bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-xs font-bold">
+                          {{ record.status }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <div v-else-if="activeView === 'history'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
             Local market transaction history coming soon.
           </div>
@@ -195,6 +244,7 @@ const showTradeModal = ref(false);
 const selectedTradeStock = ref(null);
 
 // Quantitative Data Pipelines
+const loading = ref(false); 
 const isGraphLoading = ref(false);
 const isInsightsLoading = ref(false);
 const walletBalances = ref({ cleared_balance_ngn: 0 });
@@ -219,6 +269,8 @@ const sparkOptions = {
   colors: ["#00D4FF"],
   tooltip: { enabled: false },
 };
+const historyRecords = ref([]);
+const historyLoading = ref(false);
 
 // Computed Properties
 const isAdminUser = (u) => {

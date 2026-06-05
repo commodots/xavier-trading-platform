@@ -18,7 +18,7 @@
     <transition name="slideDown">
       <div v-if="showSuccessNotification" class="p-4 border border-green-700 rounded-lg bg-green-900/20 animate-slideDown">
         <p class="text-sm text-green-300 font-semibold">✓ Verification Complete!</p>
-        <p class="text-xs text-green-400 mt-1">Your KYC has been successfully verified.</p>
+        <p class="text-xs text-green-400 mt-1">Your identity documents have been submitted successfully.</p>
       </div>
     </transition>
 
@@ -44,27 +44,34 @@
         </p>
       </div>
 
-      <!-- KYC Form Component -->
-      <KycForm @success="handleFormSuccess" :initial="kyc ? { ...kyc } : null" />
+      <div class="p-6 text-center border border-dashed border-gray-700 rounded-xl bg-gray-900/40 space-y-4">
+        <p class="text-sm text-gray-400">
+          Click below to start your secure identity verification scanner via Dojah
+        </p>
+        <button 
+          @click="launchDojahVerification" 
+          :disabled="!isSdkReady || loading"
+          class="w-full sm:w-auto px-6 py-3 bg-[#00D4FF] text-[#0B132B] font-bold rounded-lg disabled:opacity-40 hover:opacity-90 transition flex items-center justify-center gap-2 mx-auto"
+        >
+          <span v-if="loading" class="w-4 h-4 border-2 rounded-full border-[#0B132B]/30 border-t-[#0B132B] animate-spin"></span>
+          {{ isSdkReady ? 'Launch Identity Verification' : 'Loading...' }}
+        </button>
+      </div>
     </div>
 
     <!-- Verification Pending State -->
     <div v-else-if="kyc.status === 'pending'" class="p-6 text-center border border-yellow-700/50 rounded-xl bg-yellow-900/10">
       <div class="mb-3 text-3xl animate-pulse">⏳</div>
-      <h3 class="text-xs font-bold tracking-widest text-yellow-400 uppercase">QoreID Verification Started</h3>
+      <h3 class="text-xs font-bold tracking-widest text-yellow-400 uppercase">Identity Verification Pending</h3>
       <p class="mt-2 text-sm text-gray-400">
         We are validating your identity details against official records. This usually takes a few minutes.
       </p>
       <div class="mt-4 flex items-center justify-center gap-2 text-[11px] text-gray-500">
         <span class="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-ping"></span>
-        Awaiting verification webhook ({{ pollAttempt }}/{{ maxPollAttempts }})
-      </div>
-      <div class="mt-3 w-full bg-gray-800 rounded-full h-1 overflow-hidden">
-        <div class="h-full bg-yellow-500 transition-all duration-300" :style="{ width: pollProgressPercent + '%' }"></div>
+        Awaiting verification webhook confirmation
       </div>
     </div>
 
-    <!-- Verified State -->
     <div v-else-if="kyc.status === 'approved' || kyc.status === 'verified'" class="space-y-4">
       <div class="p-6 text-center border border-green-700/50 rounded-xl bg-green-900/10">
         <div class="mb-2 text-3xl">✅</div>
@@ -88,22 +95,20 @@
           <span class="font-bold text-green-400">{{ formatCurrency(kyc.daily_limit) }}</span>
         </p>
         <p class="flex justify-between text-sm">
-          <span class="text-gray-500">BVN:</span>
-          <span class="text-white font-mono">{{ kyc.bvn || 'Not Available' }}</span>
+          <span class="text-gray-500">BVN Status:</span>
+          <span class="text-green-400 font-medium">Linked and Validated ✓</span>
         </p>
         <p class="flex justify-between text-sm">
-          <span class="text-gray-500">NIN:</span>
-          <span class="text-white font-mono">{{ kyc.nin || 'Not Available' }}</span>
+          <span class="text-gray-500">NIN Status:</span>
+          <span class="text-green-400 font-medium">Linked and Validated ✓</span>
         </p>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import KycForm from "@/Components/KycForm.vue"; 
+import { ref, onMounted, defineProps, defineEmits } from "vue";
 import api from "@/api";
 
 const props = defineProps({
@@ -113,102 +118,69 @@ const props = defineProps({
 const emit = defineEmits(['refresh']);
 const showUpgradeForm = ref(false);
 const showSuccessNotification = ref(false);
-const pollAttempt = ref(0);
-const maxPollAttempts = ref(60); // 60 attempts * 5 seconds = 5 minutes max
-let pollerInterval = null;
-let pollStartTime = null;
-
-// Computed property for polling progress percentage
-const pollProgressPercent = computed(() => {
-  if (maxPollAttempts.value === 0) return 0;
-  return Math.min((pollAttempt.value / maxPollAttempts.value) * 100, 100);
-});
-
-const handleFormSuccess = () => {
-  showUpgradeForm.value = false;
-  // Form submission will trigger polling automatically
-  startPolling();
-};
-
-/**
- * Polling with exponential backoff
- * Starts with 5 second intervals, backing off as attempts increase
- * Max polling time: 5 minutes
- */
-const startPolling = () => {
-  if (pollerInterval) return;
-  
-  pollAttempt.value = 0;
-  pollStartTime = Date.now();
-  
-  const pollOnce = async () => {
-    try {
-      const res = await api.get('/profile/kyc');
-      const latestKyc = res.data?.data;
-      
-      pollAttempt.value++;
-      
-      // Check if verification is complete
-      if (latestKyc && latestKyc.status !== 'pending') {
-        stopPolling();
-        
-        // Show success notification if verified
-        if (latestKyc.status === 'verified' || latestKyc.status === 'approved') {
-          showSuccessNotification.value = true;
-          setTimeout(() => {
-            showSuccessNotification.value = false;
-          }, 5000);
-        }
-        
-        emit('refresh');
-        return;
-      }
-      
-      // Check if max attempts reached (5 minutes)
-      if (pollAttempt.value >= maxPollAttempts.value) {
-        stopPolling();
-        return;
-      }
-      
-      // Schedule next poll with exponential backoff
-      // Base interval: 5 seconds
-      // Increases by 1 second for every 10 attempts (after 10 attempts: 6s, 20 attempts: 7s, etc)
-      const backoffFactor = Math.floor(pollAttempt.value / 10);
-      const nextInterval = 5000 + (backoffFactor * 1000);
-      
-      pollerInterval = setTimeout(pollOnce, nextInterval);
-      
-    } catch (err) {
-      console.warn("KYC polling error:", err);
-      
-      // Retry on error, but don't count towards attempts
-      if (pollAttempt.value < maxPollAttempts.value) {
-        pollerInterval = setTimeout(pollOnce, 5000);
-      } else {
-        stopPolling();
-      }
-    }
-  };
-  
-  pollOnce();
-};
-
-const stopPolling = () => {
-  if (pollerInterval) {
-    clearTimeout(pollerInterval);
-    pollerInterval = null;
-  }
-};
+const isSdkReady = ref(false);
+const loading = ref(false);
 
 onMounted(() => {
-  if (props.kyc?.status === 'pending') {
-    startPolling();
+  // Mount the interactive Dojah widget script cleanly
+  if (window.Connect) {
+    isSdkReady.value = true;
+  } else {
+    const script = document.createElement("script");
+    script.src = "https://widget.dojah.io/widget.js";
+    script.type = "text/javascript";
+    script.onload = () => { isSdkReady.value = true; };
+    document.body.appendChild(script);
   }
 });
 
-onUnmounted(() => {
-  stopPolling();
-});
+const launchDojahVerification = () => {
+  if (!window.Connect) return;
+
+  const options = {
+    app_id: import.meta.env.VITE_DOJAH_APP_ID,
+    p_key: import.meta.env.VITE_DOJAH_PUBLIC_KEY,
+    type: "custom", 
+    debug: import.meta.env.DEV,
+    config: {
+      pages: [
+        { page: "bvn", label: "Verify BVN" },
+        { page: "nin", label: "Verify NIN" },
+        { page: "liveness", label: "Liveness Check" }
+      ]
+    },
+    onSuccess: async function (response) {
+      loading.value = true;
+      const refId = response.referenceId || response.data?.referenceId || response.reference;
+      
+      try {
+        
+        await api.post('/kyc/dojah-submit', { reference_id: refId });
+        
+        showSuccessNotification.value = true;
+        showUpgradeForm.value = false;
+        emit('refresh');
+        
+        setTimeout(() => {
+          showSuccessNotification.value = false;
+        }, 5000);
+      } catch (err) {
+        console.error("Dojah token transmission exception:", err);
+        alert(err.response?.data?.message || "Failed to process verification callback link.");
+      } finally {
+        loading.value = false;
+      }
+    },
+    onError: function (err) {
+      console.error("Dojah Verification SDK error context:", err);
+      alert("Verification session aborted or failed to configure hardware sync windows.");
+    }
+  };
+
+  const connect = new window.Connect(options);
+  connect.setup();
+  connect.open();
+};
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return '0.00';
@@ -227,34 +199,13 @@ const formatCurrency = (value) => {
 
 <style scoped>
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-.animate-slideDown {
-  animation: slideDown 0.3s ease-in-out;
-}
-
-.transition-all {
-  transition: all 0.3s ease;
-}
+.animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
+.animate-slideDown { animation: slideDown 0.3s ease-in-out; }
 </style>

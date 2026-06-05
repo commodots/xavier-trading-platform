@@ -16,16 +16,12 @@ class PaystackWebhookController extends Controller
 {
     public function handle(Request $request)
     {
-        // Secure Signature Validation
-        $signature = $request->header('x-paystack-signature');
-        $computedSignature = hash_hmac('sha512', $request->getContent(), config('services.paystack.secret_key'));
+        $signature         = $request->header('x-paystack-signature');
+        $secret            = config('services.paystack.secret_key');
+        $computedSignature = hash_hmac('sha512', $request->getContent(), $secret);
 
-        if (! $signature || ! hash_equals($computedSignature, $signature)) {
-            Log::warning('Paystack Webhook: Invalid Signature Attempt', [
-                'ip' => $request->ip(),
-                'header' => $signature,
-            ]);
-
+        if (!$signature || !$secret || !hash_equals($computedSignature, $signature)) {
+            Log::warning('Paystack Webhook: Invalid Signature Attempt', ['ip' => $request->ip()]);
             return response()->json(['error' => 'Invalid signature'], 401);
         }
 

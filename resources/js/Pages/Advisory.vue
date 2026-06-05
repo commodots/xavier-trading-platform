@@ -330,7 +330,7 @@
           </p>
           <div class="text-right">
             <button @click="closePostModal" class="px-4 py-1.5 text-xs font-bold rounded-md bg-slate-800 text-slate-200 hover:bg-slate-700">
-              Dismiss Reader
+              Close
             </button>
           </div>
         </div>

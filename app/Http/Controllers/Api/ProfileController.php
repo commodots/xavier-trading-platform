@@ -89,7 +89,7 @@ class ProfileController extends Controller
 
     /**
      * Submit KYC verification documents
-     * Sets status to 'pending' and triggers QoreID verification process
+     * Sets status to 'pending' and triggers Dojah verification process
      */
     public function submitKyc(Request $r)
     {
@@ -177,7 +177,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'QoreID verification started. Please wait while we validate your identity.',
+            'message' => 'Verification started. Please wait while we validate your identity.',
             'data' => $kyc->toFormattedArray()
         ]);
     }
