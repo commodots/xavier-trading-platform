@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\KycProfile;
+use App\Services\KycService;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +39,7 @@ class VerifyEmailController extends Controller
             return $this->handleResponse($request, 'Invalid verification link.', 400);
         }
 
-        // Bypassing all lifecycle hooks/observers that might be blocking the save
+        // Bypassing lifecycle hooks/observers that might be blocking the user save
         $updated = DB::table('users')
             ->where('id', $user->id)
             ->update(['email_verified_at' => now()]);
@@ -45,7 +47,45 @@ class VerifyEmailController extends Controller
         Log::info('Database Update Result', ['success' => $updated]);
 
         if ($updated) {
+            // Refresh our user model instance so it knows it is verified
+            $user->refresh();
+
             event(new Verified($user));
+
+            try {
+                // Fetch or create a baseline KYC record for this user
+                $kyc = KycProfile::firstOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'status' => 'verified', 
+                        'tier' => 0,
+                        'level' => 'email_verified'
+                    ]
+                );
+
+                
+                if (!KycService::isVerified($kyc->status)) {
+                    $kyc->status = 'verified';
+                }
+
+                $calculatedTier = KycService::determineTier($kyc);
+                
+                $kyc->tier = $calculatedTier;
+                $kyc->level = 'email_verified';
+                $kyc->save();
+
+                Log::info('KYC profile auto-upgraded on email verification', [
+                    'user_id' => $user->id,
+                    'assigned_tier' => $calculatedTier
+                ]);
+
+            } catch (\Exception $e) {
+                
+                Log::error('Failed to auto-escalate KYC tier on email verification', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
 
         return $this->handleResponse($request, 'Email verified successfully.', 200, true);

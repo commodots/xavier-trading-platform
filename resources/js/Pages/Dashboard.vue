@@ -16,7 +16,7 @@
 
       <div 
       v-if="(user.verification_level ==='none' || user.kyc.tier < 3)"
-      class="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-950/20 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn"
+      class="flex flex-col items-center justify-between gap-4 p-4 mb-6 border rounded-xl border-amber-500/30 bg-amber-950/20 sm:flex-row animate-fadeIn"
     >
       <div class="flex items-center gap-3">
         <span class="text-2xl text-amber-400">⚠️</span>
@@ -30,7 +30,7 @@
       </div>
       <button 
         @click="showKycModal = true" 
-        class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white uppercase font-bold text-sm rounded-lg transition whitespace-nowrap shadow-lg shadow-amber-500/10"
+        class="px-4 py-2 text-sm font-bold text-white uppercase transition rounded-lg shadow-lg bg-amber-500 hover:bg-amber-400 whitespace-nowrap shadow-amber-500/10"
       >
         Verify Identity
       </button>
@@ -43,7 +43,7 @@
           <p class="text-sm text-gray-400">Here's your dashboard with an overview of your portfolio.</p>
         </div>
         
-        <div class="flex flex-wrap items-center gap-3 relative">
+        <div class="relative flex flex-wrap items-center gap-3">
         
           <div class="relative">
             <button 
@@ -61,14 +61,14 @@
               class="absolute right-0 mt-2 w-72 bg-[#0F1724] border border-[#1f3348] rounded-xl shadow-2xl z-50 p-4 space-y-3 animate-fadeIn"
             >
               <div class="flex items-center justify-between border-b border-[#1f3348] pb-2">
-                <div class="font-semibold text-xs text-gray-300">⭐ Watchlist Preview</div>
+                <div class="text-xs font-semibold text-gray-300">⭐ Watchlist Preview</div>
                 <button @click="$router.push({ name: 'watchlist' })" class="text-[11px] text-blue-400 hover:underline">View All</button>
               </div>
 
-              <div v-if="watchlistItems.length === 0" class="py-4 italic text-center text-gray-500 text-xs">
+              <div v-if="watchlistItems.length === 0" class="py-4 text-xs italic text-center text-gray-500">
                 No assets watched yet.
               </div>
-              <div v-else class="space-y-2 max-h-60 overflow-y-auto pr-1">
+              <div v-else class="pr-1 space-y-2 overflow-y-auto max-h-60">
                 <div v-for="item in watchlistItems.slice(0, 5)" :key="item.id" class="flex items-center justify-between p-1.5 rounded hover:bg-[#16213A] transition">
                   <div>
                     <div class="text-xs font-bold text-white">{{ item.symbol }}</div>
@@ -182,7 +182,7 @@
           <table class="w-full text-[11px] md:text-sm text-center">
             <thead class="text-gray-400 text-xs border-b border-[#1f2a44]">
               <tr>
-                <th class="text-left pb-2">Asset</th>
+                <th class="pb-2 text-left">Asset</th>
                 <th class="pb-2">Qty</th>
                 <th class="pb-2">Avg Cost</th>
                 <th class="pb-2">Market Price</th>
@@ -241,7 +241,7 @@
 
     <div 
       v-if="showKycModal" 
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fadeIn"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all bg-black/60 backdrop-blur-sm animate-fadeIn"
     >
       <VerifyIdentity 
         @close="showKycModal = false" 
@@ -531,13 +531,6 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('trading-mode-switching', handleModeSwitching);
   window.removeEventListener('trading-mode-changed', fetchDashboard);
-});
-</script>
-
-<script>
-import { defineComponent } from "vue";
-export default defineComponent({
-  components: { apexchart: VueApexCharts },
 });
 </script>
 

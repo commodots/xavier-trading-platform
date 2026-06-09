@@ -11,6 +11,7 @@ use App\Models\KycSetting;
 use App\Models\ActivityLog;
 use App\Services\StaffPermissionService;
 use App\Services\KycService;
+use App\Jobs\ProcessKycVerification;
 
 class ProfileController extends Controller
 {
@@ -24,13 +25,33 @@ class ProfileController extends Controller
         $baseCurrency = $settings->base_currency ?? 'NGN';
         
         if ($user->kyc) {
-            // determine tier (default to 1)
-            $tier = (int) ($user->kyc->tier ?? 1);
+            $tier = (int) KycService::determineTier($user->kyc);
+            $levelLabels = [0 => 'none', 1 => 'basic', 2 => 'identity', 3 => 'biometric'];
+            
+            // Populate missing basic data if null
+            if (empty($user->kyc->first_name)) {
+                $user->kyc->update([
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'tier' => $tier,
+                    'level' => $levelLabels[$tier] ?? 'none'
+                ]);
+            }
+
+            // Sync verification_level for the Enforcement Layer
+            $user->verification_level = $tier;
+            $user->save();
+
             $kycSetting = KycSetting::where('tier', $tier)->first();
             if ($kycSetting) {
                 $user->kyc->daily_limit = $kycSetting->daily_limit;
             }
             $user->kyc->currency = $user->kyc->currency ?? $baseCurrency;
+            
+            // Break recursion: Hide the user relationship on the KYC object
+            $user->kyc->makeHidden('user');
+            $user->kyc->tier = $tier;
+            $user->kyc->level = $levelLabels[$tier] ?? 'none';
         }
 
         // Attach permissions for EVERYONE (Admins get all true, Staff get calculated)

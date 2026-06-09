@@ -8,26 +8,20 @@ use Symfony\Component\HttpFoundation\Response;
 
 class KycLevelMiddleware
 {
-    public function handle(Request $request, Closure $next, int $required = 1): Response
+    /**
+     * Handle an incoming request.
+     * Verifies if the user has reached the mandatory KYC level for a route.
+     */
+    public function handle(Request $request, Closure $next, int $requiredLevel): Response
     {
         $user = $request->user();
 
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if ($user->verification_level < $required) {
-            $messages = [
-                1 => 'Please verify your email address to continue.',
-                2 => 'BVN and NIN verification required. Complete identity verification to continue.',
-                3 => 'Face verification required to access withdrawals.',
-            ];
-
+        if (!$user || ($user->verification_level ?? 0) < $requiredLevel) {
             return response()->json([
-                'message'            => $messages[$required] ?? 'Higher verification level required.',
-                'verification_level' => $user->verification_level,
-                'required_level'     => $required,
-                'action'             => 'complete_kyc',
+                'success' => false,
+                'message' => "Access denied. This feature requires KYC Level {$requiredLevel}.",
+                'required_level' => $requiredLevel,
+                'current_level' => $user->verification_level ?? 0
             ], 403);
         }
 

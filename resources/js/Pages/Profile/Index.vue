@@ -25,7 +25,14 @@
       <div>
         <template v-if="user && user.id">
           <PersonalTab v-if="activeTab === 'personal'" :user="user" @refresh="fetchUserData" />
-          <KycTab v-if="activeTab === 'kyc'" :kyc="user.kyc || {}" />
+          
+        
+          <KycTab 
+            v-if="activeTab === 'kyc'" 
+            :kyc="user.kyc || {}" 
+            @open-verification="showKycModal = true" 
+          />
+          
           <SettingsTab v-if="activeTab === 'security'" :user="user" @refresh="fetchUserData" />
           <LinkedAccountsTab v-if="activeTab === 'accounts'" :accounts="user.linked_accounts || []" @refresh="fetchUserData" />
           <NotificationsTab v-if="activeTab === 'notifications'" :user="user" />
@@ -59,6 +66,21 @@
       </div>
 
     </div>
+
+   
+    <div 
+      v-if="showKycModal" 
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity"
+    >
+      <div class="absolute inset-0" @click="showKycModal = false"></div>
+
+      <div class="relative z-10 w-full max-w-xl animate-scaleUp">
+        <VerifyIdentity 
+          @close="showKycModal = false"
+          @verified="fetchUserData"
+        />
+      </div>
+    </div>
   </MainLayout>
 </template>
 
@@ -71,11 +93,16 @@ import SettingsTab from "./Partials/SettingsTab.vue";
 import LinkedAccountsTab from "./Partials/LinkedAccountsTab.vue";
 import NotificationsTab from "./Partials/NotificationsTab.vue";
 import SkeletonLoader from "@/Components/SkeletonLoader.vue";
+import VerifyIdentity from "@/Pages/Kyc/VerifyIdentity.vue";
+
 import api from "@/api";
 
 const activeTab = ref("personal");
 const user = ref({});
 const loading = ref(true);
+
+const showKycModal = ref(false);
+
 
 const tabItems = [
   { id: "personal", label: "Personal Details" },

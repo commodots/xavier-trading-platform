@@ -1,211 +1,143 @@
 <template>
-  <div class="bg-[#0f172a] p-6 rounded-lg border border-gray-700 space-y-4 text-white">
-    <!-- Header with Status Badges -->
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-semibold text-white">KYC Information</h2>
-      <div class="flex gap-2">
-        <span v-if="kyc?.daily_limit" class="text-[10px] bg-gray-800 text-gray-300 px-2 py-1 rounded border border-gray-600 font-bold">
-          LIMIT: {{ formatCurrency(kyc.daily_limit) }}
+  <div class="bg-[#1C1F2E] p-6 rounded-2xl border border-gray-800 space-y-6 text-white shadow-xl">
+    
+    <div class="flex items-center justify-between pb-2 border-b border-gray-800">
+      <div>
+        <h2 class="text-lg font-bold text-white tracking-wide">Identity Verification</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Manage your account verification status and trading tiers</p>
+      </div>
+      <span 
+        class="text-[10px] uppercase px-2.5 py-1 rounded-full font-extrabold tracking-wider border"
+        :class="tierClass"
+      >
+        {{ kyc?.tier ? `Tier ${kyc.tier}` : 'Unverified' }}
+      </span>
+    </div>
+
+    <div class="p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-[#00D4FF]/5 border border-blue-500/20 flex justify-between items-center">
+      <div class="space-y-1">
+        <span class="text-xs text-blue-300 font-medium uppercase tracking-wider block">Daily Withdrawal Limit</span>
+        <span class="text-2xl font-black text-white tracking-tight">
+          {{ formatCurrency(kyc?.daily_limit || 0) }}
         </span>
-        <span v-if="kyc?.status === 'verified' || kyc?.status === 'approved'" 
-          class="text-[10px] uppercase px-2 py-1 rounded border border-green-400 bg-green-500/20 text-green-400 font-bold">
-          Tier: {{ kyc.tier ?? 1 }} ({{ kyc.level }})
+      </div>
+      <div class="text-right">
+        <span class="text-[11px] px-2 py-1 bg-[#151a27] rounded-md border border-gray-800 text-gray-400 font-mono uppercase">
+          Verification Level: {{ kyc?.level || 'None' }}
         </span>
       </div>
     </div>
 
-    <!-- Success Notification -->
-    <transition name="slideDown">
-      <div v-if="showSuccessNotification" class="p-4 border border-green-700 rounded-lg bg-green-900/20 animate-slideDown">
-        <p class="text-sm text-green-300 font-semibold">✓ Verification Complete!</p>
-        <p class="text-xs text-green-400 mt-1">Your identity documents have been submitted successfully.</p>
-      </div>
-    </transition>
-
-    <!-- Form or Display Section -->
-    <div v-if="!kyc || kyc.status === 'rejected' || showUpgradeForm" class="animate-fadeIn">
-      <!-- Upgrade Form Header -->
-      <div v-if="showUpgradeForm" class="flex items-center justify-between p-3 mb-4 border border-blue-800 rounded bg-blue-900/20">
-        <p class="text-xs text-blue-300">Upgrade to higher tier by providing additional verification documents.</p>
-        <button @click="showUpgradeForm = false" class="text-xs text-gray-400 hover:text-white">Cancel</button>
+    <div class="space-y-3 bg-[#151a27] p-4 rounded-xl border border-gray-800/60">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-gray-300">Verification Steps</span>
+        <span class="text-xs font-bold text-[#00D4FF]">
+          {{ Math.round((kyc?.tier || 0) / 3 * 100) }}% Complete
+        </span>
       </div>
 
-      <!-- Rejection Notice -->
-      <div v-if="kyc?.status === 'rejected'" class="p-4 mb-4 text-red-400 border border-red-700 rounded bg-red-900/20">
-        <p class="text-xs font-bold tracking-widest uppercase">✗ Verification Rejected</p>
-        <p class="mt-1 text-sm text-gray-300">{{ kyc.rejection_reason || 'The documents provided were invalid.' }}</p>
-        <p class="mt-2 text-xs text-gray-400">Please review the requirements and resubmit your documents.</p>
+      <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden flex gap-1">
+        <div 
+          v-for="step in 3" 
+          :key="step" 
+          class="h-full flex-1 transition-all duration-500 rounded-full"
+          :class="[
+            (kyc?.tier || 0) >= step ? 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]' : 'bg-gray-700'
+          ]"
+        ></div>
       </div>
 
-      <!-- Initial KYC Prompt -->
-      <div v-if="!kyc" class="p-4 mb-4 border rounded-lg bg-blue-500/10 border-blue-500/30">
-        <p class="text-xs leading-tight text-blue-300">
-          Complete your identity verification to unlock all platform features including deposits, withdrawals, and trading with higher limits.
+      <div class="grid grid-cols-3 pt-1 text-center">
+        <div class="space-y-1">
+          <p class="text-[10px] font-bold uppercase tracking-wider" :class="(kyc?.tier || 0) >= 1 ? 'text-[#00D4FF]' : 'text-gray-500'">1. Email</p>
+          <p class="text-[10px] font-mono text-gray-400" v-if="(kyc?.tier || 0) >= 1">Verified ✓</p>
+        </div>
+        <div class="space-y-1 border-x border-gray-800">
+          <p class="text-[10px] font-bold uppercase tracking-wider" :class="(kyc?.tier || 0) >= 2 ? 'text-[#00D4FF]' : 'text-gray-500'">2. Identity</p>
+          <div v-if="(kyc?.tier || 0) >= 2" class="text-[10px] text-gray-400 space-y-0.5 font-mono">
+            <p v-if="kyc?.bvn_last4">BVN: ****{{ kyc.bvn_last4 }}</p>
+            <p v-if="kyc?.nin_last4">NIN: ****{{ kyc.nin_last4 }}</p>
+          </div>
+        </div>
+        <div class="space-y-1">
+          <p class="text-[10px] font-bold uppercase tracking-wider" :class="(kyc?.tier || 0) >= 3 ? 'text-[#00D4FF]' : 'text-gray-500'">3. Biometrics</p>
+          <p class="text-[10px] font-mono text-gray-400" v-if="(kyc?.tier || 0) >= 3">Facial Match ✓</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div v-if="kyc?.status === 'rejected'" class="p-4 border border-red-900/40 rounded-xl bg-red-500/5 space-y-2 animate-fadeIn">
+        <div class="flex items-center gap-2 text-red-400">
+          <span class="text-sm">❌</span>
+          <h4 class="text-xs font-bold tracking-wider uppercase">Verification Rejected</h4>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed pl-6">
+          Reason: <span class="text-gray-200">{{ kyc.rejection_reason || 'The documents provided were invalid or unreadable.' }}</span>
         </p>
+        <div class="pt-2 pl-6">
+          <button @click="$emit('open-verification')" class="px-4 py-2 text-xs bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition">
+            Restart Verification Process
+          </button>
+        </div>
       </div>
 
-      <div class="p-6 text-center border border-dashed border-gray-700 rounded-xl bg-gray-900/40 space-y-4">
-        <p class="text-sm text-gray-400">
-          Click below to start your secure identity verification scanner via Dojah
-        </p>
+      <div v-else-if="kyc?.tier >= 3" class="p-4 text-center border border-green-900/30 rounded-xl bg-green-500/5 flex items-center justify-center gap-3 animate-fadeIn">
+        <div class="text-left">
+          <h4 class="text-xs font-bold text-green-400 uppercase tracking-wider">Account Fully Verified</h4>
+          <p class="text-[11px] text-gray-400">All features active. Verified on {{ kyc.verified_at ? new Date(kyc.verified_at).toLocaleDateString() : 'N/A' }}</p>
+        </div>
+      </div>
+
+      <div v-else class="pt-2 animate-fadeIn">
         <button 
-          @click="launchDojahVerification" 
-          :disabled="!isSdkReady || loading"
-          class="w-full sm:w-auto px-6 py-3 bg-[#00D4FF] text-[#0B132B] font-bold rounded-lg disabled:opacity-40 hover:opacity-90 transition flex items-center justify-center gap-2 mx-auto"
+          @click="$emit('open-verification')" 
+          class="w-full py-3 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white text-sm font-bold rounded-xl shadow-lg hover:opacity-95 transition tracking-wide"
         >
-          <span v-if="loading" class="w-4 h-4 border-2 rounded-full border-[#0B132B]/30 border-t-[#0B132B] animate-spin"></span>
-          {{ isSdkReady ? 'Launch Identity Verification' : 'Loading...' }}
+          {{ !kyc?.tier ? 'Begin Identity Verification' : 'Complete Verification to Tier 3' }}
         </button>
       </div>
     </div>
 
-    <!-- Verification Pending State -->
-    <div v-else-if="kyc.status === 'pending'" class="p-6 text-center border border-yellow-700/50 rounded-xl bg-yellow-900/10">
-      <div class="mb-3 text-3xl animate-pulse">⏳</div>
-      <h3 class="text-xs font-bold tracking-widest text-yellow-400 uppercase">Identity Verification Pending</h3>
-      <p class="mt-2 text-sm text-gray-400">
-        We are validating your identity details against official records. This usually takes a few minutes.
-      </p>
-      <div class="mt-4 flex items-center justify-center gap-2 text-[11px] text-gray-500">
-        <span class="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-ping"></span>
-        Awaiting verification webhook confirmation
-      </div>
-    </div>
-
-    <div v-else-if="kyc.status === 'approved' || kyc.status === 'verified'" class="space-y-4">
-      <div class="p-6 text-center border border-green-700/50 rounded-xl bg-green-900/10">
-        <div class="mb-2 text-3xl">✅</div>
-        <h3 class="text-xs font-bold tracking-widest text-green-400 uppercase">Identity Verified</h3>
-        <p class="mt-1 text-sm text-gray-400">Tier: <span class="text-white capitalize">{{ kyc.level }}</span></p>
-        <p v-if="kyc.verified_at" class="mt-1 text-xs text-gray-500">
-          Verified on {{ new Date(kyc.verified_at).toLocaleDateString() }}
-        </p>
-        
-        <button v-if="kyc.tier < 2" 
-          @click="showUpgradeForm = true"
-          class="px-4 py-2 mt-4 text-xs font-bold text-white transition bg-blue-600 rounded hover:bg-blue-700">
-          Upgrade Tier
-        </button>
-      </div>
-      
-      <!-- KYC Details Grid -->
-      <div class="grid gap-3 pt-6 border-t border-gray-800">
-        <p class="flex justify-between text-sm">
-          <span class="text-gray-500">Daily Withdrawal Limit:</span>
-          <span class="font-bold text-green-400">{{ formatCurrency(kyc.daily_limit) }}</span>
-        </p>
-        <p class="flex justify-between text-sm">
-          <span class="text-gray-500">BVN Status:</span>
-          <span class="text-green-400 font-medium">Linked and Validated ✓</span>
-        </p>
-        <p class="flex justify-between text-sm">
-          <span class="text-gray-500">NIN Status:</span>
-          <span class="text-green-400 font-medium">Linked and Validated ✓</span>
-        </p>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, defineProps, defineEmits } from "vue";
-import api from "@/api";
+import { computed, defineProps, defineEmits } from "vue";
 
 const props = defineProps({
   kyc: { type: Object, default: () => null }
 });
 
-const emit = defineEmits(['refresh']);
-const showUpgradeForm = ref(false);
-const showSuccessNotification = ref(false);
-const isSdkReady = ref(false);
-const loading = ref(false);
+defineEmits(['open-verification']);
 
-onMounted(() => {
-  // Mount the interactive Dojah widget script cleanly
-  if (window.Connect) {
-    isSdkReady.value = true;
-  } else {
-    const script = document.createElement("script");
-    script.src = "https://widget.dojah.io/widget.js";
-    script.type = "text/javascript";
-    script.onload = () => { isSdkReady.value = true; };
-    document.body.appendChild(script);
-  }
+const tierClass = computed(() => {
+  if (!props.kyc?.tier) return 'border-gray-700 bg-gray-800 text-gray-400';
+  if (props.kyc.tier >= 3) return 'border-green-500/30 bg-green-500/10 text-green-400';
+  if (props.kyc.tier === 2) return 'border-purple-500/30 bg-purple-500/10 text-purple-400';
+  return 'border-blue-500/30 bg-blue-500/10 text-blue-400';
 });
 
-const launchDojahVerification = () => {
-  if (!window.Connect) return;
-
-  const options = {
-    app_id: import.meta.env.VITE_DOJAH_APP_ID,
-    p_key: import.meta.env.VITE_DOJAH_PUBLIC_KEY,
-    type: "custom", 
-    debug: import.meta.env.DEV,
-    config: {
-      pages: [
-        { page: "bvn", label: "Verify BVN" },
-        { page: "nin", label: "Verify NIN" },
-        { page: "liveness", label: "Liveness Check" }
-      ]
-    },
-    onSuccess: async function (response) {
-      loading.value = true;
-      const refId = response.referenceId || response.data?.referenceId || response.reference;
-      
-      try {
-        
-        await api.post('/kyc/dojah-submit', { reference_id: refId });
-        
-        showSuccessNotification.value = true;
-        showUpgradeForm.value = false;
-        emit('refresh');
-        
-        setTimeout(() => {
-          showSuccessNotification.value = false;
-        }, 5000);
-      } catch (err) {
-        console.error("Dojah token transmission exception:", err);
-        alert(err.response?.data?.message || "Failed to process verification callback link.");
-      } finally {
-        loading.value = false;
-      }
-    },
-    onError: function (err) {
-      console.error("Dojah Verification SDK error context:", err);
-      alert("Verification session aborted or failed to configure hardware sync windows.");
-    }
-  };
-
-  const connect = new window.Connect(options);
-  connect.setup();
-  connect.open();
-};
-
 const formatCurrency = (value) => {
-  if (value === null || value === undefined) return '0.00';
+  if (value === null || value === undefined) return '₦0.00';
   const currency = props.kyc?.currency || 'NGN';
   const locale = currency === 'USD' ? 'en-US' : 'en-NG';
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
+      minimumFractionDigits: 0
     }).format(value);
   } catch (e) {
-    return `${currency} ${Number(value).toFixed(2)}`;
+    return `${currency} ${Number(value).toLocaleString()}`;
   }
 };
 </script>
 
 <style scoped>
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
-.animate-slideDown { animation: slideDown 0.3s ease-in-out; }
+.animate-fadeIn { animation: fadeIn 0.25s ease-out forwards; }
 </style>

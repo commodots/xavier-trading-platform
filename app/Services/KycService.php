@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\KycProfile;
 use App\Models\KycSetting;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 /**
  * KYC Service - Handles KYC operations, data masking, and verification
@@ -99,34 +100,39 @@ class KycService
 
     /**
      * Determine KYC tier based on verification level attributes
+     * Aligns with Dojah Backend Integration Mapping
      *
      * @param KycProfile $kyc
      * @return int Tier level (0, 1, 2, or 3)
      */
     public static function determineTier(KycProfile $kyc): int
     {
-        if (!self::isVerified($kyc->status)) {
-            return 0;
+        $user = $kyc->user ?? \App\Models\User::find($kyc->user_id);
+        
+        // Level 1 Base Entry: Check Email Verification state
+        $level = ($user && $user->email_verified_at) ? 1 : 0;
+
+        // Fetch verification approvals from the dynamic table
+        $approvedVerifications = DB::table('kyc_verifications')
+            ->where('user_id', $kyc->user_id)
+            ->where('status', 'approved')
+            ->pluck('verification_type')
+            ->toArray();
+
+        // Level 2: Core Document Checks (BVN or NIN presence matches database verification step)
+        $hasIdentityDoc = (!empty($kyc->bvn) && strlen($kyc->bvn) >= 11) || (!empty($kyc->nin) && strlen($kyc->nin) >= 11);
+        $isIdentityVerified = count(array_intersect(['bvn', 'nin'], $approvedVerifications)) > 0;
+
+        if ($hasIdentityDoc || $isIdentityVerified) {
+            $level = 2;
         }
 
-        if (!empty($kyc->bvn)
-            && !empty($kyc->nin)
-            && !empty($kyc->intl_passport)
-            && !empty($kyc->proof_of_address)) {
-            return 3;
+        // Level 3: Advanced Liveness/Face verification check matching Dojah SDK Success payloads
+        if ($level >= 2 && in_array('selfie', $approvedVerifications)) {
+            $level = 3;
         }
 
-        if (!empty($kyc->bvn)
-            && !empty($kyc->nin)
-            && !empty($kyc->intl_passport)) {
-            return 2;
-        }
-
-        if (!empty($kyc->bvn) && !empty($kyc->nin)) {
-            return 1;
-        }
-
-        return (int) ($kyc->tier ?? 0);
+        return $level;
     }
 
     /**
@@ -150,15 +156,17 @@ class KycService
             ];
         }
 
-        $tier = $kyc->tier ?? self::determineTier($kyc);
+        $tier = self::determineTier($kyc);
         $setting = self::getKycSetting($tier);
+
+        $levelLabels = [0 => 'none', 1 => 'basic', 2 => 'identity', 3 => 'biometric'];
 
         return [
             'id' => $kyc->id,
             'status' => $kyc->status,
             'verified' => self::isVerified($kyc->status),
             'tier' => $tier,
-            'level' => $kyc->level ?? 'none',
+            'level' => $levelLabels[$tier] ?? ($kyc->level ?? 'none'),
             'daily_limit' => $setting?->daily_limit ?? 0,
             'currency' => $kyc->currency ?? 'NGN',
             'bvn' => self::maskPii($kyc->bvn),

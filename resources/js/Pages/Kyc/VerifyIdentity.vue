@@ -95,7 +95,7 @@
         <span class="text-2xl">📸</span>
       </div>
       <h3 class="text-lg font-medium">Step 4: Biometric Face Verification</h3>
-      <p class="px-4 text-sm text-gray-300">Uses Doajah to securely capture your biometric details.</p>
+      <p class="px-4 text-sm text-gray-300">Uses Dojah to securely capture your biometric details.</p>
 
       <div v-if="selfieToken || verifiedSteps.selfie" class="max-w-xs p-3 mx-auto border bg-green-500/10 border-green-500/30 rounded-xl">
         <p class="text-xs font-medium text-green-400">✓ Biometric Details Captured</p>
@@ -107,7 +107,7 @@
       </button>
 
       <div class="flex justify-end pt-6 border-t border-gray-800">
-        <button @click="handleSelfieContinue" :disabled="loading || (!selfieToken && !verifiedSteps.selfie)"
+        <button @click="handleSelfieContinue" :disabled="loading"
           class="px-6 py-2 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white rounded-lg font-bold disabled:opacity-40 transition">
           Continue to Review
         </button>
@@ -115,42 +115,85 @@
     </div>
 
     <div v-if="currentStep === 5" class="space-y-4">
-      <h3 class="text-lg font-medium">Step 5: Review & Submission</h3>
-      <div class="bg-[#151a27] p-4 rounded-xl border border-gray-800 space-y-2">
-        <p class="text-xs tracking-widest text-gray-400 uppercase">Verification Summary</p>
-        <div class="flex justify-between text-sm">
-          <span class="text-gray-500">Email:</span>
-          <span class="text-green-400">Verified ✓</span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-gray-500">BVN Status:</span>
-          <span :class="verifiedSteps.bvn ? 'text-green-400' : 'text-white'">
-            {{ verifiedSteps.bvn ? 'Verified ✓' : 'Captured' }}
-          </span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-gray-500">NIN Status:</span>
-          <span :class="verifiedSteps.nin ? 'text-green-400' : 'text-white'">
-            {{ verifiedSteps.nin ? 'Verified ✓' : 'Captured' }}
-          </span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-gray-500">Biometrics:</span>
-          <span :class="verifiedSteps.selfie ? 'text-green-400' : 'text-white'">
-            {{ verifiedSteps.selfie ? 'Captured ✓' : 'Pending' }}
-          </span>
-        </div>
-      </div>
       
-      <button @click="finalize" :disabled="loading"
-        class="w-full bg-[#00D4FF] text-[#0B132B] py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2">
-        <span v-if="loading"
-          class="w-4 h-4 border-2 rounded-full border-[#0B132B]/30 border-t-[#0B132B] animate-spin"></span>
-        Finalize Verification Flow
-      </button>
-      <button @click="currentStep = 4" class="w-full py-2 text-xs text-gray-500 transition hover:text-white">
-        Back to Biometrics
-      </button>
+      <div v-if="finalKycStatus === 'pending'" class="py-4 space-y-4 text-center animate-fade-in">
+        <div class="w-16 h-16 bg-blue-500/10 text-[#00D4FF] rounded-full flex items-center justify-center mx-auto border border-blue-500/20">
+          <span class="text-2xl animate-pulse">⏳</span>
+        </div>
+        <h2 class="text-xl font-bold">Verification In Review</h2>
+        <p class="px-4 text-xs text-gray-400">
+          Our systems are matching your biometric details against official records. Most accounts are validated in under 10 minutes.
+        </p>
+        <button @click="$emit('close')" class="w-full bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white py-2.5 rounded-lg font-bold transition">
+          Return to Dashboard
+        </button>
+      </div>
+
+      <div v-else-if="finalKycStatus === 'approved' || finalKycStatus === 'verified'" class="py-4 space-y-4 text-center">
+        <div class="flex items-center justify-center w-16 h-16 mx-auto text-green-400 border rounded-full bg-green-500/10 border-green-500/20">
+          <span class="text-2xl">🏆</span>
+        </div>
+        <h2 class="text-xl font-bold text-green-400">Account Verified</h2>
+        <p class="px-4 text-xs text-gray-400">
+          Identity profiles fully approved! Your trading stocks, wallets, and withdrawals are now available.
+        </p>
+        <button @click="closeAndRefresh" class="w-full bg-green-500 text-[#0B132B] py-2.5 rounded-lg font-bold transition">
+          Enter Dashboard
+        </button>
+      </div>
+
+      <div v-else-if="finalKycStatus === 'rejected'" class="py-4 space-y-4 text-center">
+        <div class="flex items-center justify-center w-16 h-16 mx-auto text-red-400 border rounded-full bg-red-500/10 border-red-500/20">
+          <span class="text-2xl">❌</span>
+        </div>
+        <h2 class="text-xl font-bold text-red-400">Verification Failed</h2>
+        <p class="px-4 text-xs text-gray-400">
+          The biometric details could not be validated against your database records.
+        </p>
+        <button @click="finalKycStatus = null; currentStep = 2" class="w-full bg-red-500 text-white py-2.5 rounded-lg font-bold transition">
+          Restart Verification Flow
+        </button>
+      </div>
+
+      <div v-else class="space-y-4">
+        <h3 class="text-lg font-medium">Step 5: Review & Submission</h3>
+        <div class="bg-[#151a27] p-4 rounded-xl border border-gray-800 space-y-2">
+          <p class="text-xs tracking-widest text-gray-400 uppercase">Verification Summary</p>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Email:</span>
+            <span class="text-green-400">Verified ✓</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">BVN Status:</span>
+            <span :class="verifiedSteps.bvn ? 'text-green-400' : 'text-white'">
+              {{ verifiedSteps.bvn ? 'Verified ✓' : 'Captured' }}
+            </span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">NIN Status:</span>
+            <span :class="verifiedSteps.nin ? 'text-green-400' : 'text-white'">
+              {{ verifiedSteps.nin ? 'Verified ✓' : 'Captured' }}
+            </span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Biometrics:</span>
+            <span :class="verifiedSteps.selfie ? 'text-green-400' : 'text-white'">
+              {{ verifiedSteps.selfie ? 'Captured ✓' : 'Pending' }}
+            </span>
+          </div>
+        </div>
+        
+        <button @click="finalize" :disabled="loading"
+          class="w-full bg-[#00D4FF] text-[#0B132B] py-3 rounded-lg font-bold hover:opacity-90 transition flex items-center justify-center gap-2">
+          <span v-if="loading"
+            class="w-4 h-4 border-2 rounded-full border-[#0B132B]/30 border-t-[#0B132B] animate-spin"></span>
+          Finish
+        </button>
+        <button @click="currentStep = 4" class="w-full py-2 text-xs text-gray-500 transition hover:text-white">
+          Back to Biometrics
+        </button>
+      </div>
+
     </div>
   </div>
 </template>
@@ -171,6 +214,8 @@ const isSdkReady = ref(false);
 const bvn = ref('');
 const nin = ref('');
 const selfieToken = ref(null);
+
+const finalKycStatus = ref(null); // tracking state: null, 'pending', 'approved', 'rejected'
 
 const progressPercentage = computed(() => {
   return Math.min((currentStep.value - 1) * 25, 100);
@@ -303,10 +348,12 @@ const launchDojahLiveness = () => {
 };
 
 const handleSelfieContinue = () => {
-  if (verifiedSteps.value.selfie && !selfieToken.value) {
+  if (verifiedSteps.value.selfie) {
     currentStep.value = 5;
-  } else {
+  } else if (selfieToken.value) {
     submitSelfie();
+  } else {
+    alert("Please complete the Biometric Camera Scanner before continuing. Ensure you have good lighting.");
   }
 };
 
@@ -329,14 +376,33 @@ const submitSelfie = async () => {
 const finalize = async () => {
   loading.value = true;
   try {
-    alert("Identity verification submission completed!");
-    emit('verified');
-    emit('close');
+    
+    const response = await api.get('/kyc/status');
+    const status = response.data?.kyc_status; // 'pending', 'verified', 'approved', 'rejected'
+
+    if (status === 'verified' || status === 'approved') {
+      finalKycStatus.value = 'approved';
+      emit('verified');
+    } else if (status === 'rejected') {
+      finalKycStatus.value = 'rejected';
+    } else {
+      
+      finalKycStatus.value = 'pending';
+    }
   } catch (err) {
     console.error("Identity finalization error:", err);
-    alert("An unexpected error occurred during finalization.");
+    // If the check fails, we fallback to showing the pending review design gracefully
+    finalKycStatus.value = 'pending';
   } finally {
     loading.value = false;
   }
+};
+
+// Helper utility to refresh dashboard state context when the modal is dismissed
+const closeAndRefresh = () => {
+  emit('verified');
+  emit('close');
+  // Optional window location reload if you want to wipe parent component states cleanly
+  window.location.reload();
 };
 </script>
