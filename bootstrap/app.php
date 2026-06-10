@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'advisory.access'      => \App\Http\Middleware\CheckAdvisoryAccess::class,
             'rate-limit-sensitive' => \App\Http\Middleware\RateLimitSensitiveOperations::class,
             'kyc'                  => \App\Http\Middleware\KycLevelMiddleware::class,
+            '2fa'                   => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
         ]);
 
         // --- API Middleware Stack ---

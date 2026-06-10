@@ -2,56 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\TwoFactorToken;
 use App\Models\User;
 use Exception;
+use PragmaRX\Google2FA\Google2FA;
 
 class TwoFactorService
 {
-    /**
-     * Generate a 6-digit OTP token
-     */
-    public function generateOtp(): string
-    {
-        return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Create a 2FA token for a user
-     */
-    public function createToken(User $user, string $type = 'login', int $minutesValid = 10): string
-    {
-        $token = $this->generateOtp();
-
-        TwoFactorToken::create([
-            'user_id' => $user->id,
-            'token' => $token,
-            'type' => $type,
-            'expires_at' => now()->addMinutes($minutesValid),
-        ]);
-
-        return $token;
-    }
-
-    /**
-     * Verify a 2FA token
-     */
-    public function verifyToken(User $user, string $token, string $type = 'login'): bool
-    {
-        $record = TwoFactorToken::where('user_id', $user->id)
-            ->where('token', $token)
-            ->where('type', $type)
-            ->active()
-            ->first();
-
-        if (!$record) {
-            return false;
-        }
-
-        $record->markAsUsed();
-        return true;
-    }
-
     /**
      * Generate recovery codes for 2FA backup
      */
@@ -70,15 +26,14 @@ class TwoFactorService
      */
     public function verifyRecoveryCode(User $user, string $code): bool
     {
-        if (!$user->two_factor_recovery_codes) {
-            return false;
-        }
+       
+        $codes = $user->two_factor_recovery_codes ? json_decode($user->two_factor_recovery_codes, true) : [];
 
-        $codes = $user->two_factor_recovery_codes;
-
-        if (($key = array_search($code, $codes)) !== false) {
+        if (($key = array_search($code, $codes, true)) !== false) {
             unset($codes[$key]);
-            $user->update(['two_factor_recovery_codes' => array_values($codes)]);
+            
+            $user->two_factor_recovery_codes = json_encode(array_values($codes));
+            $user->save();
             return true;
         }
 
@@ -88,22 +43,29 @@ class TwoFactorService
     /**
      * Enable 2FA for user (returns secret and QR code URL)
      */
+    /**
+     * Enable 2FA for user (stores secret and codes together)
+     */
     public function enableTwoFactor(User $user): array
     {
         try {
-            // Generate a random secret
-            $secret = $this->generateSecret();
+            $google2fa = new Google2FA();
+            $secret = $google2fa->generateSecretKey();
+            $codes = $this->generateRecoveryCodes();
 
-            // In a real implementation, you'd use a package like pragmarx/google2fa-laravel
-            // For now, we'll store the secret and return it
-            $user->update([
-                'two_factor_secret' => $secret,
-                'two_factor_recovery_codes' => $this->generateRecoveryCodes(),
-            ]);
+            
+            $payload = [
+                'secret' => $secret,
+                'recovery_codes' => $codes
+            ];
+
+         
+            $user->google2fa_secret = json_encode($payload);
+            $user->save();
 
             return [
                 'secret' => $secret,
-                'recovery_codes' => $user->two_factor_recovery_codes,
+                'recovery_codes' => $codes,
                 'qr_code_url' => $this->generateQrCodeUrl($user, $secret),
             ];
         } catch (Exception $e) {
@@ -117,10 +79,9 @@ class TwoFactorService
     public function disableTwoFactor(User $user): void
     {
         $user->update([
-            'two_factor_enabled' => false,
-            'two_factor_secret' => null,
+            'google2fa_enabled' => false,
+            'google2fa_secret' => null,
             'two_factor_recovery_codes' => null,
-            'two_factor_confirmed_at' => null,
         ]);
     }
 
@@ -130,25 +91,8 @@ class TwoFactorService
     public function confirmTwoFactor(User $user): void
     {
         $user->update([
-            'two_factor_enabled' => true,
-            'two_factor_confirmed_at' => now(),
+            'google2fa_enabled' => true,
         ]);
-    }
-
-    /**
-     * Generate a random secret for Google Authenticator
-     */
-    private function generateSecret(): string
-    {
-        // Generate a random 32-character base32 string
-        $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        $secret = '';
-
-        for ($i = 0; $i < 32; $i++) {
-            $secret .= $characters[random_int(0, 31)];
-        }
-
-        return $secret;
     }
 
     /**
@@ -159,7 +103,6 @@ class TwoFactorService
         $appName = config('app.name', 'Xavier Trading');
         $email = $user->email;
 
-        // Format: otpauth://totp/AppName:email?secret=SECRET&issuer=AppName
-        return 'otpauth://totp/' . urlencode("$appName:$email") . '?secret=' . $secret . '&issuer=' . urlencode($appName);
+        return 'otpauth://totp/' . urlencode("{$appName}:{$email}") . '?secret=' . $secret . '&issuer=' . urlencode($appName);
     }
 }

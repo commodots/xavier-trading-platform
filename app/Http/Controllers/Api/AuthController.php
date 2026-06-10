@@ -31,6 +31,7 @@ class AuthController extends Controller
 
         $credentials = $request->only('email', 'password');
 
+
         if (!Auth::attempt($credentials)) {
             try {
                 // Find the user if they exist to link the log, otherwise use null
@@ -49,10 +50,10 @@ class AuthController extends Controller
         }
         $user = Auth::user();
 
-        // Update last_active_at on every login
+        // Update last_active_at on every successful login after 2FA validation.
+        // Do not persist the session if 2FA is still required.
         $user->last_active_at = now();
 
-        // Reactivate inactive accounts on login
         if ($user->subscription_status === 'inactive') {
             $user->subscription_status = 'active';
             $user->next_fee_due_at = now();
@@ -72,26 +73,48 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
         }
 
-        // Check for 2FA requirement
-        if ($user->google2fa_enabled) {
+       try {
+            // Check for 2FA requirement before creating an access token.
+            if ($user->google2fa_enabled) {
+                
+                // Testing the underlying value safely via the model attribute.
+                
+                if (empty($user->google2fa_secret)) {
+                    throw new \Illuminate\Contracts\Encryption\DecryptException("2FA secret configuration missing.");
+                }
 
-            Auth::logout();
+                Auth::logout();
+                return response()->json([
+                    'success'      => true,
+                    'requires_2fa' => true,
+                    'email'        => $user->email,
+                ]);
+            }
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            // If the model accessor fails to decrypt the APP_KEY encrypted database field, catch it cleanly
+            \Log::error("2FA Decryption failed for User #{$user->id}: " . $e->getMessage());
             return response()->json([
-                'success'      => true,
-                'requires_2fa' => true,
-                'email'        => $user->email,
-            ]);
+                'success' => false,
+                'message' => 'Security configuration error. Please contact support to reset 2FA.'
+            ], 500);
         }
 
-        $token = $user->createToken('auth_token|' . $request->userAgent() . '|' . $request->ip())->plainTextToken;
+        $token = $user->createToken('auth_token|' . substr($request->userAgent() ?? '', 0, 255) . '|' . $request->ip())->plainTextToken;
 
-        // Track device/session
-        UserDevice::updateOrCreate(
-            ['user_id' => $user->id, 'device_name' => substr($request->userAgent(), 0, 255), 'ip_address' => $request->ip()],
+        // Track device/session and detect new device logins only after successful token is issued.
+        $device = UserDevice::firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'device_name' => substr($request->userAgent() ?? '', 0, 255),
+                'ip_address' => $request->ip(),
+            ],
             ['last_active_at' => now()]
         );
 
-        // 🛑 Log out of the temporary session 
+        if ($device->wasRecentlyCreated) {
+            $user->notify(new \App\Notifications\NewDeviceLoginNotification($device));
+        }
+
         Auth::logout();
 
         return response()->json([
@@ -108,6 +131,7 @@ class AuthController extends Controller
             ]
         ]);
     }
+
 
     // Profile
     public function profile(Request $request)

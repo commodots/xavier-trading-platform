@@ -12,6 +12,7 @@ use App\Models\Wallet;
 use App\Providers\AlpacaProvider;
 use App\Services\MarketService;
 use App\Models\Ledger;
+use App\Notifications\TradeExecutedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -189,6 +190,8 @@ class TradeController extends Controller
                 'meta' => ['pair' => $trade->pair, 'trade_id' => $trade->id],
             ]);
 
+            $user->notify(new TradeExecutedNotification($trade, 'open'));
+
             return response()->json(['success' => true, 'data' => $trade]);
         });
     }
@@ -365,6 +368,8 @@ class TradeController extends Controller
                     'user_id' => $user->id,
                     'status' => 'success',
                 ]);
+
+                $user->notify(new TradeExecutedNotification($lockedTrade, 'close'));
 
                 return response()->json(['success' => true, 'data' => $lockedTrade]);
             });

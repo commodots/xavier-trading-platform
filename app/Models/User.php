@@ -19,7 +19,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     use HasRoles;
 
     protected $_trialSubscription;
-     protected $_currentTier;
+    protected $_currentTier;
 
     protected $fillable = [
         'name',
@@ -43,7 +43,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'trading_mode',
         'email_verified_at',
         'subscription_status', 'trial_ends_at', 'last_active_at',
-        'wallet_balance', 'wallet_debt', 'last_fee_charged_at', 'next_fee_due_at'
+        'wallet_balance', 'wallet_debt', 'last_fee_charged_at', 'next_fee_due_at',
+        'google2fa_secret',
+        'google2fa_enabled',
+        'two_factor_recovery_codes'
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -66,6 +69,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'wallet_balance' => 'decimal:2',
         'wallet_debt' => 'decimal:2',
         'google2fa_enabled' => 'boolean',
+        'two_factor_recovery_codes' => 'encrypted',
     ];
 
     protected $appends = [
@@ -140,7 +144,20 @@ class User extends Authenticatable implements MustVerifyEmailContract
     protected function google2faSecret(): Attribute
     {
         return new Attribute(
-            get: fn ($value) => $value ? Crypt::decryptString($value) : null,
+            get: function ($value) {
+                if (!$value) return null;
+                
+                // Decrypt the raw database string payload
+                $decrypted = Crypt::decryptString($value);
+                
+                // If it's our packed JSON string, decode it and return just the secret string
+                $data = json_decode($decrypted, true);
+                if (is_array($data) && isset($data['secret'])) {
+                    return $data['secret'];
+                }
+                
+                return $decrypted;
+            },
             set: fn ($value) => $value === null ? null : Crypt::encryptString($value),
         );
     }
@@ -167,6 +184,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function notificationPreferences()
     {
         return $this->hasOne(NotificationPreference::class);
+    }
+    public function notifications()
+    {
+      
+        return $this->morphMany(\App\Models\Notification::class, 'notifiable')->latest();
     }
 
     public function holdings()

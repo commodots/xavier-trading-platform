@@ -6,7 +6,7 @@ use App\Models\WithdrawalRequest;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class WithdrawalInitiated extends Notification
+class WithdrawalApprovedNotification extends Notification
 {
     public function __construct(private WithdrawalRequest $withdrawal)
     {
@@ -26,31 +26,31 @@ class WithdrawalInitiated extends Notification
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Withdrawal Request Received')
+            ->subject('Withdrawal Approved')
             ->greeting("Hello {$notifiable->first_name},")
-            ->line("Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been received.")
-            ->line("Status: Pending Approval")
-            ->action('View Withdrawal Details', url("/dashboard/security/withdrawals/{$this->withdrawal->id}"))
-            ->line('If you did not authorize this request, please contact support immediately.');
+            ->line("Great news! Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been approved.")
+            ->line("Funds should arrive in your account shortly.")
+            ->action('View Transaction', url('/dashboard/wallet'))
+            ->line('Thank you for using Xavier.');
     }
 
     public function toArray($notifiable): array
     {
-        $textMessage = "Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} is pending approval.";
+        $textMessage = "Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been approved.";
 
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
             
             'type' => 'withdrawal',
-            'title' => 'Withdrawal Request Initiated',
-            'action' => 'View Details',
-            'action_url' => "/dashboard/security/withdrawals/{$this->withdrawal->id}",
-            'icon' => '💸',
+            'title' => 'Withdrawal Approved',
+            'action' => 'View Withdrawal',
+            'action_url' => null,
+            'icon' => '✅',
             'metadata' => [
                 'withdrawal_id' => $this->withdrawal->id,
-                'amount' => $this->withdrawal->amount,
                 'currency' => $this->withdrawal->currency,
+                'amount' => $this->withdrawal->amount,
             ],
         ];
     }

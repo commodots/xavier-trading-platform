@@ -31,9 +31,9 @@ class SettleUnsettledTrades implements ShouldQueue
                 return;
             }
 
-            $currency     = $trade->order?->currency ?? 'NGN';
-            $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
-            $clearedCol   = $currency === 'NGN' ? 'ngn_cleared'   : 'usd_cleared';
+            $currency     = $trade->currency === 'USD' ? 'USD' : 'NGN';
+            $unclearedCol = $trade->currency === 'USD' ? 'usd_uncleared' : 'ngn_uncleared';
+            $clearedCol   = $trade->currency === 'USD' ? 'usd_cleared'   : 'ngn_cleared';
 
             $tradeWallet = $trade->user->wallet()
                 ->where('currency', $currency)
@@ -46,13 +46,11 @@ class SettleUnsettledTrades implements ShouldQueue
                 return;
             }
 
-            $settledAmount = $trade->quantity * $trade->price;
+            $settledAmount = $trade->total_amount ?? ($trade->quantity * $trade->price);
 
             \Illuminate\Support\Facades\DB::transaction(function () use ($trade, $tradeWallet, $unclearedCol, $clearedCol, $settledAmount) {
-                $tradeWallet->update([
-                    $unclearedCol => max(0, $tradeWallet->{$unclearedCol} - $settledAmount),
-                    $clearedCol   => $tradeWallet->{$clearedCol} + $settledAmount,
-                ]);
+                $tradeWallet->decrement($unclearedCol, $settledAmount);
+                $tradeWallet->increment($clearedCol, $settledAmount);
 
                 $trade->update([
                     'is_settled'        => true,

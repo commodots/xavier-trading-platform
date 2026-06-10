@@ -10,7 +10,6 @@ use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AdvisoryController;
-// Feature Controllers
 use App\Http\Controllers\AlpacaWebhookController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminServiceController;
@@ -19,9 +18,9 @@ use App\Http\Controllers\Api\CryptoController;
 use App\Http\Controllers\Api\CryptoWebhookController;
 use App\Http\Controllers\Api\DummyCscsController;
 use App\Http\Controllers\Api\Security\AuditLogController;
-use App\Http\Controllers\Api\Security\TwoFactorController as SecurityTwoFactorController;
 use App\Http\Controllers\Api\Security\UserDeviceController;
 use App\Http\Controllers\Api\Security\WithdrawalController;
+use App\Http\Controllers\Api\Security\TwoFactorController; 
 use App\Http\Controllers\Api\DummyNgxController;
 use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\MarketController;
@@ -35,11 +34,8 @@ use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransactionTypeController;
-use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
 use App\Http\Controllers\Api\User\NotificationController;
-use App\Http\Controllers\Api\User\SecurityController;
-use App\Http\Controllers\Api\WalletController;
 // Admin Controllers
 use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -61,17 +57,15 @@ use Illuminate\Support\Facades\Route;
 | Public Routes
 |--------------------------------------------------------------------------
 */
-
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
-
-Route::post('/login/2fa', [TwoFactorController::class, 'verify2FA'])->middleware('throttle:5,1');
-
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
 Route::post('/bvn/verify', [OnboardingController::class, 'verifyBvn']);
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('api.password.email');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('api.password.store');
-Route::post('/2fa/verify', [TwoFactorController::class, 'verify2FA'])->middleware('throttle:5,1');
+
+Route::post('/login/verify-2fa', [TwoFactorController::class, 'verifyLogin'])->middleware('throttle:5,1');
+Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->middleware('throttle:5,1');
 
 /* Webhooks */
 Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
@@ -83,7 +77,11 @@ Route::post('/market/update', [TradeController::class, 'updateMarket']);
 Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);
 Route::post('/stocks/track', [TradeController::class, 'trackSymbol']);
 
-/* Dummy API */
+Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
+    ->middleware(['throttle:6,1'])
+    ->name('api.verification.verify');
+
+/* Mock Verification Sandboxes (Dummy API) */
 Route::prefix('dummy')->group(function () {
     Route::prefix('ngx')->group(function () {
         Route::get('market/{symbol}', [DummyNgxController::class, 'marketData']);
@@ -106,23 +104,7 @@ Route::prefix('dummy')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/kyc/verify-liveness', [DojahController::class, 'verifyLiveness']);
-
-    /* Dojah KYC — primary identity verification provider */
-    Route::prefix('kyc')->group(function () {
-        Route::post('/bvn',    [DojahKycController::class, 'verifyBvn']);
-        Route::post('/nin',    [DojahKycController::class, 'verifyNin']);
-        Route::post('/selfie', [DojahKycController::class, 'verifySelfie']);
-        Route::get('/status',  [DojahKycController::class, 'status']);
-    });
-});
-
-Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
-    ->middleware(['throttle:6,1'])
-    ->name('api.verification.verify');
-
-Route::middleware('auth:sanctum')->group(function () {
-    /* User & Auth Management */
+    
     Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
 
@@ -130,101 +112,65 @@ Route::middleware('auth:sanctum')->group(function () {
         if ($request->user()->hasVerifiedEmail()) {
             return response()->json(['success' => false, 'message' => 'Email already verified.'], 400);
         }
-
         try {
             $request->user()->sendEmailVerificationNotification();
-
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (\Exception $e) {
             Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
-
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
-    })->middleware(['auth:sanctum', 'throttle:2,1']); // Slightly higher throttle to allow immediate retry if it fails
+    })->middleware('throttle:2,1');
 
-    /* Market Data (Available to all logged in users) */
-    Route::get('/market/candles', [MarketDataController::class, 'candles']);
-    Route::get('/markets/stocks/{symbol}/history', [MarketDataController::class, 'stockHistory']);
-    Route::get('/markets', [MarketController::class, 'index']);
-    Route::get('/markets/insights/{market}', [TradeController::class, 'insights']);
-    Route::get('/advisories', [AdvisoryController::class, 'index']);
-    Route::get('/market/quotes', [MarketController::class, 'quotes']);
-    Route::get('/market/ngx', [MarketController::class, 'ngx']);
-    Route::get('/market/global', [MarketController::class, 'global']);
-    Route::get('/market/crypto', [MarketController::class, 'crypto']);
-    Route::get('/market/fixed-income', [MarketController::class, 'fixedIncome']);
-    Route::get('/companies/search/{query}', [TradeController::class, 'searchSymbols']);
-    Route::get('/market/ngx/insights', [MarketController::class, 'getNGXInsights']);
-    Route::get('/market/global/insights', [MarketController::class, 'getGlobalInsights']);
+    /* kyc Providers (Dojah) */
+    Route::post('/kyc/verify-liveness', [DojahKycController::class, 'verifyLiveness']);
+    Route::prefix('kyc')->group(function () {
+        Route::post('/bvn',    [DojahKycController::class, 'verifyBvn']);
+        Route::post('/nin',    [DojahKycController::class, 'verifyNin']);
+        Route::post('/selfie', [DojahKycController::class, 'verifySelfie']);
+        Route::get('/status',  [DojahKycController::class, 'status']);
+    });
 
-    /* Verified Actions (Wallet, Portfolio, Trading) */
-    // Accessible to all authenticated users (even email unverified)
-    Route::get('/wallet/balances', [WalletController::class, 'balances']);
+    /* Basic Market Reads (Open to Unverified Accounts) */
+    Route::middleware('kyc:0')->group(function () {
+        Route::get('/market/candles', [MarketDataController::class, 'candles']);
+        Route::get('/markets/stocks/{symbol}/history', [MarketDataController::class, 'stockHistory']);
+        Route::get('/markets', [MarketController::class, 'index']);
+        Route::get('/markets/insights/{market}', [TradeController::class, 'insights']);
+        Route::get('/advisories', [AdvisoryController::class, 'index']);
+        Route::get('/market/quotes', [MarketController::class, 'quotes']);
+        Route::get('/market/ngx', [MarketController::class, 'ngx']);
+        Route::get('/market/global', [MarketController::class, 'global']);
+        Route::get('/market/crypto', [MarketController::class, 'crypto']);
+        Route::get('/market/fixed-income', [MarketController::class, 'fixedIncome']);
+        Route::get('/companies/search/{query}', [TradeController::class, 'searchSymbols']);
+        Route::get('/market/ngx/insights', [MarketController::class, 'getNGXInsights']);
+        Route::get('/market/global/insights', [MarketController::class, 'getGlobalInsights']);
+    });
+
+    /* Global Ledger & Structural Portfolios (Read Only) */
+    Route::get('/wallet/balances', [\App\Http\Controllers\Api\WalletController::class, 'balances']);
     Route::get('/transactions', [NewTransactionController::class, 'index']);
     Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
     Route::get('/portfolio', [PortfolioController::class, 'index']);
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
     Route::get('/portfolio/trading', [PortfolioController::class, 'trading']);
-    Route::get('/fx-rates', [WalletController::class, 'getRates']);
+    Route::get('/fx-rates', [\App\Http\Controllers\Api\WalletController::class, 'getRates']);
     Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
-
-    /* Data Access (Available to all authenticated users) */
+    
     Route::get('/orders', [OmsController::class, 'listOrders']);
     Route::get('/trade/positions', [TradeController::class, 'index']);
     Route::get('/trades', [TradeController::class, 'index']);
 
-    /* Watchlist Management (Non-financial) */
+    /* Personal User Watchlist Configurations */
     Route::get('/watchlist', [WatchlistController::class, 'index']);
     Route::post('/watchlist', [WatchlistController::class, 'store']);
     Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
-    Route::post('/watchlist/toggle', [WatchlistController::class, 'store'])->name('api.watchlist.toggle');
-    Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy'])->name('api.watchlist.destroy');
 
-    // Restricted to users with verified emails
-    Route::middleware('verified')->group(function () {
-        // Wallet & Transactions
-        Route::post('/wallet/convert', [WalletController::class, 'convert'])->middleware('throttle:10,1');
-        Route::post('/otp/send-withdrawal', [NewTransactionController::class, 'sendOtp']);
-        Route::post('/transfer', [NewTransactionController::class, 'transfer']);
-
-        // Deposits require KYC level 2
-        Route::post('/deposit', [NewTransactionController::class, 'deposit'])->middleware('kyc:2');
-        Route::post('/withdraw', [NewTransactionController::class, 'withdraw'])
-            ->middleware(['kyc:3', 'throttle:3,60']);
-
-        // Crypto Operations
-        Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw'])
-            ->middleware(['kyc:3', 'throttle:3,60']);
-
-        // Portfolio & Trading — require KYC level 2
-        Route::middleware('kyc:2')->group(function () {
-            Route::post('/orders', [OmsController::class, 'placeOrder'])->middleware('throttle:30,1');
-            Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
-            Route::post('/trade/open', [TradeController::class, 'open']);
-            Route::post('/trade/close/{id}', [TradeController::class, 'close'])->middleware('throttle:30,1');
-            Route::post('/trade/place', [TradeController::class, 'placeOrder']);
-        });
-
-        Route::get('/account', [TradeController::class, 'account']);
-    });
-
-    /* Payment Integrations */
-    Route::prefix('paystack')->group(function () {
-        Route::post('/initiate', [PaystackController::class, 'initiate']);
-        Route::get('/verify/{reference}', [PaystackController::class, 'verify']);
-    });
-
-    /* Profile & Security */
+    /* Profile Modification & Sandboxes */
     Route::get('/profile/me', [ProfileController::class, 'show']);
     Route::post('/profile/update', [ProfileController::class, 'update']);
     Route::get('/profile/kyc', [ProfileController::class, 'getKyc']);
     Route::post('/profile/kyc', [ProfileController::class, 'submitKyc']);
-    Route::get('/2fa/setup', [TwoFactorController::class, 'enable2FA']);
-    Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm2FA']);
-    Route::post('/2fa/disable', [TwoFactorController::class, 'disable2FA']);
-    Route::post('/reports/generate', [ProfileController::class, 'generateReport']);
-
-    /* Demo Mode Controls */
     Route::post('/demo/start', [DemoController::class, 'startDemo']);
     Route::post('/demo/reset', [DemoController::class, 'resetDemo']);
     Route::post('/demo/trade', [DemoController::class, 'placeTrade']);
@@ -235,19 +181,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/kyc/show', [KycController::class, 'show']);
         Route::post('/kyc/submit', [KycController::class, 'submit']);
         Route::get('/profile/show', [ProfileController::class, 'show']);
-        Route::put('/profile/update', [ProfileController::class, 'update']);
-        Route::put('/security/password', [SecurityController::class, 'changePassword']);
-        Route::post('/security/2fa/enable', [SecurityController::class, 'enable2FA']);
-        Route::post('/security/2fa/verify', [SecurityController::class, 'verify2FA']);
+        Route::post('/profile/update', [ProfileController::class, 'update']);
+        
         Route::get('/linked-accounts/index', [LinkedAccountController::class, 'index']);
         Route::post('/linked-accounts/store', [LinkedAccountController::class, 'store']);
         Route::delete('/linked-accounts/{id}', [LinkedAccountController::class, 'destroy']);
 
-        // Session & Device Management
-        Route::get('/sessions', [SecurityController::class, 'getActiveSessions']);
-        Route::post('/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
-
-        // Notifications
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
@@ -256,7 +195,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /* Advisory Subscription Logic */
         Route::prefix('advisory')->group(function () {
-            Route::get('/plans', [SubscriptionController::class, 'plans']); // Add this line
+            Route::get('/plans', [SubscriptionController::class, 'plans']);
             Route::post('/activate-trial', [AdvisoryController::class, 'activateTrial']);
             Route::post('/subscribe', [SubscriptionController::class, 'initializePayment']);
             Route::get('/verify-payment', [SubscriptionController::class, 'verifyPayment']);
@@ -278,34 +217,61 @@ Route::middleware('auth:sanctum')->group(function () {
     /* Security & Account Protection */
     Route::prefix('security')->group(function () {
         Route::prefix('2fa')->group(function () {
-            Route::post('/setup', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'setup']);
-            Route::post('/verify', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'verify']);
-            Route::post('/disable', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'disable']);
-            Route::get('/status', [\App\Http\Controllers\Api\Security\TwoFactorController::class, 'status']);
+            Route::post('/setup', [TwoFactorController::class, 'setup']);
+            Route::post('/verify', [TwoFactorController::class, 'verify']);
+            Route::post('/disable', [TwoFactorController::class, 'disable']);
+            Route::get('/status', [TwoFactorController::class, 'status']);
         });
 
-        Route::prefix('withdrawals')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'store']);
-            Route::get('/{withdrawal}', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'show']);
-            Route::post('/{withdrawal}/approve', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'approve']);
-            Route::post('/{withdrawal}/reject', [\App\Http\Controllers\Api\Security\WithdrawalController::class, 'reject']);
+        // Enforcing KYC and 2FA via structural route-level middleware definitions
+        Route::prefix('withdrawals')->middleware(['kyc:2', '2fa', 'throttle:3,60'])->group(function () {
+            Route::get('/', [WithdrawalController::class, 'index']);
+            Route::post('/', [WithdrawalController::class, 'store']);
+            Route::post('/otp', [WithdrawalController::class, 'sendWithdrawalOtp']); 
+            Route::get('/{withdrawal}', [WithdrawalController::class, 'show']);
+            Route::post('/{withdrawal}/approve', [WithdrawalController::class, 'approve']);
+            Route::post('/{withdrawal}/reject', [WithdrawalController::class, 'reject']);
         });
 
         Route::prefix('audit-logs')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Api\Security\AuditLogController::class, 'index']);
-            Route::get('/summary', [\App\Http\Controllers\Api\Security\AuditLogController::class, 'summary']);
+            Route::get('/', [AuditLogController::class, 'index']);
+            Route::get('/summary', [AuditLogController::class, 'summary']);
         });
 
         Route::prefix('devices')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'index']);
-            Route::post('/register', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'register']);
-            Route::post('/{device}/trust', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'trust']);
-            Route::delete('/{device}', [\App\Http\Controllers\Api\Security\UserDeviceController::class, 'revoke']);
+            Route::get('/', [UserDeviceController::class, 'index']);
+            Route::post('/register', [UserDeviceController::class, 'register']);
+            Route::post('/{device}/trust', [UserDeviceController::class, 'trust']);
+            Route::delete('/{device}', [UserDeviceController::class, 'revoke']);
         });
     });
 
-    /* Admin Control Panel */
+    /* Verified Transaction Boundaries (Requires Verified Email) */
+    Route::middleware('verified')->group(function () {
+        Route::post('/wallet/convert', [\App\Http\Controllers\Api\WalletController::class, 'convert'])->middleware('throttle:10,1');
+        Route::post('/transfer', [NewTransactionController::class, 'transfer']);
+        Route::get('/account', [TradeController::class, 'account']);
+
+        Route::post('/deposit', [NewTransactionController::class, 'deposit'])->middleware('kyc:1');
+        Route::post('/crypto/withdraw', [CryptoController::class, 'withdraw'])->middleware(['kyc:2', '2fa', 'throttle:3,60']);
+
+        /* Trading Operations */
+        Route::middleware('kyc:1')->group(function () {
+            Route::post('/orders', [OmsController::class, 'placeOrder'])->middleware('throttle:30,1');
+            Route::post('/orders/{id}/cancel', [OmsController::class, 'cancelOrder']);
+            Route::post('/trade/open', [TradeController::class, 'open']);
+            Route::post('/trade/close/{id}', [TradeController::class, 'close'])->middleware('throttle:30,1');
+            Route::post('/trade/place', [TradeController::class, 'placeOrder']);
+        });
+    });
+
+    /* Financial Payment Integrations gateways */
+    Route::prefix('paystack')->group(function () {
+        Route::post('/initiate', [PaystackController::class, 'initiate']);
+        Route::get('/verify/{reference}', [PaystackController::class, 'verify']);
+    });
+
+    /* System Administrative Panel Layer */
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
         Route::apiResource('/subscription-plans', AdminSubscriptionController::class);
@@ -338,6 +304,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // System Settings & FX
         Route::post('/fx-rates', [FxRateController::class, 'store']);
+        Route::delete('/fx-rates/{id}', [FxRateController::class, 'destroy']);
         Route::get('/settings', [SystemSettingsController::class, 'get']);
         Route::post('/settings/update', [SystemSettingsController::class, 'update']);
         Route::get('/transaction-charges', [AdminController::class, 'getCharges']);
@@ -354,9 +321,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/services/{serviceId}/config', [AdminServiceController::class, 'getConfig']);
         Route::post('/services/{serviceId}/config', [AdminServiceController::class, 'updateConfig']);
 
-        Route::delete('/fx-rates/{id}', [FxRateController::class, 'destroy']);
-
-        // FX Reconciliation
         Route::prefix('fx')->group(function () {
             Route::get('/dashboard', [FxDashboardController::class, 'index']);
             Route::get('/reconciliation', [FxReconciliationController::class, 'getReconciliation']);

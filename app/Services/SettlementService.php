@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Trade;
 use App\Models\Wallet;
 use App\Models\Portfolio;
+use App\Notifications\SettlementCompletedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -116,9 +117,13 @@ class SettlementService
         //  Mark the trade records as officially settled
         $trade->update([
             'settlement_status' => 'settled',
-            'is_settled'        => true,
-            'settlement_date'   => Carbon::now()->toDateString(),
+            'is_settled' => true,
+            'settlement_date' => now()
         ]);
+
+        if ($trade->user) {
+            $trade->user->notify(new SettlementCompletedNotification($trade));
+        }
 
         // Update parent order state if all child trades have been cleared out
         if ($order->trades()->where('settlement_status', 'pending')->count() === 0) {

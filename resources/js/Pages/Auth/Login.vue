@@ -152,8 +152,8 @@ const submit2FA = async () => {
   errorMessage.value = "";
 
   try {
-    const res = await axios.post("/login/2fa", {
-      email: email.value,
+ const res = await axios.post("/login/verify-2fa", {
+        email: email.value,
       token: twoFactorCode.value
     });
 

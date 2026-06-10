@@ -17,14 +17,15 @@ class AuditService
         array $metadata = []
     ): AuditLog {
         return AuditLog::create([
-            'user_id' => $user->id,
-            'event_type' => $eventType,
+            'user_id'     => $user->id,
+            'event_type'  => 'security_event', 
+            'action'      => $eventType,      
             'description' => $description,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'metadata' => array_merge($metadata, [
+            'ip_address'  => request()->ip(),
+            'user_agent'  => request()->userAgent(),
+            'metadata'    => array_merge($metadata, [
                 'timestamp' => now(),
-                'source' => 'security_event',
+                'source'    => 'security_event',
             ]),
         ]);
     }
@@ -42,6 +43,7 @@ class AuditService
         return AuditLog::create([
             'user_id' => $user->id,
             'event_type' => 'financial_transaction',
+            'action' => $transactionType,
             'description' => "{$transactionType}: {$amount} {$currency}",
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
@@ -65,7 +67,8 @@ class AuditService
     ): AuditLog {
         return AuditLog::create([
             'user_id' => $user->id,
-            'event_type' => $eventType,
+            'event_type' => 'authentication',
+            'action' => $eventType,
             'description' => $eventType . ($successful ? ' (Successful)' : ' (Failed)'),
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
@@ -89,6 +92,7 @@ class AuditService
         return AuditLog::create([
             'user_id' => $user->id,
             'event_type' => 'settings_change',
+            'action' => 'update_' . $settingName,
             'description' => "Changed {$settingName}",
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),

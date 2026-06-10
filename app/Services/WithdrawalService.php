@@ -4,11 +4,17 @@ namespace App\Services;
 
 use App\Exceptions\InsufficientBalanceException;
 use App\Exceptions\WithdrawalLimitExceededException;
+use App\Models\Ledger;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
 use App\Models\WithdrawalLimit;
+use App\Notifications\NewDeviceLoginNotification;
+use App\Notifications\WithdrawalApprovedNotification;
 use App\Notifications\WithdrawalInitiated;
+use App\Notifications\WithdrawalRejectedNotification;
+use App\Notifications\WithdrawalOtpNotification;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 
 class WithdrawalService
 {
@@ -92,14 +98,15 @@ class WithdrawalService
 
         $withdrawal->approve($approver->id);
 
+        $this->deductFromWallet($withdrawal);
+
         activity()
             ->causedBy($approver)
             ->performedOn($withdrawal)
             ->event('withdrawal_approved')
             ->log("Admin approved withdrawal request #{$withdrawal->id}");
 
-        // Deduct from wallet
-        $this->deductFromWallet($withdrawal);
+        $withdrawal->user->notify(new WithdrawalApprovedNotification($withdrawal));
     }
 
     /**
@@ -125,6 +132,8 @@ class WithdrawalService
             ->performedOn($withdrawal)
             ->event('withdrawal_rejected')
             ->log("Admin rejected withdrawal request #{$withdrawal->id}: {$reason}");
+
+        $withdrawal->user->notify(new WithdrawalRejectedNotification($withdrawal));
     }
 
     /**
@@ -167,7 +176,7 @@ class WithdrawalService
     }
 
     /**
-     * Deduct withdrawal amount from user's wallet
+     * Deduct withdrawal amount from user's wallet inside a transaction
      */
     private function deductFromWallet(WithdrawalRequest $withdrawal): void
     {
@@ -180,9 +189,57 @@ class WithdrawalService
 
             $col = $withdrawal->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
             $wallet->decrement($col, $withdrawal->amount);
+            $wallet->decrement('balance', $withdrawal->amount);
+            $wallet->save();
 
-            $withdrawal->update(['status' => 'approved']);
+            Ledger::create([
+                'user_id' => $withdrawal->user_id,
+                'currency' => $withdrawal->currency,
+                'amount' => $withdrawal->amount,
+                'type' => 'withdrawal',
+                'status' => 'completed',
+                'reference' => "withdrawal-{$withdrawal->id}",
+                'meta' => [
+                    'withdrawal_id' => $withdrawal->id,
+                ],
+            ]);
+
+            activity()
+                ->causedBy($withdrawal->user)
+                ->performedOn($withdrawal)
+                ->event('withdrawal_wallet_deducted')
+                ->log("Deducted {$withdrawal->amount} {$withdrawal->currency} from wallet for withdrawal #{$withdrawal->id}");
         });
+    }
+
+    /**
+     * Send withdrawal OTP to user
+     */
+    public function sendWithdrawalOtp(User $user): string
+    {
+        $otp = (string) random_int(100000, 999999);
+        $cacheKey = "withdrawal_otp_{$user->id}";
+        Cache::put($cacheKey, $otp, now()->addMinutes(5));
+
+        $user->notify(new WithdrawalOtpNotification($otp));
+
+        return $otp;
+    }
+
+    /**
+     * Verify withdrawal OTP
+     */
+    public function verifyWithdrawalOtp(User $user, string $otp): bool
+    {
+        $cacheKey = "withdrawal_otp_{$user->id}";
+        $cachedOtp = Cache::get($cacheKey);
+
+        if (! $cachedOtp || ! hash_equals($otp, $cachedOtp)) {
+            return false;
+        }
+
+        Cache::forget($cacheKey);
+        return true;
     }
 
     /**

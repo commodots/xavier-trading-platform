@@ -23,7 +23,7 @@ class TwoFactorController extends Controller
     {
         $user = $request->user();
 
-        if ($user->two_factor_enabled) {
+        if ($user->google2fa_enabled) {
             return response()->json([
                 'message' => '2FA is already enabled on this account.',
             ], 422);
@@ -56,13 +56,13 @@ class TwoFactorController extends Controller
 
         $user = $request->user();
 
-        if ($user->two_factor_enabled) {
+        if ($user->google2fa_enabled) {
             return response()->json([
                 'message' => '2FA is already enabled.',
             ], 422);
         }
 
-        if (!$user->two_factor_secret) {
+        if (!$user->google2fa_secret) {
             return response()->json([
                 'message' => 'Setup 2FA first.',
             ], 422);
@@ -70,7 +70,7 @@ class TwoFactorController extends Controller
 
         try {
             $google2fa = new Google2FA();
-            $isValid = $google2fa->verifyKey($user->two_factor_secret, $request->token);
+            $isValid = $google2fa->verifyKey($user->google2fa_secret, $request->token);
 
             if (!$isValid) {
                 AuditService::logSecurityEvent($user, '2fa_verify_failed', 'Invalid TOTP token during 2FA setup');
@@ -78,12 +78,6 @@ class TwoFactorController extends Controller
             }
 
             $this->twoFactorService->confirmTwoFactor($user);
-
-            // Sync google2fa_enabled so login flow also recognises 2FA as active
-            $user->update([
-                'google2fa_enabled' => true,
-                'google2fa_secret'  => $user->two_factor_secret,
-            ]);
 
             AuditService::logSecurityEvent($user, '2fa_enabled', 'User successfully enabled 2FA');
 
@@ -107,7 +101,6 @@ class TwoFactorController extends Controller
 
         $user = $request->user();
 
-        // Verify password
         if (!\Hash::check($request->password, $user->password)) {
             AuditService::logSecurityEvent($user, '2fa_disable_failed', 'Invalid password provided', ['reason' => 'invalid_password']);
 
@@ -116,7 +109,7 @@ class TwoFactorController extends Controller
             ], 422);
         }
 
-        if (!$user->two_factor_enabled) {
+        if (! $user->google2fa_enabled) {
             return response()->json([
                 'message' => '2FA is not enabled.',
             ], 422);
@@ -124,9 +117,6 @@ class TwoFactorController extends Controller
 
         try {
             $this->twoFactorService->disableTwoFactor($user);
-
-            // Keep both flag sets in sync
-            $user->update(['google2fa_enabled' => false, 'google2fa_secret' => null]);
 
             AuditService::logSecurityEvent($user, '2fa_disabled', 'User disabled 2FA');
 
@@ -146,8 +136,77 @@ class TwoFactorController extends Controller
         $user = $request->user();
 
         return response()->json([
-            'enabled' => $user->two_factor_enabled || $user->google2fa_enabled,
+            'enabled' => $user->google2fa_enabled,
             'confirmed_at' => $user->two_factor_confirmed_at,
         ]);
+    }
+    /**
+     * Verify 2FA token during standard login flow
+     */
+    public function verifyLogin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string|size:6',
+        ]);
+
+        // Find the user by email since they are not currently authenticated
+        $user = \App\Models\User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User account not found.'], 404);
+        }
+
+        if (!$user->google2fa_enabled || !$user->google2fa_secret) {
+            return response()->json(['message' => '2FA is not active on this account.'], 422);
+        }
+
+        try {
+            $google2fa = new Google2FA();
+            
+            // Validate the token against the user's secret
+            $isValid = $google2fa->verifyKey($user->google2fa_secret, $request->token);
+
+            if (!$isValid) {
+                AuditService::logSecurityEvent($user, '2fa_login_failed', 'Invalid 2FA token submitted during login challenge');
+                return response()->json(['message' => 'Invalid authentication code. Please try again.'], 422);
+            }
+
+           
+            $token = $user->createToken('auth_token|' . substr($request->userAgent() ?? '', 0, 255) . '|' . $request->ip())->plainTextToken;
+
+            // Track device logs
+            $device = \App\Models\UserDevice::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'device_name' => substr($request->userAgent() ?? '', 0, 255),
+                    'ip_address' => $request->ip(),
+                ],
+                ['last_active_at' => now()]
+            );
+
+            if ($device->wasRecentlyCreated) {
+                $user->notify(new \App\Notifications\NewDeviceLoginNotification($device));
+            }
+
+            AuditService::logSecurityEvent($user, '2fa_login_success', 'User successfully passed 2FA verification challenge');
+
+            return response()->json([
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'trading_mode' => $user->trading_mode,
+                    'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
+                    'wallet' => $user->wallet ?? null,
+                    'kyc' => $user->kyc ?? null,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 }

@@ -11,7 +11,7 @@ class WalletPolicy
      */
     public function withdraw(User $user, User $owner): bool
     {
-        return $user->id === $owner->id && $user->two_factor_confirmed_at !== null;
+        return $user->id === $owner->id && $user->google2fa_enabled;
     }
 
     /**

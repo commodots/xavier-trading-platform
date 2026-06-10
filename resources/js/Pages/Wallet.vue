@@ -19,7 +19,7 @@
               + Deposit
             </button>
             <button @click="openTransaction('withdrawal')"
-            :disabled="!isDemo && (form.currency === 'NGN' ? balances.cleared_balance_ngn <= 0 : balances.cleared_balance_usd <= 0)"
+              :disabled="!isDemo && (form.currency === 'NGN' ? balances.cleared_balance_ngn <= 0 : balances.cleared_balance_usd <= 0)"
               class="bg-[#1C1F2E] border border-[#2A314A] px-4 py-2 rounded-lg text-white font-semibold hover:bg-[#252a3d] transition">
               - Withdraw
             </button>
@@ -66,7 +66,8 @@
               </div>
             </div>
             <!-- USD Wallet Skeleton -->
-            <div class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-[#1f3348] pt-6 md:pt-0 md:pl-12 flex-1">
+            <div
+              class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-[#1f3348] pt-6 md:pt-0 md:pl-12 flex-1">
               <div class="w-2 h-2 rounded-full bg-gray-600"></div>
               <div class="space-y-2 w-full">
                 <div class="h-3 bg-gray-700 rounded w-20"></div>
@@ -111,14 +112,18 @@
                   Locked (In Orders): ₦{{ Number(balances.locked_balance_ngn).toLocaleString() }}
                 </div>
               </div>
-              <div v-if="user.wallet_debt > 0" class="ml-auto p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+              <div v-if="user.wallet_debt > 0"
+                class="ml-auto p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
                 <p class="text-[10px] text-red-400 font-bold uppercase tracking-widest">Outstanding Debt</p>
                 <p class="text-xl font-black text-white">₦{{ Number(user.wallet_debt).toLocaleString() }}</p>
-                <button @click="openTransaction('deposit')" class="mt-1 text-[10px] text-blue-400 underline font-bold">Pay Now</button>
+                <button @click="openTransaction('deposit')"
+                  class="mt-1 text-[10px] text-blue-400 underline font-bold">Pay
+                  Now</button>
               </div>
             </div>
 
-            <div class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-[#1f3348] pt-6 md:pt-0 md:pl-12">
+            <div
+              class="flex items-center gap-3 border-t md:border-t-0 md:border-l border-[#1f3348] pt-6 md:pt-0 md:pl-12">
               <div class="w-2 h-2 rounded-full" :class="isDemo ? 'bg-yellow-500' : 'bg-white'"></div>
               <div>
                 <h2 class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">USD Wallet</h2>
@@ -218,9 +223,9 @@
             </span>
           </p>
 
-          <div v-if="user.wallet_debt > 0 && txnType === 'deposit'" 
+          <div v-if="user.wallet_debt > 0 && txnType === 'deposit'"
             class="p-3 mb-4 text-xs bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-300">
-            Note: Your deposit will first be used to clear your outstanding debt of 
+            Note: Your deposit will first be used to clear your outstanding debt of
             <span class="font-bold text-white">₦{{ Number(user.wallet_debt).toLocaleString() }}</span>.
           </div>
 
@@ -271,7 +276,8 @@
                   </div>
                   <button type="submit" :disabled="loading"
                     class="w-full mt-6 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] py-3 rounded-lg font-bold disabled:opacity-50">
-                    {{ loading ? 'Processing...' : (txnType === 'withdrawal' ? 'Confirm Withdrawal' : 'Confirm Deposit') }}
+                    {{ loading ? 'Processing...' : (txnType === 'withdrawal' ? 'Confirm Withdrawal' : 'Confirm Deposit')
+                    }}
                   </button>
                 </div>
 
@@ -283,7 +289,7 @@
                   <div>
                     <label class="text-sm text-gray-400">Withdrawal OTP</label>
                     <div class="flex gap-2 mt-1">
-                      <input v-model="form.withdrawal_otp"
+                      <input v-model="form.form.otp"
                         class="flex-1 px-4 py-2 text-white bg-[#151a27] border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-center tracking-widest font-bold"
                         placeholder="000000" maxlength="6" required />
                     </div>
@@ -366,7 +372,8 @@
             </h2>
 
             <p class="mb-6 text-gray-400" v-if="paymentResult.success">
-              Your wallet has been credited with {{ paymentResult.currency === 'USD' ? '$' : '₦' }}{{ paymentResult.amount.toLocaleString() }}
+              Your wallet has been credited with {{ paymentResult.currency === 'USD' ? '$' : '₦' }}{{
+                paymentResult.amount.toLocaleString() }}
             </p>
             <p class="mb-6 text-gray-400" v-else>
               {{ paymentResult.message }}
@@ -455,24 +462,19 @@ const isUserVerified = computed(() => {
   return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
-const canDeposit = computed(() => {
-  if (isDemo.value) return true;
-  return (user.value.verification_level || 0) >= 2;
-});
-
-const canWithdraw = computed(() => {
-  if (isDemo.value) return true;
-  return (user.value.verification_level || 0) >= 3;
+const userKycLevel = computed(() => {
+  if (user.value?.kyc?.tier !== undefined) return Number(user.value.kyc.tier);
+  return Number(user.value?.verification_level || 0);
 });
 
 const balances = ref({
-  balance_ngn: 0, balance_usd: 0,
+  balance_ngn: 0, balance_usd: 0, wallet_debt: 0,
   cleared_balance_ngn: 0, uncleared_balance_ngn: 0, locked_balance_ngn: 0,
   cleared_balance_usd: 0, uncleared_balance_usd: 0, locked_balance_usd: 0
 });
 const transactions = ref([]);
 const message = ref("");
-const loading = ref(true); // Default to true for initial blur
+const loading = ref(true);
 const actionType = ref("");
 
 // Modal States
@@ -502,7 +504,7 @@ const formattedConvertAmount = computed({
 const linkedAccounts = ref([]);
 const selectedAccountId = ref("");
 
-const form = ref({ amount: 0, currency: "NGN", withdrawal_otp: "" });
+const form = ref({ amount: 0, currency: "NGN", otp: "" });
 
 const formattedAmount = computed({
   get() { return form.value.amount.toLocaleString(); },
@@ -529,7 +531,6 @@ const triggerNotification = (success, title, msg) => {
   showNotificationModal.value = true;
 };
 
-// Immediately trigger the blur and update the text colors optimistically
 const handleModeSwitching = (e) => {
   isDemo.value = e.detail === 'demo';
   loading.value = true;
@@ -549,11 +550,9 @@ const fetchLinkedAccountsFor = async (currency) => {
 
 const refreshData = async () => {
   loading.value = true;
-
   const token = localStorage.getItem('xavier_token') || localStorage.getItem('token');
   if (!token) {
     loading.value = false;
-    console.warn('refreshData: no auth token found, skipping API calls');
     return;
   }
 
@@ -579,6 +578,11 @@ const refreshData = async () => {
       locked_balance_usd: data.locked_balance_usd ?? 0,
     };
 
+    if (data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      user.value = data.user;
+    }
+
     if (!isDemo.value) {
       const accRes = await api.get("/user/linked-accounts/index");
       linkedAccounts.value = accRes.data.data.filter(acc => acc.is_verified);
@@ -588,7 +592,7 @@ const refreshData = async () => {
 
   } catch (e) {
     console.error("Failed to refresh wallet data", e);
-    triggerNotification(false, 'Connection Error', 'Unable to load wallet data. Please refresh the page.');
+    triggerNotification(false, 'Connection Error', 'Unable to load wallet data.');
   } finally {
     loading.value = false;
   }
@@ -603,7 +607,6 @@ const refillDemo = async () => {
     await refreshData();
     triggerNotification(true, 'Refill Successful', 'Demo account refilled with ₦1,000,000.');
   } catch (e) {
-    console.error(e);
     triggerNotification(false, 'Refill Failed', 'Failed to refill demo account.');
   } finally {
     loading.value = false;
@@ -611,9 +614,7 @@ const refillDemo = async () => {
   }
 };
 
-const promptResetDemo = () => {
-  showConfirmModal.value = true;
-};
+const promptResetDemo = () => { showConfirmModal.value = true; };
 
 const executeResetDemo = async () => {
   showConfirmModal.value = false;
@@ -624,7 +625,6 @@ const executeResetDemo = async () => {
     await refreshData();
     triggerNotification(true, 'Reset Successful', 'Demo account reset successfully.');
   } catch (e) {
-    console.error(e);
     triggerNotification(false, 'Reset Failed', 'Failed to reset demo account.');
   } finally {
     loading.value = false;
@@ -638,29 +638,33 @@ const openTransaction = async (type) => {
     showPrompt.value = true;
     return;
   }
+
   if (!isDemo.value) {
-    const level = user.value.verification_level || 0;
-    if (type === 'deposit' && level < 2) {
+    const level = userKycLevel.value;
+
+    if (type === 'deposit' && level < 1) {
+      triggerNotification(false, 'Verification Required', 'Please complete KYC Level 1 to deposit funds.');
       showPrompt.value = true;
       return;
     }
-    if (type === 'withdrawal') {
-      if (level < 3) {
-        showPrompt.value = true;
-        return;
-      }
-      if (!user.value.two_factor_enabled && !user.value.google2fa_enabled) {
-        alert("Please enable Two-Factor Authentication (2FA) in your security settings to withdraw funds.");
-        return;
-      }
+    
+    if (type === 'withdrawal' && level < 3) {
+      triggerNotification(false, 'Verification Required', 'Please complete KYC Level 3 verification to withdraw funds.');
+      return;
+    }
+    if (type === 'withdrawal' && !user.value.google2fa_enabled) {
+      triggerNotification(false, 'Security Action Required', 'Please enable Two-Factor Authentication (2FA) in your security settings to withdraw funds.');
+      return;
     }
   }
+
   txnType.value = type;
-  form.value = { amount: 0, currency: 'NGN', withdrawal_otp: "" };
+  form.value = { amount: 0, currency: 'NGN', otp: "" };
   selectedAccountId.value = "";
   otpSent.value = false;
   message.value = "";
   showModal.value = true;
+
   if (type === 'withdrawal') fetchLinkedAccountsFor(form.value.currency);
 };
 
@@ -668,7 +672,8 @@ const sendWithdrawalOtp = async () => {
   loading.value = true;
   actionType.value = "send-otp";
   try {
-    const response = await api.post('/otp/send-withdrawal');
+    
+    const response = await api.post('/security/withdrawals/otp');
     message.value = response.data.message || "A verification code has been sent to your email.";
     return true;
   } catch (e) {
@@ -685,7 +690,7 @@ const openConvertModal = () => {
     showPrompt.value = true;
     return;
   }
-  if (!isDemo.value && (user.value.verification_level || 0) < 2) {
+  if (!isDemo.value && userKycLevel.value < 1) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -706,14 +711,12 @@ const submitTransaction = async () => {
       const response = await api.post('/paystack/initiate', { amount: form.value.amount, currency: form.value.currency });
       if (response.data.success) {
         if (response.data.is_demo) {
-          // Demo mode - instant funding, no redirect needed
-          message.value = `Demo deposit successful! ${form.value.currency === 'NGN' ? '₦' : '$'}${form.value.amount.toLocaleString()} credited to ${form.value.currency} wallet.`;
+          message.value = `Demo deposit successful! ${form.value.currency === 'NGN' ? '₦' : '$'}${form.value.amount.toLocaleString()} credited.`;
           setTimeout(() => {
             showModal.value = false;
             refreshData();
           }, 1500);
         } else {
-          // Live mode - redirect to Paystack
           window.location.href = response.data.data.authorization_url;
         }
         return;
@@ -726,7 +729,6 @@ const submitTransaction = async () => {
       actionType.value = "";
     }
   } else {
-    // Withdrawal Logic
     if (!isDemo.value && !otpSent.value) {
       const sent = await sendWithdrawalOtp();
       if (sent) otpSent.value = true;
@@ -734,20 +736,35 @@ const submitTransaction = async () => {
     }
 
     try {
-      await api.post('/withdraw', {
+      const activeAccount = linkedAccounts.value.find(
+        (acc) => acc.id === selectedAccountId.value
+      );
+
+      if (!activeAccount) {
+        message.value = "Please select a valid linked bank account.";
+        loading.value = false;
+        actionType.value = "";
+        return;
+      }
+
+      
+      await api.post('/security/withdrawals', {
         amount: form.value.amount,
         currency: form.value.currency,
-        linked_account_id: selectedAccountId.value,
-        withdrawal_otp: form.value.withdrawal_otp
+        account_number: activeAccount.account_number,
+        account_name: activeAccount.account_name,
+        bank_code: activeAccount.bank_code,
+        otp: form.value.otp
       });
+
       const currencySymbol = form.value.currency === 'NGN' ? '₦' : '$';
-      message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited from ${form.value.currency} wallet.`; 
+      message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited.`;
       setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
-    } catch (e) { 
-      message.value = e.response?.data?.message || "Transaction failed"; 
-    } finally { 
-      loading.value = false; 
-      actionType.value = ""; 
+    } catch (e) {
+      message.value = e.response?.data?.message || "Transaction failed";
+    } finally {
+      loading.value = false;
+      actionType.value = "";
     }
   }
 };
@@ -757,11 +774,7 @@ const convertCurrency = async () => {
   loading.value = true;
   actionType.value = "convert";
   try {
-    await api.post("/wallet/convert", {
-      from: from.value,
-      amount: amount.value
-    });
-
+    await api.post("/wallet/convert", { from: from.value, amount: amount.value });
     message.value = "Converted successfully!";
     setTimeout(() => {
       openConvert.value = false;
@@ -815,13 +828,11 @@ const checkPaymentResult = async () => {
   if (paymentSuccess && reference) {
     loading.value = true;
     try {
-      // Verify only when auth token is present; this avoids a hard 401 failure on callback.
-      const token = localStorage.getItem('xavier_token');
+      const token = localStorage.getItem('xavier_token') || localStorage.getItem('token');
       if (token) {
         try {
           await api.get(`/paystack/verify/${reference}`);
         } catch (e) {
-          // Keep flow resilient. If auth is missing/invalid, proceed to refresh wallet instead.
           if (e.response?.status !== 401 && e.response?.status !== 403) {
             throw e;
           }
@@ -836,10 +847,8 @@ const checkPaymentResult = async () => {
       paymentResult.value = { success: true, message, amount, currency };
       showPaymentModal.value = true;
 
-      // 3. Clean the URL and refresh actual balances
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-
       await refreshData();
     } catch (e) {
       paymentResult.value = { success: false, message: 'Payment succeeded, but verification failed. Contact support.', amount: 0 };
@@ -851,7 +860,7 @@ const checkPaymentResult = async () => {
   } else if (paymentError) {
     let errorMessage = 'Payment failed. Please try again.';
     switch (paymentError) {
-      case 'payment_failed': errorMessage = 'Payment was not successful. Please contact support if amount was debited.'; break;
+      case 'payment_failed': errorMessage = 'Payment was not successful.'; break;
       case 'verification_error': errorMessage = 'Unable to verify payment. Please contact support.'; break;
       case 'no_reference': errorMessage = 'Payment reference missing. Please contact support.'; break;
     }
@@ -865,24 +874,6 @@ const closePaymentModal = () => {
   showPaymentModal.value = false;
   paymentResult.value = { success: false, message: '', amount: 0 };
   refreshData();
-};
-
-const refreshWithRetry = async (attempts = 0, maxAttempts = 10) => {
-  if (attempts >= maxAttempts) {
-    console.warn('Max refresh attempts reached, balance may not have updated yet');
-    return;
-  }
-  const previousBalance = balances.value.balance_ngn;
-  const previousTxnCount = transactions.value.length;
-  await refreshData();
-  const balanceUpdated = balances.value.balance_ngn !== previousBalance;
-  const transactionsUpdated = transactions.value.length !== previousTxnCount;
-
-  if (balanceUpdated || transactionsUpdated) {
-    console.log('Payment data updated successfully');
-    return;
-  }
-  setTimeout(() => refreshWithRetry(attempts + 1, maxAttempts), 2000);
 };
 
 async function openTransactionDetails(t) {
@@ -902,10 +893,7 @@ async function openTransactionDetails(t) {
 onMounted(() => {
   refreshData();
   checkPaymentResult();
-
-  // Listen for the toggle switch and quietly fetch new data
   window.addEventListener('trading-mode-switching', handleModeSwitching);
-  // Listen for the actual fetch event
   window.addEventListener('trading-mode-changed', refreshData);
 });
 

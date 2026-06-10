@@ -22,15 +22,7 @@ There is **no** `available_balance` or `unsettled_balance` field anywhere. The w
 ... in `SettleUnsettledTrades` Job:
 - Also uses `usd_uncleared → usd_cleared` and `ngn_uncleared → ngn_cleared`
 
-**Bug Found:** `SettleUnsettledTrades` Job has a **logic error** on sell trades — it decrements `ngn_uncleared` instead of `usd_uncleared` for USD sells. The currency selection is hardcoded incorrectly:
-```php
-// BUG in SettleUnsettledTrades::handle()
-if ($trade->type === 'buy') {
-    // decrements usd_uncleared 
-} else {
-    // ALWAYS decrements ngn_uncleared — wrong for USD sell trades 
-}
-```
+**Resolved:** `SettleUnsettledTrades` Job now chooses the correct wallet bucket based on trade currency, so USD sell settlements no longer decrement `ngn_uncleared` incorrectly.
 
 ---
 
@@ -48,7 +40,7 @@ Trade model `$fillable` includes both fields. `$casts` correctly casts:
 
 The `Trade` model also has a `scopeUnsettled` query scope filtering `is_settled = false`.
 
-**Discrepancy Found:** `SettlementService` marks trades as settled using `settlement_status = 'settled'` but does **not** set `is_settled = true`. The `SettleUnsettledTrades` Job sets `is_settled = true`. These two settlement paths are **inconsistent** — one trade settled via `SettlementService` will still show `is_settled = false` in the database.
+**Resolved:** `SettlementService` now updates `settlement_status`, `is_settled`, and `settlement_date` when a trade is settled. This closes the earlier reprocessing vulnerability where service-settled trades could be picked up again by the `SettleUnsettledTrades` job.
 
 ---
 
@@ -67,7 +59,7 @@ Schedule::command('settlements:process')->dailyAt('08:00');
 `settlement:process` | `ProcessSettlement` | Fetches Paystack settlement data, clears ledger/wallet |
 `settlements:process` | `ProcessSettlements` | Processes T+2 trade settlements via `SettlementService` |
 
-The scheduler runs `settlements:process` (plural). `settlement:process` (singular) is **not scheduled** — it handles Paystack deposit clearing and would need to be added to the scheduler if Paystack auto-clearing is required.
+The scheduler runs `settlements:process` (plural) daily at 08:00, and `settlement:process` (singular) is also scheduled hourly for Paystack settlement clearing.
 
 ---
 
@@ -78,7 +70,7 @@ The scheduler runs `settlements:process` (plural). `settlement:process` (singula
 | `SettleUnsettledTrades` Job | Exists — processes `is_settled = false` trades |
 | `ProcessSettlement` Command (`settlement:process`) | Exists — Paystack deposit clearing |
 | `ProcessSettlements` Command (`settlements:process`) | Exists — trade settlement via service |
-| Scheduler entry | `settlements:process` runs daily at 08:00 |
+| Scheduler entry | `settlements:process` runs daily at 08:00, `settlement:process` runs hourly |
 | `settlement_date` column | In migrations and model |
 | `is_settled` column | In migrations and model |
 | `settlement_status` column | In model `$fillable` |
@@ -89,12 +81,8 @@ The scheduler runs `settlements:process` (plural). `settlement:process` (singula
 ## Missing Items
 
 1. **TradeService** — referenced in audit scope, does not exist. Trade logic lives in `OmsController`, `TradeController`, and `SettlementService` directly.
-2. `settlement:process` (Paystack clearing) is **not scheduled**.
 
 ---
 
 ## Bugs Found
- `SettleUnsettledTrades::handle()` | Sell trades always decrement `ngn_uncleared` regardless of currency — USD sell trades will incorrectly deduct from NGN uncleared balance |
-
-`SettlementService::processTradeSettlement()` | Does not set `is_settled = true` on the trade record — only sets `settlement_status = 'settled'`. The `SettleUnsettledTrades` job uses `is_settled` as its filter, so trades settled via service will be reprocessed by the job |
 Naming conflict | `settlement:process` vs `settlements:process` — easy to confuse in ops/cron configuration |

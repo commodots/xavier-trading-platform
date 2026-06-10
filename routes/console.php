@@ -10,6 +10,9 @@ Artisan::command('inspire', function () {
 
 // Live Operations Tracking
 Schedule::command('settlements:process')->dailyAt('08:00');
+Schedule::command(
+    'settlement:process'
+)->hourly();
 Schedule::command('billing:process-quarterly')->quarterly();
 Schedule::command('user:check-inactivity 30')->dailyAt('02:00');
 

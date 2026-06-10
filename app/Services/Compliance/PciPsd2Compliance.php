@@ -20,12 +20,8 @@ class PciPsd2Compliance
             return false;
         }
 
-        // 2. For high-value transactions (>NGN 1M or >USD 2.5K), require 2FA
-        $thresholdNgn = 1000000;
-        $thresholdUsd = 2500;
-        $currencyAmount = $amount; // Assumes amount is in base currency
-
-        if ($currencyAmount > $thresholdNgn && $user->two_factor_confirmed_at === null) {
+        // 2. For high-value transactions (>NGN 1M or >USD 2.5K), require Google 2FA.
+        if ($amount > 1000000 && ! $user->google2fa_enabled) {
             Log::warning('PCI-DSS: High-value payment blocked - 2FA required', [
                 'user_id' => $user->id,
                 'amount' => $amount,

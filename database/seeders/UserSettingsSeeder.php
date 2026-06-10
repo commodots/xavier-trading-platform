@@ -45,10 +45,9 @@ class UserSettingsSeeder extends Seeder
 
         'id_type' => $choice, // Use the random choice
         'id_number' => strtoupper(substr($choice, 0, 3)) . $user->id . rand(1000, 9999),
-
-        'bvn' => fake()->numerify('###########'),
-        'nin' => fake()->numerify('###########'),
-        'tin' => fake()->numerify('##########'),
+'bvn' => encrypt(fake()->numerify('###########')),
+    'nin' => encrypt(fake()->numerify('###########')),
+    'tin' => encrypt(fake()->numerify('##########')),
         'rejection_reason' => $reason,
       ];
 

@@ -6,7 +6,7 @@ use App\Models\WithdrawalRequest;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class WithdrawalInitiated extends Notification
+class WithdrawalRejectedNotification extends Notification
 {
     public function __construct(private WithdrawalRequest $withdrawal)
     {
@@ -26,31 +26,32 @@ class WithdrawalInitiated extends Notification
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Withdrawal Request Received')
+            ->error()
+            ->subject('Withdrawal Request Rejected')
             ->greeting("Hello {$notifiable->first_name},")
-            ->line("Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been received.")
-            ->line("Status: Pending Approval")
-            ->action('View Withdrawal Details', url("/dashboard/security/withdrawals/{$this->withdrawal->id}"))
-            ->line('If you did not authorize this request, please contact support immediately.');
+            ->line("Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been rejected.")
+            ->line("Reason: Please contact support or check your account status for more details.")
+            ->action('View Details', url('/dashboard/security/withdrawals'))
+            ->line('If you have questions regarding this rejection, please reach out to our compliance team.');
     }
 
     public function toArray($notifiable): array
     {
-        $textMessage = "Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} is pending approval.";
+        $textMessage = "Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been rejected.";
 
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
             
             'type' => 'withdrawal',
-            'title' => 'Withdrawal Request Initiated',
-            'action' => 'View Details',
-            'action_url' => "/dashboard/security/withdrawals/{$this->withdrawal->id}",
-            'icon' => '💸',
+            'title' => 'Withdrawal Rejected',
+            'action' => 'View Withdrawal',
+            'action_url' => null,
+            'icon' => '⚠️',
             'metadata' => [
                 'withdrawal_id' => $this->withdrawal->id,
-                'amount' => $this->withdrawal->amount,
                 'currency' => $this->withdrawal->currency,
+                'amount' => $this->withdrawal->amount,
             ],
         ];
     }

@@ -1,6 +1,6 @@
 # Withdrawal Audit
 
-**Date:** 2026-06-03 
+**Date:** 2026-06-09 
 **Scope:** WithdrawalController (Security), WithdrawalService, WithdrawalProtectionService
 
 ---
@@ -26,7 +26,8 @@
 | `completeWithdrawal()` | Marks completed (approved → completed) |
 | `failWithdrawal()` | Marks failed, refunds daily limit counter |
 | `checkFraudPatterns()` | Checks multiple withdrawals in 1 hour, checks unusually large amount (3× average) |
-| `deductFromWallet()` | Private — deducts from `ngn_cleared` or `usd_cleared` |
+| `deductFromWallet()` | Private — deducts from `ngn_cleared` or `usd_cleared` inside a DB transaction |
+| `approveWithdrawal()` / `rejectWithdrawal()` | Approval/rejection paths reference `WithdrawalApprovedNotification` / `WithdrawalRejectedNotification` classes, but those notification classes do not exist in `app/Notifications` |
 
 ### WithdrawalProtectionService (`app/Services/WithdrawalProtectionService.php`)
 
@@ -61,22 +62,22 @@ Both `WithdrawalProtectionService::check()` and `WithdrawalService::initiateWith
 `WithdrawalProtectionService::check()` explicitly blocks if `$user->wallet_debt > 0`.
 
 ### KYC Validation
-**Missing**
+**Implemented in `WithdrawalController::store()`**
 
-Neither `WithdrawalController`, `WithdrawalService`, nor `WithdrawalProtectionService` checks KYC status before allowing a withdrawal. There is no `KycLevelMiddleware` on withdrawal routes. A user with no KYC can currently withdraw.
+`WithdrawalController::store()` requires `verification_level >= 3` before creating a withdrawal request. KYC still needs consistent enforcement across all withdrawal entry points.
 
 ### OTP Validation
 **Partial — separate flow, not enforced here**
 
 `WithdrawalOtpNotification` exists and sends a 6-digit OTP via email. `NewTransactionController` has a `sendOtp()` method. However:
 - The `/security/withdrawals` POST route does **not** require OTP verification
-- OTP is only wired into the `NewTransactionController` withdrawal flow, not `WithdrawalController`
-- Two separate withdrawal flows exist: `/withdraw` (NewTransactionController) and `/security/withdrawals` (WithdrawalController) — they are not in sync
+- OTP is only wired into the `WalletController` withdrawal flow, not `WithdrawalController`
+- Three separate withdrawal flows exist: `/withdraw` (WalletController), `/security/withdrawals` (WithdrawalController), and `NewTransactionController` routes — they are not in sync.
 
 ### 2FA Enforcement
-**Missing**
+**Implemented in `WithdrawalController::store()`**
 
-`WithdrawalController::store()` does not check `$user->google2fa_enabled` or `$user->two_factor_enabled` before proceeding. The plan to enforce 2FA before withdrawals is not yet implemented.
+`WithdrawalController::store()` requires either `google2fa_enabled` or `two_factor_enabled` before allowing a withdrawal. The multiple withdrawal flows are not all aligned to the same 2FA protection.
 
 ### Fraud Detection
 **Implemented**
@@ -87,9 +88,8 @@ Neither `WithdrawalController`, `WithdrawalService`, nor `WithdrawalProtectionSe
 
 ## Bugs Found
 
-`WithdrawalController::store()` | No KYC level check — any authenticated user can initiate a withdrawal |
- `WithdrawalController::store()` | No 2FA enforcement — `two_factor_enabled` is not checked |
-`WithdrawalService::deductFromWallet()` | No DB transaction wrapping — balance deduction and status update can desync on failure |
- Dual withdrawal flows | `/withdraw` (OTP-gated) and `/security/withdrawals` (no OTP) both exist — inconsistent protection |
+`WithdrawalController::store()` | 2FA and KYC level 3 checks are present in this flow, but the protection does not extend uniformly across all withdrawal endpoints. |
+`/security/withdrawals` | No OTP verification is required, unlike the `WalletController` and `NewTransactionController` withdrawal flows. |
+ Dual withdrawal flows | `/withdraw` (WalletController) uses `PciPsd2Compliance` (SCA/Limits) while `/security/withdrawals` (WithdrawalController) bypasses it. |
 `WithdrawalProtectionService::check()` | Does not check daily limits — protection service is incomplete as a standalone gate |
 `rejectWithdrawal()` / `failWithdrawal()` | Limit counter refunded using direct subtraction without DB transaction — can go negative |

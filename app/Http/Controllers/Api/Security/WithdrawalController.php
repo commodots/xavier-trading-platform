@@ -9,6 +9,7 @@ use App\Services\RateLimitService;
 use App\Services\WithdrawalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class WithdrawalController extends Controller
@@ -41,28 +42,34 @@ class WithdrawalController extends Controller
             'account_number' => 'required|string',
             'account_name' => 'required|string',
             'bank_code' => 'nullable|string',
+            'otp' => 'required|string|size:6',
         ]);
 
         $user = $request->user();
 
-        // Enforce 2FA before any withdrawal
-        if (!$user->google2fa_enabled && !$user->two_factor_enabled) {
+        if (! $user->google2fa_enabled) {
             throw ValidationException::withMessages([
                 '2fa' => 'You must enable Two-Factor Authentication before withdrawing.',
             ]);
         }
 
-        // Enforce KYC level 3 (face verified) for withdrawals
-        if ($user->verification_level < 3) {
+        $cachedOtp = Cache::get('withdrawal_otp_'.$user->id);
+        if (!$cachedOtp || $cachedOtp !== $request->otp) {
+            throw ValidationException::withMessages([
+                'otp' => 'Invalid or expired verification code.',
+            ]);
+        }
+        Cache::forget('withdrawal_otp_'.$user->id);
+
+        $currentKycLevel = (int) ($user->verification_level ?? 0);
+        if ($currentKycLevel < 3) {
             return response()->json([
-                'message'            => 'Face verification required to withdraw. Please complete KYC.',
-                'verification_level' => $user->verification_level,
+                'message'            => 'KYC Level 3 verification required to withdraw. Please upgrade your KYC status.',
+                'verification_level' => $currentKycLevel,
                 'required_level'     => 3,
-                'action'             => 'complete_kyc',
             ], 403);
         }
 
-        // Check rate limit
         if (RateLimitService::isWithdrawalLimited($user->id)) {
             return response()->json([
                 'message' => 'Too many withdrawal requests. Please try again later.',
@@ -70,7 +77,6 @@ class WithdrawalController extends Controller
         }
 
         try {
-            // Check for fraud patterns
             $fraudFlags = $this->withdrawalService->checkFraudPatterns(
                 $user,
                 $request->amount,
@@ -183,5 +189,49 @@ class WithdrawalController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Send a withdrawal OTP to the user.
+     */
+    public function sendWithdrawalOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->google2fa_enabled) {
+            throw ValidationException::withMessages([
+                '2fa' => 'You must enable Two-Factor Authentication to request a withdrawal OTP.',
+            ]);
+        }
+
+        $currentKycLevel = (int) ($user->verification_level ?? 0);
+        if ($currentKycLevel < 3) {
+            return response()->json([
+                'message'            => 'KYC Level 3 verification required to request a withdrawal OTP.',
+                'verification_level' => $currentKycLevel,
+                'required_level'     => 3,
+            ], 403);
+        }
+
+        try {
+            $this->withdrawalService->sendWithdrawalOtp($user);
+
+            return response()->json(['message' => 'Verification code sent to your registered email address.'], 200);
+        } catch (\Exception $e) {
+            AuditService::logSecurityEvent(
+                $user,
+                'send_withdrawal_otp_failed',
+                'Failed to send withdrawal OTP: ' . $e->getMessage()
+            );
+            return response()->json(['message' => 'Failed to send verification code. Please try again.'], 500);
+        }
+    }
+
+    /**
+     * Route Alias mapping /otp endpoint seamlessly to structural sendWithdrawalOtp core method
+     */
+    public function sendOtp(Request $request): JsonResponse
+    {
+        return $this->sendWithdrawalOtp($request);
     }
 }

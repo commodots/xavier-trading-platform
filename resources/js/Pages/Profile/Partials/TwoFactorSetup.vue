@@ -1,7 +1,7 @@
 <template>
   <div class="py-4">
-    <h2 class="mb-2 text-2xl font-bold text-white tracking-tight">Enable Two-Factor Authentication</h2>
-    <p class="mb-6 text-sm text-slate-400">Secure your account transactions and portfolio with an authenticator app token.</p>
+    <h2 class="mb-1 text-2xl font-bold text-white tracking-tight">Two-Factor Authentication</h2>
+    <p class="mb-6 text-sm text-slate-400">Add an extra layer of security to your account using an authenticator app.</p>
 
     <div v-if="message"
       :class="message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'"
@@ -10,19 +10,26 @@
       {{ message.text }}
     </div>
 
-    <div class="mb-6 p-4 rounded-xl border flex items-center justify-between"
-      :class="is2faEnabled ? 'bg-emerald-950/20 border-emerald-500/20' : 'bg-slate-800/40 border-slate-700/60'">
+    <div class="mb-8 p-5 rounded-2xl border flex items-center justify-between transition-all"
+      :class="is2faEnabled ? 'bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/5' : 'bg-slate-800/40 border-slate-700/60'">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Protection Status</p>
-        <p class="text-lg font-bold" :class="is2faEnabled ? 'text-emerald-400' : 'text-rose-400'">
+        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-1">Protection Status</p>
+        <p class="text-xl font-black" :class="is2faEnabled ? 'text-emerald-400' : 'text-rose-500'">
           {{ is2faEnabled ? 'Active & Secure' : 'Disabled / Vulnerable' }}
         </p>
       </div>
       
-      <button v-if="!is2faEnabled" @click="startSetup" :disabled="processing || qrImage"
-        class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-40 transition-all shadow-sm">
-        {{ qrImage ? 'Loading...' : 'Enable 2FA' }}
-      </button>
+      <div class="flex gap-3">
+        <button v-if="!is2faEnabled" @click="startSetup" :disabled="processing || qrImage"
+          class="px-5 py-2.5 text-xs font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-500 disabled:opacity-40 transition-all shadow-lg shadow-blue-600/20 uppercase tracking-widest">
+          {{ qrImage ? 'Configuring...' : 'Enable Now' }}
+        </button>
+        
+        <button v-if="is2faEnabled" @click="promptDisable" :disabled="processing"
+          class="px-4 py-2 text-sm font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white transition-all uppercase tracking-tight">
+          Disable 2FA
+        </button>
+      </div>
     </div>
 
     
@@ -34,11 +41,11 @@
           <h3 class="text-sm font-semibold text-slate-200">Scan the QR Code</h3>
         </div>
         <p class="mb-4 text-xs leading-relaxed text-slate-400">
-          Open your authenticator app (Google Authenticator or Microsoft Authenticator) and scan the QR code below.
+          Open your authenticator app (e.g., Google Authenticator, Authy) and scan the QR code below.
         </p>
         
-        <div class="flex flex-col items-center justify-center p-6 mb-3 bg-white rounded-xl shadow-inner max-w-[240px] mx-auto">
-          <div v-html="qrImage" class="qr-code-svg-wrapper"></div>
+        <div class="flex flex-col items-center justify-center p-6 mb-3 bg-white rounded-xl shadow-xl max-w-[220px] mx-auto">
+          <div v-html="qrImage" class="qr-code-svg-wrapper w-full flex justify-center"></div>
         </div>
         
         <div class="text-center">
@@ -56,10 +63,10 @@
         </div>
       </div>
 
-      <div class="pt-4 border-t border-slate-800/60">
+      <div class="pt-6 border-t border-slate-800/60">
         <div class="flex items-center gap-2 mb-2">
-          <span class="flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-xs text-slate-300 font-mono">2</span>
-          <h3 class="text-sm font-semibold text-slate-200">Confirm Authenticator Token</h3>
+          <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-[10px] text-white font-bold">2</span>
+          <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Verify Token</h3>
         </div>
         
         <form @submit.prevent="confirmSetup" class="space-y-4">
@@ -74,7 +81,7 @@
           </div>
           
           <button type="submit" :disabled="processing"
-            class="w-full py-3 text-sm font-semibold text-white bg-blue-600 hover:emerald-300  rounded-xl transition-all shadow-md shadow-emerald-950/20 disabled:opacity-50">
+            class="w-full py-3 text-sm font-bold uppercase text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all shadow-md shadow-blue-900/20 disabled:opacity-50">
             {{ processing ? 'Validating Token...' : 'Complete Activation' }}
           </button>
         </form>
@@ -122,16 +129,27 @@ async function startSetup() {
   processing.value = true;
   message.value = null;
   try {
-    const { data } = await api.get("/2fa/setup");
-    if (data.success) {
-      qrImage.value = data.qr;
+    const { data } = await api.post("/security/2fa/setup");
+    
+    
+    if (data.secret || data.success) {
       secretKey.value = data.secret;
+      
+      
+      const qrUrl = data.qr_code_url || data.qr;
+      
+      // Generate a rendered image string using a clean image chart API line
+      qrImage.value = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}" alt="2FA QR Code" class="mx-auto" />`;
+      
       message.value = { text: "Security credentials built. Please scan code.", type: 'success' };
     } else {
       message.value = { text: data.message || "Failed to initialize 2FA routine.", type: 'error' };
     }
   } catch (e) {
-    message.value = { text: "Session authentication error: Check network state.", type: 'error' };
+    message.value = { 
+      text: e.response?.data?.message || "Session authentication error: Check network state.", 
+      type: 'error' 
+    };
     console.error(e);
   } finally {
     processing.value = false;
@@ -142,16 +160,16 @@ async function confirmSetup() {
   processing.value = true;
   message.value = null;
   try {
-    const { data } = await api.post("/2fa/confirm", {
-      code: confirmationCode.value
+   
+    const { data } = await api.post("/security/2fa/verify", {
+      token: confirmationCode.value
     });
-    if (data.success) {
-      is2faEnabled.value = true;
-      qrImage.value = null;
-      showManualKey.value = false;
-      message.value = { text: "Two-Factor Authentication linked successfully.", type: 'success' };
-      setTimeout(() => { message.value = null; }, 5000);
-    }
+    
+    is2faEnabled.value = true;
+    qrImage.value = null;
+    showManualKey.value = false;
+    message.value = { text: data.message || "Two-Factor Authentication linked successfully.", type: 'success' };
+    setTimeout(() => { message.value = null; }, 5000);
   } catch (e) {
     message.value = { 
       text: e.response?.data?.message || "Invalid authenticator code verification.", 

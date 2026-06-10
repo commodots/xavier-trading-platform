@@ -11,6 +11,7 @@ use App\Models\FxRate;
 use App\Models\Ledger;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
+use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\Log;
 
 class WalletController extends Controller
 {
+    public function __construct(private WithdrawalService $withdrawalService)
+    {
+    }
+
     // THE DYNAMIC MODEL RESOLVER
     private function resolveModels(?Request $request = null)
     {
@@ -68,101 +73,11 @@ class WalletController extends Controller
 
     public function withdraw(Request $request)
     {
-        $request->validate([
-            'amount' => 'required|numeric|min:500',
-            'currency' => 'required',
-        ]);
-
-        $user = Auth::user();
-        $currency = strtoupper($request->currency);
-        $models = $this->resolveModels($request);
-
-        // Withdrawal protection: account status, debt, cleared balance
-        $protection = app(\App\Services\WithdrawalProtectionService::class)->check($user, $request->amount, $currency);
-        if (! $protection['allowed']) {
-            return response()->json(['success' => false, 'message' => $protection['message']], 422);
-        }
-
-        // PCI/PSD2: Verify user passed SCA (2FA + email verified)
-        if (! \App\Services\Compliance\PciPsd2Compliance::canProcessPayment($user, $request->amount)) {
-            return response()->json([
-                'success' => false,
-                'message' => '2FA verification required for withdrawals over NGN 1M. Please enable 2FA in settings.',
-            ], 403);
-        }
-
-        // PCI/PSD2: Check daily withdrawal limit
-        $dailyLimit = \App\Services\Compliance\PciPsd2Compliance::getDailyTransactionLimit($user, 'withdrawal');
-        if ($request->amount > $dailyLimit) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Daily withdrawal limit exceeded. Remaining: NGN '.number_format($dailyLimit, 2),
-            ], 422);
-        }
-
-        // PSD2: Detect suspicious activity
-        if (\App\Services\Compliance\PciPsd2Compliance::isSuspiciousActivity($user, [
-            'type' => 'withdrawal',
-            'amount' => $request->amount,
-        ])) {
-            // Log but allow (can be flagged by compliance team asynchronously)
-        }
-
-        return DB::transaction(function () use ($request, $user, $currency, $models) {
-            $wallet = $models->wallet->where('user_id', $user->id)
-                ->where('currency', $currency)
-                ->lockForUpdate()
-                ->first();
-
-            $clearedCol  = $currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
-            $unclearedCol = $currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
-            $walletBefore = $wallet ? (float) $wallet->{$clearedCol} : 0;
-
-            if (!$wallet || $walletBefore < $request->amount) {
-                return response()->json(['message' => 'Insufficient cleared funds'], 400);
-            }
-
-            Log::info('Wallet Withdrawal Initiated', [
-                'user_id'       => $user->id,
-                'amount'        => $request->amount,
-                'currency'      => $currency,
-                'wallet_before' => $walletBefore,
-                'mode'          => $models->mode,
-            ]);
-
-            $wallet->decrement($clearedCol, $request->amount);
-            $wallet->refresh();
-            $wallet->balance = $wallet->{$clearedCol} + $wallet->{$unclearedCol} + $wallet->locked;
-            $wallet->save();
-
-            $models->transaction->create([
-                'user_id'    => $user->id,
-                'type'       => 'withdrawal',
-                'amount'     => $request->amount,
-                'currency'   => $currency,
-                'status'     => 'completed',
-                'charge'     => 0,
-                'net_amount' => $request->amount,
-                'meta'       => [
-                    'note' => 'User initiated withdrawal',
-                    'mode' => $models->mode,
-                ],
-            ]);
-
-            Log::info('Wallet Withdrawal Completed', [
-                'user_id'            => $user->id,
-                'wallet_after_cleared' => $wallet->{$clearedCol},
-                'wallet_after_total'  => $wallet->balance,
-            ]);
-
-            // PCI-DSS: Audit log for all payment operations
-            \App\Services\Compliance\PciPsd2Compliance::logPaymentOperation($user, 'withdrawal', [
-                'amount'   => $request->amount,
-                'currency' => $currency,
-            ]);
-
-            return response()->json(['success' => true]);
-        });
+        // Use the centralized WithdrawalController via the /security/withdrawals route.
+        // This endpoint is deprecated. Use POST /security/withdrawals instead.
+        return response()->json([
+            'message' => 'Use POST /security/withdrawals for withdrawal requests.',
+        ], 301);
     }
 
     public function deposit(Request $request)

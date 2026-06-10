@@ -13,6 +13,7 @@ use App\Models\TransactionType;
 use App\Models\Wallet;
 use App\Notifications\WithdrawalOtpNotification;
 use App\Services\WithdrawalProtectionService;
+use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -161,164 +162,11 @@ class NewTransactionController extends Controller
 
     public function withdraw(Request $request)
     {
-        $user = auth()->user();
-        $models = $this->resolveModels($user);
-
-        // Check if the withdrawal service is active
-        $withdrawalService = TransactionType::where('name', 'withdrawal')->first();
-        if ($withdrawalService && ! $withdrawalService->active) {
-            return response()->json(['success' => false, 'message' => 'Withdrawals are temporarily disabled.'], 403);
-        }
-
-        $rules = [
-            'amount' => 'required|numeric|min:1',
-            'currency' => 'required|in:NGN,USD',
-            'linked_account_id' => 'required|exists:linked_accounts,id',
-        ];
-
-        if (! $models->isDemo) {
-            $rules['withdrawal_otp'] = 'required|string';
-        }
-
-        $request->validate($rules);
-
-        // Check withdrawal protection (account status, debt, cleared balance)
-        $protection = app(WithdrawalProtectionService::class)->check($user, (float) $request->amount, $request->currency);
-        if (! $protection['allowed']) {
-            return response()->json(['success' => false, 'message' => $protection['message']], 422);
-        }
-
-        if (! $models->isDemo) {
-            $cacheKey = 'withdrawal_otp_'.$user->id;
-            $attemptKey = 'otp_attempts_'.$user->id;
-            $attempts = Cache::get($attemptKey, 0);
-
-            // Rate limiting on OTP verification attempts
-            if ($attempts >= 5) {
-                return response()->json(['success' => false, 'message' => 'Too many failed OTP attempts. Please request a new code.'], 429);
-            }
-
-            $cachedOtp = Cache::get($cacheKey);
-
-            if (! $cachedOtp || ! hash_equals($request->input('withdrawal_otp'), $cachedOtp)) {
-                Cache::put($attemptKey, $attempts + 1, now()->addMinutes(15));
-
-                return response()->json(['success' => false, 'message' => 'Invalid withdrawal OTP.'], 403);
-            }
-
-            // Clear the OTP and attempts immediately after successful verification to prevent reuse
-            Cache::forget($cacheKey);
-            Cache::forget($attemptKey);
-        }
-        $kyc = $user->kyc;
-
-        // KYC Guard (Only enforced for LIVE mode!)
-        if (! $models->isDemo) {
-            if (! $kyc || $kyc->status !== 'verified' || $kyc->tier < 1) {
-                return response()->json(['success' => false, 'message' => 'Verified KYC is required for live withdrawals.'], 403);
-            }
-        }
-
-        $tierSettings = \App\Models\KycSetting::where('tier', $kyc->tier ?? 1)->first();
-        $dailyLimit = $tierSettings ? $tierSettings->daily_limit : 0;
-
-        $todayWithdrawn = $models->transaction->where('user_id', $user->id)
-            ->where('type', 'withdrawal')
-            ->whereIn('status', ['completed', 'pending'])
-            ->whereDate('created_at', now())
-            ->sum('amount');
-
-        if (! $models->isDemo && ($todayWithdrawn + $request->amount) > $dailyLimit) {
-            $remaining = max(0, $dailyLimit - $todayWithdrawn);
-
-            return response()->json(['success' => false, 'message' => 'Daily limit exceeded. Remaining: '.number_format($remaining, 2)], 403);
-        }
-
-        $account = LinkedAccount::where('user_id', $user->id)->where('id', $request->linked_account_id)->firstOrFail();
-
-        if ($account->type === 'bank' && ($account->currency ?? '') !== $request->currency) {
-            return response()->json(['success' => false, 'message' => 'Selected bank account currency does not match withdrawal currency.'], 422);
-        }
-
-        $chargeConfig = TransactionCharge::where('transaction_type', 'withdrawal')->where('active', true)->first();
-        $chargeAmount = 0;
-        if ($chargeConfig) {
-            $chargeAmount = $chargeConfig->charge_type === 'percentage'
-                ? ($request->amount * $chargeConfig->value / 100)
-                : $chargeConfig->value;
-        }
-        $totalDeduction = $request->amount + $chargeAmount;
-
-        try {
-            return DB::transaction(function () use ($user, $request, $totalDeduction, $account, $chargeAmount, $models, $tierSettings) {
-                if (! $models->isDemo) {
-                    $dailyLimit = $tierSettings ? $tierSettings->daily_limit : 0;
-                    $todayWithdrawn = $models->transaction->where('user_id', $user->id)
-                        ->where('type', 'withdrawal')
-                        ->whereIn('status', ['completed', 'pending'])
-                        ->whereDate('created_at', now())
-                        ->lockForUpdate()
-                        ->sum('amount');
-
-                    if (($todayWithdrawn + $request->amount) > $dailyLimit) {
-                        $remaining = max(0, $dailyLimit - $todayWithdrawn);
-                        throw new \Exception('Daily limit exceeded. Remaining: '.number_format($remaining, 2));
-                    }
-                }
-
-                $wallet = $models->wallet->where('user_id', $user->id)
-                    ->where('currency', $request->currency)
-                    ->lockForUpdate()
-                    ->first();
-
-                $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
-                $available = $wallet ? $wallet->{$clearedCol} : 0;
-
-                if (! $wallet || $available < $totalDeduction) {
-                    throw new \Exception("Insufficient cleared {$request->currency} balance");
-                }
-
-                $oldBalance = $wallet->balance;
-
-                $txn = $models->transaction->create([
-                    'user_id' => $user->id,
-                    'type' => 'withdrawal',
-                    'amount' => $request->amount,
-                    'currency' => $request->currency,
-                    'charge' => $chargeAmount,
-                    'net_amount' => $totalDeduction,
-                    'status' => $models->isDemo ? 'completed' : 'pending', // Demo finishes instantly
-                    'meta' => [
-                        'bank' => $account->provider,
-                        'acc_no' => $account->account_number,
-                        'acc_name' => $account->account_name,
-                        'mode' => $user->trading_mode,
-                        'old_balance' => $oldBalance,
-                        'new_balance' => $oldBalance - $totalDeduction,
-                    ],
-                ]);
-
-                $wallet->decrement($clearedCol, $totalDeduction);
-                $wallet->decrement('balance', $totalDeduction);
-
-                try {
-                    ActivityLog::create([
-                        'user_id' => $user->id,
-                        'activity' => 'Withdrawal',
-                        'details' => "Withdrew {$request->amount} {$request->currency}. Total deduction: {$totalDeduction}.",
-                        'ip_address' => request()->ip(),
-                        'user_agent' => request()->userAgent(),
-                    ]);
-                } catch (\Throwable $e) {
-                }
-
-                return response()->json(['success' => true, 'details' => $txn->fresh()]);
-            });
-        } catch (\Exception $e) {
-            Log::error('Withdrawal transaction failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-
-            return response()->json(['success' => false, 'message' => 'Unable to complete withdrawal request at this time.'], 500);
-        }
+        // Use the centralized WithdrawalController via the /security/withdrawals route.
+        // This endpoint is deprecated. Use POST /security/withdrawals instead.
+        return response()->json([
+            'message' => 'Use POST /security/withdrawals for withdrawal requests.',
+        ], 301);
     }
 
     public function show($id)
