@@ -57,7 +57,6 @@ class KycProfileObserver
             $kyc->user->update([
                 'kyc_status' => $kyc->status,
                 'bvn' => $kyc->bvn,
-                'nin' => $kyc->nin,
             ]);
         }
 
