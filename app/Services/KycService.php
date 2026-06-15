@@ -62,12 +62,12 @@ class KycService
         }
 
         $data = $kyc->toArray();
-        
+
         // Mask sensitive fields
         $data['bvn'] = self::maskPii($kyc->bvn);
         $data['nin'] = self::maskPii($kyc->nin);
         $data['tin'] = self::maskPii($kyc->tin ?? null);
-        
+
         return $data;
     }
 
@@ -108,15 +108,15 @@ class KycService
     public static function determineTier(KycProfile $kyc): int
     {
         $user = $kyc->user ?? \App\Models\User::find($kyc->user_id);
-        
+
         // Level 1 Base Entry: Check Email Verification state
         $level = ($user && $user->email_verified_at) ? 1 : 0;
 
-        // Fetch verification approvals from the dynamic table
-        $approvedVerifications = DB::table('kyc_verifications')
-            ->where('user_id', $kyc->user_id)
+        // Fetch verification approvals from the meta JSON column (QoreID integration)
+        $meta = is_array($kyc->meta) ? $kyc->meta : json_decode($kyc->meta ?? '[]', true);
+        $approvedVerifications = collect($meta['verifications'] ?? [])
             ->where('status', 'approved')
-            ->pluck('verification_type')
+            ->pluck('type')
             ->toArray();
 
         // Level 2: Core Document Checks (BVN or NIN presence matches database verification step)
@@ -125,6 +125,9 @@ class KycService
 
         if ($hasIdentityDoc || $isIdentityVerified) {
             $level = 2;
+            
+        } elseif ($hasIdentityDoc && !$isIdentityVerified) {
+            $level = 1; // Fallback to basic account input entry level
         }
 
         // Level 3: Advanced Liveness/Face verification check matching Dojah SDK Success payloads
@@ -164,7 +167,7 @@ class KycService
         return [
             'id' => $kyc->id,
             'status' => $kyc->status,
-            'verified' => self::isVerified($kyc->status),
+            'verified' => self::isVerified($kyc->status), // Uses ['verified', 'approved']
             'tier' => $tier,
             'level' => $levelLabels[$tier] ?? ($kyc->level ?? 'none'),
             'daily_limit' => $setting?->daily_limit ?? 0,
@@ -187,13 +190,13 @@ class KycService
     public static function validateTierRequirements(KycProfile $kyc, int $targetTier): array
     {
         $setting = self::getKycSetting($targetTier);
-        
+
         if (!$setting || !$setting->required_documents) {
             return [];
         }
 
-        $required = is_string($setting->required_documents) 
-            ? json_decode($setting->required_documents, true) 
+        $required = is_string($setting->required_documents)
+            ? json_decode($setting->required_documents, true)
             : $setting->required_documents;
 
         $missing = [];

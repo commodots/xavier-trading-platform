@@ -74,7 +74,7 @@ class AdminServiceController extends Controller
 
         $data = $request->validate([
             'name'      => 'required|string',
-            'type'      => 'required|in:ngx,crypto,stocks,fx,cscs,payment',
+            'type'      => 'required|in:ngx,crypto,stocks,fx,cscs,payment|unique:services,type,' . $id,
             'is_active' => 'boolean',
         ]);
 
@@ -178,6 +178,10 @@ class AdminServiceController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
+        $request->validate([
+            'mode' => 'required|in:live,testing,dummy'
+        ]);
+
         $service = Service::findOrFail($id);
         $oldMode = $service->mode;
         $service->update(['mode' => $request->mode]);
@@ -273,7 +277,7 @@ class AdminServiceController extends Controller
             [
                 'params' => empty($request->params) ? null : $request->params,
                 'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
-                'mode' => 'live' // Defaulting to live to fulfill DB constraints
+                'mode' => $service->mode ?? 'live'
             ]
         );
 

@@ -54,7 +54,7 @@ class WithdrawalController extends Controller
         }
 
         $cachedOtp = Cache::get('withdrawal_otp_'.$user->id);
-        if (!$cachedOtp || $cachedOtp !== $request->otp) {
+        if (!$cachedOtp || !hash_equals($request->otp, $cachedOtp)) {
             throw ValidationException::withMessages([
                 'otp' => 'Invalid or expired verification code.',
             ]);

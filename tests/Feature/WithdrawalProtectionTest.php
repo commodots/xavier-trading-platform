@@ -111,7 +111,7 @@ class WithdrawalProtectionTest extends TestCase
             'currency' => 'NGN',
         ]);
 
-        $response = $this->actingAs($user)->postJson('/api/withdraw', [
+        $response = $this->actingAs($user)->postJson('/api/security/withdrawals', [
             'amount'            => 1000,
             'currency'          => 'NGN',
             'linked_account_id' => $account->id,

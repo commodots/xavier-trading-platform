@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\NotificationPreference;
 use App\Models\User;
+use App\Models\UserDevice;
+use App\Notifications\AdminBroadcastNotification;
+use App\Notifications\NewDeviceLoginNotification;
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -153,5 +157,52 @@ class NotificationSystemTest extends TestCase
     {
         $response = $this->getJson('/api/user/notifications');
         $response->assertStatus(401);
+    }
+
+    public function test_new_device_login_notification_has_correct_data(): void
+    {
+        $user = User::factory()->create();
+        $device = UserDevice::factory()->for($user)->create([
+            'device_name' => 'Test Device',
+            'ip_address' => '192.168.1.1',
+        ]);
+
+        $user->notify(new NewDeviceLoginNotification($device));
+
+        $response = $this->actingAs($user)->getJson('/api/user/notifications');
+
+        $response->assertStatus(200);
+        $notification = $response->json('notifications.0');
+
+        $this->assertEquals('security', $notification['type']);
+        $this->assertEquals('New Device Login', $notification['title']);
+        $this->assertStringContainsString('A login from a new device was detected', $notification['message']);
+        $this->assertEquals('Review Sessions', $notification['action']);
+        $this->assertNull($notification['action_url']);
+        $this->assertEquals('📱', $notification['icon']);
+        $this->assertArrayHasKey('metadata', $notification);
+        $this->assertEquals('Test Device', $notification['metadata']['device_name']);
+        $this->assertEquals('192.168.1.1', $notification['metadata']['ip_address']);
+    }
+
+    public function test_admin_broadcast_notification_has_correct_data(): void
+    {
+        $user = User::factory()->create();
+        $title = 'Important Announcement';
+        $message = 'All systems are now fully operational.';
+
+        $user->notify(new AdminBroadcastNotification($title, $message));
+
+        $response = $this->actingAs($user)->getJson('/api/user/notifications');
+
+        $response->assertStatus(200);
+        $notification = $response->json('notifications.0');
+
+        $this->assertEquals('broadcast', $notification['type']);
+        $this->assertEquals($title, $notification['title']);
+        $this->assertEquals($message, $notification['message']);
+        $this->assertEquals('View Details', $notification['action']);
+        $this->assertStringContainsString('/dashboard/notifications', $notification['action_url']);
+        $this->assertEquals('📢', $notification['icon']);
     }
 }

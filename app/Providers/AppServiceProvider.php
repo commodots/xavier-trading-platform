@@ -10,6 +10,8 @@ use App\Services\Stocks\Mock\MockDriveWealthService;
 use App\Services\Stocks\Mock\MockPolygonService;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use App\Models\Notification as CustomNotification;
+use Illuminate\Notifications\DatabaseNotification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -48,5 +50,9 @@ class AppServiceProvider extends ServiceProvider
         KycProfile::observe(KycProfileObserver::class);
 
         \App\Models\User::observe(\App\Observers\UserObserver::class);
+
+        $this->app->bind(DatabaseNotification::class, function () {
+        return new CustomNotification();
+    });
     }
 }

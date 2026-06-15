@@ -71,15 +71,6 @@ class WalletController extends Controller
         ]);
     }
 
-    public function withdraw(Request $request)
-    {
-        // Use the centralized WithdrawalController via the /security/withdrawals route.
-        // This endpoint is deprecated. Use POST /security/withdrawals instead.
-        return response()->json([
-            'message' => 'Use POST /security/withdrawals for withdrawal requests.',
-        ], 301);
-    }
-
     public function deposit(Request $request)
     {
         $request->validate([
@@ -113,10 +104,7 @@ class WalletController extends Controller
             ]);
 
             $wallet->increment($clearedCol, $request->amount);
-            $wallet->increment('balance', $request->amount);
-            $wallet->refresh();
-            $wallet->balance = $wallet->{$clearedCol} + ($wallet->{$currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared'} ?? 0) + $wallet->locked;
-            $wallet->save();
+            $wallet->refreshBalance();
 
             $models->transaction->create([
                 'user_id' => $user->id,
@@ -191,11 +179,10 @@ class WalletController extends Controller
 
                 $isDemo = ($user->trading_mode === 'demo');
 
-                $destCol = $isDemo
-                    ? ($toCurrency === 'NGN' ? 'ngn_cleared' : 'usd_cleared')
-                    : ($toCurrency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared');
+                // Both demo and live modes credit to cleared (source is already cleared)
+                $destCol = $toCurrency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
 
-                $status = $isDemo ? 'completed' : 'pending';
+                $status = 'completed';
 
                 Log::info('Wallet Conversion Started', [
                     'user_id' => $user->id,
@@ -208,17 +195,17 @@ class WalletController extends Controller
                 ]);
 
                 $sourceWallet->decrement($clearedCol, $amount);
-                $sourceWallet->decrement('balance', $amount);
+                $sourceWallet->refreshBalance();
 
                 $destWallet = $models->wallet->firstOrCreate(
                     ['user_id' => $user->id, 'currency' => $toCurrency],
-                    ['balance' => 0, 'status' => 'active', 'usd_cleared' => 0, 'usd_uncleared' => 0, 'locked' => 0]
+                    ['balance' => 0, 'status' => 'active', 'ngn_cleared' => 0, 'ngn_uncleared' => 0, 'usd_cleared' => 0, 'usd_uncleared' => 0, 'locked' => 0]
                 );
 
                 $destWallet = $models->wallet->where('id', $destWallet->id)->lockForUpdate()->first();
 
                 $destWallet->increment($destCol, $convertedAmount);
-                $destWallet->increment('balance', $convertedAmount);
+                $destWallet->refreshBalance();
 
                 $txReference = 'FX-'.\Illuminate\Support\Str::uuid();
 

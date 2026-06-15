@@ -85,21 +85,17 @@ class MarketService
                 Log::warning('CoinGecko API unavailable: '.$e->getMessage());
             }
 
-            // Fallback: If the API fails, return a basic structure to prevent "Undefined key" errors
-            return [
-                'bitcoin' => ['usd' => 64000],
-                'ethereum' => ['usd' => 3400],
-                'tether' => ['usd' => 1.00],
-                'binancecoin' => ['usd' => 300],
-                'solana' => ['usd' => 145],
-                'ripple' => ['usd' => 0.50],
-                'cardano' => ['usd' => 0.40],
-                'dogecoin' => ['usd' => 0.10],
-                'polkadot' => ['usd' => 5.00],
-                'tron' => ['usd' => 0.12],
-                'chainlink' => ['usd' => 12.00],
-                'matic-network' => ['usd' => 0.80],
-            ];
+            // Fallback: If the API fails, return last-known cached prices to prevent stale execution
+            $cached = cache()->get('crypto_prices_last_known');
+            if ($cached) {
+                Log::warning('CoinGecko API unavailable, using last-known cached prices');
+                return $cached;
+            }
+
+            // If no cached prices exist at all, return empty array to signal prices are unavailable.
+            // Callers must check for empty prices and refuse to execute trades.
+            Log::error('CoinGecko API unavailable and no cached prices exist');
+            return [];
         });
     }
 

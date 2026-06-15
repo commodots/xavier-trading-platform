@@ -14,9 +14,9 @@ class SubscriptionService
     /**
      * Process the quarterly platform fee for a user.
      */
-    public function chargePlatformFee(User $user): mixed
+    public function chargePlatformFee(User $user): void
     {
-        return DB::transaction(function () use ($user) {
+        DB::transaction(function () use ($user) {
             // Skip if inactive for more than 60 days
             if ($user->last_active_at && $user->last_active_at->diffInDays(now()) > 60) {
                 $user->update(['subscription_status' => 'inactive']);

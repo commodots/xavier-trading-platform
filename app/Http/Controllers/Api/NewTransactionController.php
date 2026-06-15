@@ -23,23 +23,23 @@ class NewTransactionController extends Controller
 {
     private function resolveModels($user, ?Request $request = null)
     {
-        // Prioritize the query parameter, fallback to the user's saved mode
-        $mode = $request ? $request->query('mode', $user->trading_mode) : $user->trading_mode;
-        $isDemo = $mode === 'demo';
+        // Strictly use the user's trading mode to prevent environment spoofing via query params
+        $isDemo = $user->trading_mode === 'demo';
 
         return (object) [
             'isDemo' => $isDemo,
-            'wallet' => $isDemo ? new DemoWallet : new Wallet,
-            'transaction' => $isDemo ? new DemoTransaction : new NewTransaction,
+            'wallet' => $isDemo ? \App\Models\Demo\DemoWallet::class : Wallet::class,
+            'transaction' => $isDemo ? \App\Models\Demo\DemoTransaction::class : NewTransaction::class,
         ];
     }
 
     public function index(Request $request)
     {
-        $models = $this->resolveModels(auth()->user(), $request);
+        $user = auth()->user();
+        $models = $this->resolveModels($user, $request);
 
         return response()->json(
-            $models->transaction->where('user_id', auth()->id())->latest()->limit(10)->get()
+            $models->transaction::where('user_id', $user->id)->latest()->limit(10)->get()
         );
     }
 
@@ -75,14 +75,15 @@ class NewTransactionController extends Controller
                 return response()->json(['success' => false, 'message' => 'Deposit amount must be greater than the transaction charge.'], 422);
             }
 
-            $wallet = $models->wallet->firstOrCreate(
+            $wallet = $models->wallet::firstOrCreate(
                 ['user_id' => $user->id, 'currency' => $request->currency]
             );
 
             $clearedCol = $request->currency === 'NGN' ? 'ngn_cleared' : 'usd_cleared';
+            $unclearedCol = $request->currency === 'NGN' ? 'ngn_uncleared' : 'usd_uncleared';
             $oldBalance = $wallet->{$clearedCol};
 
-            $transaction = $models->transaction->create([
+            $transaction = $models->transaction::create([
                 'user_id' => $user->id,
                 'type' => 'deposit',
                 'amount' => $request->amount,
@@ -99,7 +100,9 @@ class NewTransactionController extends Controller
             Log::info('Transaction created with ID '.$transaction->id);
 
             $wallet->increment($clearedCol, $netAmount);
-            $wallet->increment('balance', $netAmount);
+            
+            // Do not manually calculate balance in controllers
+            $wallet->refreshBalance();
 
             Log::info('Wallet balance incremented by '.$netAmount.' for user '.$user->id);
 
@@ -123,49 +126,17 @@ class NewTransactionController extends Controller
 
     public function sendOtp(Request $request)
     {
-        $user = auth()->user();
-
-        // Rate limiting on OTP requests
-        $rateLimitKey = 'otp_request_'.$user->id;
-        $requestCount = Cache::get($rateLimitKey, 0);
-        if ($requestCount >= 3) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Too many OTP requests. Please try again in 15 minutes.',
-            ], 429);
-        }
-
-        // Generate a random 6-digit OTP
-        $otp = (string) random_int(100000, 999999);
-
-        // Store in cache for 5 minutes (300 seconds)
-        $cacheKey = 'withdrawal_otp_'.$user->id;
-        Cache::put($cacheKey, $otp, now()->addMinutes(5));
-
-        // Increment request counter with 15-minute window
-        Cache::put($rateLimitKey, $requestCount + 1, now()->addMinutes(15));
-
-        $user->notify(new WithdrawalOtpNotification($otp));
-
-        Log::info("Withdrawal OTP generated for user {$user->id}", [
-            'ip' => $request->ip(),
-            'otp_preview' => substr($otp, 0, 2).'****', // Log only part for security auditing
-        ]);
-
-        // For development/demo purposes, we'll return success.
-        // In production, ensure the actual delivery service (Mail/SMS) succeeded.
+        // Deprecated: OTP generation is now handled centrally by WithdrawalService via WithdrawalController
         return response()->json([
-            'success' => true,
-            'message' => 'A verification code has been sent to your registered email/phone.',
-        ]);
+            'message' => 'This endpoint is deprecated. Withdrawal OTPs are now sent automatically via POST /security/withdrawals.',
+        ], 410);
     }
 
     public function withdraw(Request $request)
     {
-        // Use the centralized WithdrawalController via the /security/withdrawals route.
-        // This endpoint is deprecated. Use POST /security/withdrawals instead.
         return response()->json([
-            'message' => 'Use POST /security/withdrawals for withdrawal requests.',
+            'message' => 'Withdrawals have moved to the Unified Security Flow. Please use POST /security/withdrawals.',
+            'target_url' => url('/api/security/withdrawals')
         ], 301);
     }
 

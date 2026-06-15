@@ -112,11 +112,19 @@ class PortfolioController extends Controller
             $totalCurrentValue += ($totalQty * $holding->market_price);
         }
 
+        // Calculate actual change from first data point to last
+        $totalChange = 0;
+        if (!empty($multiSeries)) {
+            $firstValue = $multiSeries[0]['data'][0]['y'] ?? 0;
+            $lastValue = end($multiSeries[0]['data'])['y'] ?? 0;
+            $totalChange = $firstValue > 0 ? round((($lastValue - $firstValue) / $firstValue) * 100, 2) : 0;
+        }
+
         return response()->json([
             'success' => true,
             'series' => $multiSeries,
             'total' => $totalCurrentValue,
-            'change' => 1.25,
+            'change' => $totalChange,
         ]);
     }
 }

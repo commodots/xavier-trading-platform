@@ -45,6 +45,7 @@ class AuthController extends Controller
                     'user_agent' => $request->userAgent(),
                 ]);
             } catch (\Throwable $e) {
+                \Log::warning('Activity log failed for failed login', ['email' => $request->email, 'error' => $e->getMessage()]);
             }
             return response()->json(['success' => false, 'message' => 'Invalid credentials. Please check email or password.'], 401);
         }
@@ -71,6 +72,7 @@ class AuthController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
         } catch (\Throwable $e) {
+            \Log::warning('Activity log failed for successful login', ['user_id' => $user->id, 'error' => $e->getMessage()]);
         }
 
        try {
@@ -159,6 +161,7 @@ class AuthController extends Controller
                     'user_agent' => $request->userAgent(),
                 ]);
             } catch (\Throwable $e) {
+                \Log::warning('Activity log failed for logout', ['user_id' => $user->id ?? null, 'error' => $e->getMessage()]);
             }
 
             if ($user->currentAccessToken()) {

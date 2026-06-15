@@ -120,11 +120,13 @@ class WithdrawalService
 
         $withdrawal->reject($approver->id, $reason);
 
-        // Refund daily limit counter atomically — clamp to 0 to prevent negatives
-        WithdrawalLimit::where('user_id', $withdrawal->user_id)->each(function ($limit) use ($withdrawal) {
-            $col = $withdrawal->currency === 'NGN' ? 'daily_withdrawn_ngn' : 'daily_withdrawn_usd';
-            $limit->$col = max(0, $limit->$col - $withdrawal->amount);
-            $limit->save();
+        // Refund daily limit counter atomically inside a transaction
+        \Illuminate\Support\Facades\DB::transaction(function () use ($withdrawal) {
+            WithdrawalLimit::where('user_id', $withdrawal->user_id)->each(function ($limit) use ($withdrawal) {
+                $col = $withdrawal->currency === 'NGN' ? 'daily_withdrawn_ngn' : 'daily_withdrawn_usd';
+                $limit->$col = max(0, $limit->$col - $withdrawal->amount);
+                $limit->save();
+            });
         });
 
         activity()
@@ -161,11 +163,13 @@ class WithdrawalService
     {
         $withdrawal->update(['status' => 'failed']);
 
-        // Refund daily limit counter atomically — clamp to 0
-        WithdrawalLimit::where('user_id', $withdrawal->user_id)->each(function ($limit) use ($withdrawal) {
-            $col = $withdrawal->currency === 'NGN' ? 'daily_withdrawn_ngn' : 'daily_withdrawn_usd';
-            $limit->$col = max(0, $limit->$col - $withdrawal->amount);
-            $limit->save();
+        // Refund daily limit counter atomically inside a transaction
+        \Illuminate\Support\Facades\DB::transaction(function () use ($withdrawal) {
+            WithdrawalLimit::where('user_id', $withdrawal->user_id)->each(function ($limit) use ($withdrawal) {
+                $col = $withdrawal->currency === 'NGN' ? 'daily_withdrawn_ngn' : 'daily_withdrawn_usd';
+                $limit->$col = max(0, $limit->$col - $withdrawal->amount);
+                $limit->save();
+            });
         });
 
         activity()

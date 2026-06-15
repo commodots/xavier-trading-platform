@@ -17,11 +17,20 @@ class WalletFunctionsTest extends TestCase
      * A basic feature test example.
      */
     use RefreshDatabase;
+    protected User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->create([
+            'email_verified_at' => now(),
+            'subscription_status' => 'active',
+        ]);
+        $this->user->kyc()->create(['status' => 'verified', 'tier' => 3]); // Max KYC level
+    }
 
     public function test_user_can_deposit_funds_and_fees_are_applied(): void
     {
-        $user = User::factory()->create();
-
         // Setup the fee rule in the DB
         TransactionCharge::create([
             'transaction_type' => 'deposit',
@@ -30,7 +39,7 @@ class WalletFunctionsTest extends TestCase
             'active' => true,
         ]);
 
-        $response = $this->actingAs($user)->postJson('/api/deposit', [
+        $response = $this->actingAs($this->user)->postJson('/api/deposit', [
             'amount' => 5000,
             'currency' => 'NGN',
         ]);
@@ -40,16 +49,12 @@ class WalletFunctionsTest extends TestCase
         // Check if the transaction record in DB has the 150 fee
         // $this->assertDatabaseHas('new_transactions_table', [
         //     'user_id' => $user->id,
-        //     'amount' => 5000,
-        //     'charge' => 150,
         // ]);
     }
 
     public function test_deposit_requires_a_positive_amount(): void
     {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->postJson('/api/deposit', [
+        $response = $this->actingAs($this->user)->postJson('/api/deposit', [
             'amount' => -100, // Invalid amount
             'currency' => 'NGN',
         ]);
@@ -75,6 +80,7 @@ class WalletFunctionsTest extends TestCase
 
     public function test_paystack_webhook_post_bypasses_csrf_and_fails_signature(): void
     {
+        
         $response = $this->postJson('/api/paystack/webhook', ['event' => 'charge.success', 'data' => []]);
 
         // Without CSRF token, this should not be 419 (CSRF mismatch) but propagate to signature check.
@@ -149,19 +155,25 @@ class WalletFunctionsTest extends TestCase
     {
         SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
 
-        $user = User::factory()->create();
-        Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
+        FxRate::create([
+            'from_currency' => 'USD',
+            'to_currency' => 'NGN',
+            'base_rate' => 1500,
+            'effective_rate' => 1500,
+        ]);
 
-        Http::fake(['https://api.coingecko.com/api/v3/simple/price*' => Http::response(['bitcoin' => ['usd' => 100]], 200)]);
+        Wallet::create(['user_id' => $this->user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0]);
 
-        $openRes = $this->actingAs($user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
+       
+
+        $openRes = $this->actingAs($this->user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
         $openRes->assertStatus(200)->assertJson(['success' => true]);
 
         $tradeId = $openRes->json('data.id');
         $this->assertDatabaseHas('trades', ['id' => $tradeId, 'status' => 'open']);
-        $this->assertDatabaseHas('new_transactions_table', ['user_id' => $user->id, 'type' => 'buy_crypto']);
+        $this->assertDatabaseHas('new_transactions_table', ['user_id' => $this->user->id, 'type' => 'buy_crypto']);
 
-        $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
+        $closeRes = $this->actingAs($this->user)->postJson("/api/trade/close/{$tradeId}");
         $closeRes->assertStatus(200)->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('trades', ['id' => $tradeId, 'status' => 'closed']);
@@ -189,8 +201,20 @@ class WalletFunctionsTest extends TestCase
     public function test_crypto_trade_profit_scenario(): void
     {
         SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
+        SystemSetting::create([
+            'crypto_spread' => 0, 
+            'crypto_fee' => 0, 
+            'max_trade_amount' => 10000,
+            'base_currency' => 'USD'
+        ]);
 
-        $user = User::factory()->create();
+        FxRate::create(['from_currency' => 'USD', 'to_currency' => 'NGN', 'base_rate' => 1500, 'effective_rate' => 1500]);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $user->kyc()->create(['status' => 'verified', 'tier' => 2]);
+
         $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
 
         // Setup sequence: 100 for open, 110 for close
@@ -235,8 +259,20 @@ class WalletFunctionsTest extends TestCase
     public function test_crypto_trade_loss_scenario(): void
     {
         SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
+        SystemSetting::create([
+            'crypto_spread' => 0, 
+            'crypto_fee' => 0, 
+            'max_trade_amount' => 10000,
+            'base_currency' => 'USD'
+        ]);
 
-        $user = User::factory()->create();
+        FxRate::create(['from_currency' => 'USD', 'to_currency' => 'NGN', 'base_rate' => 1500, 'effective_rate' => 1500]);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $user->kyc()->create(['status' => 'verified', 'tier' => 2]);
+
         $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0, 'balance' => 1000, 'locked' => 0]);
 
         // Setup sequence: 100 for open, 90 for close

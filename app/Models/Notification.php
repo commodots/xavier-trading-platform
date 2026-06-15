@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Notification extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'user_id',
@@ -49,5 +53,22 @@ class Notification extends Model
     public function markAsUnread()
     {
         $this->update(['read_at' => null]);
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($notification) {
+            if (empty($notification->data)) {
+                $notification->data = json_encode([]);
+            }
+
+            $data = is_array($notification->data) ? $notification->data : json_decode($notification->data, true);
+            if (is_array($data)) {
+                $notification->message = $notification->message ?? ($data['message'] ?? 'Notification received');
+                $notification->title = $notification->title ?? ($data['title'] ?? 'System Alert');
+                $notification->action = $notification->action ?? ($data['action'] ?? 'View Details');
+                $notification->icon = $notification->icon ?? ($data['icon'] ?? '🔔');
+            }
+        });
     }
 }

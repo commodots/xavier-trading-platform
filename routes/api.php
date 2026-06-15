@@ -67,12 +67,12 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('a
 Route::post('/login/verify-2fa', [TwoFactorController::class, 'verifyLogin'])->middleware('throttle:5,1');
 Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->middleware('throttle:5,1');
 
-/* Webhooks */
-Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
-Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle']);
-Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle']);
-Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle']);
-Route::post('/market/update', [TradeController::class, 'updateMarket']);
+    /* Webhooks (rate-limited to prevent abuse) */
+    Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback')->middleware('throttle:30,1');
+    Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle'])->middleware('throttle:30,1');
+    Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle'])->middleware('throttle:30,1');
+    Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle'])->middleware('throttle:30,1');
+    Route::post('/market/update', [TradeController::class, 'updateMarket'])->middleware('throttle:60,1');
 
 Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);
 Route::post('/stocks/track', [TradeController::class, 'trackSymbol']);

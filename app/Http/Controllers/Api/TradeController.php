@@ -177,9 +177,8 @@ class TradeController extends Controller
 
             $wallet->decrement('usd_cleared', $amount);
             $wallet->increment('locked', $amount); // Standardize: Move to locked instead of removing
-            $wallet->refresh(); // Refresh to get latest values before calculating balance
-            $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
-            $wallet->save();
+            //Use a dedicated method on the model to ensure consistency
+            $wallet->refreshBalance(); 
 
             $models->transaction::create([
                 'user_id' => $user->id,
@@ -249,11 +248,10 @@ class TradeController extends Controller
         $quantity = (float) $trade->quantity;
         $buyPrice = (float) $trade->entry_price;
         $sellPrice = (float) $currentPrice;
-
-        $buyValue = $quantity * $buyPrice;     // Initial investment (should match $trade->amount)
+        
+        $buyValue = (float) $trade->amount;    // Use stored amount to ensure locked balance returns to zero exactly
         $sellValue = $quantity * $sellPrice;   // Total proceeds from selling
 
-        // P&L: sell_value - buy_value (not percentage * amount)
         $profitLoss = $sellValue - $buyValue;
 
         Log::info('Crypto Trade Closing - Calculation', [
@@ -292,7 +290,7 @@ class TradeController extends Controller
                     'profit_loss' => $profitLoss,
                     'status' => 'closed',
                     'settlement_status' => 'pending',
-                    'settlement_date' => now()->addDay()->startOfDay(),
+                    'settlement_date' => now()->addDays(2)->startOfDay(),
                 ]);
 
                 // Lock wallet to prevent concurrent updates
@@ -308,9 +306,8 @@ class TradeController extends Controller
                 // This prevents immediate withdrawal until the settlement job runs.
                 $wallet->decrement('locked', $buyValue);        // Release locked capital
                 $wallet->increment('usd_uncleared', $sellValue); // Add FULL proceeds to uncleared
-                $wallet->refresh(); // Refresh to get latest values after decrement/increment
-                $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
-                $wallet->save();
+                // Centralized balance logic
+                $wallet->refreshBalance();
 
                 $walletAfterLocked = (float) $wallet->locked;
                 $walletAfterCleared = (float) $wallet->usd_cleared;
@@ -417,7 +414,7 @@ class TradeController extends Controller
                 ->toArray();
 
             $categoryFilter = strtoupper($request->query('category', 'ALL'));
-            $validCategories = ['ALL', 'CRYPTO', 'GLOBAL'];
+            $validCategories = ['ALL', 'CRYPTO', 'GLOBAL', 'NGX', 'LOCAL'];
             if (! in_array($categoryFilter, $validCategories, true)) {
                 $categoryFilter = 'ALL';
             }
@@ -445,7 +442,7 @@ class TradeController extends Controller
 
                 $priceDiff = $t->type === 'buy' ? $marketPrice - $entryPrice : $entryPrice - $marketPrice;
                 $unrealizedPlPercent = $entryPrice > 0 ? ($priceDiff / $entryPrice) * 100 : 0;
-                $unrealizedPl = $priceDiff * (float) $t->amount;
+                $unrealizedPl = $priceDiff * (float) $t->quantity;
 
                 return [
                     'id' => $t->id,
@@ -559,7 +556,10 @@ class TradeController extends Controller
             ->get(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change']);
 
         if ($finalResults->count() < 20) {
+            // Narrow the fallback query to avoid loading the entire symbols table
             $fallback = Symbol::select(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change'])
+                ->where('symbol', 'like', '%' . substr($query, 0, 3) . '%')
+                ->limit(100)
                 ->get()
                 ->filter(fn ($symbol) => $this->matchesSymbolSearch($symbol, $query));
 
@@ -588,7 +588,7 @@ class TradeController extends Controller
             'type' => 'required|in:market,limit,stop,bracket',
         ]);
 
-        if ($request->type === 'limit' && ! $request->limit_price) {
+        if ($request->type === 'limit' && (!$request->limit_price || $request->limit_price <= 0)) {
             return response()->json(['message' => 'Limit price required for limit orders'], 422);
         }
 
@@ -638,9 +638,27 @@ class TradeController extends Controller
                     $wallet->decrement('usd_cleared', $totalAmount);
                     $wallet->increment('locked', $totalAmount);
 
-                    $wallet->refresh();
-                    $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
-                    $wallet->save();
+                    $wallet->refreshBalance();
+                } elseif ($request->side === 'sell') {
+                    // For sell orders, verify the user has a position to sell
+                    // Check existing open orders for this symbol to prevent overselling
+                    $existingSellOrders = $models->order::where('user_id', $user->id)
+                        ->where('symbol', strtoupper($request->symbol))
+                        ->where('side', 'sell')
+                        ->whereIn('status', ['open', 'partially_filled'])
+                        ->sum('quantity');
+
+                    $existingBuyOrders = $models->order::where('user_id', $user->id)
+                        ->where('symbol', strtoupper($request->symbol))
+                        ->where('side', 'buy')
+                        ->whereIn('status', ['filled', 'partially_filled'])
+                        ->sum('quantity');
+
+                    $netPosition = $existingBuyOrders - $existingSellOrders;
+
+                    if ($netPosition < (float) $request->qty) {
+                        throw new \Exception('Insufficient position to sell. Available quantity: ' . max(0, $netPosition));
+                    }
                 }
 
                 $order = $models->order::create([

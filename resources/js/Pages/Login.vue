@@ -1,12 +1,12 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-    <div class="w-full max-w-sm p-8 bg-slate-800 rounded-lg">
+  <div class="flex items-center justify-center min-h-screen text-white bg-slate-900">
+    <div class="w-full max-w-sm p-8 rounded-lg bg-slate-800">
       <img src="/images/xavier-logo.png" alt="Xavier Logo" class="h-16 mx-auto mb-6" />
-      <h2 class="text-2xl font-semibold mb-4 text-center">
+      <h2 class="mb-4 text-2xl font-semibold text-center">
         {{ step === 1 ? 'Login' : '2FA Verification' }}
       </h2>
 
-      <div v-if="error" class="bg-red-900/50 text-red-300 p-3 mb-4 rounded text-sm">
+      <div v-if="error" class="p-3 mb-4 text-sm text-red-300 rounded bg-red-900/50">
         {{ error }}
       </div>
 
@@ -16,11 +16,11 @@
           <input v-model="email" placeholder="Email" type="email"
             class="w-full p-2 rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2" required />
           <input v-model="password" placeholder="Password" type="password"
-            class="w-full p-2 rounded mt-3 bg-slate-700 focus:ring-cyan-400 focus:ring-2" required />
+            class="w-full p-2 mt-3 rounded bg-slate-700 focus:ring-cyan-400 focus:ring-2" required />
         </div>
 
         <div v-else-if="step === 2">
-          <p class="text-sm text-slate-300 mb-3">
+          <p class="mb-3 text-sm text-slate-300">
             Please enter the 6-digit code from your authenticator app for **{{ email }}**.
           </p>
           <input v-model="twoFactorCode" placeholder="6-Digit Code" type="text" inputmode="numeric" maxlength="6"
@@ -29,17 +29,17 @@
         </div>
 
         <button type="submit" :disabled="processing"
-          class="w-full mt-4 py-2 font-semibold bg-gradient-to-r from-blue-700 to-cyan-400 rounded hover:from-blue-600 hover:to-cyan-300 disabled:opacity-50">
+          class="w-full py-2 mt-4 font-semibold rounded bg-gradient-to-r from-blue-700 to-cyan-400 hover:from-blue-600 hover:to-cyan-300 disabled:opacity-50">
           {{ buttonText }}
         </button>
       </form>
 
-      <p class="text-sm text-slate-400 mt-3 text-center">
+      <p class="mt-3 text-sm text-center text-slate-400">
         Don’t have an account?
         <router-link to="/register" class="text-cyan-300 hover:underline">Register</router-link>
       </p>
 
-      <p v-if="step === 2" class="text-xs text-slate-500 mt-2 text-center">
+      <p v-if="step === 2" class="mt-2 text-xs text-center text-slate-500">
         <button @click="resetForm" class="hover:text-cyan-400">Cancel / Go Back</button>
       </p>
 

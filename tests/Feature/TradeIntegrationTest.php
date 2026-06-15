@@ -120,6 +120,10 @@ class TradeIntegrationTest extends TestCase
     public function test_bracket_order_requires_take_profit_and_stop_loss(): void
     {
         $user = User::factory()->create();
+        $user->email_verified_at = now();
+        $user->save();
+        $user->kyc()->create(['status' => 'verified', 'tier' => 2]);
+
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/trade/place', [

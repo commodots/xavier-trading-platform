@@ -27,32 +27,27 @@ class ProfileController extends Controller
         if ($user->kyc) {
             $tier = (int) KycService::determineTier($user->kyc);
             $levelLabels = [0 => 'none', 1 => 'basic', 2 => 'identity', 3 => 'biometric'];
-            
-            // Populate missing basic data if null
-            if (empty($user->kyc->first_name)) {
-                $user->kyc->update([
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'tier' => $tier,
-                    'level' => $levelLabels[$tier] ?? 'none'
-                ]);
-            }
 
-            // Sync verification_level for the Enforcement Layer
-            $user->verification_level = $tier;
-            $user->save();
+            // Populate missing basic data if null (only set in-memory for response, don't write on GET)
+            if (empty($user->kyc->first_name)) {
+                $user->kyc->first_name = $user->first_name;
+                $user->kyc->last_name = $user->last_name;
+            }
 
             $kycSetting = KycSetting::where('tier', $tier)->first();
             if ($kycSetting) {
                 $user->kyc->daily_limit = $kycSetting->daily_limit;
             }
             $user->kyc->currency = $user->kyc->currency ?? $baseCurrency;
-            
+
             // Break recursion: Hide the user relationship on the KYC object
             $user->kyc->makeHidden('user');
             $user->kyc->tier = $tier;
             $user->kyc->level = $levelLabels[$tier] ?? 'none';
         }
+
+        // Set verification_level in-memory for the response (don't write on GET)
+        $user->verification_level = $tier ?? $user->verification_level;
 
         // Attach permissions for EVERYONE (Admins get all true, Staff get calculated)
         $permissions = [];
@@ -231,6 +226,15 @@ class ProfileController extends Controller
     public function getKycFull(Request $r)
     {
         $user = Auth::user();
+
+        // Only admins can access unmasked KYC data
+        if (!$user->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admin access required.'
+            ], 403);
+        }
+
         $kyc = KycProfile::where('user_id', $user->id)->first();
 
         if (!$kyc) {

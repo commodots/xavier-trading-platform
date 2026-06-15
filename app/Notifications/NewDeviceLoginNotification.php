@@ -41,12 +41,10 @@ class NewDeviceLoginNotification extends Notification
         $textMessage = 'A login from a new device was detected. If this was not you, please secure your account immediately.';
 
         return [
-            'user_id' => $notifiable->id, 
             'message' => $textMessage,
-            
-            'type' => 'security',
+            'category' => 'security',
             'title' => 'New Device Login',
-            'message_text' => $textMessage, 
+            'message_text' => $textMessage,
             'action' => 'Review Sessions',
             'action_url' => null,
             'icon' => '📱',

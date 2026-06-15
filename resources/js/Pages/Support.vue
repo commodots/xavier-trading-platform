@@ -3,27 +3,27 @@
   <div class="space-y-8">
     <div>
       <h2 class="text-xl font-semibold text-white">Help & Support</h2>
-      <p class="text-gray-400 text-sm">Find answers to common questions or reach out to our team.</p>
+      <p class="text-sm text-gray-400">Find answers to common questions or reach out to our team.</p>
     </div>
 
     <div class="grid gap-4">
-      <h3 class="text-white font-medium text-sm uppercase tracking-wider">Frequently Asked Questions</h3>
+      <h3 class="text-sm font-medium tracking-wider text-white uppercase">Frequently Asked Questions</h3>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div 
           v-for="(faq, index) in faqs" 
           :key="index" 
           @click="toggleFaq(index)"
           class="p-4 bg-[#16213A] border border-gray-700 rounded-lg hover:border-blue-500 transition group cursor-pointer h-fit"
         >
-          <div class="flex justify-between items-center">
-            <span class="text-gray-200 group-hover:text-blue-400 transition">{{ faq.title }} </span>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-200 transition group-hover:text-blue-400">{{ faq.title }} </span>
             <span class="text-gray-500 transition-transform duration-200" :class="{ 'rotate-90': activeIndex === index }">→</span>
           </div>
 
           <div 
             v-if="activeIndex === index" 
-            class="mt-4 text-sm text-gray-400 border-t border-gray-700 pt-4 leading-relaxed"
+            class="pt-4 mt-4 text-sm leading-relaxed text-gray-400 border-t border-gray-700"
           >
             {{ faq.content }}
           </div>
@@ -33,15 +33,15 @@
 
     <hr class="border-gray-800">
 
-    <div class="bg-blue-900/10 border border-blue-500/20 p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6">
+    <div class="flex flex-col items-center justify-between gap-6 p-6 border bg-blue-900/10 border-blue-500/20 rounded-xl md:flex-row">
       <div class="space-y-1">
-        <h3 class="text-white font-semibold">Still need help?</h3>
-        <p class="text-gray-400 text-sm">Our support team is available 24/7 to assist you with any issues. </p>
+        <h3 class="font-semibold text-white">Still need help?</h3>
+        <p class="text-sm text-gray-400">Our support team is available 24/7 to assist you with any issues. </p>
       </div>
       
       <button 
         @click="contactSupport"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-blue-900/20 transition whitespace-nowrap"
+        class="px-8 py-3 font-bold text-white transition bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 shadow-blue-900/20 whitespace-nowrap"
       >
         Contact Support 
       </button>
@@ -64,7 +64,7 @@ const faqs = [
   },
   { 
     title: "Withdrawal processing times", 
-    content: "Local bank withdrawals are typically processed instantly but can take up to 30 minutes during peak hours. International wire transfers or crypto withdrawals usually take between 1 to 3 business days to clear depending on network congestion." 
+    content: "Withdrawals are processed via our secure Unified Withdrawal Flow. Local bank transfers are typically processed within 30 minutes after security approval. International transfers may take 1-3 business days. All withdrawals require 2FA and KYC Level 2+." 
   },
   { 
     title: "Resetting Two-Factor Authentication", 

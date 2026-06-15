@@ -49,7 +49,6 @@ class Wallet extends Model
 
     public function debit(float $amount, string $balanceType = 'cleared'): self
     {
-        
         if ($this->currency === 'NGN') {
             if ($balanceType === 'cleared') $this->ngn_cleared = (float)$this->ngn_cleared - $amount;
             if ($balanceType === 'uncleared') $this->ngn_uncleared = (float)$this->ngn_uncleared - $amount;
@@ -60,8 +59,8 @@ class Wallet extends Model
 
         if ($balanceType === 'locked') $this->locked = (float)$this->locked - $amount;
 
-        $this->balance = (float)$this->balance - $amount;
-        $this->save();
+        // Recompute total balance from sub-columns to avoid double-counting
+        $this->refreshBalance(false);
 
         return $this;
     }
@@ -78,8 +77,8 @@ class Wallet extends Model
 
         if ($balanceType === 'locked') $this->locked = (float)$this->locked + $amount;
 
-        $this->balance = (float)$this->balance + $amount;
-        $this->save();
+        // Recompute total balance from sub-columns to avoid double-counting
+        $this->refreshBalance(false);
 
         return $this;
     }
@@ -144,5 +143,26 @@ class Wallet extends Model
                 $wallet->account_number = 'XAV' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
             }
         });
+    }
+    
+    /**
+     * Recompute and persist the total balance from sub-columns.
+     * Includes cleared + uncleared + locked amounts.
+     *
+     * @param  bool  $save  Whether to persist immediately (set false when called from debit/credit)
+     */
+    public function refreshBalance(bool $save = true): self
+    {
+        if ($this->currency === 'NGN') {
+            $this->balance = (float)$this->ngn_cleared + (float)$this->ngn_uncleared + (float)$this->locked;
+        } else {
+            $this->balance = (float)$this->usd_cleared + (float)$this->usd_uncleared + (float)$this->locked;
+        }
+
+        if ($save) {
+            $this->save();
+        }
+
+        return $this;
     }
 }

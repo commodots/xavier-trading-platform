@@ -13,7 +13,8 @@ class TwoFactorController extends Controller
 {
     public function __construct(
         private TwoFactorService $twoFactorService,
-    ) {
+    ) 
+    {
     }
 
     /**
@@ -35,8 +36,10 @@ class TwoFactorController extends Controller
             AuditService::logSecurityEvent($user, '2fa_setup_initiated', 'User initiated 2FA setup');
 
             return response()->json([
+                'success' => true,
                 'secret' => $setup['secret'],
                 'recovery_codes' => $setup['recovery_codes'],
+                'qr' => $setup['qr_code_url'],
                 'qr_code_url' => $setup['qr_code_url'],
                 'message' => 'Scan the QR code with your authenticator app. Save your recovery codes in a safe place.',
             ]);
@@ -51,10 +54,16 @@ class TwoFactorController extends Controller
     public function verify(Request $request): JsonResponse
     {
         $request->validate([
-            'token' => 'required|string|size:6',
+            'token' => 'nullable|string|size:6',
+            'code' => 'required_without:token|string|size:6',
+            'email' => 'nullable|email',
         ]);
 
-        $user = $request->user();
+        $user = $request->user() ?: \App\Models\User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated or user not found.'], 401);
+        }
 
         if ($user->google2fa_enabled) {
             return response()->json([
@@ -70,11 +79,12 @@ class TwoFactorController extends Controller
 
         try {
             $google2fa = new Google2FA();
-            $isValid = $google2fa->verifyKey($user->google2fa_secret, $request->token);
+            $token = $request->input('token') ?: $request->input('code');
+            $isValid = $google2fa->verifyKey($user->google2fa_secret, $token);
 
             if (!$isValid) {
                 AuditService::logSecurityEvent($user, '2fa_verify_failed', 'Invalid TOTP token during 2FA setup');
-                return response()->json(['message' => 'Invalid authentication code. Please try again.'], 422);
+                return response()->json(['success' => false, 'message' => 'Invalid authentication code. Please try again.'], 422);
             }
 
             $this->twoFactorService->confirmTwoFactor($user);
@@ -82,6 +92,7 @@ class TwoFactorController extends Controller
             AuditService::logSecurityEvent($user, '2fa_enabled', 'User successfully enabled 2FA');
 
             return response()->json([
+                'success' => true,
                 'message' => '2FA has been successfully enabled.',
                 'recovery_codes' => $user->two_factor_recovery_codes,
             ]);
@@ -105,6 +116,7 @@ class TwoFactorController extends Controller
             AuditService::logSecurityEvent($user, '2fa_disable_failed', 'Invalid password provided', ['reason' => 'invalid_password']);
 
             return response()->json([
+                'success' => false,
                 'message' => 'Invalid password.',
             ], 422);
         }
@@ -121,6 +133,7 @@ class TwoFactorController extends Controller
             AuditService::logSecurityEvent($user, '2fa_disabled', 'User disabled 2FA');
 
             return response()->json([
+                'success' => true,
                 'message' => '2FA has been disabled.',
             ]);
         } catch (\Exception $e) {
@@ -137,6 +150,7 @@ class TwoFactorController extends Controller
 
         return response()->json([
             'enabled' => $user->google2fa_enabled,
+            'success' => true,
             'confirmed_at' => $user->two_factor_confirmed_at,
         ]);
     }
@@ -192,6 +206,7 @@ class TwoFactorController extends Controller
             AuditService::logSecurityEvent($user, '2fa_login_success', 'User successfully passed 2FA verification challenge');
 
             return response()->json([
+                'success' => true,
                 'token' => $token,
                 'user' => [
                     'id' => $user->id,

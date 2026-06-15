@@ -92,7 +92,6 @@ class SettlementService
             // Move asset tokens out of holding status directly into clear balances
             $portfolio->decrement('uncleared_quantity', $trade->quantity);
             $portfolio->increment('cleared_quantity', $trade->quantity);
-            $portfolio->increment('quantity', $trade->quantity);
             
         } else {
             // SETTLE SELL:
@@ -110,8 +109,8 @@ class SettlementService
             }
         }
 
-        // Persist local instances
-        $wallet->save();
+        // Recompute total balance from sub-columns to prevent drift
+        $wallet->refreshBalance(false);
         $portfolio->save();
 
         //  Mark the trade records as officially settled

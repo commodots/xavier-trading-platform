@@ -56,11 +56,18 @@ class SyncVerifiedUserTiers extends Command
             }
 
             // Apply the update to your local users
-            if ($kyc->tier === 0) {
+            if ($kyc->tier < $calculatedTier) {
+                $level = match($calculatedTier) {
+                    1 => 'email_verified',
+                    2 => 'identity_verified',
+                    3 => 'fully_verified',
+                    default => 'unverified',
+                };
+
                 $kyc->update([
                     'tier' => $calculatedTier,
                     'status' => 'verified',
-                    'level' => $kyc->level ?? 'email_verified'
+                    'level' => $level
                 ]);
                 $updatedCount++;
             }

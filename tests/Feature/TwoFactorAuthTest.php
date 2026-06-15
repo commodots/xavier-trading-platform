@@ -16,7 +16,7 @@ class TwoFactorAuthTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->getJson('/api/2fa/setup');
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/setup');
 
         $response->assertStatus(200)
             ->assertJsonStructure(['success', 'secret', 'qr'])
@@ -32,7 +32,7 @@ class TwoFactorAuthTest extends TestCase
 
         $otp = $google2fa->getCurrentOtp($secret);
 
-        $response = $this->actingAs($user)->postJson('/api/2fa/confirm', ['code' => $otp]);
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/confirm', ['code' => $otp]);
 
         $response->assertStatus(200)->assertJsonPath('success', true);
         $this->assertTrue($user->fresh()->google2fa_enabled);
@@ -45,7 +45,7 @@ class TwoFactorAuthTest extends TestCase
 
         $user = User::factory()->create(['google2fa_secret' => $secret]);
 
-        $response = $this->actingAs($user)->postJson('/api/2fa/confirm', ['code' => '000000']);
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/confirm', ['code' => '000000']);
 
         $response->assertStatus(422)->assertJsonPath('success', false);
         $this->assertFalse((bool) $user->fresh()->google2fa_enabled);
@@ -63,7 +63,7 @@ class TwoFactorAuthTest extends TestCase
 
         $otp = $google2fa->getCurrentOtp($secret);
 
-        $response = $this->postJson('/api/2fa/verify', [
+        $response = $this->postJson('/api/security/2fa/verify', [
             'email' => $user->email,
             'token' => $otp,
         ]);
@@ -81,13 +81,13 @@ class TwoFactorAuthTest extends TestCase
         ]);
 
         for ($i = 0; $i < 5; $i++) {
-            $this->postJson('/api/2fa/verify', [
+            $this->postJson('/api/security/2fa/verify', [
                 'email' => $user->email,
                 'token' => '000000',
             ]);
         }
 
-        $response = $this->postJson('/api/2fa/verify', [
+        $response = $this->postJson('/api/security/2fa/verify', [
             'email' => $user->email,
             'token' => '000000',
         ]);
@@ -105,7 +105,9 @@ class TwoFactorAuthTest extends TestCase
             'google2fa_secret'  => $secret,
         ]);
 
-        $response = $this->actingAs($user)->postJson('/api/2fa/disable');
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/disable',[
+            'password' => 'password',
+        ]);
 
         $response->assertStatus(200)->assertJsonPath('success', true);
         $this->assertFalse((bool) $user->fresh()->google2fa_enabled);

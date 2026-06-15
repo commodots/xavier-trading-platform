@@ -3,39 +3,23 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 
-class AdminBroadcastNotification extends Notification
+class AdminBroadcastNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public string $title;
-
-    public string $message;
-
-    public bool $sendEmail;
-
-    public bool $sendMessage;
-
-    public function __construct(string $title, string $message, bool $sendEmail, bool $sendMessage)
+    public function __construct(public string $title, public string $message)
     {
-        $this->title = $title;
-        $this->message = $message;
-        $this->sendEmail = $sendEmail;
-        $this->sendMessage = $sendMessage;
     }
 
     public function via($notifiable): array
     {
-        $channels = [];
+        $channels = ['database'];
 
-        // Only send to database if sendMessage is requested
-        if ($this->sendMessage) {
-            $channels[] = 'database';
-        }
-
-        if ($this->sendEmail) {
+        if ($notifiable->notificationPreferences?->email ?? true) {
             $channels[] = 'mail';
         }
 
@@ -46,16 +30,19 @@ class AdminBroadcastNotification extends Notification
     {
         return (new MailMessage)
             ->subject($this->title)
-            ->line($this->message);
+            ->line($this->message)
+            ->action('View Details', url('/dashboard/notifications'));
     }
 
     public function toArray($notifiable): array
     {
         return [
+            'category' => 'broadcast',
             'title' => $this->title,
-            'message' => $this->message,
-            'type' => 'info',
-            'action' => '/dashboard', // Default action for general admin broadcasts
+            'message_text' => $this->message,
+            'action' => 'View Details',
+            'action_url' => url('/dashboard/notifications'),
+            'icon' => '📢',
         ];
     }
 }

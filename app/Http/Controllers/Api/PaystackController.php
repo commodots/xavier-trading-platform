@@ -111,11 +111,11 @@ class PaystackController extends Controller
                     ],
                 ]);
 
+                $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
                 return response()->json([
                     'success' => true,
                     'is_demo' => true,
-                    'message' => "Successfully deposited " . ($targetCurrency === 'USD' ? '$' : '₦') . number_format($request->amount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.",
-                    'message' => 'Demo account instantly funded!',
+                    'message' => "Demo account instantly funded! Successfully deposited {$currencySymbol}" . number_format($request->amount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.",
                     'data' => ['reference' => $reference, 'authorization_url' => null],
                 ]);
             });
@@ -347,100 +347,105 @@ class PaystackController extends Controller
                     return response()->json(['error' => 'User not found'], 404);
                 }
 
-                // Check if transaction already processed (by webhook or redirect)
-                $existingTransaction = NewTransaction::where('meta->reference', $reference)->first();
-                if ($existingTransaction) {
-                    Log::info('[Paystack:webhook] Transaction already processed', [
-                        'reference' => $reference,
-                        'existing_transaction_id' => $existingTransaction->id,
-                    ]);
+                // Wrap wallet update + transaction creation in a DB transaction
+                // to prevent orphaned credits if the process crashes mid-way
+                DB::transaction(function () use ($userId, $reference, $targetCurrency, $netAmount, $amount, $charge, $appliedRate, $user) {
+                    // Check if transaction already processed (by webhook or redirect)
+                    $existingTransaction = NewTransaction::where('meta->reference', $reference)->first();
+                    if ($existingTransaction) {
+                        Log::info('[Paystack:webhook] Transaction already processed', [
+                            'reference' => $reference,
+                            'existing_transaction_id' => $existingTransaction->id,
+                        ]);
+                        return;
+                    }
 
-                    return response()->json(['message' => 'Already processed'], 200);
-                }
-
-                // Apply FX conversion if needed
-                $convertedAmount = $netAmount;
-                if ($targetCurrency === 'USD') {
-                    $usdAmount = $data['metadata']['usd_amount'] ?? null;
-                    if ($usdAmount) {
-                        $convertedAmount = $usdAmount;
-                    } else {
-                        $fxRate = FxRate::where('from_currency', 'NGN')
-                            ->where('to_currency', 'USD')
-                            ->first();
-                        if ($fxRate) {
-                            $convertedAmount = round($netAmount / $fxRate->effective_rate, 2);
-                            $appliedRate = $fxRate->effective_rate;
+                    // Apply FX conversion if needed
+                    $convertedAmount = $netAmount;
+                    $finalRate = $appliedRate;
+                    if ($targetCurrency === 'USD') {
+                        $usdAmount = request()->input('data.metadata.usd_amount') ?? null;
+                        if ($usdAmount) {
+                            $convertedAmount = $usdAmount;
+                        } else {
+                            $fxRate = FxRate::where('from_currency', 'NGN')
+                                ->where('to_currency', 'USD')
+                                ->first();
+                            if ($fxRate) {
+                                $convertedAmount = round($netAmount / $fxRate->effective_rate, 2);
+                                $finalRate = $fxRate->effective_rate;
+                            }
                         }
                     }
-                }
 
-                $wallet = Wallet::firstOrCreate(
-                    ['user_id' => $userId, 'currency' => $targetCurrency],
-                    [
-                        'balance' => 0, 
-                        'status' => 'active', 
-                        'ngn_cleared' => 0, 
-                        'ngn_uncleared' => 0, 
-                        'usd_cleared' => 0, 
-                        'usd_uncleared' => 0
-                    ]
-                );
+                    $wallet = Wallet::firstOrCreate(
+                        ['user_id' => $userId, 'currency' => $targetCurrency],
+                        [
+                            'balance' => 0,
+                            'status' => 'active',
+                            'ngn_cleared' => 0,
+                            'ngn_uncleared' => 0,
+                            'usd_cleared' => 0,
+                            'usd_uncleared' => 0,
+                            'locked' => 0,
+                        ]
+                    );
 
-                $oldBalance = $wallet->balance;
+                    $oldBalance = $wallet->balance;
 
-                Log::info('[Paystack:webhook] Updating wallet', [
-                    'user_id' => $userId,
-                    'wallet_id' => $wallet->id,
-                    'currency' => $targetCurrency,
-                    'current_balance' => $oldBalance,
-                    'amount_to_add' => $convertedAmount,
-                    'charge' => $charge,
-                    'fx_rate_applied' => $appliedRate,
-                ]);
+                    Log::info('[Paystack:webhook] Updating wallet', [
+                        'user_id' => $userId,
+                        'wallet_id' => $wallet->id,
+                        'currency' => $targetCurrency,
+                        'current_balance' => $oldBalance,
+                        'amount_to_add' => $convertedAmount,
+                        'charge' => $charge,
+                        'fx_rate_applied' => $finalRate,
+                    ]);
 
-                $wallet->increment('balance', $convertedAmount);
-                if ($targetCurrency === 'NGN') {
-                    $wallet->increment('ngn_cleared', $convertedAmount);
-                } elseif ($targetCurrency === 'USD') {
-                    $wallet->increment('usd_cleared', $convertedAmount);
-                }
+                    $wallet->increment('balance', $convertedAmount);
+                    if ($targetCurrency === 'NGN') {
+                        $wallet->increment('ngn_cleared', $convertedAmount);
+                    } elseif ($targetCurrency === 'USD') {
+                        $wallet->increment('usd_cleared', $convertedAmount);
+                    }
 
-                $wallet->refresh();
-                $newBalance = $wallet->balance;
+                    $wallet->refresh();
+                    $newBalance = $wallet->balance;
 
-                Log::info('[Paystack:webhook] Wallet balance updated', [
-                    'new_balance' => $newBalance,
-                ]);
-
-                // Record the transaction
-                $transaction = NewTransaction::create([
-                    'user_id' => $userId,
-                    'amount' => $convertedAmount,
-                    'type' => 'deposit',
-                    'status' => 'completed',
-                    'charge' => $charge,
-                    'net_amount' => $convertedAmount,
-                    'currency' => $targetCurrency,
-                    'meta' => [
-                        'reference' => $reference,
-                        'gateway' => 'paystack',
-                        'ngn_amount' => $amount,
-                        'fx_rate_applied' => $appliedRate,
-                        'old_balance' => $oldBalance,
+                    Log::info('[Paystack:webhook] Wallet balance updated', [
                         'new_balance' => $newBalance,
-                    ],
-                ]);
+                    ]);
 
-                Log::info('[Paystack:webhook] Transaction created', [
-                    'transaction_id' => $transaction->id,
-                    'user' => $user->email,
-                    'amount' => $amount,
-                    'currency' => $targetCurrency,
-                    'net_amount' => $convertedAmount,
-                    'reference' => $reference,
-                    'new_balance' => $wallet->fresh()->balance,
-                ]);
+                    // Record the transaction
+                    $transaction = NewTransaction::create([
+                        'user_id' => $userId,
+                        'amount' => $convertedAmount,
+                        'type' => 'deposit',
+                        'status' => 'completed',
+                        'charge' => $charge,
+                        'net_amount' => $convertedAmount,
+                        'currency' => $targetCurrency,
+                        'meta' => [
+                            'reference' => $reference,
+                            'gateway' => 'paystack',
+                            'ngn_amount' => $amount,
+                            'fx_rate_applied' => $finalRate,
+                            'old_balance' => $oldBalance,
+                            'new_balance' => $newBalance,
+                        ],
+                    ]);
+
+                    Log::info('[Paystack:webhook] Transaction created', [
+                        'transaction_id' => $transaction->id,
+                        'user' => $user->email,
+                        'amount' => $amount,
+                        'currency' => $targetCurrency,
+                        'net_amount' => $convertedAmount,
+                        'reference' => $reference,
+                        'new_balance' => $wallet->fresh()->balance,
+                    ]);
+                });
             }
 
             return response()->json(['message' => 'Webhook processed'], 200);
