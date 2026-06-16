@@ -46,7 +46,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'wallet_balance', 'wallet_debt', 'last_fee_charged_at', 'next_fee_due_at',
         'google2fa_secret',
         'google2fa_enabled',
-        'two_factor_recovery_codes'
+        'two_factor_recovery_codes',
+        'is_suspended',
+        'suspension_reason',
+        'next_billing_date',
     ];
 
     protected $guard_name = 'api'; // For sanctum API guards
@@ -70,6 +73,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'wallet_debt' => 'decimal:2',
         'google2fa_enabled' => 'boolean',
         'two_factor_recovery_codes' => 'encrypted',
+        'is_suspended' => 'boolean',
+        'next_billing_date' => 'datetime',
     ];
 
     protected $appends = [
@@ -209,9 +214,77 @@ class User extends Authenticatable implements MustVerifyEmailContract
     { 
         return $this->hasMany(Fee::class); 
     }
-    public function watchlists() 
+    public function watchlists()
     { 
-        return $this->hasMany(Watchlist::class); 
+        return $this->hasMany(Watchlist::class);
+    }
+
+    public function devices()
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
+    public function riskFlags()
+    {
+        return $this->hasMany(RiskFlag::class);
+    }
+
+    /**
+     * Check if the user is suspended
+     */
+    public function isSuspended(): bool
+    {
+        return (bool) $this->is_suspended;
+    }
+
+    /**
+     * Check if the user has an active (non-expired) subscription
+     */
+    public function isPaying(): bool
+    {
+        return $this->subscriptions()
+            ->where('status', 'active')
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
+    /**
+     * Check if the user is on trial
+     */
+    public function isTrial(): bool
+    {
+        return $this->onTrial();
+    }
+
+    /**
+     * active users (not suspended, email verified)
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_suspended', false)
+            ->whereNotNull('email_verified_at');
+    }
+
+    /**
+     * Scope: trial users
+     */
+    public function scopeTrial($query)
+    {
+        return $query->whereHas('subscriptions', function ($q) {
+            $q->where('status', 'trial')
+              ->where('expires_at', '>', now());
+        });
+    }
+
+    /**
+     * paying users
+     */
+    public function scopePaying($query)
+    {
+        return $query->whereHas('subscriptions', function ($q) {
+            $q->where('status', 'active')
+              ->where('expires_at', '>', now());
+        });
     }
 
     /**

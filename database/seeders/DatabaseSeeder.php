@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             FxConfigSeeder::class,
             FxRateSeeder::class,
             FxConfigSeeder::class,
+            ComplianceSeeder::class,
         ]);
     }
 }

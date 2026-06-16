@@ -5,9 +5,13 @@ use App\Http\Controllers\Admin\AdminModelPortfolioController;
 // Auth Controllers
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\AdminSubscriptionController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\BillingDashboardController;
+use App\Http\Controllers\Admin\ComplianceController;
 use App\Http\Controllers\Admin\FxDashboardController;
 use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
+use App\Http\Controllers\Admin\SettlementDashboardController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AdvisoryController;
 use App\Http\Controllers\AlpacaWebhookController;
@@ -286,10 +290,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // User & Transaction Admin
         Route::get('/stats', [AdminController::class, 'stats']);
         Route::get('/orders', [AdminController::class, 'orders']);
-        Route::get('/users', [AdminController::class, 'users']);
-        Route::get('/users/{id}', [AdminController::class, 'userDetail']);
-        Route::post('/users/{id}/toggle-status', [AdminController::class, 'toggleStatus']);
-        Route::post('/users/{id}/role', [AdminController::class, 'updateUserRole']);
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::get('/activities', [AdminController::class, 'getActivityLogs']);
         Route::get('/audit-logs', [AdminController::class, 'getAuditLogs']);
@@ -325,6 +325,39 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/dashboard', [FxDashboardController::class, 'index']);
             Route::get('/reconciliation', [FxReconciliationController::class, 'getReconciliation']);
             Route::post('/run-reconciliation', [FxReconciliationController::class, 'runReconciliation']);
+        });
+
+        // ── Admin User Management ──
+        Route::apiResource('users', AdminUserController::class);
+        Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend']);
+        Route::post('/users/{user}/unsuspend', [AdminUserController::class, 'unsuspend']);
+        Route::post('/users/{user}/force-logout', [AdminUserController::class, 'forceLogout']);
+        Route::post('/users/{user}/reset-2fa', [AdminUserController::class, 'reset2FA']);
+
+        // ── Billing Dashboard ──
+        Route::prefix('billing')->group(function () {
+            Route::get('/summary', [BillingDashboardController::class, 'summary']);
+            Route::get('/renewals', [BillingDashboardController::class, 'renewals']);
+            Route::get('/debts', [BillingDashboardController::class, 'debts']);
+            Route::get('/revenue', [BillingDashboardController::class, 'revenue']);
+        });
+
+        // ── Settlement Dashboard ──
+        Route::prefix('settlements')->group(function () {
+            Route::get('/pending', [SettlementDashboardController::class, 'pending']);
+            Route::get('/completed', [SettlementDashboardController::class, 'completed']);
+            Route::get('/failed', [SettlementDashboardController::class, 'failed']);
+            Route::get('/metrics', [SettlementDashboardController::class, 'metrics']);
+            Route::post('/complete/{trade}', [SettlementDashboardController::class, 'complete']);
+        });
+
+        // ── Compliance Dashboard ──
+        Route::prefix('compliance')->group(function () {
+            Route::get('/kyc/pending', [ComplianceController::class, 'pending']);
+            Route::get('/kyc/verified', [ComplianceController::class, 'verified']);
+            Route::get('/kyc/rejected', [ComplianceController::class, 'rejected']);
+            Route::get('/risk-flags', [ComplianceController::class, 'riskFlags']);
+            Route::post('/risk-flags/{flag}/dismiss', [ComplianceController::class, 'dismissFlag']);
         });
     });
 });

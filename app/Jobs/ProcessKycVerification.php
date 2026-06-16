@@ -6,7 +6,8 @@ use App\Models\KycProfile;
 use App\Models\User;
 use App\Models\ActivityLog;
 use App\Models\KycSetting;
-use App\Services\DojahService;
+use App\Services\Kyc\KycProviderFactory;
+use App\Services\Kyc\Contracts\KycProviderInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -47,18 +48,21 @@ class ProcessKycVerification implements ShouldQueue
         $idVerified = ($currentTier > 0);
 
         try {
-            $dojah = app(DojahService::class);
+            $provider = KycProviderFactory::make();
             $livenessSuccess = false;
 
             // Process Liveness verification if it's base64 data
             if (!empty($this->profileImageRaw) && str_starts_with($this->profileImageRaw, 'data:image')) {
                 $base64Image = substr($this->profileImageRaw, strpos($this->profileImageRaw, ',') + 1);
-                $livenessResult = $dojah->checkLiveness($base64Image);
-                $confidence = $livenessResult['entity']['confidence'] ?? 0;
+                $faceResult = $provider->verifyFace([
+                    'image' => $base64Image,
+                    'bvn' => $this->bvn,
+                    'nin' => $this->nin,
+                ]);
+                $confidence = $faceResult['entity']['confidence'] ?? 0;
                 
-                if (($livenessResult['success'] ?? false) && $confidence >= 70) {
+                if (($faceResult['success'] ?? false) && $confidence >= 70) {
                     $livenessSuccess = true;
-                    $dojah->storeResult($user->id, 'selfie', $livenessResult);
                 }
             } elseif (!empty($this->profileImageRaw)) {
                 // If it is an authorized referenceId token generated from sandbox/widget session
@@ -78,16 +82,14 @@ class ProcessKycVerification implements ShouldQueue
 
             // Only verify if new data is provided, otherwise trust existing state
             if (!empty($this->bvn)) {
-                $bvnResult = $dojah->verifyBvn($this->bvn);
-                $dojah->storeResult($user->id, 'bvn', $bvnResult);
+                $bvnResult = $provider->verifyBvn($this->bvn);
                 if ($bvnResult['success'] ?? false) {
                     $idVerified = true;
                 }
             }
 
             if (!empty($this->nin)) {
-                $ninResult = $dojah->verifyNin($this->nin);
-                $dojah->storeResult($user->id, 'nin', $ninResult);
+                $ninResult = $provider->verifyNin($this->nin);
                 if ($ninResult['success'] ?? false) {
                     $idVerified = true;
                     $hasBvn = !empty($this->bvn) || !empty($existingProfile?->bvn);

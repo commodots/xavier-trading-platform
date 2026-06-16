@@ -37,7 +37,6 @@ import TradingDashboard from "@/Pages/Trading/Dashboard.vue";
 
 // Admin
 import AdminUsers from "@/Pages/Admin/Users.vue";
-import AdminKYCs from "@/Pages/Admin/Kyc.vue";
 import AdminKycReview from "@/Pages/Admin/KycReview.vue";
 import AdminTransactions from "@/Pages/Admin/Transactions.vue";
 import AdminOrders from "@/Pages/Admin/Orders.vue";
@@ -48,11 +47,15 @@ import AdminNotifications from "@/Pages/Admin/AdminNotifications.vue";
 import AdminFxDashboard from "@/Pages/Admin/FxDashboard.vue";
 import AdminAdvisoryDashboard from "@/Pages/Admin/AdvisoryDashboard.vue";
 import AdminCryptoSettings from "@/Pages/Admin/AdminCryptoSettings.vue";
+import UserManagement from "@/Pages/Admin/users/UserManagement.vue";
+import BillingDashboard from "@/Pages/Admin/BillingDashboard.vue";
+import SettlementDashboard from "@/Pages/Admin/SettlementDashboard.vue";
+import ComplianceDashboard from "@/Pages/Admin/ComplianceDashboard.vue";
 
 const routes = [
 
   /* ----------------------------------------------
-     PUBLIC ROUTES
+     PUBLIC ROUTE
   ------------------------------------------------*/
 { path: "/", name: "landing-page", component: LandingPage },
   { path: "/login", name: "login", component: Login },
@@ -250,9 +253,7 @@ const routes = [
   },
   {
     path: "/admin/kyc",
-    name: "admin-kyc",
-    component: AdminKYCs,
-    meta: { requiresAuth: true, adminOnly: true },
+    redirect: "/admin/compliance",
   },
   {
     path: "/admin/kyc-review/:id",
@@ -324,6 +325,30 @@ const routes = [
     path: "/admin/crypto-settings",
     name: "admin-crypto-settings",
     component: AdminCryptoSettings,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/user-management",
+    name: "admin-user-management",
+    component: UserManagement,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/billing",
+    name: "admin-billing",
+    component: BillingDashboard,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/settlements",
+    name: "admin-settlements",
+    component: SettlementDashboard,
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/compliance",
+    name: "admin-compliance",
+    component: ComplianceDashboard,
     meta: { requiresAuth: true, adminOnly: true },
   },
 ];

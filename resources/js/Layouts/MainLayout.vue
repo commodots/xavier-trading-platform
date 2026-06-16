@@ -97,10 +97,16 @@
             </SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
 
+            <div v-if="isAdmin"
+              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Finance
+            </div>
+            <SidebarLink v-if="isAdmin" to="/admin/billing" :icon="CreditCard">Billing Dashboard</SidebarLink>
+            <SidebarLink v-if="isAdmin" to="/admin/settlements" :icon="ArrowLeftRight">Settlements Dashboard</SidebarLink>
+
             <div v-if="isAdmin || can('manage_kyc_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance
             </div>
-            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/kyc" :icon="ShieldCheck">KYC Review
+            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/compliance" :icon="ShieldAlert">Compliance Dashboard
             </SidebarLink>
 
             <div v-if="isAdmin || can('manage_system_settings')"
@@ -151,15 +157,15 @@ import { useRoute, useRouter } from "vue-router";
 import api from "@/api";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
-  ShoppingCart, LogOut, Users, ShieldCheck,
-  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store
+  ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
+  ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store,
+  CreditCard, ArrowLeftRight
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
 import DemoToggle from "@/Components/DemoToggle.vue";
 import NotificationBell from "@/Components/Notifications/NotificationBell.vue";
 import { Star } from "lucide-vue-next";
-
 const router = useRouter();
 const route = useRoute();
 const sidebarOpen = ref(false);
