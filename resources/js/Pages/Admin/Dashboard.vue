@@ -254,6 +254,13 @@ async function fetchDashboardData() {
       api.get('/admin/dashboard').catch(() => ({ data: {} }))
     ];
     
+    // Fetch settlement metrics for accurate pending count
+    if (hasRole('manager', 'accounts')) {
+      requests.push(api.get('/admin/settlements/metrics').catch(() => ({ data: {} })));
+    } else {
+      requests.push(Promise.resolve({ data: {} }));
+    }
+
     // Only fetch FX data if user has manager or accounts role
     if (hasRole('manager', 'accounts')) {
       requests.push(api.get('/admin/fx/reconciliation').catch(() => ({ data: {} })));
@@ -261,7 +268,7 @@ async function fetchDashboardData() {
       requests.push(Promise.resolve({ data: {} }));
     }
 
-    const [earningsRes, txnRes, usersRes, dashboardRes, fxRes] = await Promise.all(requests);
+    const [earningsRes, txnRes, usersRes, dashboardRes, settlementMetricsRes, fxRes] = await Promise.all(requests);
 
     if (dashboardRes.data?.success) {
       const dData = dashboardRes.data.stats;
@@ -302,13 +309,19 @@ async function fetchDashboardData() {
         kyc: u.status || 'none'
       }));
 
+    // Use settlement metrics (from /admin/settlements/metrics) for accurate pending trade settlements
+    if (settlementMetricsRes.data) {
+      const smData = settlementMetricsRes.data;
+      fxStats.value.pendingSettlements = smData.pending ?? smData.data?.pending ?? fxStats.value.pendingSettlements;
+    }
+
     if (fxRes.data && fxRes.data.data) {
       const fxData = fxRes.data.data;
 
       fxStats.value = {
         userTotal: fxData.user_usd_total || 0,
         buffer: fxData.buffer || 0,
-        pendingSettlements: fxData.pending_settlements || 0,
+        pendingSettlements: fxData.pending_settlements ?? fxStats.value.pendingSettlements,
         fxMargin: fxData.fx_margin_today || 0,
       };
     }

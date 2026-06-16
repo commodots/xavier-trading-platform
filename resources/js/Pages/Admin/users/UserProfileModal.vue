@@ -1,31 +1,127 @@
 <template>
-  <div v-if="user" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="$emit('close')">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="$emit('close')">
     <div class="w-full max-w-2xl mx-4 bg-[#111827] rounded-xl border border-[#1F2A44] shadow-2xl max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-700">
         <div class="flex items-center gap-4">
-          <div class="flex items-center justify-center w-12 h-12 text-lg font-bold bg-blue-600 rounded-full">
+          <div v-if="loading" class="w-12 h-12 bg-gray-700 rounded-full animate-pulse"></div>
+          <div v-else class="flex items-center justify-center w-12 h-12 text-lg font-bold bg-blue-600 rounded-full">
             {{ initials(user) }}
           </div>
           <div>
-            <h2 class="text-xl font-bold">{{ user.first_name }} {{ user.last_name }}</h2>
-            <p class="text-sm text-gray-400">{{ user.email }}</p>
+            <div v-if="loading" class="space-y-1">
+              <div class="h-5 bg-gray-700 rounded w-32 animate-pulse"></div>
+              <div class="h-3 bg-gray-700 rounded w-48 animate-pulse"></div>
+            </div>
+            <template v-else>
+              <h2 class="text-xl font-bold">{{ user.first_name }} {{ user.last_name }}</h2>
+              <p class="text-sm text-gray-400">{{ user.email }}</p>
+            </template>
           </div>
         </div>
-        <button @click="$emit('close')" class="p-2 text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-700">
-          ✕
-        </button>
+        <div class="flex items-center gap-2">
+          <template v-if="!loading && user">
+            <button
+              v-if="!user.is_suspended"
+              @click="showSuspend = true"
+              class="px-3 py-1.5 text-xs font-medium text-white transition bg-red-600 rounded-lg hover:bg-red-700"
+            >
+              Suspend
+            </button>
+            <button
+              v-else
+              @click="handleUnsuspend"
+              class="px-3 py-1.5 text-xs font-medium text-white transition bg-green-600 rounded-lg hover:bg-green-700"
+            >
+              Unsuspend
+            </button>
+            <button
+              @click="handleForceLogout"
+              class="px-3 py-1.5 text-xs font-medium text-white transition bg-orange-600 rounded-lg hover:bg-orange-700"
+            >
+              Force Logout
+            </button>
+            <button
+              @click="handleReset2FA"
+              class="px-3 py-1.5 text-xs font-medium text-white transition bg-purple-600 rounded-lg hover:bg-purple-700"
+            >
+              Reset 2FA
+            </button>
+          </template>
+          <button @click="$emit('close')" class="p-2 text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-700">
+            ✕
+          </button>
+        </div>
       </div>
 
-      <div class="p-6 space-y-6">
+      <div v-if="showSuspend" class="p-4 mx-6 mt-4 rounded-lg bg-[#1E293B] border border-red-500/30">
+        <p class="text-xs text-gray-400 mb-2">Suspension Reason</p>
+        <textarea
+          v-model="suspendReason"
+          placeholder="Enter suspension reason..."
+          class="w-full px-3 py-2 mb-3 text-sm bg-[#0B132B] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring focus:ring-red-700/40"
+          rows="2"
+        ></textarea>
+        <div class="flex gap-2">
+          <button
+            @click="handleSuspend"
+            class="px-4 py-2 text-xs font-medium text-white transition bg-red-600 rounded-lg hover:bg-red-700"
+          >
+            Confirm Suspend
+          </button>
+          <button
+            @click="showSuspend = false"
+            class="px-4 py-2 text-xs text-gray-300 transition bg-gray-700 rounded-lg hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading Skeleton -->
+      <div v-if="loading" class="p-6 space-y-6">
+        <div class="space-y-3">
+          <div class="h-4 bg-gray-700 rounded w-1/3 animate-pulse"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+        <div class="p-4 rounded-lg bg-[#1E293B] space-y-3">
+          <div class="h-4 bg-gray-700 rounded w-1/4 animate-pulse"></div>
+          <div class="h-3 bg-gray-700 rounded w-1/3 animate-pulse"></div>
+        </div>
+        <div class="p-4 rounded-lg bg-[#1E293B] space-y-2">
+          <div class="h-4 bg-gray-700 rounded w-1/4 animate-pulse"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+        <div class="p-4 rounded-lg bg-[#1E293B] space-y-2">
+          <div class="h-4 bg-gray-700 rounded w-1/3 animate-pulse"></div>
+          <div class="h-3 bg-gray-700 rounded w-1/2 animate-pulse"></div>
+          <div class="h-3 bg-gray-700 rounded w-2/3 animate-pulse"></div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div v-else class="p-6 space-y-6">
         <!-- Status Badges -->
-        <div class="flex flex-wrap gap-3">
-          <span class="px-3 py-1 text-xs rounded" :class="user.is_suspended ? 'bg-red-600' : 'bg-green-600'">
+        <div class="flex flex-wrap gap-2">
+          <span class="px-3 py-1 text-xs font-medium rounded" :class="user.is_suspended ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'">
             {{ user.is_suspended ? 'Suspended' : 'Active' }}
           </span>
-          <span v-if="user.on_trial" class="px-3 py-1 text-xs rounded bg-yellow-600/40 text-yellow-300">Trial</span>
-          <span v-if="user.subscription_status === 'active'" class="px-3 py-1 text-xs rounded bg-green-600/40 text-green-300">Subscribed</span>
-          <span v-if="user.wallet_debt > 0" class="px-3 py-1 text-xs rounded bg-red-600/40 text-red-300">Debt: ₦{{ formatCurrency(user.wallet_debt) }}</span>
+          <span class="px-3 py-1 text-xs font-medium rounded" :class="subscriptionStatusClass(user.subscription_status)">
+            {{ subscriptionStatusLabel(user.subscription_status) }}
+          </span>
+          <span v-if="user.on_trial" class="px-3 py-1 text-xs rounded bg-yellow-500/20 text-yellow-400">On Trial</span>
+          <span v-if="user.wallet_debt > 0" class="px-3 py-1 text-xs rounded bg-red-500/20 text-red-300">Debt: ₦{{ formatCurrency(user.wallet_debt) }}</span>
+          <span v-for="role in userRoles" :key="role" class="px-2 py-1 text-xs rounded bg-purple-500/20 text-purple-300">
+            {{ role }}
+          </span>
         </div>
 
         <!-- User Details -->
@@ -48,15 +144,35 @@
           </div>
         </div>
 
-        <!-- KYC Status -->
-        <div v-if="user.kyc" class="p-4 rounded-lg bg-[#1E293B]">
-          <p class="mb-2 text-xs text-gray-400">KYC Status</p>
-          <span class="px-2 py-1 text-xs rounded" :class="kycClass(user.kyc.status)">
-            {{ user.kyc.status }}
-          </span>
-          <p v-if="user.kyc.rejection_reason" class="mt-2 text-xs text-red-400">
-            Reason: {{ user.kyc.rejection_reason }}
-          </p>
+        <!-- Subscription Info -->
+        <div class="p-4 rounded-lg bg-[#1E293B]">
+          <p class="mb-3 text-xs text-gray-400 uppercase tracking-wider">Subscription Details</p>
+          <div class="flex items-center gap-3 mb-3">
+            <span class="px-2 py-0.5 text-xs rounded" :class="subscriptionStatusClass(user.subscription_status)">
+              {{ subscriptionStatusLabel(user.subscription_status) }}
+            </span>
+            <span v-if="user.subscription_status === 'active'" class="text-sm text-gray-300">
+              Tier: <span class="font-medium text-white">{{ user.tier || 'Standard' }}</span>
+            </span>
+          </div>
+          <div v-if="subscriptions.length" class="mt-2 space-y-2">
+            <div
+              v-for="sub in subscriptions"
+              :key="sub.id"
+              class="flex items-center justify-between p-2 rounded bg-[#111827] text-xs"
+            >
+              <div class="flex items-center gap-2">
+                <span class="px-1.5 py-0.5 rounded" :class="sub.status === 'active' ? 'bg-green-500/20 text-green-400' : sub.status === 'trial' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'">
+                  {{ sub.status }}
+                </span>
+                <span class="text-gray-300">{{ sub.plan?.name || 'Unknown Plan' }}</span>
+              </div>
+              <div class="text-gray-500">
+                <span v-if="sub.expires_at">Expires {{ formatDate(sub.expires_at) }}</span>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-xs text-gray-500">No active subscription records.</p>
         </div>
 
         <!-- Wallet -->
@@ -95,77 +211,22 @@
             <span class="text-gray-500">{{ formatDate(device.last_active_at) }}</span>
           </div>
         </div>
-
-        <!-- Actions -->
-        <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-700">
-          <!-- Suspend / Unsuspend -->
-          <button
-            v-if="!user.is_suspended"
-            @click="showSuspend = true"
-            class="px-4 py-2 text-xs text-white transition bg-red-600 rounded-lg hover:bg-red-700"
-          >
-            Suspend
-          </button>
-          <button
-            v-else
-            @click="handleUnsuspend"
-            class="px-4 py-2 text-xs text-white transition bg-green-600 rounded-lg hover:bg-green-700"
-          >
-            Unsuspend
-          </button>
-
-          <button
-            @click="handleForceLogout"
-            class="px-4 py-2 text-xs text-white transition bg-orange-600 rounded-lg hover:bg-orange-700"
-          >
-            Force Logout
-          </button>
-
-          <button
-            @click="handleReset2FA"
-            class="px-4 py-2 text-xs text-white transition bg-purple-600 rounded-lg hover:bg-purple-700"
-          >
-            Reset 2FA
-          </button>
-        </div>
-
-        <!-- Suspend Reason Input -->
-        <div v-if="showSuspend" class="p-4 rounded-lg bg-[#1E293B]">
-          <textarea
-            v-model="suspendReason"
-            placeholder="Enter suspension reason..."
-            class="w-full px-3 py-2 mb-3 text-sm bg-[#0B132B] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring focus:ring-blue-700/40"
-            rows="2"
-          ></textarea>
-          <div class="flex gap-2">
-            <button
-              @click="handleSuspend"
-              class="px-4 py-2 text-xs text-white transition bg-red-600 rounded-lg hover:bg-red-700"
-            >
-              Confirm Suspend
-            </button>
-            <button
-              @click="showSuspend = false"
-              class="px-4 py-2 text-xs text-gray-300 transition bg-gray-700 rounded-lg hover:bg-gray-600"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import api from '@/api';
 
 const props = defineProps({
   user: { type: Object, default: null },
   wallet: { type: Object, default: null },
+  subscriptions: { type: Array, default: () => [] },
   transactions: { type: Array, default: () => [] },
   devices: { type: Array, default: () => [] },
+  loading: { type: Boolean, default: false },
 });
 const emit = defineEmits(['close', 'updated']);
 
@@ -179,9 +240,36 @@ const initials = (u) =>
 const formatDate = (d) => new Date(d).toLocaleDateString();
 const formatCurrency = (n) => Number(n || 0).toLocaleString();
 
+const userRoles = computed(() => {
+  if (!props.user) return [];
+  if (Array.isArray(props.user.roles)) return props.user.roles;
+  if (props.user.role) return [props.user.role];
+  return [];
+});
+
 const kycClass = (status) => {
-  const map = { approved: 'bg-green-600', pending: 'bg-yellow-600', rejected: 'bg-red-600' };
+  const map = { approved: 'bg-green-600', verified: 'bg-green-600', pending: 'bg-yellow-600', rejected: 'bg-red-600' };
   return map[status] || 'bg-gray-600';
+};
+
+const subscriptionStatusClass = (status) => {
+  switch (status) {
+    case 'active':    return 'bg-green-500/20 text-green-400';
+    case 'trial':     return 'bg-yellow-500/20 text-yellow-400';
+    case 'suspended': return 'bg-red-500/20 text-red-400';
+    case 'inactive':  return 'bg-gray-500/20 text-gray-400';
+    default:          return 'bg-gray-600/30 text-gray-500';
+  }
+};
+
+const subscriptionStatusLabel = (status) => {
+  switch (status) {
+    case 'active':    return 'Active Subscription';
+    case 'trial':     return 'Trial';
+    case 'suspended': return 'Suspended';
+    case 'inactive':  return 'Inactive';
+    default:          return 'No Subscription';
+  }
 };
 
 const handleSuspend = async () => {

@@ -86,14 +86,14 @@
               <td class="py-3 px-4 font-mono text-xs">#{{ trade.id }}</td>
               <td class="py-3 px-4">{{ trade.user?.name || '—' }}</td>
               <td class="py-3 px-4">{{ trade.order?.symbol || trade.pair || '—' }}</td>
-              <td class="py-3 px-4">
+              <td class="py-3 px-4 capitalize">
                 <span v-if="trade.order?.side" class="px-2 py-0.5 text-xs rounded" :class="trade.order.side === 'buy' ? 'bg-green-600/30 text-green-300' : 'bg-red-600/30 text-red-300'">
                   {{ trade.order.side }}
                 </span>
                 <span v-else class="text-gray-500">—</span>
               </td>
               <td class="py-3 px-4">{{ formatAmount(trade) }}</td>
-              <td class="py-3 px-4">
+              <td class="py-3 px-4 capitalize">
                 <span class="px-2 py-0.5 text-xs rounded" :class="statusClass(trade)">
                   {{ trade.is_settled ? 'Settled' : (trade.settlement_status || 'Pending') }}
                 </span>

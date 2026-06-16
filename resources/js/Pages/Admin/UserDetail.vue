@@ -114,7 +114,7 @@
                 <span class="font-bold">${{ pretty(wallet.usd) }}</span>
               </div>
               <div class="flex justify-between pt-2 border-t border-gray-700">
-                <span class="text-gray-300">Subscription Status</span>
+                <span class="text-gray-300">User Status</span>
                 <span class="px-2 py-0.5 text-xs rounded font-bold"
                   :class="{
                     'bg-green-600': viewedUser.subscription_status === 'active',

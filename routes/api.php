@@ -337,6 +337,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // ── Billing Dashboard ──
         Route::prefix('billing')->group(function () {
             Route::get('/summary', [BillingDashboardController::class, 'summary']);
+            Route::get('/users', [BillingDashboardController::class, 'users']);
             Route::get('/renewals', [BillingDashboardController::class, 'renewals']);
             Route::get('/debts', [BillingDashboardController::class, 'debts']);
             Route::get('/revenue', [BillingDashboardController::class, 'revenue']);
