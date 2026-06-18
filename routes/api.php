@@ -8,7 +8,7 @@ use App\Http\Controllers\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\BillingDashboardController;
 use App\Http\Controllers\Admin\ComplianceController;
-use App\Http\Controllers\Admin\FxDashboardController;
+use App\Http\Controllers\Admin\FxManagementController;
 use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
 use App\Http\Controllers\Admin\SettlementDashboardController;
@@ -160,7 +160,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/portfolio/trading', [PortfolioController::class, 'trading']);
     Route::get('/fx-rates', [\App\Http\Controllers\Api\WalletController::class, 'getRates']);
     Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
-    
+
+    // FX Conversion Routes 
+    Route::prefix('fx')->group(function () {
+        Route::post('/quote', [\App\Http\Controllers\Api\FxConversionController::class, 'quote']);
+        Route::post('/convert', [\App\Http\Controllers\Api\FxConversionController::class, 'convert']);
+        Route::get('/history', [\App\Http\Controllers\Api\FxConversionController::class, 'history']);
+    });
+
     Route::get('/orders', [OmsController::class, 'listOrders']);
     Route::get('/trade/positions', [TradeController::class, 'index']);
     Route::get('/trades', [TradeController::class, 'index']);
@@ -322,9 +329,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services/{serviceId}/config', [AdminServiceController::class, 'updateConfig']);
 
         Route::prefix('fx')->group(function () {
-            Route::get('/dashboard', [FxDashboardController::class, 'index']);
             Route::get('/reconciliation', [FxReconciliationController::class, 'getReconciliation']);
             Route::post('/run-reconciliation', [FxReconciliationController::class, 'runReconciliation']);
+
+            // FX Management (Provider switching, pairs, health)
+            Route::get('/management', [FxManagementController::class, 'index']);
+            Route::post('/switch-provider', [FxManagementController::class, 'switchProvider']);
+            Route::put('/pairs/{id}', [FxManagementController::class, 'updatePair']);
+            Route::get('/health', [FxManagementController::class, 'health']);
+            Route::post('/toggle-auto-convert', [FxManagementController::class, 'toggleAutoConvert']);
+            Route::get('/conversions', [FxManagementController::class, 'conversions']);
         });
 
         // ── Admin User Management ──

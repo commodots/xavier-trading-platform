@@ -89,4 +89,10 @@ return [
         'base_url' => env('DOJAH_BASE_URL', 'https://sandbox.dojah.io'),
         'app_id' => env('DOJAH_APP_ID'),
     ],
+
+    'fincra' => [
+        'secret_key' => env('FINCRA_SECRET_KEY'),
+        'base_url' => env('FINCRA_BASE_URL', 'https://sandboxapi.fincra.com'),
+        'mode' => env('FINCRA_MODE', 'sandbox'),
+    ],
 ];

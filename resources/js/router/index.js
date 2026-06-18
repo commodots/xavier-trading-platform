@@ -43,7 +43,7 @@ import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
 import AdminReports from "@/Pages/Admin/Reports.vue";
 import AdminNotifications from "@/Pages/Admin/AdminNotifications.vue";
-import AdminFxDashboard from "@/Pages/Admin/FxDashboard.vue";
+import AdminFxManagement from "@/Pages/Admin/FxManagement.vue";
 import AdminAdvisoryDashboard from "@/Pages/Admin/AdvisoryDashboard.vue";
 import AdminCryptoSettings from "@/Pages/Admin/AdminCryptoSettings.vue";
 import BillingDashboard from "@/Pages/Admin/BillingDashboard.vue";
@@ -51,20 +51,19 @@ import SettlementDashboard from "@/Pages/Admin/SettlementDashboard.vue";
 import ComplianceDashboard from "@/Pages/Admin/ComplianceDashboard.vue";
 
 const routes = [
-
   /* ----------------------------------------------
      PUBLIC ROUTE
   ------------------------------------------------*/
-{ path: "/", name: "landing-page", component: LandingPage },
+  { path: "/", name: "landing-page", component: LandingPage },
   { path: "/login", name: "login", component: Login },
   { path: "/register", name: "register", component: Register },
   { path: "/forgot-password", name: "forgot-password", component: ForgotPassword },
   { path: "/reset-password", name: "reset-password", component: ResetPassword },
   { path: "/verify-email", name: "verify-email", component: VerifyEmail },
+
   /* ----------------------------------------------
      USER AUTH PAGES
   ------------------------------------------------*/
-  
   {
     path: "/welcome",
     name: "welcome",
@@ -77,28 +76,24 @@ const routes = [
     component: Dashboard,
     meta: { requiresAuth: true },
   },
-
   {
     path: "/wallet",
     name: "wallet",
     component: Wallet,
     meta: { requiresAuth: true },
   },
-
   {
     path: "/transactions",
     name: "transactions",
     component: Transactions,
     meta: { requiresAuth: true },
   },
-
   {
     path: "/portfolio",
     name: "portfolio",
     component: Portfolio,
     meta: { requiresAuth: true },
   },
-
   {
     path: "/settings",
     name: "settings",
@@ -117,6 +112,7 @@ const routes = [
     component: Support,
     meta: { requiresAuth: true },
   },
+
   /* ----------------------------------------------
      MARKETS
   ------------------------------------------------*/
@@ -173,8 +169,6 @@ const routes = [
     meta: { requiresAuth: true },
   },
 
-
-
   /* ----------------------------------------------
      OMS
   ------------------------------------------------*/
@@ -224,7 +218,7 @@ const routes = [
     path: "/crypto/withdraw",
     name: "withdraw",
     component: Withdraw,
-    meta: { requiresAuth: true},
+    meta: { requiresAuth: true },
   },
 
   /* ----------------------------------------------
@@ -236,7 +230,6 @@ const routes = [
     component: () => import("@/Pages/Admin/Dashboard.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
-
   {
     path: "/admin/users",
     name: "admin-users",
@@ -308,9 +301,9 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
-    path: "/admin/fx-dashboard",
-    name: "admin-fx-dashboard",
-    component: AdminFxDashboard,
+    path: "/admin/fx-management",
+    name: "admin-fx-management",
+    component: AdminFxManagement,
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
@@ -357,7 +350,6 @@ const router = createRouter({
    NAVIGATION GUARDS
 ----------------------------------------------------*/
 router.beforeEach((to, from, next) => {
-
   const token = localStorage.getItem("xavier_token");
 
   let user = {};
@@ -368,7 +360,6 @@ router.beforeEach((to, from, next) => {
     user = {};
   }
 
-  // Require login
   if (to.meta.requiresAuth && !token) {
     return next("/login");
   }
@@ -376,7 +367,6 @@ router.beforeEach((to, from, next) => {
   if (to.path === '/' && token) {
     return next('/dashboard');
   }
-
 
   if (to.meta.adminOnly) {
     const staffRoles = ['admin', 'super-admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
@@ -388,7 +378,6 @@ router.beforeEach((to, from, next) => {
 
     if (!hasStaff && Array.isArray(user.roles)) {
       hasStaff = user.roles.some(r => {
-
         if (typeof r === 'string') return staffRoles.includes(r);
         if (r && r.name) return staffRoles.includes(r.name);
         return false;

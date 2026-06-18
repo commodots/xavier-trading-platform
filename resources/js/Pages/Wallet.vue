@@ -339,21 +339,27 @@
               class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg"
               placeholder="Enter amount" required />
 
-            <div v-if="amount > 0" class="p-3 mt-4 border rounded-lg bg-blue-500/10 border-blue-500/30 animate-pulse">
+            <div v-if="quoteResult" class="p-3 mt-4 border rounded-lg bg-blue-500/10 border-blue-500/30">
               <div class="text-[10px] text-blue-400 uppercase font-bold">Estimated Receipt</div>
               <div class="text-lg font-bold text-white">
-                {{ from === 'NGN' ? '$' + (amount * 0.00065).toFixed(2) : '₦' + (amount / 0.00065).toLocaleString() }}
+                {{ from === 'NGN' ? '$' + Number(quoteResult.receive_amount).toFixed(2) : '₦' + Number(quoteResult.receive_amount).toLocaleString() }}
               </div>
-              <div class="text-[9px] text-gray-500 italic mt-1">Rate: 1 NGN = 0.00065 USD</div>
+              <div class="text-xs text-gray-500 mt-1">
+                Rate: 1 {{ from }} = {{ Number(quoteResult.rate).toFixed(6) }} {{ to }}
+                <span class="ml-2 text-[10px] uppercase" :class="quoteResult.provider === 'fincra' ? 'text-purple-400' : 'text-green-400'">via {{ quoteResult.provider }}</span>
+              </div>
+            </div>
+            <div v-else-if="amount > 0 && quoting" class="p-3 mt-4 border rounded-lg bg-blue-500/10 border-blue-500/30 animate-pulse">
+              <div class="text-xs text-blue-400">Fetching live rate...</div>
             </div>
 
-            <button :disabled="loading" class="w-full py-2 mt-5 font-semibold rounded-lg disabled:opacity-50"
+            <button :disabled="loading || quoting" class="w-full py-2 mt-5 font-semibold rounded-lg disabled:opacity-50"
               :class="isDemo ? 'bg-yellow-600' : 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]'">
-              {{ loading && actionType === 'convert' ? 'Converting...' : 'Convert Now' }}
+              {{ loading && actionType === 'convert' ? 'Converting...' : (quoting ? 'Getting Quote...' : 'Convert Now') }}
             </button>
           </form>
           <p v-if="message"
-            :class="message.includes('Success') || message.includes('successfully') ? 'text-green-400' : 'text-yellow-300'"
+            :class="message.includes('Success') || message.includes('successfully') || message.includes('converted') ? 'text-green-400' : 'text-yellow-300'"
             class="mt-4 text-sm font-medium text-center">{{ message }}</p>
         </div>
       </div>
@@ -487,13 +493,18 @@ const showPrompt = ref(false);
 
 const txnType = ref("");
 const from = ref("NGN");
+const to = computed(() => from.value === 'NGN' ? 'USD' : 'NGN');
 const amount = ref(0);
 const otpSent = ref(false);
+const quoteResult = ref(null);
+const quoting = ref(false);
+let quoteTimeout = null;
 
 const selectedTransaction = ref(null);
 const showDetailsModal = ref(false);
 
 const notificationData = ref({ success: true, title: '', message: '' });
+
 const paymentResult = ref({ success: false, message: '', amount: 0 });
 
 const formattedConvertAmount = computed({
@@ -769,17 +780,57 @@ const submitTransaction = async () => {
   }
 };
 
+// Watch amount changes for live quote (with debounce)
+watch(amount, (newVal) => {
+  if (quoteTimeout) clearTimeout(quoteTimeout);
+  if (newVal > 0) {
+    quoting.value = true;
+    quoteTimeout = setTimeout(async () => {
+      try {
+        const toCurrency = from.value === 'NGN' ? 'USD' : 'NGN';
+        const res = await api.post('/fx/quote', {
+          from_currency: from.value,
+          to_currency: toCurrency,
+          amount: newVal
+        });
+        if (res.data?.success) {
+          quoteResult.value = res.data.data;
+        }
+      } catch (e) {
+        quoteResult.value = null;
+      } finally {
+        quoting.value = false;
+      }
+    }, 600);
+  } else {
+    quoteResult.value = null;
+    quoting.value = false;
+  }
+});
+
 const convertCurrency = async () => {
+
   if (amount.value <= 0) return;
   loading.value = true;
   actionType.value = "convert";
   try {
-    await api.post("/wallet/convert", { from: from.value, amount: amount.value });
-    message.value = "Converted successfully!";
-    setTimeout(() => {
-      openConvert.value = false;
-      refreshData();
-    }, 1500);
+    const toCurrency = from.value === 'NGN' ? 'USD' : 'NGN';
+    const response = await api.post("/fx/convert", {
+      from_currency: from.value,
+      to_currency: toCurrency,
+      amount: amount.value
+    });
+    
+    if (response.data.success) {
+      const data = response.data.data;
+      message.value = `Converted ${data.amount} ${data.from_currency} to ${data.converted_amount.toFixed(2)} ${data.to_currency} at rate ${data.rate}`;
+      setTimeout(() => {
+        openConvert.value = false;
+        refreshData();
+      }, 2000);
+    } else {
+      message.value = response.data.message || "Conversion failed";
+    }
   } catch (e) {
     message.value = e.response?.data?.message || "Conversion failed";
   } finally {

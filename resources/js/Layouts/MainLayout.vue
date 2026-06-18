@@ -79,7 +79,7 @@
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">
               Notifications</SidebarLink>
 
-            <SidebarLink v-if="isAdmin" to="/admin/fx-dashboard" :icon="DollarSign">FX Dashboard</SidebarLink>
+            <SidebarLink v-if="isAdmin" to="/admin/fx-management" :icon="DollarSign">FX Management</SidebarLink>
 
             <SidebarLink v-if="isAdmin" to="/admin/advisory-dashboard" :icon="Newspaper">Advisory Content</SidebarLink>
 

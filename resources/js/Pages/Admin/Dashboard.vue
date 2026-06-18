@@ -32,28 +32,6 @@
           </div>
         </div>
 
-        <!-- Grouped Box: FX Margin & Buffer -->
-        <div v-if="hasRole('manager', 'accounts')" 
-          class="bg-[#1C1F2E] p-5 rounded-xl border border-[#2A314A] flex flex-col justify-center space-y-4 cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95"
-          @click="$router.push({ name: 'admin-fx-dashboard' })">
-          <div>
-            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">FX Margin Earned (Today)</p>
-            <p class="text-2xl font-bold text-white">₦{{ formatNumber(fxStats.fxMargin) }}</p>
-          </div>
-          <div class="pt-4 border-t border-gray-700/50">
-            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Buffer/Shortfall</p>
-            <div class="flex items-baseline gap-2">
-              <p class="text-2xl font-bold" :class="fxStats.buffer >= 0 ? 'text-white' : 'text-red-400'">
-                ${{ formatNumber(Math.abs(fxStats.buffer)) }}
-              </p>
-              <span class="text-[9px] font-black px-1.5 py-0.5 rounded uppercase" 
-                :class="fxStats.buffer >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'">
-                {{ fxStats.buffer >= 0 ? 'SAFE' : 'SHORT' }}
-              </span>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <div :class="chartGridClasses">

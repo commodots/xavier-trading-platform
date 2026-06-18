@@ -349,7 +349,8 @@ class WalletController extends Controller
 
     public function getRates(Request $request)
     {
-        $rates = FxRate::orderBy('created_at', 'desc')
+        // Legacy FxRate rates
+        $legacyRates = FxRate::orderBy('created_at', 'desc')
             ->get()
             ->unique(fn($rate) => $rate->from_currency . $rate->to_currency)
             ->map(function ($rate) {
@@ -362,9 +363,28 @@ class WalletController extends Controller
             })
             ->values();
 
+        // New FX Pairs from the FX system
+        $fxPairs = \App\Models\FxPair::where('active', true)->get()->map(function ($pair) {
+            return [
+                'base_currency' => $pair->base_currency,
+                'quote_currency' => $pair->quote_currency,
+                'buy_rate' => (float) $pair->buy_rate,
+                'sell_rate' => (float) $pair->sell_rate,
+            ];
+        });
+
+        // Get current provider
+        $provider = 'manual';
+        $setting = \App\Models\FxSetting::first();
+        if ($setting) {
+            $provider = $setting->provider;
+        }
+
         return response()->json([
             'success' => true,
-            'rates' => $rates,
+            'rates' => $legacyRates,
+            'fx_pairs' => $fxPairs,
+            'provider' => $provider,
         ]);
     }
 }

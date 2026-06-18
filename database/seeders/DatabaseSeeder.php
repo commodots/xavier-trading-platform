@@ -30,8 +30,8 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             FxRateSeeder::class,
             FxConfigSeeder::class,
-            FxRateSeeder::class,
-            FxConfigSeeder::class,
+            FxSettingSeeder::class,
+            FxPairSeeder::class,
             ComplianceSeeder::class,
         ]);
     }
