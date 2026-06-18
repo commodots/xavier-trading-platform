@@ -66,17 +66,23 @@
                 <td class="px-4 py-3 font-medium">{{ pair.base_currency }}/{{ pair.quote_currency }}</td>
                 <td class="px-4 py-3">
                   <input v-model.number="pair.edit_buy_rate" type="number" step="0.01" 
-                    class="w-32 px-3 py-1.5 text-white bg-[#151a27] border border-[#2A314A] rounded" 
-                    :placeholder="pair.buy_rate" />
+                    :disabled="!pair.editing"
+                    class="w-32 px-3 py-1.5 text-white bg-[#151a27] border border-[#2A314A] rounded disabled:opacity-50 disabled:cursor-not-allowed" 
+                    :placeholder="formatCurrency(pair.buy_rate, pair.quote_currency)" />
                 </td>
                 <td class="px-4 py-3">
                   <input v-model.number="pair.edit_sell_rate" type="number" step="0.01" 
-                    class="w-32 px-3 py-1.5 text-white bg-[#151a27] border border-[#2A314A] rounded" 
-                    :placeholder="pair.sell_rate" />
+                    :disabled="!pair.editing"
+                    class="w-32 px-3 py-1.5 text-white bg-[#151a27] border border-[#2A314A] rounded disabled:opacity-50 disabled:cursor-not-allowed" 
+                    :placeholder="formatCurrency(pair.sell_rate, pair.quote_currency)" />
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <button @click="updatePair(pair)" :disabled="saving === pair.id"
-                    class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition">
+                  <button v-if="!pair.editing" @click="enableEdit(pair)" 
+                    class="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                    Edit
+                  </button>
+                  <button v-else @click="updatePair(pair)" :disabled="saving === pair.id"
+                    class="px-4 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition">
                     {{ saving === pair.id ? 'Saving...' : 'Save' }}
                   </button>
                 </td>
@@ -155,9 +161,9 @@
                 <td class="px-4 py-3">{{ conv.user?.name || conv.user_id }}</td>
                 <td class="px-4 py-3">{{ conv.from_currency }}</td>
                 <td class="px-4 py-3">{{ conv.to_currency }}</td>
-                <td class="px-4 py-3">{{ Number(conv.amount).toLocaleString() }}</td>
-                <td class="px-4 py-3">{{ Number(conv.rate).toFixed(4) }}</td>
-                <td class="px-4 py-3">{{ Number(conv.converted_amount).toFixed(4) }}</td>
+                <td class="px-4 py-3">{{ formatCurrency(conv.amount, conv.from_currency) }}</td>
+                <td class="px-4 py-3">{{ formatCurrency(conv.rate, conv.to_currency, true) }}</td>
+                <td class="px-4 py-3">{{ formatCurrency(conv.converted_amount, conv.to_currency) }}</td>
                 <td class="px-4 py-3">
                   <span :class="conv.provider === 'fincra' ? 'text-purple-400' : 'text-green-400'">
                     {{ conv.provider }}
@@ -191,6 +197,22 @@ const saving = ref(null);
 const message = ref('');
 const messageType = ref('success');
 
+
+const formatCurrency = (amount, currency, showFullDecimals = false) => {
+  if (amount === null || amount === undefined) return '---';
+  const value = Number(amount);
+  if (currency === 'USD') {
+   
+    if (showFullDecimals || value < 0.01) {
+      return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+    }
+    return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } else if (currency === 'NGN') {
+    return '₦' + value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return value.toLocaleString();
+};
+
 const showMessage = (msg, type = 'success') => {
   message.value = msg;
   messageType.value = type;
@@ -211,6 +233,7 @@ const fetchData = async () => {
         ...p,
         edit_buy_rate: p.buy_rate,
         edit_sell_rate: p.sell_rate,
+        editing: false, 
       }));
       
       fincraStatus.value = data.fincra_status;
@@ -230,6 +253,17 @@ const fetchConversions = async () => {
   } catch (e) {
     conversions.value = [];
   }
+};
+
+const enableEdit = (pair) => {
+  // Disable editing for all other pairs
+  pairs.value.forEach(p => {
+    if (p.id !== pair.id) {
+      p.editing = false;
+    }
+  });
+  // Enable editing for this pair
+  pair.editing = true;
 };
 
 const switchProvider = async () => {
@@ -256,6 +290,7 @@ const updatePair = async (pair) => {
       showMessage(`${pair.base_currency}/${pair.quote_currency} rates updated`);
       pair.buy_rate = pair.edit_buy_rate;
       pair.sell_rate = pair.edit_sell_rate;
+      pair.editing = false; // Disable editing after save
     }
   } catch (e) {
     showMessage('Failed to update rates', 'error');

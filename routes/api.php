@@ -50,6 +50,7 @@ use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\Api\DojahKycController;
+use App\Http\Controllers\Api\FincraWebhookController;
 use App\Http\Controllers\DojahController;
 use Illuminate\Http\Request;
 // Dummy/Testing
@@ -76,6 +77,7 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->middleware('
     Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle'])->middleware('throttle:30,1');
     Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle'])->middleware('throttle:30,1');
     Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle'])->middleware('throttle:30,1');
+    Route::post('/fincra/webhook', [FincraWebhookController::class, 'handle'])->middleware('throttle:30,1');
     Route::post('/market/update', [TradeController::class, 'updateMarket'])->middleware('throttle:60,1');
 
 Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);

@@ -94,5 +94,7 @@ return [
         'secret_key' => env('FINCRA_SECRET_KEY'),
         'base_url' => env('FINCRA_BASE_URL', 'https://sandboxapi.fincra.com'),
         'mode' => env('FINCRA_MODE', 'sandbox'),
+        'business_id' => env('FINCRA_BUSINESS_ID'),
+        'webhook_key' => env('FINCRA_WEBHOOK_KEY'),
     ],
 ];

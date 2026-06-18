@@ -49,8 +49,8 @@
               <tr v-for="rate in filteredRates" :key="rate.base_currency + rate.quote_currency"
                 class="border-b border-[#1f3348] hover:bg-[#16213A] transition">
                 <td class="px-2 py-3 font-semibold">{{ rate.base_currency }}/{{ rate.quote_currency }}</td>
-                <td class="px-2 text-green-400">{{ Number(rate.buy_rate).toLocaleString() }}</td>
-                <td class="px-2 text-red-400">{{ Number(rate.sell_rate).toLocaleString() }}</td>
+                <td class="px-2 text-green-400">{{ formatCurrency(rate.buy_rate, rate.quote_currency) }}</td>
+                <td class="px-2 text-red-400">{{ formatCurrency(rate.sell_rate, rate.quote_currency) }}</td>
                 <td class="px-2 text-right">
                   <button @click="openQuote(rate)"
                     class="bg-[#0047AB] hover:bg-[#0057D4] px-3 py-1 rounded-lg text-white text-xs">
@@ -69,46 +69,50 @@
 
       <!-- FX Quote Modal -->
       <div v-if="quoteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-[#1C1F2E] rounded-2xl p-8 shadow-xl w-full max-w-lg relative border border-[#2A314A]">
-          <button @click="quoteModal = false" class="absolute text-gray-400 top-3 right-3 hover:text-white">✖</button>
+        <div class="bg-[#1C1F2E] p-8 rounded-2xl shadow-xl w-full max-w-md relative border border-[#2A314A]">
+          <button @click="quoteModal = false" class="absolute text-gray-400 top-4 right-4 hover:text-white">✖</button>
+          <h2 class="mb-4 text-xl font-semibold">Convert Currency</h2>
 
-          <h2 class="mb-4 text-xl font-semibold">FX Quote</h2>
-
-          <div class="p-4 mb-4 border rounded-lg bg-[#151a27] border-[#2A314A]">
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">{{ quoteData.from_currency }} → {{ quoteData.to_currency }}</span>
-              <span class="text-xs text-gray-500">Provider: {{ quoteData.provider }}</span>
-            </div>
-            <div class="mt-3 grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p class="text-xs text-gray-500 uppercase">Amount</p>
-                <p class="text-lg font-bold text-white">{{ Number(quoteData.amount).toLocaleString() }}</p>
-              </div>
-              <div>
-                <p class="text-xs text-gray-500 uppercase">Rate</p>
-                <p class="text-lg font-bold text-[#00D4FF]">{{ Number(quoteData.rate).toFixed(4) }}</p>
-              </div>
-              <div>
-                <p class="text-xs text-gray-500 uppercase">You Receive</p>
-                <p class="text-lg font-bold text-green-400">{{ Number(quoteData.receive_amount).toFixed(4) }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex gap-3">
-            <button @click="quoteModal = false"
-              class="flex-1 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition">
-              Cancel
-            </button>
-            <button @click="executeConversion" :disabled="loading"
-              class="flex-1 py-2 font-semibold text-white bg-gradient-to-r from-[#0047AB] to-[#00D4FF] rounded-lg disabled:opacity-50 transition">
-              {{ loading ? 'Converting...' : '✓ Confirm Convert' }}
-            </button>
-          </div>
-
-          <p v-if="message" :class="messageType === 'success' ? 'text-green-400' : 'text-red-400'" class="mt-3 text-sm text-center">
-            {{ message }}
+          <p class="mb-4 text-sm text-gray-400">
+            Available to convert:
+            <span class="font-bold text-white">
+              {{ quoteData.from_currency === 'NGN' ? '₦' + Number(userBalances.ngn).toLocaleString() : '$' + Number(userBalances.usd).toLocaleString() }}
+            </span>
           </p>
+
+          <form @submit.prevent="executeConversion">
+            <label class="text-sm text-gray-400">From Currency</label>
+            <select v-model="quoteData.from_currency"
+              class="w-full px-4 py-2 mt-1 mb-4 text-white bg-[#151a27] border border-gray-600 rounded-lg">
+              <option value="NGN">NGN → USD</option>
+              <option value="USD">USD → NGN</option>
+            </select>
+            
+            <label class="text-sm text-gray-400">Amount</label>
+            <input v-model="quoteData.amount" type="number" step="0.01" min="0"
+              class="w-full px-4 py-2 mt-1 text-white bg-transparent border border-gray-600 rounded-lg"
+              placeholder="Enter amount" @input="onAmountChange" />
+
+            <div v-if="quoteData.rate > 0" class="p-3 mt-4 border rounded-lg bg-blue-500/10 border-blue-500/30">
+              <div class="text-[10px] text-blue-400 uppercase font-bold">Estimated Receipt</div>
+              <div class="text-lg font-bold text-white">
+                {{ formatCurrency(quoteData.receive_amount, quoteData.to_currency) }}
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                Rate: 1 {{ quoteData.from_currency }} = {{ formatCurrency(quoteData.rate, quoteData.to_currency, true) }}
+                <span class="ml-2 text-[10px] uppercase" :class="quoteData.provider === 'fincra' ? 'text-purple-400' : 'text-green-400'">via {{ quoteData.provider }}</span>
+              </div>
+            </div>
+            <div v-else-if="quoteData.amount > 0" class="p-3 mt-4 border rounded-lg bg-blue-500/10 border-blue-500/30 animate-pulse">
+              <div class="text-xs text-blue-400">Fetching live rate...</div>
+            </div>
+
+            <button :disabled="loading || !canConvert" class="w-full py-2 mt-5 font-semibold rounded-lg disabled:opacity-50 bg-gradient-to-r from-[#0047AB] to-[#00D4FF]">
+              {{ loading ? 'Converting...' : 'Convert Now' }}
+            </button>
+          </form>
+          <p v-if="message" :class="messageType === 'success' ? 'text-green-400' : 'text-red-400'"
+            class="mt-4 text-sm font-medium text-center">{{ message }}</p>
         </div>
       </div>
 
@@ -120,24 +124,16 @@
           <div class="p-4 mb-4 border rounded-lg bg-[#151a27] border-green-500/20">
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p class="text-gray-500">Reference</p>
-                <p class="font-mono text-white">{{ conversionResult.reference }}</p>
-              </div>
-              <div>
-                <p class="text-gray-500">Provider</p>
-                <p class="text-white capitalize">{{ conversionResult.provider }}</p>
-              </div>
-              <div>
                 <p class="text-gray-500">Debited</p>
-                <p class="text-white">{{ Number(conversionResult.amount).toLocaleString() }} {{ conversionResult.from_currency }}</p>
+                <p class="text-white">{{ formatCurrency(conversionResult.amount, conversionResult.from_currency) }}</p>
               </div>
               <div>
                 <p class="text-gray-500">Credited</p>
-                <p class="text-green-400">{{ Number(conversionResult.converted_amount).toFixed(4) }} {{ conversionResult.to_currency }}</p>
+                <p class="text-green-400">{{ formatCurrency(conversionResult.converted_amount, conversionResult.to_currency) }}</p>
               </div>
               <div class="col-span-2">
                 <p class="text-gray-500">Rate</p>
-                <p class="text-[#00D4FF]">1 {{ conversionResult.from_currency }} = {{ Number(conversionResult.rate).toFixed(6) }} {{ conversionResult.to_currency }}</p>
+                <p class="text-[#00D4FF]">1 {{ conversionResult.from_currency }} = {{ formatCurrency(conversionResult.rate, conversionResult.to_currency, true) }}</p>
               </div>
             </div>
           </div>
@@ -179,16 +175,16 @@
                 <td class="px-2 py-3 text-xs text-gray-400">{{ formatDate(conv.created_at) }}</td>
                 <td class="px-2 font-mono text-xs">{{ conv.reference }}</td>
                 <td class="px-2">{{ conv.from_currency }} → {{ conv.to_currency }}</td>
-                <td class="px-2 text-right">{{ Number(conv.amount).toLocaleString() }}</td>
-                <td class="px-2 text-right text-[#00D4FF]">{{ Number(conv.rate).toFixed(4) }}</td>
-                <td class="px-2 text-right text-green-400">{{ Number(conv.converted_amount).toFixed(4) }}</td>
+                <td class="px-2 text-right">{{ formatCurrency(conv.amount, conv.from_currency) }}</td>
+                <td class="px-2 text-right text-[#00D4FF]">{{ formatCurrency(conv.rate, conv.to_currency, true) }}</td>
+                <td class="px-2 text-right text-green-400">{{ formatCurrency(conv.converted_amount, conv.to_currency) }}</td>
                 <td class="px-2">
                   <span :class="conv.provider === 'fincra' ? 'text-purple-400' : 'text-green-400'" class="text-xs">
                     {{ conv.provider }}
                   </span>
                 </td>
                 <td class="px-2">
-                  <span class="text-xs text-green-400" v-if="conv.status === 'completed'">✓ Completed</span>
+                  <span class="text-xs text-green-400" v-if="conv.status === 'completed'">Completed</span>
                   <span class="text-xs text-yellow-400" v-else>{{ conv.status }}</span>
                 </td>
               </tr>
@@ -210,11 +206,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import SkeletonLoader from "@/Components/SkeletonLoader.vue";
+
+const router = useRouter();
 
 // STATE
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -227,13 +226,27 @@ const loading = ref(false);
 
 // Quote Modal
 const quoteModal = ref(false);
-const quoteData = ref({});
+const quoteData = ref({
+  from_currency: 'NGN',
+  to_currency: 'USD',
+  amount: 0,
+  rate: 0,
+  receive_amount: 0,
+  provider: '...',
+  available_balance: 0
+});
 const message = ref("");
 const messageType = ref("success");
 
 // Success Modal
 const showSuccessModal = ref(false);
 const conversionResult = ref({});
+
+// User Balances
+const userBalances = ref({
+  usd: 0,
+  ngn: 0
+});
 
 // Conversion History
 const conversionHistory = ref([]);
@@ -266,6 +279,22 @@ const formatDate = (dateStr) => {
   });
 };
 
+
+const formatCurrency = (amount, currency, showFullDecimals = false) => {
+  if (amount === null || amount === undefined) return '---';
+  const value = Number(amount);
+  if (currency === 'USD') {
+    
+    if (showFullDecimals || value < 0.01) {
+      return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+    }
+    return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } else if (currency === 'NGN') {
+    return '₦' + value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return value.toLocaleString();
+};
+
 // FETCH FX RATES FROM API
 const fetchFxRates = async () => {
   loading.value = true;
@@ -273,12 +302,10 @@ const fetchFxRates = async () => {
     const response = await api.get("/fx-rates");
     const data = response.data;
     
-    
     if (data.fx_pairs && Array.isArray(data.fx_pairs)) {
       rates.value = data.fx_pairs;
       activeProvider.value = data.provider || 'Manual';
     } else if (data.rates && Array.isArray(data.rates)) {
-      
       rates.value = data.rates.map(r => ({
         base_currency: r.to_currency,
         quote_currency: r.from_currency,
@@ -306,6 +333,97 @@ const fetchFxRates = async () => {
   }
 };
 
+// Fetch user balances
+const fetchUserBalances = async () => {
+  try {
+    const response = await api.get("/wallet/balances");
+    const data = response.data.data;
+    userBalances.value = {
+      usd: data.balance_usd || 0,
+      ngn: data.balance_ngn || 0
+    };
+  } catch (e) {
+    console.error("Failed to fetch balances", e);
+  }
+};
+
+// Set conversion direction
+const setDirection = (fromCurrency) => {
+  quoteData.value.from_currency = fromCurrency;
+  quoteData.value.to_currency = fromCurrency === 'USD' ? 'NGN' : 'USD';
+  quoteData.value.amount = 0;
+  quoteData.value.rate = 0;
+  quoteData.value.receive_amount = 0;
+  quoteData.value.reference = null;
+};
+
+// Fetch quote when amount changes (skip for manual provider)
+let quoteTimeout = null;
+const onAmountChange = () => {
+  if (quoteTimeout) clearTimeout(quoteTimeout);
+  
+  const amount = parseFloat(quoteData.value.amount);
+  if (!amount || amount <= 0) {
+    quoteData.value.rate = 0;
+    quoteData.value.receive_amount = 0;
+    return;
+  }
+
+  // For manual provider, calculate immediately without API call
+  if (activeProvider.value === 'Manual') {
+    const pair = rates.value.find(r => 
+      r.base_currency === quoteData.value.to_currency && 
+      r.quote_currency === quoteData.value.from_currency
+    );
+    
+    if (pair) {
+      // Rate is stored as how much quote currency per 1 base currency
+      // E.g., USD/NGN = 1385 means 1 USD = 1385 NGN
+      // So for NGN -> USD: we need inverse rate = 1/1385
+      const storedRate = pair.buy_rate;
+      const inverseRate = 1 / storedRate;
+      const receiveAmount = amount * inverseRate;
+      
+      quoteData.value.rate = inverseRate;
+      quoteData.value.receive_amount = receiveAmount;
+      quoteData.value.provider = 'manual';
+      quoteData.value.available_balance = userBalances.value[quoteData.value.from_currency.toLowerCase()] || 0;
+      message.value = "";
+    }
+    return;
+  }
+
+  // For live providers (Fincra), fetch quote from API
+  quoteTimeout = setTimeout(async () => {
+    try {
+      const response = await api.post("/fx/quote", {
+        from_currency: quoteData.value.from_currency,
+        to_currency: quoteData.value.to_currency,
+        amount: amount
+      });
+
+      if (response.data.success) {
+        quoteData.value.rate = response.data.data.rate;
+        quoteData.value.receive_amount = response.data.data.receive_amount;
+        quoteData.value.provider = response.data.data.provider;
+        quoteData.value.reference = response.data.data.reference || response.data.data.quoteReference;
+        quoteData.value.available_balance = response.data.data.available_balance || 0;
+        message.value = "";
+      }
+    } catch (e) {
+      message.value = e.response?.data?.message || "Failed to get quote";
+      messageType.value = "error";
+    }
+  }, 500);
+};
+
+// Check if user can convert
+const canConvert = computed(() => {
+  const amount = parseFloat(quoteData.value.amount);
+  const available = quoteData.value.available_balance || 0;
+  return amount > 0 && quoteData.value.rate > 0 && amount <= available;
+});
+
 // QUOTE FLOW
 async function openQuote(rate) {
   if (!isUserVerified.value && !isDemo.value) {
@@ -314,63 +432,33 @@ async function openQuote(rate) {
     return;
   }
 
-  // Convert rate pair: base_currency=USD, quote_currency=NGN => from=NGN, to=USD
-  // We want to convert NGN -> USD
-  const fromCurrency = rate.quote_currency;
-  const toCurrency = rate.base_currency;
+  // Set default direction based on rate pair
+  const fromCurrency = rate.quote_currency; // NGN
+  const toCurrency = rate.base_currency; // USD
 
-  try {
-    loading.value = true;
-    // First show modal with loading state
-    quoteData.value = {
-      from_currency: fromCurrency,
-      to_currency: toCurrency,
-      amount: 0,
-      rate: 0,
-      receive_amount: 0,
-      provider: '...'
-    };
-    quoteModal.value = true;
+  quoteData.value = {
+    from_currency: fromCurrency,
+    to_currency: toCurrency,
+    amount: 0,
+    rate: 0,
+    receive_amount: 0,
+    provider: '...',
+    available_balance: 0
+  };
 
-    // Ask user for amount via a simple prompt
-    const userAmount = prompt(`Enter amount in ${fromCurrency} to convert to ${toCurrency}:`, "1000");
-    if (!userAmount || isNaN(Number(userAmount)) || Number(userAmount) <= 0) {
-      quoteModal.value = false;
-      return;
-    }
-
-    const amount = Number(userAmount);
-
-    // Get quote from API
-    const response = await api.post("/fx/quote", {
-      from_currency: fromCurrency,
-      to_currency: toCurrency,
-      amount: amount
-    });
-
-    if (response.data.success) {
-      quoteData.value = {
-        from_currency: fromCurrency,
-        to_currency: toCurrency,
-        amount: amount,
-        rate: response.data.data.rate,
-        receive_amount: response.data.data.receive_amount,
-        provider: response.data.data.provider
-      };
-      message.value = "";
-    } else {
-      throw new Error(response.data.message || 'Quote failed');
-    }
-  } catch (e) {
-    message.value = e.response?.data?.message || e.message || "Failed to get quote";
-    messageType.value = "error";
-  } finally {
-    loading.value = false;
-  }
+  await fetchUserBalances();
+  quoteModal.value = true;
+  message.value = "";
 }
 
 // EXECUTE CONVERSION
 async function executeConversion() {
+  if (!canConvert.value) {
+    message.value = "Please enter a valid amount within your available balance";
+    messageType.value = "error";
+    return;
+  }
+
   loading.value = true;
   message.value = "";
   try {
@@ -385,7 +473,13 @@ async function executeConversion() {
       quoteModal.value = false;
       showSuccessModal.value = true;
       message.value = "";
-      fetchHistory();
+      await fetchHistory();
+      await fetchUserBalances();
+
+      // Redirect to wallet after 2 seconds
+      setTimeout(() => {
+        router.push('/wallet');
+      }, 2000);
     } else {
       throw new Error(response.data.message || 'Conversion failed');
     }
@@ -400,6 +494,7 @@ async function executeConversion() {
 function closeSuccess() {
   showSuccessModal.value = false;
   conversionResult.value = {};
+  router.push('/wallet');
 }
 
 // FETCH CONVERSION HISTORY
@@ -421,6 +516,7 @@ const fetchHistory = async () => {
 onMounted(async () => {
   await fetchFxRates();
   await fetchHistory();
+  await fetchUserBalances();
   window.addEventListener('trading-mode-changed', () => {
     user.value = JSON.parse(localStorage.getItem('user') || '{}');
     isDemo.value = user.value.trading_mode === 'demo';
@@ -429,5 +525,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('trading-mode-changed', fetchFxRates);
+  if (quoteTimeout) clearTimeout(quoteTimeout);
 });
 </script>

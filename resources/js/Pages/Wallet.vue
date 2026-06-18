@@ -172,7 +172,7 @@
           :class="isDemo ? 'border-yellow-600 bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-3 text-lg font-semibold">{{ isDemo ? 'Demo Transactions' : 'Recent Transactions' }}</h2>
 
-          <div v-if="transactions.length === 0" class="py-10 text-center">
+          <div v-if="allTransactions.length === 0" class="py-10 text-center">
             <div class="font-medium text-gray-500">No recent {{ isDemo ? 'demo activity' : 'transactions' }}.</div>
           </div>
 
@@ -182,26 +182,37 @@
                 <tr>
                   <th class="px-2 py-2 text-left">Date</th>
                   <th class="px-2 text-left">Type</th>
-                  <th class="px-2 text-right">Gross</th>
-                  <th class="px-2 text-right">Fee</th>
-                  <th class="px-2 text-right">Net</th>
+                  <th class="px-2 text-right">Amount</th>
+                  <th class="px-2 text-right">Currency</th>
+                  <th class="px-2 text-left">Details</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="t in transactions" :key="t.id" @click="openTransactionDetails(t)"
+                <tr v-for="t in allTransactions" :key="t.id || t.reference" @click="openTransactionDetails(t)"
                   class="border-b border-[#1f3348] hover:bg-[#16213A] transition cursor-pointer">
                   <td class="px-2 py-3 text-gray-400">{{ formatDate(t.created_at) }}</td>
                   <td class="px-2 capitalize">
-                    <div class="font-medium">{{ t.type }}</div>
-                    <div v-if="t.meta && t.meta.bank_name" class="text-[10px] text-gray-500 leading-tight">
-                      to {{ t.meta.bank_name }} ({{ t.meta.account_number }})
+                    <div class="font-medium" :class="getTransactionTypeColor(t.type)">
+                      {{ t.type === 'currency conversion' ? 'Currency Conversion' : t.type }}
                     </div>
                   </td>
-                  <td class="px-2 text-right">{{ formatAmount(t.amount || t.total, t.currency || 'NGN') }}</td>
-                  <td class="px-2 text-right text-red-400">-{{ formatAmount(t.charge || 0, t.currency || 'NGN') }}</td>
-                  <td class="px-2 font-bold text-right text-green-400">{{ formatAmount(t.net_amount || t.amount ||
-                    t.total,
-                    t.currency || 'NGN') }}</td>
+                  <td class="px-2 text-right font-semibold" :class="getTransactionAmountColor(t.type)">
+                    {{ formatTransactionAmount(t) }}
+                  </td>
+                  <td class="px-2 text-right text-gray-400">
+                    {{ t.currency || (t.from_currency || 'NGN') }}
+                  </td>
+                  <td class="px-2 text-xs text-gray-500">
+                    <div v-if="t.type === 'FX_DEBIT' || t.type === 'FX_CREDIT'">
+                      {{ t.from_currency || '' }} → {{ t.to_currency || '' }}
+                      <span v-if="t.rate" class="text-blue-400">@ {{ formatCurrency(t.rate, t.to_currency, true) }}</span>
+                    </div>
+                    <div v-else-if="t.meta && t.meta.bank_name" class="leading-tight">
+                      to {{ t.meta.bank_name }} ({{ t.meta.account_number }})
+                    </div>
+                    <div v-else-if="t.note" class="leading-tight">{{ t.note }}</div>
+                    <div v-else class="font-mono text-[10px]">{{ t.reference || '' }}</div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -344,7 +355,7 @@
               <div class="text-lg font-bold text-white">
                 {{ from === 'NGN' ? '$' + Number(quoteResult.receive_amount).toFixed(2) : '₦' + Number(quoteResult.receive_amount).toLocaleString() }}
               </div>
-              <div class="text-xs text-gray-500 mt-1">
+              <div class="text-xs text-blue-500 mt-1">
                 Rate: 1 {{ from }} = {{ Number(quoteResult.rate).toFixed(6) }} {{ to }}
                 <span class="ml-2 text-[10px] uppercase" :class="quoteResult.provider === 'fincra' ? 'text-purple-400' : 'text-green-400'">via {{ quoteResult.provider }}</span>
               </div>
@@ -390,6 +401,34 @@
               Return to Wallet
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Conversion Success Modal -->
+      <div v-if="showConversionSuccessModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#1C1F2E] rounded-2xl p-8 shadow-xl w-full max-w-md relative border border-green-500/30">
+          <h2 class="mb-4 text-xl font-bold text-green-400 text-center">Conversion Successful!</h2>
+          <div class="p-4 mb-4 border rounded-lg bg-[#151a27] border-green-500/20">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-gray-500">Debited</p>
+                <p class="text-white">{{ Number(conversionResult.amount).toLocaleString() }} {{ conversionResult.from_currency }}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">Credited</p>
+                <p class="text-green-400">{{ Number((conversionResult.converted_amount).toLocaleString()).toFixed(4) }} {{ conversionResult.to_currency }}</p>
+              </div>
+              <div class="col-span-2">
+                <p class="text-blue-500">Rate</p>
+                <p class="text-blue-500">1 {{ conversionResult.from_currency }} = {{ Number(conversionResult.rate).toFixed(6) }} {{ conversionResult.to_currency }}</p>
+              </div>
+            </div>
+          </div>
+          <button @click="closeConversionSuccess"
+            class="w-full py-2 font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+            Done
+          </button>
         </div>
       </div>
 
@@ -479,9 +518,12 @@ const balances = ref({
   cleared_balance_usd: 0, uncleared_balance_usd: 0, locked_balance_usd: 0
 });
 const transactions = ref([]);
+const allTransactions = ref([]);
 const message = ref("");
 const loading = ref(true);
 const actionType = ref("");
+const activeProvider = ref('Manual');
+const rates = ref([]);
 
 // Modal States
 const openConvert = ref(false);
@@ -507,6 +549,17 @@ const notificationData = ref({ success: true, title: '', message: '' });
 
 const paymentResult = ref({ success: false, message: '', amount: 0 });
 
+// Conversion Success Modal
+const showConversionSuccessModal = ref(false);
+const conversionResult = ref({
+  amount: 0,
+  converted_amount: 0,
+  from_currency: 'NGN',
+  to_currency: 'USD',
+  rate: 0,
+  reference: ''
+});
+
 const formattedConvertAmount = computed({
   get() { return amount.value.toLocaleString(); },
   set(value) { amount.value = Number(value.replace(/,/g, '')); }
@@ -527,6 +580,56 @@ const formatAmount = (amt, currency) => {
   if (amt === null || amt === undefined) return '---';
   const value = Number(amt);
   return currency === "USD" ? `$${value.toLocaleString()}` : `₦${value.toLocaleString()}`;
+};
+
+
+const formatCurrency = (amount, currency, showFullDecimals = false) => {
+  if (amount === null || amount === undefined) return '---';
+  const value = Number(amount);
+  if (currency === 'USD') {
+   
+    if (showFullDecimals || value < 0.01) {
+      return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+    }
+    return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } else if (currency === 'NGN') {
+    return '₦' + value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return value.toLocaleString();
+};
+
+const formatTransactionAmount = (t) => {
+  if (t.type === 'FX_DEBIT' || t.type === 'FX_CREDIT') {
+    return formatAmount(t.amount, t.currency || t.from_currency);
+  }
+  return formatAmount(t.amount || t.total, t.currency || 'NGN');
+};
+
+const getTransactionTypeColor = (type) => {
+  switch (type) {
+    case 'currency conversion':
+      return 'text-blue-400';
+    case 'deposit':
+    case 'FUND':
+      return 'text-green-400';
+    case 'withdrawal':
+      return 'text-red-400';
+    default:
+      return 'text-gray-300';
+  }
+};
+
+const getTransactionAmountColor = (type) => {
+  switch (type) {
+    case 'currency conversion':
+    case 'deposit':
+    case 'FUND':
+      return 'text-green-400';
+    case 'withdrawal':
+      return 'text-red-400';
+    default:
+      return 'text-white';
+  }
 };
 
 const formatDate = (dateStr) => {
@@ -559,6 +662,37 @@ const fetchLinkedAccountsFor = async (currency) => {
   }
 };
 
+const fetchFxRates = async () => {
+  try {
+    const response = await api.get("/fx-rates");
+    const data = response.data;
+    
+    if (data.fx_pairs && Array.isArray(data.fx_pairs)) {
+      rates.value = data.fx_pairs;
+      activeProvider.value = data.provider || 'Manual';
+    } else if (data.rates && Array.isArray(data.rates)) {
+      rates.value = data.rates.map(r => ({
+        base_currency: r.to_currency,
+        quote_currency: r.from_currency,
+        buy_rate: r.effective_rate || r.base_rate,
+        sell_rate: (r.effective_rate || r.base_rate) * 0.99,
+      }));
+      activeProvider.value = data.provider || 'Manual';
+    } else if (data.data?.pairs) {
+      rates.value = data.data.pairs;
+      activeProvider.value = data.data.settings?.provider || 'Manual';
+    } else if (Array.isArray(data)) {
+      rates.value = data;
+      activeProvider.value = 'Manual';
+    } else {
+      rates.value = [];
+    }
+  } catch (error) {
+    console.error("Failed to fetch FX rates:", error);
+    rates.value = [];
+  }
+};
+
 const refreshData = async () => {
   loading.value = true;
   const token = localStorage.getItem('xavier_token') || localStorage.getItem('token');
@@ -570,9 +704,10 @@ const refreshData = async () => {
   try {
     isDemo.value = user.value.trading_mode === 'demo';
 
-    const [balRes, txnRes] = await Promise.all([
+    const [balRes, txnRes, fxRes] = await Promise.all([
       api.get("/wallet/balances"),
-      api.get("/transactions?limit=10")
+      api.get("/transactions?limit=10"),
+      api.get("/fx/history?limit=10").catch(() => ({ data: { data: [] } }))
     ]);
 
     const data = balRes.data.data;
@@ -600,6 +735,44 @@ const refreshData = async () => {
     }
 
     transactions.value = Array.isArray(txnRes.data) ? txnRes.data.slice(0, 10) : (txnRes.data.transactions ? txnRes.data.transactions.slice(0, 10) : []);
+
+    // Merge FX conversions with regular transactions
+    const fxConversions = fxRes.data.data || [];
+    const fxTransactions = [];
+    
+    fxConversions.forEach(conv => {
+      // Add debit transaction
+      fxTransactions.push({
+        id: 'fx-debit-' + conv.id,
+        type: 'currency conversion',
+        amount: conv.amount,
+        currency: conv.from_currency,
+        from_currency: conv.from_currency,
+        to_currency: conv.to_currency,
+        rate: conv.rate,
+        reference: conv.reference,
+        created_at: conv.created_at,
+        note: `FX Conversion: ${conv.from_currency} → ${conv.to_currency}`
+      });
+      // Add credit transaction
+      fxTransactions.push({
+        id: 'fx-credit-' + conv.id,
+        type: 'currency conversion',
+        amount: conv.converted_amount,
+        currency: conv.to_currency,
+        from_currency: conv.from_currency,
+        to_currency: conv.to_currency,
+        rate: conv.rate,
+        reference: conv.reference,
+        created_at: conv.created_at,
+        note: `FX Conversion: ${conv.from_currency} → ${conv.to_currency}`
+      });
+    });
+
+    // Combine and sort by date
+    const combined = [...transactions.value, ...fxTransactions];
+    combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    allTransactions.value = combined.slice(0, 15);
 
   } catch (e) {
     console.error("Failed to refresh wallet data", e);
@@ -785,6 +958,35 @@ watch(amount, (newVal) => {
   if (quoteTimeout) clearTimeout(quoteTimeout);
   if (newVal > 0) {
     quoting.value = true;
+    
+    // For manual provider, calculate immediately without API call
+    if (activeProvider.value === 'Manual') {
+      const toCurrency = from.value === 'NGN' ? 'USD' : 'NGN';
+      const pair = rates.value.find(r => 
+        r.base_currency === toCurrency && 
+        r.quote_currency === from.value
+      );
+      
+      if (pair) {
+        // Rate is stored as how much quote currency per 1 base currency
+        // E.g., USD/NGN = 1385 means 1 USD = 1385 NGN
+        // So for NGN -> USD: we need inverse rate = 1/1385
+        const storedRate = pair.buy_rate;
+        const inverseRate = 1 / storedRate;
+        const receiveAmount = newVal * inverseRate;
+        
+        quoteResult.value = {
+          rate: inverseRate,
+          receive_amount: receiveAmount,
+          provider: 'manual',
+          available_balance: balances.value[from.value === 'NGN' ? 'cleared_balance_ngn' : 'cleared_balance_usd'] || 0
+        };
+      }
+      quoting.value = false;
+      return;
+    }
+    
+    // For live providers (Fincra), fetch quote from API
     quoteTimeout = setTimeout(async () => {
       try {
         const toCurrency = from.value === 'NGN' ? 'USD' : 'NGN';
@@ -823,11 +1025,23 @@ const convertCurrency = async () => {
     
     if (response.data.success) {
       const data = response.data.data;
-      message.value = `Converted ${data.amount} ${data.from_currency} to ${data.converted_amount.toFixed(2)} ${data.to_currency} at rate ${data.rate}`;
-      setTimeout(() => {
-        openConvert.value = false;
-        refreshData();
-      }, 2000);
+      
+      // Show conversion success modal
+      conversionResult.value = {
+        amount: data.amount,
+        converted_amount: data.converted_amount,
+        from_currency: data.from_currency,
+        to_currency: data.to_currency,
+        rate: data.rate,
+        reference: data.reference
+      };
+      
+      // Close convert modal and show success modal
+      openConvert.value = false;
+      showConversionSuccessModal.value = true;
+      
+      // Refresh data to update balances
+      await refreshData();
     } else {
       message.value = response.data.message || "Conversion failed";
     }
@@ -837,6 +1051,18 @@ const convertCurrency = async () => {
     loading.value = false;
     actionType.value = "";
   }
+};
+
+const closeConversionSuccess = () => {
+  showConversionSuccessModal.value = false;
+  conversionResult.value = {
+    amount: 0,
+    converted_amount: 0,
+    from_currency: 'NGN',
+    to_currency: 'USD',
+    rate: 0,
+    reference: ''
+  };
 };
 
 const FX_CONVERSION_RATE = 1538;
@@ -941,8 +1167,9 @@ async function openTransactionDetails(t) {
   }
 }
 
-onMounted(() => {
-  refreshData();
+onMounted(async () => {
+  await fetchFxRates();
+  await refreshData();
   checkPaymentResult();
   window.addEventListener('trading-mode-switching', handleModeSwitching);
   window.addEventListener('trading-mode-changed', refreshData);

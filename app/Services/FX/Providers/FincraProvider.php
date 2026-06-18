@@ -25,13 +25,20 @@ class FincraProvider implements FxProviderInterface
             throw new \Exception('Fincra is not configured. Missing FINCRA_SECRET_KEY in .env');
         }
 
+        
+        $businessId = config('services.fincra.business_id');
+
         $response = Http::withHeaders([
             'api-key' => $this->secretKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/quote', [
-            'from' => $from,
-            'to' => $to,
-            'amount' => $amount,
+        ])->post($this->baseUrl . '/quotes/generate', [
+            'sourceCurrency' => strtoupper($from),
+            'destinationCurrency' => strtoupper($to),
+            'amount' => (string) $amount,
+            'action' => 'send',
+            'transactionType' => 'conversion',
+            'business' => $businessId,
+            'paymentDestination' => 'fliqpay_wallet',
         ]);
 
         if ($response->failed()) {
@@ -46,11 +53,12 @@ class FincraProvider implements FxProviderInterface
 
         return [
             'provider' => 'fincra',
-            'rate' => $data['rate'] ?? 0,
-            'receive_amount' => $data['receiveAmount'] ?? 0,
+            'rate' => $data['data']['rate'] ?? 0,
+            'receive_amount' => $data['data']['amountToReceive'] ?? 0,
             'from' => $from,
             'to' => $to,
             'amount' => $amount,
+            'reference' => $data['data']['reference'] ?? null,
             'raw_response' => $data,
         ];
     }
@@ -61,32 +69,69 @@ class FincraProvider implements FxProviderInterface
             throw new \Exception('Fincra is not configured. Missing FINCRA_SECRET_KEY in .env');
         }
 
-        $response = Http::withHeaders([
+        
+        $businessId = config('services.fincra.business_id');
+
+        // Step 1: Generate a quote first
+        $quoteResponse = Http::withHeaders([
             'api-key' => $this->secretKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/convert', [
-            'from' => $from,
-            'to' => $to,
-            'amount' => $amount,
+        ])->post($this->baseUrl . '/quotes/generate', [
+            'sourceCurrency' => strtoupper($from),
+            'destinationCurrency' => strtoupper($to),
+            'amount' => (string) $amount,
+            'action' => 'send',
+            'transactionType' => 'conversion',
+            'business' => $businessId,
+            'paymentDestination' => 'fliqpay_wallet',
         ]);
 
-        if ($response->failed()) {
-            Log::error('Fincra convert failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
+        if ($quoteResponse->failed()) {
+            Log::error('Fincra quote failed', [
+                'status' => $quoteResponse->status(),
+                'body' => $quoteResponse->body(),
             ]);
-            throw new \Exception('Fincra convert failed (HTTP ' . $response->status() . '): ' . $response->body());
+            throw new \Exception('Fincra quote failed (HTTP ' . $quoteResponse->status() . '): ' . $quoteResponse->body());
         }
 
-        $data = $response->json();
+        $quoteData = $quoteResponse->json();
+        $quoteReference = $quoteData['data']['reference'] ?? null;
+
+        if (!$quoteReference) {
+            throw new \Exception('Fincra quote failed: No reference returned');
+        }
+
+        // Step 2: Initiate the conversion with the quote reference
+        $convertResponse = Http::withHeaders([
+            'api-key' => $this->secretKey,
+            'Content-Type' => 'application/json',
+        ])->post($this->baseUrl . '/conversions/initiate', [
+            'business' => $businessId,
+            'quoteReference' => $quoteReference,
+            'customerReference' => 'CUST-' . uniqid(),
+        ]);
+
+        if ($convertResponse->failed()) {
+            Log::error('Fincra convert failed', [
+                'status' => $convertResponse->status(),
+                'body' => $convertResponse->body(),
+            ]);
+            throw new \Exception('Fincra convert failed (HTTP ' . $convertResponse->status() . '): ' . $convertResponse->body());
+        }
+
+        $convertData = $convertResponse->json();
 
         return [
             'provider' => 'fincra',
-            'status' => $data['status'] ?? 'completed',
-            'rate' => $data['rate'] ?? 0,
-            'converted_amount' => $data['convertedAmount'] ?? 0,
-            'reference' => $data['reference'] ?? 'FINCA-' . strtoupper(uniqid()),
-            'raw_response' => $data,
+            'status' => 'completed',
+            'rate' => $quoteData['data']['rate'] ?? 0,
+            'converted_amount' => $quoteData['data']['amountToReceive'] ?? 0,
+            'reference' => $convertData['data']['reference'] ?? 'FINCRA-' . strtoupper(uniqid()),
+            'quote_reference' => $quoteReference,
+            'raw_response' => [
+                'quote' => $quoteData,
+                'conversion' => $convertData,
+            ],
         ];
     }
 
@@ -105,22 +150,40 @@ class FincraProvider implements FxProviderInterface
         }
 
         try {
-            // Use a lightweight check - hit the rates endpoint instead of doing a full quote
-            $response = Http::timeout(5)->withHeaders([
+            // Use a lightweight check - hit the quotes endpoint with POST (same as actual usage)
+            $businessId = config('services.fincra.business_id');
+            
+            $payload = [
+                'sourceCurrency' => 'USD',
+                'destinationCurrency' => 'NGN',
+                'amount' => '1',
+                'action' => 'send',
+                'transactionType' => 'conversion',
+            ];
+            
+            // Add business ID 
+            if ($businessId) {
+                $payload['business'] = $businessId;
+                $payload['paymentDestination'] = 'fliqpay_wallet';
+            }
+            
+            $response = Http::timeout(10)->withHeaders([
                 'api-key' => $this->secretKey,
                 'Content-Type' => 'application/json',
-            ])->get($this->baseUrl . '/rates');
+            ])->post($this->baseUrl . '/quotes/generate', $payload);
 
             if ($response->successful()) {
                 $status = 'connected';
                 $message = 'Fincra API is reachable and authenticated.';
-            } elseif ($response->status() === 401 || $response->status() === 403) {
+            } elseif ($response->status() === 401) {
                 $status = 'disconnected';
                 $message = 'Authentication failed. Check your FINCRA_SECRET_KEY or API key format.';
+            } elseif ($response->status() === 403) {
+                $status = 'disconnected';
+                $message = 'Access denied. Check your FINCRA_SECRET_KEY or API key format.';
             } elseif ($response->status() === 404) {
-                // Endpoint might not exist - try the older quote-based health check
-                $status = 'connected';
-                $message = 'Fincra responded (rates endpoint may vary). API key is configured.';
+                $status = 'disconnected';
+                $message = 'Business not found. Configure FINCRA_BUSINESS_ID in .env with your actual business ID from Fincra dashboard.';
             } else {
                 $status = 'disconnected';
                 $message = 'Fincra returned HTTP ' . $response->status() . ': ' . $response->body();
