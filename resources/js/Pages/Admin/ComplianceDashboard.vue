@@ -245,6 +245,7 @@
         </div>
       </div>
 
+      <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
     </div>
   </MainLayout>
 </template>
@@ -254,6 +255,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
+import ErrorModal from '@/Components/ErrorModal.vue';
 
 const tabs = [
   { key: 'all', label: 'All KYC' },
@@ -276,6 +278,8 @@ const submitting = ref(false);
 const selectedKyc = ref(null);
 const currentDecision = ref('');
 const rejectionReason = ref('');
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 
 const tabLabel = computed(() => {
   const found = tabs.find(t => t.key === activeTab.value);
@@ -395,7 +399,8 @@ const confirmReview = async () => {
     showModal.value = false;
   } catch (error) {
     console.error('Review failed', error);
-    alert('An error occurred while processing the request.');
+    errorMessage.value = 'An error occurred while processing the request.';
+    showErrorModal.value = true;
   } finally {
     submitting.value = false;
     selectedKyc.value = null;

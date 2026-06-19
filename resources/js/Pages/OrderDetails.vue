@@ -148,7 +148,9 @@
           </div>
         </div>
       </div>
-</div>
+
+      <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
+    </div>
   </MainLayout>
 </template>
 
@@ -157,6 +159,7 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import SkeletonLoader from "@/Components/SkeletonLoader.vue";
+import ErrorModal from "@/Components/ErrorModal.vue";
 import { useRoute, useRouter } from "vue-router";
 
 const order = ref(null);
@@ -164,6 +167,8 @@ const loading = ref(true);
 const error = ref("");
 const showCancelModal = ref(false);
 const isCancelling = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 
 const route = useRoute();
 const router = useRouter();
@@ -199,7 +204,8 @@ async function confirmCancel() {
     showCancelModal.value = false;
     router.push("/orders");
   } catch (e) {
-    alert("Failed to cancel order.");
+    errorMessage.value = "Failed to cancel order.";
+    showErrorModal.value = true;
   } finally {
     isCancelling.value = false;
   }

@@ -259,6 +259,10 @@
         @close="showRoleModal = false"
         @role-updated="onRoleUpdated"
       />
+
+      <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
+      <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
+      <InfoModal :show="showInfoModal" :message="infoMessage" @close="showInfoModal = false" />
     </div>
   </MainLayout>
 </template>
@@ -269,6 +273,9 @@ import { useRoute, useRouter } from "vue-router";
 import axios from "@/lib/axios";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import RoleModal from "@/Components/admin/RoleModal.vue";
+import SuccessModal from "@/Components/SuccessModal.vue";
+import ErrorModal from "@/Components/ErrorModal.vue";
+import InfoModal from "@/Components/InfoModal.vue";
 
 const user = ref({});
 try {
@@ -294,6 +301,12 @@ const transactions = ref([]);
 const showRoleModal = ref(false);
 const togglingStatus = ref(false);
 const devices = ref([]);
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const showInfoModal = ref(false);
+const successMessage = ref('');
+const errorMessage = ref('');
+const infoMessage = ref('');
 
 // COMPUTED
 const fullName = computed(() => {
@@ -345,12 +358,16 @@ const toggleStatus = async () => {
     const res = await axios.post(`/admin/users/${viewedUser.value.id}/toggle-status`);
     viewedUser.value.status = res.data.status;
   } catch (e) {
-    alert("Unable to update status.");
+    errorMessage.value = "Unable to update status.";
+    showErrorModal.value = true;
   }
   togglingStatus.value = false;
 };
 
-const resetPassword = () => alert("Reset password coming soon");
+const resetPassword = () => {
+  infoMessage.value = "Reset password coming soon";
+  showInfoModal.value = true;
+};
 
 const openRoleModal = () => (showRoleModal.value = true);
 

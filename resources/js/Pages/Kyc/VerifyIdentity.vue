@@ -195,12 +195,17 @@
       </div>
 
     </div>
+
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
+    <WarningModal :show="showWarningModal" :message="warningMessage" @close="showWarningModal = false" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, defineEmits } from 'vue';
 import api from '@/api';
+import ErrorModal from '@/Components/ErrorModal.vue';
+import WarningModal from '@/Components/WarningModal.vue';
 
 const emit = defineEmits(['close', 'verified']);
 
@@ -210,6 +215,10 @@ const verifiedSteps = ref({ email: false, bvn: false, nin: false, selfie: false 
 const currentStep = ref(1);
 const loading = ref(false);
 const isSdkReady = ref(false);
+const showErrorModal = ref(false);
+const showWarningModal = ref(false);
+const errorMessage = ref('');
+const warningMessage = ref('');
 
 const bvn = ref('');
 const nin = ref('');
@@ -268,7 +277,8 @@ const submitBvn = async () => {
     verifiedSteps.value.bvn = true;
     currentStep.value = 3;
   } catch (err) {
-    alert(err.response?.data?.message || "BVN validation failed.");
+    errorMessage.value = err.response?.data?.message || "BVN validation failed.";
+    showErrorModal.value = true;
   } finally {
     loading.value = false;
   }
@@ -281,7 +291,8 @@ const submitNin = async () => {
     verifiedSteps.value.nin = true;
     currentStep.value = 4;
   } catch (err) {
-    alert(err.response?.data?.message || "NIN validation failed.");
+    errorMessage.value = err.response?.data?.message || "NIN validation failed.";
+    showErrorModal.value = true;
   } finally {
     loading.value = false;
   }
@@ -338,7 +349,8 @@ const launchDojahLiveness = () => {
         return;
       }
 
-      alert("Camera init failed. Please ensure device has camera hardware permissions.");
+      errorMessage.value = "Camera init failed. Please ensure device has camera hardware permissions.";
+      showErrorModal.value = true;
     }
   };
   
@@ -353,7 +365,8 @@ const handleSelfieContinue = () => {
   } else if (selfieToken.value) {
     submitSelfie();
   } else {
-    alert("Please complete the Biometric Camera Scanner before continuing. Ensure you have good lighting.");
+    warningMessage.value = "Please complete the Biometric Camera Scanner before continuing. Ensure you have good lighting.";
+    showWarningModal.value = true;
   }
 };
 
@@ -367,7 +380,8 @@ const submitSelfie = async () => {
     currentStep.value = 5;
   } catch (err) {
     console.error("Selfie upload error", err.response?.data || err);
-    alert(err.response?.data?.message || "Selfie submission validation error.");
+    errorMessage.value = err.response?.data?.message || "Selfie submission validation error.";
+    showErrorModal.value = true;
   } finally {
     loading.value = false;
   }

@@ -72,6 +72,9 @@
       </p>
 
     </div>
+
+    <WarningModal :show="showWarningModal" :message="warningMessage" @close="showWarningModal = false" />
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
   </div>
 </template>
 
@@ -79,6 +82,8 @@
 import { ref, computed } from "vue";
 import api from "@/api";
 import { useRouter } from "vue-router";
+import WarningModal from "@/Components/WarningModal.vue";
+import ErrorModal from "@/Components/ErrorModal.vue";
 
 const router = useRouter();
 
@@ -88,6 +93,10 @@ const email = ref("");
 const password = ref("");
 const password_confirmation = ref("");
 const localErrors = ref({});
+const showWarningModal = ref(false);
+const showErrorModal = ref(false);
+const warningMessage = ref('');
+const errorMessage = ref('');
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -102,7 +111,8 @@ const submit = async () => {
   localErrors.value = {};
 
   if (password.value.length < MIN_PASSWORD_LENGTH) {
-    alert(`Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`);
+    warningMessage.value = `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`;
+    showWarningModal.value = true;
     return;
   }
 
@@ -135,7 +145,8 @@ const submit = async () => {
     if (err.response?.data?.errors) {
       localErrors.value = err.response.data.errors;
     } else {
-      alert(err.response?.data?.message || "Registration failure. Please check inputs.");
+      errorMessage.value = err.response?.data?.message || "Registration failure. Please check inputs.";
+      showErrorModal.value = true;
     }
   } finally {
     loading.value = false;

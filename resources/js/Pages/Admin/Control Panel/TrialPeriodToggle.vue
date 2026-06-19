@@ -58,15 +58,20 @@
         </button>
       </div>
     </form>
+
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/api';
+import ErrorModal from '@/Components/ErrorModal.vue';
 
 const loading = ref(false);
 const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 const form = ref({
     trial_days: 3,
     trading_fee: 0,
@@ -96,7 +101,8 @@ const saveSettings = async () => {
         }
     } catch (error) {
         console.error("Save failed", error);
-        alert('Could not save settings. Please check connection.');
+        errorMessage.value = 'Could not save settings. Please check connection.';
+        showErrorModal.value = true;
     } finally {
         loading.value = false;
     }

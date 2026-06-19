@@ -122,6 +122,8 @@
         @close="showTradeModal = false" 
         @trade-success="onTradeSuccess" 
       />
+
+      <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
     </div>
   </MainLayout>
 </template>
@@ -132,6 +134,7 @@ import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import TradeModal from "@/Components/TradeModal.vue";
 import SkeletonLoader from "@/Components/SkeletonLoader.vue"; 
+import ErrorModal from "@/Components/ErrorModal.vue";
 
 const searchQuery = ref("");
 const filterMarket = ref("");
@@ -139,6 +142,8 @@ const showTradeModal = ref(false);
 const selectedWatchItem = ref(null);
 const watchlistItems = ref([]);
 const loading = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 
 const ngxTickers = ref([]);
 const globalTickers = ref([]);
@@ -241,7 +246,8 @@ const removeFromWatchlist = async (item) => {
     }
   } catch (error) {
     console.error("Removal failure:", error);
-    alert("Could not update watchlist. Please try again.");
+    errorMessage.value = "Could not update watchlist. Please try again.";
+    showErrorModal.value = true;
     item.isRemoving = false;
   }
 };

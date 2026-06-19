@@ -90,12 +90,17 @@
       </div>
 
     </form>
+
+    <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
   </div>
 </template>
 
 <script setup>
 import { reactive, watch, ref } from "vue";
 import api from "@/api";
+import SuccessModal from "@/Components/SuccessModal.vue";
+import ErrorModal from "@/Components/ErrorModal.vue";
 
 const props = defineProps({
   user: Object,
@@ -103,6 +108,10 @@ const props = defineProps({
 
 const emit = defineEmits(['refresh']);
 const processing = ref(false);
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const successMessage = ref('');
+const errorMessage = ref('');
 
 const form = reactive({
   first_name: "",
@@ -133,10 +142,12 @@ const updateProfile = async () => {
   try {
     await api.put("/user/profile/update", form);
     emit('refresh'); 
-    alert("Profile updated successfully");
+    successMessage.value = "Profile updated successfully";
+    showSuccessModal.value = true;
   } catch (error) {
     console.error("Update failed", error);
-    alert("Failed to update profile. Please try again.");
+    errorMessage.value = "Failed to update profile. Please try again.";
+    showErrorModal.value = true;
   } finally {
     processing.value = false;
   }

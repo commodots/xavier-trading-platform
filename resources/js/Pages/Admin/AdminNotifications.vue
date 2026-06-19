@@ -163,6 +163,8 @@
         </div>
       </div>
     </div>
+
+    <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
   </MainLayout>
 </template>
 
@@ -170,6 +172,7 @@
 import { ref, computed, onMounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SuccessModal from "@/Components/SuccessModal.vue";
 
 const currentStep = ref(1);
 const searchQuery = ref("");
@@ -185,6 +188,8 @@ const sendMessage = ref(false);
 const sending = ref(false);
 
 const notifications = ref([]);
+const showSuccessModal = ref(false);
+const successMessage = ref('');
 
 const canSend = computed(() => {
   return selectedUsers.value.length > 0 &&
@@ -251,7 +256,8 @@ async function sendNotification() {
       send_message: sendMessage.value
     };
     await api.post("/admin/notifications/send", data);
-    alert("Notifications sent successfully!");
+    successMessage.value = "Notifications sent successfully!";
+    showSuccessModal.value = true;
 
     // Reset form
     notificationTitle.value = "";

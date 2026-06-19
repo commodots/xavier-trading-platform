@@ -147,16 +147,29 @@
         </div>
       </div>
     </div>
+
+    <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
+    <WarningModal :show="showWarningModal" :message="warningMessage" @close="showWarningModal = false" />
   </MainLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SuccessModal from "@/Components/SuccessModal.vue";
+import ErrorModal from "@/Components/ErrorModal.vue";
+import WarningModal from "@/Components/WarningModal.vue";
 import api from "@/api";
 
 const loading = ref(false);
 const reportHistory = ref([]);
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const showWarningModal = ref(false);
+const successMessage = ref('');
+const errorMessage = ref('');
+const warningMessage = ref('');
 
 const form = reactive({
   category: 'users',
@@ -180,19 +193,22 @@ const resetSubcategory = () => {
 
 const generateReport = async () => {
   if (!form.start_date || !form.end_date) {
-    alert("Please select a date range");
+    warningMessage.value = "Please select a date range";
+    showWarningModal.value = true;
     return;
   }
 
   loading.value = true;
   try {
     const response = await api.post('/admin/reports/generate', form);
-    alert("Report generation started! Check history in a moment.");
+    successMessage.value = "Report generation started! Check history in a moment.";
+    showSuccessModal.value = true;
     // Wait a second then refresh history
     setTimeout(refreshHistory, 1000);
   } catch (e) {
     console.error(e);
-    alert("Error generating report");
+    errorMessage.value = "Error generating report";
+    showErrorModal.value = true;
   } finally {
     loading.value = false;
   }

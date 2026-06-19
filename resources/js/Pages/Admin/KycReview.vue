@@ -77,6 +77,9 @@
         </div>
       </div>
     </div>
+
+    <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
   </MainLayout>
 </template>
 
@@ -85,12 +88,18 @@ import { ref, onMounted } from "vue";
 import api from "@/api";
 import { useRoute, useRouter } from 'vue-router';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SuccessModal from "@/Components/SuccessModal.vue";
+import ErrorModal from "@/Components/ErrorModal.vue";
 
 const kyc = ref({ user: {}, status: 'pending' });
 const loading = ref(true);
 const route = useRoute();
 const router = useRouter();
 const id = route.params.id;
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const successMessage = ref('');
+const errorMessage = ref('');
 
 onMounted(async () => {
   try {
@@ -98,7 +107,8 @@ onMounted(async () => {
     kyc.value = res.data;
   } catch (e) {
     console.error("Error loading KYC:", e);
-    alert("Record not found or server error.");
+    errorMessage.value = "Record not found or server error.";
+    showErrorModal.value = true;
   } finally {
     loading.value = false;
   }
@@ -120,10 +130,12 @@ const updateStatus = async (status) => {
     };
 
     await api.post(`/admin/kycs/${id}/review`, payload);
-    alert(`User KYC has been marked as ${status}`);
+    successMessage.value = `User KYC has been marked as ${status}`;
+    showSuccessModal.value = true;
     router.push("/admin/kyc");
   } catch (err) {
-    alert("Failed to update KYC status.");
+    errorMessage.value = "Failed to update KYC status.";
+    showErrorModal.value = true;
   }
 };
 

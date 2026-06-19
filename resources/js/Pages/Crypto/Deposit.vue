@@ -92,6 +92,9 @@
         </div>
       </div>
     </div>
+
+    <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
+    <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
   </MainLayout>
 </template>
 
@@ -99,6 +102,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MainLayout from '@/Layouts/MainLayout.vue'
+import SuccessModal from '@/Components/SuccessModal.vue'
+import ErrorModal from '@/Components/ErrorModal.vue'
 import api from '@/api'
 const route = useRoute()
 
@@ -106,6 +111,10 @@ const address = ref('')
 const loading = ref(true)
 const showQR = ref(false)
 const deposits = ref([])
+const showSuccessModal = ref(false)
+const showErrorModal = ref(false)
+const successMessage = ref('')
+const errorMessage = ref('')
 
 const qrCodeUrl = ref('')
 
@@ -131,9 +140,11 @@ const loadAddress = async () => {
 const copyAddress = async () => {
   try {
     await navigator.clipboard.writeText(address.value)
-    alert('Address copied to clipboard!')
+    successMessage.value = 'Address copied to clipboard!'
+    showSuccessModal.value = true
   } catch (e) {
-    alert('Failed to copy address')
+    errorMessage.value = 'Failed to copy address'
+    showErrorModal.value = true
   }
 }
 
