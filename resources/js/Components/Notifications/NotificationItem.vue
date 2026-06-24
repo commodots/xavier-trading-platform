@@ -27,7 +27,7 @@
 
         <button
           v-if="notification.action"
-          @click.stop="handleAction"
+          @click.stop="handleClick"
           class="text-[10px] uppercase tracking-[0.12em] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2.5 py-1 rounded-md shadow-sm transition duration-150 active:scale-95"
         >
           {{ actionLabel }}
@@ -75,24 +75,7 @@ const handleClick = () => {
 }
 
 const handleAction = () => {
-  emit('markRead')
-
-  const actionMap = {
-    'Fund Wallet': '/wallet',
-    'Pay Now': '/wallet',
-    'Resolve Now': '/settings',
-    'Upgrade': '/user/advisory/plans',
-    'Resume': '/dashboard',
-    'Go to Dashboard': '/dashboard'
-  }
-
-  const target = actionMap[props.notification.action]
-  if (target) {
-    router.push(target)
-  } else if (props.notification.action?.startsWith('/')) {
-    router.push(props.notification.action)
-  } else {
-    console.log('Action unmapped:', props.notification.action)
-  }
+  // Just open the notification detail modal
+  handleClick()
 }
 </script>

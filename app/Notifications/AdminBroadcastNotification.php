@@ -4,22 +4,26 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class AdminBroadcastNotification extends Notification implements ShouldQueue
+class AdminBroadcastNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public string $title, public string $message)
-    {
+    public function __construct(
+        public string $title,
+        public string $message,
+        public bool $sendEmail = false,
+        public bool $sendMessage = false,
+        public string $type = 'info'
+    ) {
     }
 
     public function via($notifiable): array
     {
         $channels = ['database'];
 
-        if ($notifiable->notificationPreferences?->email ?? true) {
+        if ($this->sendEmail && ($notifiable->notificationPreferences?->email ?? true)) {
             $channels[] = 'mail';
         }
 
@@ -39,9 +43,10 @@ class AdminBroadcastNotification extends Notification implements ShouldQueue
         return [
             'category' => 'broadcast',
             'title' => $this->title,
-            'message_text' => $this->message,
+            'message' => $this->message,
+            'type' => $this->type,
             'action' => 'View Details',
-            'action_url' => url('/dashboard/notifications'),
+            'action_url' => url('/notifications'),
             'icon' => '📢',
         ];
     }

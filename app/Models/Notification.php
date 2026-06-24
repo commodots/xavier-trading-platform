@@ -23,6 +23,9 @@ class Notification extends Model
         'read_at',
         'action_url',
         'metadata',
+        'data',
+        'notifiable_type',
+        'notifiable_id',
     ];
 
     protected $casts = [
@@ -32,7 +35,12 @@ class Notification extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function notifiable()
+    {
+        return $this->morphTo();
     }
 
     public function scopeUnread($query)
@@ -58,16 +66,19 @@ class Notification extends Model
     protected static function booted()
     {
         static::creating(function ($notification) {
-            if (empty($notification->data)) {
-                $notification->data = json_encode([]);
-            }
-
+           
             $data = is_array($notification->data) ? $notification->data : json_decode($notification->data, true);
-            if (is_array($data)) {
-                $notification->message = $notification->message ?? ($data['message'] ?? 'Notification received');
-                $notification->title = $notification->title ?? ($data['title'] ?? 'System Alert');
-                $notification->action = $notification->action ?? ($data['action'] ?? 'View Details');
-                $notification->icon = $notification->icon ?? ($data['icon'] ?? '🔔');
+            if (is_array($data) && !empty($data)) {
+                // Only fill from data if the column values weren't already provided
+                if (empty($notification->title)) $notification->title = $data['title'] ?? null;
+                if (empty($notification->message)) $notification->message = $data['message'] ?? null;
+                if (empty($notification->action)) $notification->action = $data['action'] ?? null;
+                if (empty($notification->icon)) $notification->icon = $data['icon'] ?? null;
+            }
+            
+            // Ensure data is a JSON string
+            if (!is_string($notification->data)) {
+                $notification->data = json_encode($notification->data ?? []);
             }
         });
     }

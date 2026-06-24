@@ -113,6 +113,19 @@
               class="w-full bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500"></textarea>
           </div>
 
+          <div>
+            <label class="block mb-2 text-sm font-medium text-gray-300">Notification Type / Tag</label>
+            <select v-model="notificationType"
+              class="w-full bg-[#16213A] border border-[#1f3348] text-sm text-white rounded-lg px-4 py-2 outline-none focus:border-blue-500">
+              <option value="info">General Info</option>
+              <option value="billing">Billing</option>
+              <option value="account">Account / Security</option>
+              <option value="warning">Warning</option>
+              <option value="news">News & Updates</option>
+              <option value="suspension">Suspension</option>
+            </select>
+          </div>
+
           <div class="flex flex-wrap gap-4">
             <label class="flex items-center">
               <input type="checkbox" v-model="sendEmail" class="mr-2 rounded" />
@@ -144,6 +157,7 @@
                 <th class="px-2 text-left">Sent To</th>
                 <th class="px-2 text-left">Channels</th>
                 <th class="px-2 text-left">Sent At</th>
+                <th class="px-2 text-center">Action</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[#1f3348]">
@@ -157,9 +171,53 @@
                   </div>
                 </td>
                 <td class="px-2 text-gray-300">{{ formatDate(notif.created_at) }}</td>
+                <td class="px-2 text-center">
+                  <button @click="openNotificationDetail(notif)" class="px-3 py-1 text-xs font-medium text-blue-400 bg-blue-600/10 border border-blue-500/20 rounded-lg hover:bg-blue-600/20 transition">
+                    View
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Detail Modal -->
+    <div v-if="selectedNotification" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="closeNotificationDetail">
+      <div class="bg-[#111827] border border-[#1F2A44] rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
+        <div class="p-6">
+          <div class="mb-4">
+            <h2 class="text-xl font-bold text-white">{{ selectedNotification.title }}</h2>
+          </div>
+          
+          <div class="text-gray-300 space-y-4 text-sm leading-relaxed whitespace-pre-wrap">
+            <p>{{ selectedNotification.message }}</p>
+          </div>
+
+          <div class="mt-6 border-t border-[#1F2A44] pt-4 space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Recipients:</span>
+              <span class="text-white font-medium">{{ selectedNotification.recipient_count }} users</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Channels:</span>
+              <span class="text-white font-medium">
+                <span v-if="selectedNotification.sent_email" class="text-blue-400">Email</span>
+                <span v-if="selectedNotification.sent_email && selectedNotification.sent_message" class="text-gray-500"> & </span>
+                <span v-if="selectedNotification.sent_message" class="text-green-400">In-App</span>
+                <span v-if="!selectedNotification.sent_email && !selectedNotification.sent_message" class="text-gray-400">None</span>
+              </span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Sent At:</span>
+              <span class="text-gray-300">{{ formatDate(selectedNotification.created_at) }}</span>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end">
+            <button @click="closeNotificationDetail" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition">Close</button>
+          </div>
         </div>
       </div>
     </div>
@@ -183,6 +241,7 @@ const loadingUsers = ref(false);
 
 const notificationTitle = ref("");
 const notificationMessage = ref("");
+const notificationType = ref("info");
 const sendEmail = ref(false);
 const sendMessage = ref(false);
 const sending = ref(false);
@@ -190,6 +249,7 @@ const sending = ref(false);
 const notifications = ref([]);
 const showSuccessModal = ref(false);
 const successMessage = ref('');
+const selectedNotification = ref(null);
 
 const canSend = computed(() => {
   return selectedUsers.value.length > 0 &&
@@ -252,6 +312,7 @@ async function sendNotification() {
       user_ids: selectedUsers.value,
       title: notificationTitle.value.trim(),
       message: notificationMessage.value.trim(),
+      type: notificationType.value,
       send_email: sendEmail.value,
       send_message: sendMessage.value
     };
@@ -262,6 +323,7 @@ async function sendNotification() {
     // Reset form
     notificationTitle.value = "";
     notificationMessage.value = "";
+    notificationType.value = "info";
     sendEmail.value = false;
     sendMessage.value = false;
     selectedUsers.value = [];
@@ -292,10 +354,19 @@ function kycStatusClass(status) {
   return 'bg-gray-500/10 text-gray-400';
 }
 
+function openNotificationDetail(notif) {
+  selectedNotification.value = notif;
+}
+
+function closeNotificationDetail() {
+  selectedNotification.value = null;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "";
   return new Date(dateStr).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric'
   });
 }
+
 </script>

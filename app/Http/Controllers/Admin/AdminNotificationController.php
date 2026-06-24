@@ -54,6 +54,7 @@ class AdminNotificationController extends Controller
             'user_ids.*'   => 'exists:users,id',
             'title'        => 'required|string|max:255',
             'message'      => 'required|string',
+            'type'         => 'nullable|string|max:50',
             'send_email'   => 'required|boolean',
             'send_message' => 'required|boolean',
         ]);
@@ -71,16 +72,20 @@ class AdminNotificationController extends Controller
             ], 422);
         }
 
+        $type = $validated['type'] ?? 'info';
+
         Notification::send($users, new AdminBroadcastNotification(
             $validated['title'],
             $validated['message'],
             $validated['send_email'],
-            $validated['send_message']
+            $validated['send_message'],
+            $type
         ));
 
         AdminNotificationLog::create([
             'title'           => $validated['title'],
             'message'         => $validated['message'],
+            'type'            => $type,
             'recipient_count' => $users->count(),
             'sent_email'      => $validated['send_email'],
             'sent_message'    => $validated['send_message'],

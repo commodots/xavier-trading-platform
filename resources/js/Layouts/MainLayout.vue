@@ -11,7 +11,7 @@
       'w-64 border-r flex flex-col justify-between transition-all duration-300',
       currentView === 'user' ? 'bg-gradient-to-b from-[#0B132B] to-[#111827] border-[#1F2A44]' : 'bg-[#1a253b] border-[#4d69aa]',
       sidebarOpen ? 'translate-x-0' : '-translate-x-64',
-      'md:translate-x-0 fixed md:sticky md:top-0 md:h-screen inset-y-0 left-0 z-50 overflow-y-auto'
+      'md:translate-x-0 fixed md:sticky md:top-0 md:h-screen inset-y-0 left-0 z-50 sidebar-scroll'
     ]">
       <div>
         <div class="flex items-center justify-center py-6">
@@ -25,7 +25,7 @@
           </button>
         </div>
 
-        <nav class="px-4 mt-4 space-y-1 text-sm">
+        <nav class="px-4 mt-4 space-y-1 text-sm sidebar-scroll-content">
 
           <div v-if="currentView === 'user'">
 
@@ -263,6 +263,37 @@ watch(() => route.path, (path) => {
 const toggleAccountMode = () => {
   router.push(currentView.value === 'user' ? '/admin' : '/dashboard');
 };
+
+// Add sidebar scroll styles
+const sidebarScrollStyles = `
+  .sidebar-scroll {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 3px;
+  }
+  .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .sidebar-scroll-content {
+    overflow-y: visible;
+  }
+`
+
+onMounted(() => {
+  const style = document.createElement('style')
+  style.textContent = sidebarScrollStyles
+  document.head.appendChild(style)
+})
 
 const logout = async () => {
   try {

@@ -28,19 +28,22 @@
         v-if="open" 
         :notifications="notifications" 
         class="z-50"
-        @markRead="markAsRead" 
+        @markRead="markAsRead"
+        @viewNotification="handleViewNotification"
       />
     </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import NotificationDropdown from './NotificationDropdown.vue'
 import api from '@/api'
 
 const open = ref(false)
 const notifications = ref([])
+const pollingInterval = ref(null)
+const POLLING_DELAY = 30000 // 30 seconds
 
 const toggleDropdown = () => {
   open.value = !open.value
@@ -62,6 +65,22 @@ const fetchNotifications = async () => {
   } catch (error) {
     console.error('Failed to load notifications:', error)
     notifications.value = []
+  }
+}
+
+const startPolling = () => {
+  // Clear any existing interval first
+  stopPolling()
+  
+  pollingInterval.value = setInterval(() => {
+    fetchNotifications()
+  }, POLLING_DELAY)
+}
+
+const stopPolling = () => {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
   }
 }
 
@@ -90,5 +109,18 @@ const markAsRead = async (id) => {
   }
 }
 
-onMounted(fetchNotifications)
+const handleViewNotification = (notification) => {
+  open.value = false
+  
+  router.push({ path: '/notifications', query: { notification: notification.id } })
+}
+
+onMounted(() => {
+  fetchNotifications()
+  startPolling()
+})
+
+onUnmounted(() => {
+  stopPolling()
+})
 </script>

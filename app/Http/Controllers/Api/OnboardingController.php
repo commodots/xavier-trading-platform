@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Models\CryptoAddress;
 use App\Models\SystemSetting;
+use App\Notifications\WelcomeNotification;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -148,6 +149,13 @@ class OnboardingController extends Controller
                 $lastName
             );
             */
+
+            // Send welcome notification
+            try {
+                $user->notify(new WelcomeNotification($user->first_name ?: $user->name));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send welcome notification', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            }
 
             ActivityLog::log($user->id, 'Registration', [
                 'message' => "New user registered: {$user->email}. Verification job queued."

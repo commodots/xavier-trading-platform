@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\FX\Contracts;
+namespace App\Services\Fx\Contracts;
 
 interface ExchangeRateProvider
 {

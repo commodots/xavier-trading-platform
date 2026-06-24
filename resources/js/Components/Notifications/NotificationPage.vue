@@ -35,6 +35,11 @@
         <p class="text-gray-400 max-w-xs mx-auto mt-2">You don't have any notifications at the moment.</p>
       </div>
 
+      <div v-if="filteredNotifications.length === 0 && !loading && notifications.length > 0" class="flex flex-col items-center justify-center py-16 bg-[#0F1724] border border-[#1f3348] rounded-2xl text-center">
+        <h3 class="text-lg font-medium text-white">No {{ activeFilter }} messages available</h3>
+        <p class="text-gray-400 max-w-xs mx-auto mt-2">There are no {{ activeFilter.toLowerCase() }} notifications at this time.</p>
+      </div>
+
       <div v-if="filteredNotifications.length > 0" class="bg-[#0F1724] border border-[#1f3348] rounded-xl divide-y divide-[#1f3348] shadow-sm overflow-hidden">
         <NotificationItem 
           v-for="n in filteredNotifications" 
@@ -45,40 +50,37 @@
         />
       </div>
 
+      <!-- Load More Button -->
+      <div v-if="hasMorePages && filteredNotifications.length > 0" class="flex justify-center mt-6">
+        <button
+          @click="loadMore"
+          :disabled="loadingMore"
+          class="px-6 py-2 text-sm font-medium text-blue-400 bg-[#16213A] border border-[#1f3348] rounded-lg hover:bg-[#1f3348] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ loadingMore ? 'Loading...' : 'Load More' }}
+        </button>
+      </div>
+
       <!-- Notification Detail Modal -->
-      <div v-if="selectedNotification" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div class="bg-[#111827] border border-[#1F2A44] rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-fadeIn">
+      <div v-if="selectedNotification" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="selectedNotification = null">
+        <div class="bg-[#111827] border border-[#1F2A44] rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
           <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
+            <div class="mb-4">
               <h2 class="text-xl font-bold text-white">{{ selectedNotification.title }}</h2>
-              <button @click="selectedNotification = null" class="text-gray-400 hover:text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
             
-            <div class="text-gray-300 space-y-4 text-sm leading-relaxed">
+            <div class="text-gray-300 space-y-4 text-sm leading-relaxed whitespace-pre-wrap">
               <p>{{ selectedNotification.message }}</p>
             </div>
 
-            <div class="mt-8 flex flex-col gap-3 border-t border-[#1F2A44] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="mt-6 flex items-center justify-between border-t border-[#1F2A44] pt-4">
               <span class="text-xs text-gray-500">{{ selectedNotification.time }}</span>
-              <div class="flex items-center gap-2 justify-end">
-                <button 
-                  @click="selectedNotification = null" 
-                  class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition"
-                >
-                  Close
-                </button>
-                <button
-                  v-if="selectedNotification.action"
-                  @click="handleModalAction"
-                  class="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-                >
-                  {{ selectedNotification.action }}
-                </button>
-              </div>
+              <button 
+                @click="selectedNotification = null" 
+                class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition bg-[#16213A] hover:bg-[#1f3348] rounded-lg"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -96,31 +98,61 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const loading = ref(false);
+const loadingMore = ref(false);
 const notifications = ref([]);
-const filters = ['All', 'Unread', 'Billing', 'Account']
+const currentPage = ref(1);
+const hasMorePages = ref(true);
+const filters = ['All', 'Unread', 'Billing', 'Account', 'Warning', 'News', 'Suspension']
 const activeFilter = ref('All')
 const selectedNotification = ref(null);
 
-const fetchNotifications = async () => {
+const fetchNotifications = async (page = 1, append = false) => {
   try {
-    loading.value = true;
-    const res = await api.get('/user/notifications')
+    if (page === 1) {
+      loading.value = true;
+    } else {
+      loadingMore.value = true;
+    }
+    
+    const res = await api.get('/user/notifications', {
+      params: { page }
+    })
 
+    let newNotifications = []
     if (res.data?.notifications) {
-      notifications.value = Array.isArray(res.data.notifications)
+      newNotifications = Array.isArray(res.data.notifications)
         ? res.data.notifications
         : []
     } else if (Array.isArray(res.data)) {
-      notifications.value = res.data
+      newNotifications = res.data
+    }
+
+    if (append) {
+      const existingIds = new Set(notifications.value.map(n => n.id))
+      const uniqueNew = newNotifications.filter(n => !existingIds.has(n.id))
+      notifications.value = [...notifications.value, ...uniqueNew]
     } else {
-      notifications.value = []
+      notifications.value = newNotifications
+    }
+
+    if (res.data?.meta) {
+      currentPage.value = res.data.meta.current_page || 1
+      hasMorePages.value = res.data.meta.has_more ?? false
     }
   } catch (error) {
-    console.error('Failed to parse user feed listings:', error)
-    notifications.value = [];
+    console.error('Failed to fetch notifications:', error)
+    if (!append) {
+      notifications.value = [];
+    }
   } finally {
     loading.value = false;
+    loadingMore.value = false;
   }
+}
+
+const loadMore = async () => {
+  if (loadingMore.value || !hasMorePages.value) return
+  await fetchNotifications(currentPage.value + 1, true)
 }
 
 const sortedNotifications = computed(() => {
@@ -138,27 +170,21 @@ const sortedNotifications = computed(() => {
   return base.sort((a, b) => {
     const aPriority = priority[a?.type] ?? 99
     const bPriority = priority[b?.type] ?? 99
-
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority
-    }
-
+    if (aPriority !== bPriority) return aPriority - bPriority
     return 0
   })
 })
 
 const filteredNotifications = computed(() => {
   const base = sortedNotifications.value
-
   switch (activeFilter.value) {
-    case 'Unread':
-      return base.filter(n => n && !n.read)
-    case 'Billing':
-      return base.filter(n => n && n.type === 'billing')
-    case 'Account':
-      return base.filter(n => n && n.type === 'account')
-    default:
-      return base
+    case 'Unread': return base.filter(n => n && !n.read)
+    case 'Billing': return base.filter(n => n && n.type === 'billing')
+    case 'Account': return base.filter(n => n && n.type === 'account')
+    case 'Warning': return base.filter(n => n && n.type === 'warning')
+    case 'News': return base.filter(n => n && n.type === 'news')
+    case 'Suspension': return base.filter(n => n && n.type === 'suspension')
+    default: return base
   }
 })
 
@@ -178,7 +204,6 @@ const markOneAsRead = async (id) => {
 const clearAll = async () => {
   const previousState = JSON.parse(JSON.stringify(notifications.value))
   notifications.value = notifications.value.map((n) => ({ ...n, read: true }))
-
   try {
     await api.post('/user/notifications/read-all')
   } catch (error) {
@@ -191,26 +216,18 @@ const openDetails = (notification) => {
   selectedNotification.value = notification;
 }
 
-const handleModalAction = () => {
-  if (!selectedNotification.value?.action) return;
-
-  const action = selectedNotification.value.action;
-  selectedNotification.value = null;
-
-  const actionMap = {
-    'Fund Wallet': '/wallet',
-    'Pay Now': '/wallet',
-    'Resolve Now': '/settings',
-    'Upgrade': '/user/advisory/plans',
-    'Resume': '/dashboard',
-    'Go to Dashboard': '/dashboard',
+onMounted(() => {
+  fetchNotifications()
+  
+  const notificationId = router.currentRoute.value.query.notification
+  if (notificationId) {
+ 
+    setTimeout(() => {
+      const notif = notifications.value.find(n => n.id === notificationId)
+      if (notif) {
+        openDetails(notif)
+      }
+    }, 500)
   }
-
-  const target = actionMap[action] || (action.startsWith('/') ? action : null)
-  if (target) {
-    router.push(target)
-  }
-}
-
-onMounted(fetchNotifications)
+})
 </script>

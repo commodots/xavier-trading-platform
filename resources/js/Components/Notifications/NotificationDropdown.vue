@@ -31,6 +31,7 @@
           :key="n.id"
           :notification="n"
           @markRead="$emit('markRead', n.id)"
+          @view="(notif) => handleView(notif)"
         />
       </template>
     </div>
@@ -45,6 +46,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import NotificationItem from './NotificationItem.vue'
 
 const props = defineProps({
@@ -54,7 +56,12 @@ const props = defineProps({
   }
 })
 
-defineEmits(['markRead'])
+const emit = defineEmits(['markRead', 'viewNotification'])
+const router = useRouter()
+
+const handleView = (notification) => {
+  emit('viewNotification', notification)
+}
 
 const tabs = ['All', 'Unread', 'Important']
 const activeTab = ref('All')
