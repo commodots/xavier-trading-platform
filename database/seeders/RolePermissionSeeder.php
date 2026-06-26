@@ -18,11 +18,30 @@ class RolePermissionSeeder extends Seeder
                 'guard_name' => 'api'
             ]);
 
-           
             Role::firstOrCreate([
                 'name' => $role,
                 'guard_name' => 'web'
             ]);
+        }
+
+        // Reporting permissions
+        $permissions = [
+            'view_reports',
+            'export_reports',
+            'view_audit_reports',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'api'
+            ]);
+        }
+
+        // Assign reporting permissions to admin role
+        $adminRole = Role::where('name', 'admin')->where('guard_name', 'api')->first();
+        if ($adminRole) {
+            $adminRole->givePermissionTo($permissions);
         }
     }
 }

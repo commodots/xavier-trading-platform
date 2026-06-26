@@ -87,10 +87,11 @@
             </div>
             
             <button 
-              @click="stocks && stocks.length > 0 ? openTrade(stocks[0]) : openTrade(null)"
-              class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 whitespace-nowrap"
+              @click="handleBuySellClick"
+              :disabled="!canTrade.value || !stocks || stocks.length === 0"
+              class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
             >
-              Buy / Sell
+              {{ !canTrade.value ? 'Verification Required' : 'Buy / Sell' }}
             </button>
           </div>
 
@@ -138,7 +139,7 @@
                 class="flex-1 w-full" 
                 :selected-symbol="selectedMarketSymbol" 
                 :additional-tickers="searchedTickers"
-                @select-symbol="selectedMarketSymbol = $event" 
+                @select-symbol="handleSelectSymbol" 
               />
             </div>
             
@@ -371,7 +372,7 @@
               <!-- Empty State -->
               <div v-if="historyRecords.length === 0" class="py-12 text-center text-gray-500">
                 <p class="text-sm">No transaction or trade history for global stocks yet.</p>
-                <p class="text-xs mt-2 text-gray-600">Your activity will appear here once you start trading.</p>
+                <p class="mt-2 text-xs text-gray-600">Your activity will appear here once you start trading.</p>
               </div>
 
               <!-- History Table -->
@@ -404,7 +405,7 @@
                         <div class="text-[11px] text-gray-500 truncate max-w-[120px]">{{ record.name }}</div>
                       </td>
                       <td class="px-4 text-center text-gray-300">{{ record.quantity }}</td>
-                      <td class="px-4 text-right font-medium text-white">{{ formatCurrency(record.amount) }}</td>
+                      <td class="px-4 font-medium text-right text-white">{{ formatCurrency(record.amount) }}</td>
                       <td class="px-4 text-center">
                         <span 
                           :class="[
@@ -683,6 +684,9 @@ const selectSuggestion = (stock) => {
   activeChart.value = 'insights';
   selectedMarketSymbol.value = stock.symbol;
 
+  // Notify streamer to subscribe to this symbol for real-time data
+  api.post('/stocks/track', { symbols: [stock.symbol] }).catch(() => {});
+
   localStorage.setItem('global_favorite_tickers', JSON.stringify(favoriteTickers.value));
   search.value = "";
   searchSuggestions.value = [];
@@ -692,6 +696,12 @@ const selectFirstSuggestion = () => {
   if (searchSuggestions.value.length > 0) {
     selectSuggestion(searchSuggestions.value[0]);
   }
+};
+
+const handleSelectSymbol = (symbol) => {
+  selectedMarketSymbol.value = symbol;
+  // Notify streamer to subscribe to this symbol for real-time data
+  api.post('/stocks/track', { symbols: [symbol] }).catch(() => {});
 };
 
 const handleChartSearch = async () => {
@@ -722,6 +732,10 @@ const selectForChart = (stock) => {
     localStorage.setItem('global_favorite_tickers', JSON.stringify(favoriteTickers.value));
   }
   selectedMarketSymbol.value = stock.symbol;
+  
+  // Notify streamer to subscribe to this symbol for real-time data
+  api.post('/stocks/track', { symbols: [stock.symbol] }).catch(() => {});
+
   chartSearch.value = "";
   chartSearchResults.value = [];
 };
@@ -756,12 +770,22 @@ const cancelOrder = async (id) => {
 const orderSuccessData = ref(null);
 const showOrderSuccessModal = ref(false);
 
-const openTrade = (stock) => {
+const handleBuySellClick = () => {
   if (!canTrade.value) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
+  
+  if (stocks.value && stocks.value.length > 0) {
+    openTrade(stocks.value[0]);
+  } else {
+    // No stocks available, open with default AAPL
+    openTrade({ symbol: 'AAPL', name: 'Apple Inc', currency: 'USD' });
+  }
+};
+
+const openTrade = (stock) => {
   selectedTradeStock.value = stock ? { ...stock, currency: 'USD' } : null; 
   showTradeModal.value = true;
 };
@@ -899,8 +923,8 @@ const fetchHoldings = async () => {
         holdings.value = mergedItems.map(m => {
           const quote = quotesMap[m.symbol];
           const marketPrice = (quote && quote.price) ? quote.price : m.price;
-          const companyName = m.name || (quote ? quote.name : m.symbol);
-          const entryPrice = m.entry_price || 0;
+          const companyName = m.company || m.name || (quote ? (quote.name || m.symbol) : m.symbol);
+          const entryPrice = m.avg_price || m.entry_price || 0;
           
           let plPercent = m.unrealized_pl_percent;
           if (entryPrice > 0 && plPercent === undefined) {
@@ -964,6 +988,10 @@ onMounted(() => {
   }
 
   window.addEventListener('click', handleClickOutside);
+  
+  // Subscribe default symbol to streamer for real-time data
+  api.post('/stocks/track', { symbols: [selectedMarketSymbol.value] }).catch(() => {});
+  
   initDashboard();
 
   // --- REAL-TIME REVERSED ECHO SUITE LISTENER ---
@@ -1014,7 +1042,20 @@ onMounted(() => {
 // Helper Functions for History Tab
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
+  
+  // Handle timestamp (seconds or milliseconds)
+  let date;
+  const timestamp = Number(dateString);
+  if (!isNaN(timestamp)) {
+    // If timestamp is in seconds (less than year 3000 in seconds), convert to milliseconds
+    const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+    date = new Date(ms);
+  } else {
+    date = new Date(dateString);
+  }
+  
+  if (isNaN(date.getTime())) return 'N/A';
+  
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);

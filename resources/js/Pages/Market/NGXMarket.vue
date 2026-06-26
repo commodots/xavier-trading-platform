@@ -62,10 +62,11 @@
           </div>
 
           <button 
-            @click="openTrade(null)"
-            class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700"
+            @click="handleBuySellClick"
+            :disabled="!canTrade.value"
+            class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
           >
-            Buy / Sell
+            {{ !canTrade.value ? 'Verification Required' : 'Buy / Sell' }}
           </button>
         </div>
 
@@ -114,7 +115,7 @@
                       </td>
                       <td class="font-mono text-right text-gray-400">{{ stock.volume.toLocaleString() }}</td>
                       <td class="w-32 px-6 text-right">
-                        <apexchart type="line" height="30" :options="sparkOptions" :series="[{ data: stock.spark || [] }]" />
+                        <apexchart v-if="stock.spark && stock.spark.length > 0" type="line" height="30" :options="sparkOptions" :series="[{ data: stock.spark }]" />
                       </td>
                       <td class="px-2 text-center">
                         <button @click="openDetails(stock)" class="bg-[#1f3348] text-gray-300 px-3 py-1.5 rounded-md text-xs hover:bg-[#2a435e] transition">
@@ -284,6 +285,12 @@ const isUserVerified = computed(() => {
   return Boolean(u.email_verified_at) || isAdminUser(u);
 });
 
+const canTrade = computed(() => {
+  if (isDemo.value) return true;
+  const level = user.value.verification_level || 0;
+  return level >= 2;
+});
+
 const tradeTickers = computed(() => ({
   NGX: stocks.value.map(s => ({ ...s, currency: 'NGN' }))
 }));
@@ -303,12 +310,29 @@ const openDetails = (item) => {
   isModalOpen.value = true; 
 };
 
+const handleBuySellClick = () => {
+  if (!canTrade.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  openTrade(null);
+};
+
 const openTrade = (stock) => {
+  if (!canTrade.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  
+  // Also check email verification  
   if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
+  
   selectedTradeStock.value = stock ? { ...stock, currency: 'NGN' } : null;
   showTradeModal.value = true;
 };
@@ -387,10 +411,12 @@ const updateMarketPrices = async () => {
 let pollingInterval = null;
 
 onMounted(() => {
-  fetchPortfolioPerformance();
-  updateMarketPrices();
-  fetchWalletBalances();
-  fetchMarketInsights();
+  Promise.allSettled([
+    fetchPortfolioPerformance(),
+    updateMarketPrices(),
+    fetchWalletBalances(),
+    fetchMarketInsights()
+  ]);
   pollingInterval = setInterval(updateMarketPrices, 10000);
 });
 

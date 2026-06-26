@@ -60,10 +60,11 @@
         </div>
 
         <button 
-          @click="openTrade(instruments[0] || {})"
-          class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700"
+          @click="handleBuySellClick"
+          :disabled="!canTrade.value"
+          class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
         >
-          Buy / Sell
+          {{ !canTrade.value ? 'Verification Required' : 'Buy / Sell' }}
         </button>
       </div>
 
@@ -282,8 +283,23 @@ const openDetails = (item) => {
   isModalOpen.value = true; 
 };
 
+const handleBuySellClick = () => {
+  if (!canTrade.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  openTrade(instruments.value[0] || {});
+};
+
 const openTrade = (instrument) => { 
   if (!instrument || !instrument.symbol) return;
+  
+  if (!canTrade.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
   
   if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
@@ -299,8 +315,10 @@ const openTrade = (instrument) => {
 let trackingPoll = null;
 
 onMounted(() => {
-  fetchPortfolioPerformance();
-  fetchWalletBalances();
+  Promise.allSettled([
+    fetchPortfolioPerformance(),
+    fetchWalletBalances()
+  ]);
   trackingPoll = setInterval(updateMarketPrices, 5000);
 });
 

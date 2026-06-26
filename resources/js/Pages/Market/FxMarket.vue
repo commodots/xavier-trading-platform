@@ -54,7 +54,7 @@
                 <td class="px-2 text-right">
                   <button @click="openQuote(rate)"
                     class="bg-[#0047AB] hover:bg-[#0057D4] px-3 py-1 rounded-lg text-white text-xs">
-                    Quote
+                    Convert
                   </button>
                 </td>
               </tr>
@@ -197,7 +197,7 @@
 
         <div v-else class="py-6 text-center text-gray-400">
           <p>No FX conversion history yet.</p>
-          <p class="text-xs mt-1">Use the Quote button above to start a conversion.</p>
+          <p class="text-xs mt-1">Use the Convert button above to start a conversion.</p>
         </div>
       </div>
 
@@ -426,6 +426,12 @@ const canConvert = computed(() => {
 
 // QUOTE FLOW
 async function openQuote(rate) {
+  if (!canTrade.value) {
+    showPrompt.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  
   if (!isUserVerified.value && !isDemo.value) {
     showPrompt.value = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -514,9 +520,11 @@ const fetchHistory = async () => {
 };
 
 onMounted(async () => {
-  await fetchFxRates();
-  await fetchHistory();
-  await fetchUserBalances();
+  Promise.allSettled([
+    fetchFxRates(),
+    fetchHistory(),
+    fetchUserBalances()
+  ]);
   window.addEventListener('trading-mode-changed', () => {
     user.value = JSON.parse(localStorage.getItem('user') || '{}');
     isDemo.value = user.value.trading_mode === 'demo';

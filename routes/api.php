@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\User\LinkedAccountController;
 use App\Http\Controllers\Api\User\NotificationController;
 // Admin Controllers
 use App\Http\Controllers\Api\WatchlistController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\VerifyEmailController;
@@ -178,6 +179,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/watchlist', [WatchlistController::class, 'index']);
     Route::post('/watchlist', [WatchlistController::class, 'store']);
     Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
+
+    /* Reports */
+    Route::prefix('reports')->group(function () {
+        Route::get('/account-statement', [ReportController::class, 'accountStatement']);
+    });
 
     /* Profile Modification & Sandboxes */
     Route::get('/profile/me', [ProfileController::class, 'show']);
@@ -375,6 +381,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/kyc/rejected', [ComplianceController::class, 'rejected']);
             Route::get('/risk-flags', [ComplianceController::class, 'riskFlags']);
             Route::post('/risk-flags/{flag}/dismiss', [ComplianceController::class, 'dismissFlag']);
+        });
+
+        // ── Reports ──
+        Route::prefix('reports')->group(function () {
+            Route::get('/deposits', [ReportController::class, 'depositRegister']);
+            Route::get('/withdrawals', [ReportController::class, 'withdrawalRegister']);
+            Route::get('/audit-trail', [ReportController::class, 'auditTrail']);
         });
     });
 });

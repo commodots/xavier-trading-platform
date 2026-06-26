@@ -103,6 +103,13 @@ const startLiveAnimation = () => {
   }, 2000);
 };
 
+const stopLiveAnimation = () => {
+  if (animationInterval) {
+    clearInterval(animationInterval);
+    animationInterval = null;
+  }
+};
+
 
 const setupEchoListener = () => {
   window.Echo.channel("market-channel")
@@ -183,13 +190,31 @@ onMounted(() => {
 });
 
 watch(() => props.symbol, () => {
+  // Stop animation during symbol switch to prevent price pollution
+  stopLiveAnimation();
   lastCandle = null;
+  
+  // Force price scale to reset
+  if (chartInstance && series) {
+    chartInstance.priceScale('right').applyOptions({
+      autoScale: true,
+      scaleMargins: { top: 0.1, bottom: 0.1 }
+    });
+  }
+  
   fetchHistory();
+  
+  // Restart animation after data loads
+  setTimeout(() => {
+    if (series && lastCandle) {
+      startLiveAnimation();
+    }
+  }, 1500);
 });
 
 onUnmounted(() => {
   window.Echo.leave("market-channel");
-  if (animationInterval) clearInterval(animationInterval);
+  stopLiveAnimation();
   if (resizeObserver) resizeObserver.disconnect();
   if (chartInstance) chartInstance.remove();
   if (abortController) abortController.abort();

@@ -12,8 +12,12 @@ class FinnhubProvider
 
     public function __construct()
     {
-        $this->key = env('FINNHUB_API_KEY');
-        $this->baseUrl = env('FINNHUB_BASE_URL', 'https://finnhub.io');
+        $this->key = config('services.finnhub.api_key');
+        $this->baseUrl = config('services.finnhub.base_url', 'https://finnhub.io');
+
+        if (!$this->key) {
+            throw new \RuntimeException('FINNHUB_API_KEY not configured');
+        }
     }
 
     public function quote(string $symbol): float

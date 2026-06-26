@@ -6,14 +6,14 @@
         <p class="text-sm text-gray-400">Generate and download administrative reports on users, transactions, trading, compliance, and system data.</p>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-1 space-y-6">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="space-y-6 lg:col-span-1">
           <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
-            <h2 class="text-lg font-medium mb-4 text-white">Generate New Report</h2>
+            <h2 class="mb-4 text-lg font-medium text-white">Generate New Report</h2>
 
             <div class="space-y-4">
               <div>
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Report Category</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Report Category</label>
                 <select v-model="form.category" @change="resetSubcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
                   <option value="users">Users</option>
                   <option value="transactions">Transactions</option>
@@ -24,7 +24,7 @@
               </div>
 
               <div v-if="form.category === 'users'">
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Sub-Category</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
                   <option value="registrations">Registrations</option>
                   <option value="kyc_status">KYC Status</option>
@@ -33,7 +33,7 @@
               </div>
 
               <div v-if="form.category === 'transactions'">
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Sub-Category</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
                   <option value="deposits">Deposits & Withdrawals</option>
                   <option value="fees">Fees</option>
@@ -42,7 +42,7 @@
               </div>
 
               <div v-if="form.category === 'trading'">
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Sub-Category</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
                   <option value="orders">Orders</option>
                   <option value="trades">Trades</option>
@@ -51,7 +51,7 @@
               </div>
 
               <div v-if="form.category === 'compliance'">
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Sub-Category</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
                   <option value="kyc_reviews">KYC Logs</option>
                   <option value="suspicious_activity">AML Flags</option>
@@ -60,7 +60,7 @@
               </div>
 
               <div v-if="form.category === 'system'">
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Sub-Category</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
                   <option value="error_logs">Service Health</option>
                   <option value="system_health">OMS Metrics</option>
@@ -69,17 +69,17 @@
 
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="text-xs text-gray-400 uppercase tracking-wider">From</label>
+                  <label class="text-xs tracking-wider text-gray-400 uppercase">From</label>
                   <input type="date" v-model="form.start_date" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm" />
                 </div>
                 <div>
-                  <label class="text-xs text-gray-400 uppercase tracking-wider">To</label>
+                  <label class="text-xs tracking-wider text-gray-400 uppercase">To</label>
                   <input type="date" v-model="form.end_date" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm" />
                 </div>
               </div>
 
               <div>
-                <label class="text-xs text-gray-400 uppercase tracking-wider">Export Format</label>
+                <label class="text-xs tracking-wider text-gray-400 uppercase">Export Format</label>
                 <div class="flex gap-4 mt-2">
                   <label class="flex items-center gap-2 cursor-pointer">
                     <input type="radio" v-model="form.format" value="pdf" class="text-blue-500" />
@@ -111,7 +111,7 @@
 
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
-                <thead class="bg-black/20 text-gray-400 text-xs">
+                <thead class="text-xs text-gray-400 bg-black/20">
                   <tr>
                     <th class="px-6 py-4 text-left">Report Name</th>
                     <th class="px-6 py-4 text-left">Category</th>
@@ -123,7 +123,7 @@
                 <tbody class="divide-y divide-[#1f3348]">
                   <tr v-for="report in reportHistory" :key="report.id" class="hover:bg-[#16213A] transition">
                     <td class="px-6 py-4">
-                      <div class="text-white font-medium">{{ report.name }}</div>
+                      <div class="font-medium text-white">{{ report.name }}</div>
                       <div class="text-[10px] text-gray-500">{{ report.created_at }}</div>
                     </td>
                     <td class="px-6 py-4 text-gray-400 capitalize">{{ report.category }}</td>
@@ -134,11 +134,11 @@
                       </span>
                     </td>
                     <td class="px-6 py-4 text-right">
-                      <button class="text-blue-400 hover:text-blue-300 font-medium">Download</button>
+                      <button class="font-medium text-blue-400 hover:text-blue-300">Download</button>
                     </td>
                   </tr>
                   <tr v-if="reportHistory.length === 0">
-                    <td colspan="5" class="px-6 py-10 text-center text-gray-500 italic">No reports generated yet.</td>
+                    <td colspan="5" class="px-6 py-10 italic text-center text-gray-500">No reports generated yet.</td>
                   </tr>
                 </tbody>
               </table>
@@ -200,11 +200,23 @@ const generateReport = async () => {
 
   loading.value = true;
   try {
-    const response = await api.post('/admin/reports/generate', form);
-    successMessage.value = "Report generation started! Check history in a moment.";
+    const params = {
+      from: form.start_date,
+      to: form.end_date,
+      format: form.format,
+    };
+
+    let endpoint = '/admin/reports/deposits';
+    if (form.subcategory === 'withdrawals') {
+      endpoint = '/admin/reports/withdrawals';
+    } else if (form.subcategory === 'audit_trail') {
+      endpoint = '/admin/reports/audit-trail';
+    }
+
+    const response = await api.get(endpoint, { params });
+    
+    successMessage.value = "Report downloaded successfully";
     showSuccessModal.value = true;
-    // Wait a second then refresh history
-    setTimeout(refreshHistory, 1000);
   } catch (e) {
     console.error(e);
     errorMessage.value = "Error generating report";

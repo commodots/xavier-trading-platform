@@ -72,6 +72,7 @@ return [
     'finnhub' => [
         'api_key' => env('FINNHUB_API_KEY'),
         'secret' => env('FINNHUB_SECRET'),
+        'base_url' => env ('FINNHUB_BASE_URL'),
     ],
     'alpaca' => [
         'api_key' => env('ALPACA_API_KEY'),
