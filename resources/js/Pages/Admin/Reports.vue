@@ -15,55 +15,24 @@
               <div>
                 <label class="text-xs tracking-wider text-gray-400 uppercase">Report Category</label>
                 <select v-model="form.category" @change="resetSubcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-                  <option value="users">Users</option>
                   <option value="transactions">Transactions</option>
-                  <option value="trading">Trading</option>
                   <option value="compliance">Compliance</option>
-                  <option value="system">System</option>
-                </select>
-              </div>
-
-              <div v-if="form.category === 'users'">
-                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
-                <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-                  <option value="registrations">Registrations</option>
-                  <option value="kyc_status">KYC Status</option>
-                  <option value="activity">Wallet Balances</option>
                 </select>
               </div>
 
               <div v-if="form.category === 'transactions'">
                 <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-                  <option value="deposits">Deposits & Withdrawals</option>
-                  <option value="fees">Fees</option>
-                  <option value="withdrawals">Reconciliation</option>
-                </select>
-              </div>
-
-              <div v-if="form.category === 'trading'">
-                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
-                <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-                  <option value="orders">Orders</option>
-                  <option value="trades">Trades</option>
-                  <option value="performance">Market Volume</option>
+                  <option value="deposits">Deposits</option>
+                  <option value="withdrawals">Withdrawals</option>
+                  <option value="audit_trail">Audit Trail</option>
                 </select>
               </div>
 
               <div v-if="form.category === 'compliance'">
                 <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
                 <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-                  <option value="kyc_reviews">KYC Logs</option>
-                  <option value="suspicious_activity">AML Flags</option>
                   <option value="audit_trail">Audit Trail</option>
-                </select>
-              </div>
-
-              <div v-if="form.category === 'system'">
-                <label class="text-xs tracking-wider text-gray-400 uppercase">Sub-Category</label>
-                <select v-model="form.subcategory" class="w-full mt-1 bg-[#16213A] border border-gray-700 rounded-lg p-2.5 text-white focus:border-blue-500 outline-none">
-                  <option value="error_logs">Service Health</option>
-                  <option value="system_health">OMS Metrics</option>
                 </select>
               </div>
 
@@ -87,7 +56,7 @@
                   </label>
                   <label class="flex items-center gap-2 cursor-pointer">
                     <input type="radio" v-model="form.format" value="csv" class="text-blue-500" />
-                    <span class="text-sm text-white">CSV (Excel)</span>
+                    <span class="text-sm text-white">CSV</span>
                   </label>
                 </div>
               </div>
@@ -106,39 +75,38 @@
         <div class="lg:col-span-2">
           <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
             <div class="p-6 border-b border-[#1f3348]">
-              <h2 class="text-lg font-medium text-white">Recent Downloads</h2>
+              <h2 class="text-lg font-medium text-white">Report Preview</h2>
             </div>
 
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead class="text-xs text-gray-400 bg-black/20">
                   <tr>
-                    <th class="px-6 py-4 text-left">Report Name</th>
-                    <th class="px-6 py-4 text-left">Category</th>
-                    <th class="px-6 py-4 text-left">Period</th>
-                    <th class="px-6 py-4 text-left">Format</th>
-                    <th class="px-6 py-4 text-right">Action</th>
+                    <th class="px-6 py-4 text-left">Date</th>
+                    <th class="px-6 py-4 text-left">Reference</th>
+                    <th class="px-6 py-4 text-left">User</th>
+                    <th class="px-6 py-4 text-right">Amount</th>
+                    <th class="px-6 py-4 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-[#1f3348]">
-                  <tr v-for="report in reportHistory" :key="report.id" class="hover:bg-[#16213A] transition">
-                    <td class="px-6 py-4">
-                      <div class="font-medium text-white">{{ report.name }}</div>
-                      <div class="text-[10px] text-gray-500">{{ report.created_at }}</div>
-                    </td>
-                    <td class="px-6 py-4 text-gray-400 capitalize">{{ report.category }}</td>
-                    <td class="px-6 py-4 text-gray-400">{{ report.period }}</td>
+                  <tr v-if="!reportData || reportData.length === 0">
+                    <td colspan="5" class="px-6 py-10 italic text-center text-gray-500">No report generated yet. Select filters and click Generate Report.</td>
+                  </tr>
+                  <tr v-for="row in reportData" :key="row.id" class="hover:bg-[#16213A] transition">
+                    <td class="px-6 py-4 text-gray-300">{{ row.created_at || 'N/A' }}</td>
+                    <td class="px-6 py-4 text-gray-300">{{ row.reference || 'N/A' }}</td>
+                    <td class="px-6 py-4 text-gray-300">{{ row.user?.name || 'N/A' }}</td>
+                    <td class="px-6 py-4 text-right text-white font-medium">{{ (row.amount || 0).toFixed(2) }}</td>
                     <td class="px-6 py-4 text-center">
-                      <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-800 border border-gray-600 text-white">
-                        {{ report.format }}
+                      <span :class="{
+                        'text-green-400': row.status === 'completed',
+                        'text-yellow-400': row.status === 'pending',
+                        'text-red-400': row.status === 'failed'
+                      }" class="text-xs font-medium">
+                        {{ row.status || 'Pending' }}
                       </span>
                     </td>
-                    <td class="px-6 py-4 text-right">
-                      <button class="font-medium text-blue-400 hover:text-blue-300">Download</button>
-                    </td>
-                  </tr>
-                  <tr v-if="reportHistory.length === 0">
-                    <td colspan="5" class="px-6 py-10 italic text-center text-gray-500">No reports generated yet.</td>
                   </tr>
                 </tbody>
               </table>
@@ -161,6 +129,7 @@ import SuccessModal from "@/Components/SuccessModal.vue";
 import ErrorModal from "@/Components/ErrorModal.vue";
 import WarningModal from "@/Components/WarningModal.vue";
 import api from "@/api";
+import axios from 'axios';
 
 const loading = ref(false);
 const reportHistory = ref([]);
@@ -170,26 +139,24 @@ const showWarningModal = ref(false);
 const successMessage = ref('');
 const errorMessage = ref('');
 const warningMessage = ref('');
+const reportData = ref([]);
 
 const form = reactive({
-  category: 'users',
-  subcategory: 'registrations',
+  category: 'transactions',
+  subcategory: 'deposits',
   start_date: '',
   end_date: '',
   format: 'pdf'
 });
 
-// Fix 1: Reset subcategory when main category changes
 const resetSubcategory = () => {
   const defaults = {
-    users: 'registrations',
     transactions: 'deposits',
-    trading: 'orders',
-    compliance: 'kyc_reviews',
-    system: 'error_logs'
+    compliance: 'audit_trail'
   };
-  form.subcategory = defaults[form.category];
+  form.subcategory = defaults[form.category] || 'deposits';
 };
+
 
 const generateReport = async () => {
   if (!form.start_date || !form.end_date) {
@@ -199,6 +166,34 @@ const generateReport = async () => {
   }
 
   loading.value = true;
+  try {
+    const params = {
+      from: form.start_date,
+      to: form.end_date,
+      format: 'json',
+    };
+
+    let endpoint = '/admin/reports/deposits';
+    if (form.subcategory === 'withdrawals') {
+      endpoint = '/admin/reports/withdrawals';
+    } else if (form.subcategory === 'audit_trail') {
+      endpoint = '/admin/reports/audit-trail';
+    }
+
+    const response = await api.get(endpoint, { params });
+    reportData.value = response.data;
+    successMessage.value = "Report loaded successfully";
+    showSuccessModal.value = true;
+  } catch (e) {
+    console.error(e);
+    errorMessage.value = "Error generating report";
+    showErrorModal.value = true;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const downloadReport = async () => {
   try {
     const params = {
       from: form.start_date,
@@ -213,26 +208,30 @@ const generateReport = async () => {
       endpoint = '/admin/reports/audit-trail';
     }
 
-    const response = await api.get(endpoint, { params });
+    const response = await axios.get(endpoint, { 
+      params: params,
+      responseType: 'blob'
+    });
+    
+    const blob = new Blob([response.data], { 
+      type: form.format === 'pdf' ? 'application/pdf' : 'text/csv'
+    });
+    
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `report-${form.subcategory}-${form.start_date}-to-${form.end_date}.${form.format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
     
     successMessage.value = "Report downloaded successfully";
     showSuccessModal.value = true;
-  } catch (e) {
-    console.error(e);
-    errorMessage.value = "Error generating report";
+  } catch (downloadError) {
+    console.error('Download error:', downloadError);
+    errorMessage.value = "Error downloading report";
     showErrorModal.value = true;
-  } finally {
-    loading.value = false;
   }
 };
-
-const refreshHistory = async () => {
-  try {
-    const response = await api.get('/admin/reports/history');
-    reportHistory.value = response.data.reports || [];
-  } catch (e) {
-    console.error("Failed to fetch history:", e);
-  }
-};
-
 </script>

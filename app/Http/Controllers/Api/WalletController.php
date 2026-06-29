@@ -11,6 +11,7 @@ use App\Models\FxRate;
 use App\Models\Ledger;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
+use App\Services\Audit\AuditService;
 use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -106,7 +107,7 @@ class WalletController extends Controller
             $wallet->increment($clearedCol, $request->amount);
             $wallet->refreshBalance();
 
-            $models->transaction->create([
+            $transaction = $models->transaction->create([
                 'user_id' => $user->id,
                 'type' => 'deposit',
                 'amount' => $request->amount,
@@ -119,6 +120,15 @@ class WalletController extends Controller
                     'mode' => $models->mode,
                 ],
             ]);
+
+            // Log audit trail for wallet adjustment (deposit)
+            AuditService::log(
+                'wallet_adjustment',
+                'wallet',
+                $wallet->id,
+                ['cleared_balance' => $walletBefore],
+                ['cleared_balance' => $wallet->{$clearedCol}]
+            );
 
             Log::info('Wallet Deposit Finished', [
                 'user_id' => $user->id,

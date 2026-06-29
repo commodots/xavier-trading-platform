@@ -13,6 +13,7 @@ use App\Notifications\WithdrawalApprovedNotification;
 use App\Notifications\WithdrawalInitiated;
 use App\Notifications\WithdrawalRejectedNotification;
 use App\Notifications\WithdrawalOtpNotification;
+use App\Services\Audit\AuditService;
 use Exception;
 use Illuminate\Support\Facades\Cache;
 
@@ -99,6 +100,15 @@ class WithdrawalService
         $withdrawal->approve($approver->id);
 
         $this->deductFromWallet($withdrawal);
+
+        // Log audit trail for withdrawal approval
+        AuditService::log(
+            'withdrawal_approved',
+            'withdrawal',
+            $withdrawal->id,
+            null,
+            $withdrawal->toArray()
+        );
 
         activity()
             ->causedBy($approver)

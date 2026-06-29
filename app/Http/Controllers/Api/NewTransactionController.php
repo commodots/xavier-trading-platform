@@ -12,6 +12,7 @@ use App\Models\TransactionCharge;
 use App\Models\TransactionType;
 use App\Models\Wallet;
 use App\Notifications\WithdrawalOtpNotification;
+use App\Services\Audit\AuditService;
 use App\Services\WithdrawalProtectionService;
 use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
@@ -105,6 +106,15 @@ class NewTransactionController extends Controller
             $wallet->refreshBalance();
 
             Log::info('Wallet balance incremented by '.$netAmount.' for user '.$user->id);
+
+            // Log audit trail for deposit
+            AuditService::log(
+                'deposit_approved',
+                'transaction',
+                $transaction->id,
+                null,
+                $transaction->toArray()
+            );
 
             try {
                 ActivityLog::create([

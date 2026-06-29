@@ -1,4 +1,4 @@
-<template>
+o<template>
   <MainLayout>
     <div class="space-y-6">
       <div>
@@ -48,8 +48,12 @@
                     <span class="text-sm text-white">PDF</span>
                   </label>
                   <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" v-model="form.format" value="excel" class="text-blue-500" />
+                    <span class="text-sm text-white">Excel</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
                     <input type="radio" v-model="form.format" value="csv" class="text-blue-500" />
-                    <span class="text-sm text-white">CSV (Excel)</span>
+                    <span class="text-sm text-white">CSV</span>
                   </label>
                 </div>
               </div>
@@ -141,19 +145,329 @@
     <SuccessModal :show="showSuccessModal" :message="successMessage" @close="showSuccessModal = false" />
     <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
     <WarningModal :show="showWarningModal" :message="warningMessage" @close="showWarningModal = false" />
+    
+    <!-- Report Preview Modal -->
+    <div v-if="showReportModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+        <!-- Preview Header -->
+        <div class="bg-[#0F1724] text-white p-6 rounded-t-xl">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold text-white mb-1">XAVIER TRADING PLATFORM</h3>
+              <p class="text-sm text-gray-300">Account Statement Preview - {{ form.format.toUpperCase() }} Format</p>
+            </div>
+            <button @click="closeReportModal" class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6 flex-1 overflow-auto bg-gray-50">
+          <div v-if="reportData && reportData.ledger && reportData.ledger.length > 0" class="space-y-4">
+            <!-- Action Bar -->
+            <div class="flex justify-between items-center bg-white border border-gray-200 rounded-lg p-4">
+              <p class="text-sm text-gray-600">
+                <span class="font-semibold">Format:</span> {{ form.format.toUpperCase() }} | 
+                <span class="font-semibold">Period:</span> {{ form.start_date }} to {{ form.end_date }} | 
+                <span class="font-semibold">Transactions:</span> {{ reportData.ledger.length }}
+              </p>
+              <button @click="downloadReport" class="px-4 py-2 bg-gradient-to-r from-[#0047AB] to-[#00D4FF] text-white rounded-lg text-sm font-medium hover:opacity-90">
+                Download {{ form.format.toUpperCase() }}
+              </button>
+            </div>
+
+            <!-- PDF Preview -->
+            <div v-if="form.format === 'pdf'" class="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              <div class="border-b-2 border-[#0047AB] p-6 text-center bg-gray-50">
+                <img src="/images/xavier-logo.png" alt="Xavier Logo" class="h-16 mx-auto mb-3" />
+                <h2 class="text-2xl font-bold text-[#0047AB] mb-1">XAVIER TRADING PLATFORM</h2>
+                <p class="text-sm text-gray-600">Account Statement</p>
+              </div>
+              
+              <div class="p-4 bg-gray-100 border-b border-gray-300">
+                <div class="max-w-2xl mx-auto space-y-1 text-sm">
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Period:</span>
+                    <span class="text-gray-900">{{ form.start_date }} to {{ form.end_date }}</span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Generated On:</span>
+                    <span class="text-gray-900">{{ new Date().toISOString().split('T')[0] }}</span>
+                  </div>
+                  <div v-if="reportData.current_balances" class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Current Balances:</span>
+                    <span class="text-gray-900">
+                      <span v-for="(balance, currency) in reportData.current_balances" :key="currency">
+                        <strong>{{ currency }}:</strong> {{ formatCurrency(balance, currency) }}&nbsp;&nbsp;
+                      </span>
+                    </span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Total Transactions:</span>
+                    <span class="text-gray-900">{{ reportData.ledger ? reportData.ledger.length : 0 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <table class="w-full text-sm">
+                <thead class="bg-[#0047AB] text-white">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-semibold">Date/Time</th>
+                    <th class="px-4 py-3 text-left font-semibold">Reference</th>
+                    <th class="px-4 py-3 text-left font-semibold">Transaction Type</th>
+                    <th class="px-4 py-3 text-left font-semibold">Wallet / Currency</th>
+                    <th class="px-4 py-3 text-right font-semibold">Amount</th>
+                    <th class="px-4 py-3 text-right font-semibold">Bal Before</th>
+                    <th class="px-4 py-3 text-right font-semibold">Bal After</th>
+                    <th class="px-4 py-3 text-center font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  <tr v-for="item in reportData.ledger" :key="item.transaction.id" class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-700">{{ formatDate(item.transaction.created_at) }}</td>
+                    <td class="px-4 py-3 text-gray-700 font-mono text-xs">{{ item.transaction.reference || 'N/A' }}</td>
+                    <td class="px-4 py-3 text-gray-700">{{ formatTransactionType(item.transaction.type, item.trade_direction) }}</td>
+                    <td class="px-4 py-3 text-gray-700 font-semibold">{{ item.transaction.asset || 'N/A' }}</td>
+                    <td class="px-4 py-3 text-right text-gray-900 font-semibold">{{ formatCurrency(item.transaction.amount, item.transaction.asset) }}</td>
+                    <td class="px-4 py-3 text-right text-gray-700">{{ formatCurrency(item.balance_before, item.transaction.asset) }}</td>
+                    <td class="px-4 py-3 text-right text-gray-700">{{ formatCurrency(item.balance_after, item.transaction.asset) }}</td>
+                    <td class="px-4 py-3 text-center">
+                      <span :class="{
+                        'text-green-700 bg-green-100': item.transaction.status === 'completed',
+                        'text-yellow-700 bg-yellow-100': item.transaction.status === 'pending',
+                        'text-red-700 bg-red-100': item.transaction.status === 'failed'
+                      }" class="px-2 py-1 rounded text-xs font-medium">
+                        {{ item.transaction.status || 'Pending' }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="mt-6 pt-4 border-t border-gray-300 text-center text-xs text-gray-600">
+                <p>This is a system-generated statement. For inquiries, contact support@xavier.com</p>
+                <p class="mt-1">© {{ new Date().getFullYear() }} Xavier Trading Platform. All rights reserved.</p>
+              </div>
+            </div>
+
+            <!-- Excel Preview -->
+            <div v-else-if="form.format === 'excel'" class="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              <div class="bg-gray-100 p-4 border-b border-gray-300">
+                <div class="text-center space-y-1">
+                  <img src="/images/xavier-logo.png" alt="Xavier Logo" class="h-12 mx-auto mb-2" />
+                  <h2 class="text-xl font-bold text-gray-800">XAVIER TRADING PLATFORM</h2>
+                  <p class="text-sm text-gray-600">Account Statement</p>
+                </div>
+                <div class="mt-3 max-w-3xl mx-auto space-y-1 text-sm">
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Period:</span>
+                    <span class="text-gray-900">{{ form.start_date }} to {{ form.end_date }}</span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Generated On:</span>
+                    <span class="text-gray-900">{{ new Date().toISOString().split('T')[0] }}</span>
+                  </div>
+                  <div v-if="reportData.current_balances" class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Current Balances:</span>
+                    <span class="text-gray-900">
+                      <span v-for="(balance, currency) in reportData.current_balances" :key="currency">
+                        <strong>{{ currency }}:</strong> {{ formatCurrency(balance, currency) }}&nbsp;&nbsp;
+                      </span>
+                    </span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Total Transactions:</span>
+                    <span class="text-gray-900">{{ reportData.ledger ? reportData.ledger.length : 0 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <table class="w-full text-sm border-collapse">
+                <thead>
+                  <tr class="bg-[#0047AB] text-white">
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Date/Time</th>
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Reference</th>
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Transaction Type</th>
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Wallet / Currency</th>
+                    <th class="px-4 py-3 text-right font-semibold border border-gray-300">Amount</th>
+                    <th class="px-4 py-3 text-right font-semibold border border-gray-300">Balance Before</th>
+                    <th class="px-4 py-3 text-right font-semibold border border-gray-300">Balance After</th>
+                    <th class="px-4 py-3 text-center font-semibold border border-gray-300">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-300">
+                  <tr v-for="item in reportData.ledger" :key="item.transaction.id" class="hover:bg-gray-50">
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700">{{ formatDate(item.transaction.created_at) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700 font-mono text-xs">{{ item.transaction.reference || 'N/A' }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700">{{ formatTransactionType(item.transaction.type, item.trade_direction) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700 font-semibold">{{ item.transaction.asset || 'N/A' }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-right text-gray-900">{{ formatCurrency(item.transaction.amount, item.transaction.asset) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-right text-gray-700">{{ formatCurrency(item.balance_before, item.transaction.asset) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-right text-gray-700">{{ formatCurrency(item.balance_after, item.transaction.asset) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-center">
+                      <span :class="{
+                        'text-green-700': item.transaction.status === 'completed',
+                        'text-yellow-700': item.transaction.status === 'pending',
+                        'text-red-700': item.transaction.status === 'failed'
+                      }" class="font-medium">
+                        {{ item.transaction.status || 'Pending' }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="mt-4 pt-3 border-t border-gray-300 text-center text-xs text-gray-600">
+                <p>This is a system-generated statement. For inquiries, contact support@xavier.com</p>
+                <p class="mt-1">© {{ new Date().getFullYear() }} Xavier Trading Platform. All rights reserved.</p>
+              </div>
+            </div>
+
+            <!-- CSV Preview (same as Excel but in monospace) -->
+            <div v-else class="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              <div class="bg-gray-100 p-4 border-b border-gray-300">
+                <div class="text-center space-y-1">
+                  <h2 class="text-xl font-bold text-gray-800">XAVIER TRADING PLATFORM</h2>
+                  <p class="text-sm text-gray-600">Account Statement (CSV Format)</p>
+                </div>
+                <div class="mt-3 max-w-3xl mx-auto space-y-1 text-sm">
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Period:</span>
+                    <span class="text-gray-900">{{ form.start_date }} to {{ form.end_date }}</span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Generated On:</span>
+                    <span class="text-gray-900">{{ new Date().toISOString().split('T')[0] }}</span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-semibold text-gray-700 w-40">Total Transactions:</span>
+                    <span class="text-gray-900">{{ reportData.ledger ? reportData.ledger.length : 0 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <table class="w-full text-sm border-collapse">
+                <thead>
+                  <tr class="bg-[#0047AB] text-white">
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Date/Time</th>
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Reference</th>
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Transaction Type</th>
+                    <th class="px-4 py-3 text-left font-semibold border border-gray-300">Wallet / Currency</th>
+                    <th class="px-4 py-3 text-right font-semibold border border-gray-300">Amount</th>
+                    <th class="px-4 py-3 text-right font-semibold border border-gray-300">Balance Before</th>
+                    <th class="px-4 py-3 text-right font-semibold border border-gray-300">Balance After</th>
+                    <th class="px-4 py-3 text-center font-semibold border border-gray-300">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-300">
+                  <tr v-for="item in reportData.ledger" :key="item.transaction.id" class="hover:bg-gray-50">
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700">{{ formatDate(item.transaction.created_at) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700 font-mono text-xs">{{ item.transaction.reference || 'N/A' }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700">{{ formatTransactionType(item.transaction.type, item.trade_direction) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-gray-700 font-semibold">{{ item.transaction.asset || 'N/A' }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-right text-gray-900">{{ formatCurrency(item.transaction.amount, item.transaction.asset) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-right text-gray-700">{{ formatCurrency(item.balance_before, item.transaction.asset) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-right text-gray-700">{{ formatCurrency(item.balance_after, item.transaction.asset) }}</td>
+                    <td class="px-4 py-2 border border-gray-300 text-center">
+                      <span :class="{
+                        'text-green-700': item.transaction.status === 'completed',
+                        'text-yellow-700': item.transaction.status === 'pending',
+                        'text-red-700': item.transaction.status === 'failed'
+                      }" class="font-medium">
+                        {{ item.transaction.status || 'Pending' }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="mt-4 pt-3 border-t border-gray-300 text-center text-xs text-gray-600">
+                <p>This is a system-generated statement. For inquiries, contact support@xavier.com</p>
+                <p class="mt-1">© {{ new Date().getFullYear() }} Xavier Trading Platform. All rights reserved.</p>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center py-10 text-gray-500">
+            No transactions found for the selected period.
+          </div>
+        </div>
+      </div>
+    </div>
   </MainLayout>
 </template>
 
   <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import MainLayout from "@/Layouts/MainLayout.vue";
 import SuccessModal from "@/Components/SuccessModal.vue";
 import ErrorModal from "@/Components/ErrorModal.vue";
 import WarningModal from "@/Components/WarningModal.vue";
 import api from "@/api";
 import SkeletonLoader from "@/Components/SkeletonLoader.vue";
+import axios from 'axios';
 
 const loading = ref(false);
+
+// Stock tickers that represent USD trades
+const stockTickers = ['AAPL', 'TSLA', 'GOOGL', 'MSFT', 'AMZN', 'META', 'NVDA', 'GOOG', 'NFLX', 'INTC'];
+
+// Currency formatting helper
+const formatCurrency = (amount, currency = 'USD') => {
+  const num = Math.abs(Number(amount) || 0); // Remove minus sign
+  const formatted = num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+ 
+  if (stockTickers.includes(currency) || currency === 'BTC') {
+    currency = 'USD';
+  }
+  
+  const symbols = {
+    'USD': '$',
+    'NGN': '₦',
+    'EUR': '€',
+    'GBP': '£'
+  };
+  
+  const symbol = symbols[currency] || currency + ' ';
+  return `${symbol}${formatted}`;
+};
+
+// Transaction type formatting helper
+const formatTransactionType = (type, tradeDirection = null) => {
+  if (!type) return 'N/A';
+  
+  // Capitalize first letter only
+  const formatted = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  
+  // For trades, use trade_direction from backend
+  if (formatted.toLowerCase() === 'trade' && tradeDirection) {
+    return `${formatted} (${tradeDirection.charAt(0).toUpperCase() + tradeDirection.slice(1).toLowerCase()})`;
+  }
+  
+  return formatted;
+};
+
+// Date formatting helper
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    // Format: MM/DD HH:MM AM/PM (shorter for PDF space)
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12;
+    
+    return `${month}/${day} ${formattedHours}:${minutes} ${ampm}`;
+  } catch (e) {
+    return dateString;
+  }
+};
 const reportHistory = ref([]); 
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
@@ -161,6 +475,8 @@ const showWarningModal = ref(false);
 const successMessage = ref('');
 const errorMessage = ref('');
 const warningMessage = ref('');
+const showReportModal = ref(false);
+const reportData = ref([]);
 
 const form = reactive({
   type: 'statement',
@@ -170,7 +486,7 @@ const form = reactive({
   format: 'pdf'
 });
 
-const generateReport = async () => {
+  const generateReport = async () => {
   if (!form.start_date || !form.end_date) {
     warningMessage.value = "Please select a date range";
     showWarningModal.value = true;
@@ -182,24 +498,107 @@ const generateReport = async () => {
     const params = {
       from: form.start_date,
       to: form.end_date,
-      format: form.format,
+      wallet: form.wallet,
+      format: 'json', 
     };
 
     const response = await api.get('/reports/account-statement', { params });
-    
-    if (form.format === 'json') {
-      successMessage.value = "Statement loaded successfully";
-      showSuccessModal.value = true;
-    } else {
-      successMessage.value = "Report downloaded successfully";
-      showSuccessModal.value = true;
-    }
+    reportData.value = response.data;
+    showReportModal.value = true;
   } catch (e) {
     console.error(e);
-    errorMessage.value = "Error generating report";
+    if (e.response) {
+      const msg = e.response.data?.message || e.response.statusText || "Server error";
+      errorMessage.value = "Error generating report: " + msg;
+    } else if (e.request) {
+      errorMessage.value = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
+    } else {
+      errorMessage.value = "Error generating report: " + e.message;
+    }
     showErrorModal.value = true;
   } finally {
     loading.value = false;
   }
 };
+
+const closeReportModal = () => {
+  showReportModal.value = false;
+  reportData.value = [];
+};
+
+  const downloadReport = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      from: form.start_date,
+      to: form.end_date,
+      wallet: form.wallet,
+      type: form.type,
+      format: form.format,
+    };
+
+    const response = await api.get('/reports/account-statement', { 
+      params: params,
+      responseType: 'blob',
+      timeout: 60000 // 60 second timeout
+    });
+    
+    // Create a blob from the response
+    const blob = new Blob([response.data], { 
+      type: form.format === 'pdf' ? 'application/pdf' : 
+            form.format === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+            'text/csv'
+    });
+    
+    // Close the preview modal first
+    closeReportModal();
+    
+    // Small delay to let the modal close before triggering download
+    setTimeout(() => {
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `account-statement-${form.start_date}-to-${form.end_date}.${form.format === 'excel' ? 'xlsx' : form.format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      // Show success modal after download is triggered
+      successMessage.value = "Report downloaded successfully";
+      showSuccessModal.value = true;
+    }, 100);
+  } catch (downloadError) {
+    console.error('Download error:', downloadError);
+    if (downloadError.code === 'ERR_NETWORK' || downloadError.message?.includes('Network Error')) {
+      errorMessage.value = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
+    } else if (downloadError.response) {
+      const msg = downloadError.response.data?.message || downloadError.response.statusText || "Server error";
+      errorMessage.value = "Download failed: " + msg;
+    } else if (downloadError.code === 'ECONNABORTED') {
+      errorMessage.value = "Request timed out. The server is taking too long to respond. Please try again.";
+    } else {
+      errorMessage.value = "Error downloading report. Please try again.";
+    }
+    showErrorModal.value = true;
+  } finally {
+    if (loading.value) {
+      loading.value = false;
+    }
+  }
+};
+
+const loadReportHistory = async () => {
+  try {
+    const response = await api.get('/reports/history');
+    reportHistory.value = response.data.reports || [];
+  } catch (e) {
+    console.error("Failed to load report history:", e);
+  }
+};
+
+onMounted(() => {
+  loadReportHistory();
+});
 </script>

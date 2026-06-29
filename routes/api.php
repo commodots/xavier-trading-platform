@@ -180,10 +180,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/watchlist', [WatchlistController::class, 'store']);
     Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
 
-    /* Reports */
-    Route::prefix('reports')->group(function () {
-        Route::get('/account-statement', [ReportController::class, 'accountStatement']);
-    });
+        /* Reports */
+        Route::prefix('reports')->group(function () {
+            Route::get('/account-statement', [ReportController::class, 'accountStatement']);
+            Route::get('/history', [ReportController::class, 'reportHistory']);
+        });
 
     /* Profile Modification & Sandboxes */
     Route::get('/profile/me', [ProfileController::class, 'show']);
