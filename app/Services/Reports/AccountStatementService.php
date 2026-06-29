@@ -39,8 +39,14 @@ class AccountStatementService
 
         $transactions = $query->get();
 
-        // Calculate running balance for each transaction
-        $runningBalance = 0;
+        // Get current wallet balances to use as starting point
+        $wallets = Wallet::where('user_id', $user->id)->get();
+        $currencyBalances = [];
+        foreach ($wallets as $w) {
+            $currencyBalances[$w->currency] = (float) $w->balance;
+        }
+
+        // Calculate running balance for each transaction (per-currency)
         $openingBalance = 0;
         $ledger = [];
         $totals = []; // Track per-currency totals
@@ -48,25 +54,29 @@ class AccountStatementService
         $totalOut = 0;
 
         foreach ($transactions as $transaction) {
-            $balanceBefore = $runningBalance;
-            
             // Determine currency - map stock tickers to USD
             $currency = $transaction->asset ?? 'USD';
             if (in_array($currency, $stockTickers)) {
                 $currency = 'USD';
             }
             
+            // Get balance for this specific currency before transaction
+            $balanceBefore = $currencyBalances[$currency] ?? 0;
+            
             // Determine if this is an inflow or outflow
             $isInflow = in_array($transaction->type, ['deposit', 'credit', 'transfer_in']);
             $amount = (float) $transaction->amount;
             
+            // Update balance for this currency only
             if ($isInflow) {
-                $runningBalance += $amount;
+                $currencyBalances[$currency] = $balanceBefore + $amount;
                 $totalIn += $amount;
             } else {
-                $runningBalance -= $amount;
+                $currencyBalances[$currency] = $balanceBefore - $amount;
                 $totalOut += $amount;
             }
+
+            $balanceAfter = $currencyBalances[$currency];
 
             // Track per-currency totals
             $key = $isInflow ? 'in_' . $currency : 'out_' . $currency;
@@ -85,19 +95,18 @@ class AccountStatementService
             $ledger[] = [
                 'transaction' => $transaction,
                 'balance_before' => $balanceBefore,
-                'balance_after' => $runningBalance,
+                'balance_after' => $balanceAfter,
                 'is_inflow' => $isInflow,
                 'trade_direction' => $tradeDirection,
             ];
         }
 
-        $closingBalance = $runningBalance;
+        $closingBalance = array_sum($currencyBalances);
         
         // Set opening balance from the first transaction's balance_before
         $openingBalance = !empty($ledger) ? $ledger[0]['balance_before'] : 0;
 
         // Get current wallet balances
-        $wallets = Wallet::where('user_id', $user->id)->get();
         $currentBalances = [];
         foreach ($wallets as $w) {
             $currentBalances[$w->currency] = $w->balance;
