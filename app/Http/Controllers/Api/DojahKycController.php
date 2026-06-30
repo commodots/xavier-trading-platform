@@ -11,6 +11,8 @@ use App\Services\DojahService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class DojahKycController extends Controller
 {
@@ -79,7 +81,7 @@ class DojahKycController extends Controller
     /** POST /api/kyc/selfie */
     public function verifySelfie(Request $request): JsonResponse
     {
-       
+        
         $inputKey = $request->has('profile_image') ? 'profile_image' : 'image';
         
         $request->validate([
@@ -97,6 +99,9 @@ class DojahKycController extends Controller
 
         $image = $request->input($inputKey);
         
+        // Store original image for profile picture
+        $originalImage = $image;
+        
         // If it's a Dojah reference token instead of base64, skip string transformations
         if (str_contains($image, 'base64,')) {
             $image = substr($image, strpos($image, 'base64,') + 7);
@@ -105,10 +110,15 @@ class DojahKycController extends Controller
             }
         }
 
-        // Local Sandbox Bypass
-        // so front-end passes cleanly when coding on localhost
-        if (app()->environment('local')) {
-            $result = ['success' => true, 'entity' => ['confidence' => 95]];
+        // Use test mode or local environment bypass
+        if (app()->environment('local') || config('services.dojah.test_mode')) {
+            $result = [
+                'success' => true, 
+                'entity' => [
+                    'confidence' => 95,
+                    'image' => $originalImage // Store the image in test mode
+                ]
+            ];
         } else {
             $result = $this->dojah->checkLiveness($image);
         }
@@ -123,7 +133,7 @@ class DojahKycController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($user) {
+        DB::transaction(function () use ($user, $result) {
             // Update or initialize the corresponding model tier tracker row
             KycProfile::updateOrCreate(
                 ['user_id' => $user->id],
@@ -135,7 +145,13 @@ class DojahKycController extends Controller
                 ]
             );
 
+            // Save selfie image as profile image
+            $selfieImage = $this->dojah->extractSelfieImage($result);
             
+            if ($selfieImage) {
+                $this->saveProfileImage($user, $selfieImage);
+            }
+
             $user->update([
                 'verification_level' => 3, 
                 'kyc_status' => 'verified' 
@@ -212,5 +228,42 @@ class DojahKycController extends Controller
                 $user->update(['verification_level' => 1]);
             }
         });
+    }
+
+    private function saveProfileImage(User $user, string $base64Image): void
+    {
+        try {
+            // Remove data URL prefix if present
+            if (str_contains($base64Image, 'base64,')) {
+                $base64Image = substr($base64Image, strpos($base64Image, 'base64,') + 7);
+            }
+
+            // Decode base64 image
+            $imageData = base64_decode($base64Image, true);
+            
+            if ($imageData === false) {
+                Log::warning("Invalid base64 image for user {$user->id}");
+                return;
+            }
+
+            // Generate unique filename
+            $filename = 'kyc/selfie/' . uniqid() . '_' . $user->id . '.jpg';
+            
+            // Store the image
+            Storage::disk('public')->put($filename, $imageData);
+
+            // Update user profile image and lock it
+            $user->update([
+                'profile_image' => $filename,
+                'kyc_locked' => true
+            ]);
+
+            Log::info("Profile image saved for user {$user->id}", ['path' => $filename]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to save profile image for user {$user->id}", [
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }

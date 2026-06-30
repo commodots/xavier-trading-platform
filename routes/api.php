@@ -79,6 +79,7 @@ Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->middleware('
     Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle'])->middleware('throttle:30,1');
     Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle'])->middleware('throttle:30,1');
     Route::post('/fincra/webhook', [FincraWebhookController::class, 'handle'])->middleware('throttle:30,1');
+    Route::post('/webhooks/dojah', [\App\Http\Controllers\Api\DojahWebhookController::class, 'handle'])->middleware('throttle:30,1');
     Route::post('/market/update', [TradeController::class, 'updateMarket'])->middleware('throttle:60,1');
 
 Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);

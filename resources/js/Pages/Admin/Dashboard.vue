@@ -3,35 +3,30 @@
     <div>
       <h1 class="mb-6 text-2xl font-bold">Admin Dashboard</h1>
 
-      <div :class="gridClasses">
-        <MetricCard v-if="hasRole('manager', 'compliance')" title="Total Users" :value="stats.totalUsers"
-          icon="Users" @click="$router.push({ name: 'admin-users' })"
+      <div class="grid grid-cols-1 gap-4 mb-8 xl:grid-cols-5">
+        <MetricCard v-if="hasRole('manager', 'compliance')" title="Total Users" :value="stats.totalUsers" icon="Users"
+          @click="$router.push({ name: 'admin-users' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="hasRole('accounts', 'support')"
-          title="Total Transactions" :value="stats.totalTransactions" icon="ListOrdered"
-          @click="$router.push({ name: 'admin-transactions' })"
+        <MetricCard v-if="hasRole('accounts', 'support')" title="Total Transactions" :value="stats.totalTransactions"
+          icon="ListOrdered" @click="$router.push({ name: 'admin-transactions' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <MetricCard v-if="hasRole('manager', 'accounts')"
-          title="Today's Earnings" :value="'₦' + stats.todayEarnings.toLocaleString()" icon="PieChart"
+        <MetricCard v-if="hasRole('manager', 'accounts')" title="Today's Earnings"
+          :value="'₦' + stats.todayEarnings.toLocaleString()" icon="PieChart"
           :subtitle="`This Month's Earnings: ₦` + stats.monthEarnings.toLocaleString()"
-          @click="$router.push({ name: 'admin-control-panel', query: { tab: 'platform-earnings' } })"
+          @click="$router.push({ name: 'admin-billing' })"
           class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
-        <!-- Grouped Box: Compliance & Settlements -->
-        <div v-if="hasRole('support', 'compliance', 'manager', 'accounts')" 
-          class="bg-[#1C1F2E] p-5 rounded-xl border border-[#2A314A] flex flex-col justify-center space-y-4">
-          <div v-if="hasRole('support', 'compliance')" class="cursor-pointer group" @click="$router.push({ name: 'admin-kyc' })">
-            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">KYC Pending</p>
-            <p class="text-2xl font-bold text-white transition-colors group-hover:text-blue-400">{{ stats.kycPending }}</p>
-          </div>
-          <div v-if="hasRole('manager', 'accounts')" :class="{'pt-4 border-t border-gray-700/50': hasRole('support', 'compliance')}">
-            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Pending Settlements</p>
-            <p class="text-2xl font-bold text-white">{{ fxStats.pendingSettlements }}</p>
-          </div>
-        </div>
+        <MetricCard v-if="hasRole('support', 'compliance')" title="KYC Pending"
+          :value="stats.kycPending" icon="UserCheck"
+          @click="$router.push({ name: 'admin-compliance' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
 
+        <MetricCard v-if="hasRole('manager', 'accounts')" title="Pending Settlements"
+          :value="fxStats.pendingSettlements" icon="Clock"
+          @click="$router.push({ name: 'admin-settlements' })"
+          class="cursor-pointer hover:bg-[#1f3348]/40 transition-all active:scale-95" />
       </div>
 
       <div :class="chartGridClasses">
@@ -94,7 +89,8 @@
           </table>
 
           <div class="pt-6 mt-8 border-t border-gray-700">
-            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction Type</h3>
+            <h3 class="mb-4 text-xs font-bold tracking-widest text-gray-500 uppercase">Lifetime Earnings By Transaction
+              Type</h3>
             <div class="grid grid-cols-3 gap-4">
               <div v-for="item in earningsByType" :key="item.type"
                 class="bg-[#151a27] p-3 rounded-lg border border-[#2A314A]">
@@ -114,7 +110,7 @@ import { ref, onMounted, computed } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import Chart from "chart.js/auto";
-import MetricCard from "@/Components/Admin/MetricCard.vue";
+import MetricCard from "@/Components/admin/MetricCard.vue";
 
 // Load user
 const user = ref({});
@@ -125,14 +121,14 @@ try {
 }
 
 const isAdmin = computed(() => {
-  return user.value.role === "admin" || 
-         (user.value.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
+  return user.value.role === "admin" ||
+    (user.value.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
 });
 
 const hasRole = (...rolesAllowed) => {
   if (isAdmin.value) return true;
   if (!user.value?.roles) return false;
-  
+
   return user.value.roles.some(r => {
     const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
     return rolesAllowed.includes(roleName);
@@ -154,7 +150,7 @@ const visibleMetricCards = computed(() => {
 const gridClasses = computed(() => {
   const count = visibleMetricCards.value || 1;
   const mdCols = Math.max(1, Math.min(count, 4));
-  const lgCols = Math.max(1, Math.min(count, 6));
+  const lgCols = Math.max(1, Math.min(count, 5));
   return `grid grid-cols-1 gap-6 mb-8 md:grid-cols-${mdCols} lg:grid-cols-${lgCols}`;
 });
 
@@ -231,7 +227,7 @@ async function fetchDashboardData() {
       api.get('/admin/kycs', { params: { per_page: 10 } }).catch(() => ({ data: { data: { data: [] } } })),
       api.get('/admin/dashboard').catch(() => ({ data: {} }))
     ];
-    
+
     // Fetch settlement metrics for accurate pending count
     if (hasRole('manager', 'accounts')) {
       requests.push(api.get('/admin/settlements/metrics').catch(() => ({ data: {} })));
@@ -254,7 +250,7 @@ async function fetchDashboardData() {
       stats.value.kycPending = dData.pending_kyc || 0;
       stats.value.totalTransactions = dData.total_transactions || 0;
     }
-    
+
     if (earningsRes.data) {
       stats.value.todayEarnings = earningsRes.data.today_earnings ?? stats.value.todayEarnings;
       stats.value.monthEarnings = earningsRes.data.this_month_earnings ?? stats.value.monthEarnings;

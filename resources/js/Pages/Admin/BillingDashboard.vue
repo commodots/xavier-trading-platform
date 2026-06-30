@@ -60,23 +60,37 @@
           </div>
         </div>
 
-        <!-- REVENUE -->
-        <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44] space-y-4">
-          <div class="flex items-center justify-between">
-            <p class="text-xs text-gray-400 uppercase tracking-wider">Total Revenue</p>
-            <p class="text-3xl font-bold text-green-400">₦{{ formatCurrency(revenue.total) }}</p>
-          </div>
-          <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-700">
-            <div>
-              <p class="text-xs text-gray-500">Today's Revenue</p>
-              <p class="mt-1 text-lg font-semibold text-green-300">₦{{ formatCurrency(revenue.today) }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-gray-500">Monthly Revenue</p>
-              <p class="mt-1 text-lg font-semibold text-green-300">₦{{ formatCurrency(revenue.monthly) }}</p>
-            </div>
-          </div>
-        </div>
+       <!-- REVENUE -->
+       <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44] space-y-4">
+         <div class="flex items-center justify-between">
+           <p class="text-xs text-gray-400 uppercase tracking-wider">Total Revenue</p>
+           <p class="text-3xl font-bold text-green-400">₦{{ formatCurrency(revenue.total) }}</p>
+         </div>
+         <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-700">
+           <div>
+             <p class="text-xs text-gray-500">Today's Revenue</p>
+             <p class="mt-1 text-lg font-semibold text-green-300">₦{{ formatCurrency(revenue.today) }}</p>
+           </div>
+           <div>
+             <p class="text-xs text-gray-500">Monthly Revenue</p>
+             <p class="mt-1 text-lg font-semibold text-green-300">₦{{ formatCurrency(revenue.monthly) }}</p>
+           </div>
+         </div>
+       </div>
+
+       <!-- EARNINGS BY TYPE -->
+       <div v-if="earningsByType && earningsByType.length" class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
+         <h3 class="text-sm text-gray-400 mb-4 flex items-center">
+           <span class="w-2 h-2 bg-[#00D4FF] rounded-full mr-2"></span>
+           Lifetime Earnings By Transaction Type
+         </h3>
+         <div class="grid grid-cols-3 gap-4">
+           <div v-for="item in earningsByType" :key="item.type" class="bg-[#0B132B]/50 p-4 rounded-lg border border-[#1F2A44]">
+             <p class="text-xs text-gray-400 uppercase mb-2">{{ item.type.replace('_', ' ') }}</p>
+             <p class="text-lg font-bold text-white">₦{{ formatCurrency(item.total) }}</p>
+           </div>
+         </div>
+       </div>
 
         <!-- TABS -->
         <div class="flex gap-2 pb-2 border-b border-gray-700 flex-wrap">
@@ -247,6 +261,7 @@ const usersData = ref([]);
 const usersPagination = reactive({ currentPage: 1, lastPage: 1 });
 const renewals = ref([]);
 const debts = ref([]);
+const earningsByType = ref([]);
 
 const currentTabLabel = computed(() => {
   return tabs.find(t => t.key === activeTab.value)?.label || '';
@@ -309,16 +324,25 @@ const switchTab = (key) => {
 const fetchDashboardData = async () => {
   loading.value = true;
   try {
-    const [summaryRes, revenueRes, renewalsRes, debtsRes] = await Promise.all([
+    const [summaryRes, revenueRes, renewalsRes, debtsRes, earningsRes] = await Promise.all([
       api.get('/admin/billing/summary'),
       api.get('/admin/billing/revenue'),
       api.get('/admin/billing/renewals'),
       api.get('/admin/billing/debts'),
+      api.get('/admin/earnings').catch(() => ({ data: { by_type: [] } })),
     ]);
     Object.assign(summary, summaryRes.data);
     Object.assign(revenue, revenueRes.data);
     renewals.value = Array.isArray(renewalsRes.data) ? renewalsRes.data : (renewalsRes.data?.data || []);
     debts.value = Array.isArray(debtsRes.data) ? debtsRes.data : (debtsRes.data?.data || []);
+    
+    // Add earnings by type
+    if (earningsRes.data && earningsRes.data.by_type) {
+      earningsByType.value = earningsRes.data.by_type.map(item => ({
+        type: item.type,
+        total: item.total_earnings
+      }));
+    }
   } catch (err) {
     console.error('Billing fetch error:', err);
   } finally {

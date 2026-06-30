@@ -31,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'gender',
         'address',
         'profile_image',
+        'kyc_locked',
         'kyc_note',
         'password',
         'country',
@@ -179,6 +180,14 @@ class User extends Authenticatable implements MustVerifyEmailContract
             get: fn ($value) => $value ? Storage::url($value) : asset('images/user.png'),
             set: fn ($value) => $value,
         );
+    }
+
+    /**
+     * Check if the user's profile image is locked (cannot be changed after KYC)
+     */
+    public function isProfileImageLocked(): bool
+    {
+        return (bool) ($this->kyc_locked ?? false);
     }
 
     public function linkedAccounts()

@@ -29,11 +29,6 @@
           KYC Settings
         </button>
 
-        <button v-if="isAdmin || hasCapability('manage_platform_earnings')" @click="activeTab = 'platform-earnings'" :class="activeTab === 'platform-earnings'
-          ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
-          : 'text-gray-400 pb-2'">
-          Platform Earnings
-        </button>
         <button v-if="isAdmin || hasCapability('manage_system_settings')" @click="activeTab = 'staff-access'" :class="activeTab === 'staff-access'
           ? 'border-b-2 border-blue-500 text-blue-400 pb-2'
           : 'text-gray-400 pb-2'">
@@ -57,7 +52,6 @@
           <TransactionTypes v-if="activeTab === 'transactions-management'" />
           <TransactionCharges v-if="activeTab === 'transactions-charges'" />
           <KycSettings v-if="activeTab === 'kyc-settings'"/>
-          <PlatformEarnings v-if="activeTab === 'platform-earnings'"/>
           <StaffAccess v-if="activeTab === 'staff-access'"/>
           <TrialPeriodToggle v-if="activeTab === 'trial-period-toggle'"/>
         </div>
@@ -74,7 +68,6 @@ import Services from "./Services/Services.vue";
 import TransactionTypes from "./TransactionTypes.vue";
 import TransactionCharges from "./TransactionCharges.vue";
 import KycSettings from "./KycSettings.vue";
-import PlatformEarnings from "./PlatformEarnings.vue";
 import StaffAccess from "./StaffAccess.vue";
 import TrialPeriodToggle from "./TrialPeriodToggle.vue";
 import api from "@/lib/axios";
@@ -159,9 +152,7 @@ const isTabVisible = (tab) => {
     'transactions-management': 'manage_system_settings',
     'transactions-charges': 'manage_transaction_charges',
     'kyc-settings': 'manage_kyc_settings',
-    'platform-earnings': 'manage_platform_earnings',
     'staff-access': 'manage_system_settings',
-    
   };
   if (tab === 'fx-rates') return isAdmin.value;
   const cap = tabCapabilities[tab];
@@ -169,7 +160,7 @@ const isTabVisible = (tab) => {
 };
 
 const getFirstVisibleTab = () => {
-  const tabs = ['service-management', 'transactions-management', 'transactions-charges', 'kyc-settings', 'platform-earnings', 'staff-access'];
+  const tabs = ['service-management', 'transactions-management', 'transactions-charges', 'kyc-settings', 'staff-access'];
   for (const tab of tabs) {
     if (isTabVisible(tab)) return tab;
   }

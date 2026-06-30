@@ -89,6 +89,9 @@ return [
         'secret_key' => env('DOJAH_SECRET_KEY'),
         'base_url' => env('DOJAH_BASE_URL', 'https://sandbox.dojah.io'),
         'app_id' => env('DOJAH_APP_ID'),
+        'test_mode' => env('DOJAH_TEST_MODE'),
+        'webhook_secret' => env('DOJAH_WEBHOOK_SECRET'),
+        'webhook_signature_header' => env('DOJAH_WEBHOOK_SIGNATURE_HEADER'),
     ],
 
     'fincra' => [
