@@ -28,7 +28,16 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, W
 
     public function collection()
     {
-        return $this->data;
+        if ($this->data instanceof \Illuminate\Support\Collection) {
+            return $this->data;
+        }
+        if (is_array($this->data)) {
+            return collect($this->data);
+        }
+        if (is_object($this->data) && method_exists($this->data, 'items')) {
+            return collect($this->data->items());
+        }
+        return collect($this->data);
     }
 
     public function headings(): array

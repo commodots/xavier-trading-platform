@@ -9,6 +9,7 @@ class DepositReportService
     public function generate($from, $to)
     {
         return Transaction::query()
+            ->with('user:id,name,email')
             ->where('type', 'deposit')
             ->whereBetween('created_at', [$from, $to])
             ->latest()

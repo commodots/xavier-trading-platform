@@ -184,6 +184,7 @@ Route::middleware('auth:sanctum')->group(function () {
         /* Reports */
         Route::prefix('reports')->group(function () {
             Route::get('/account-statement', [ReportController::class, 'accountStatement']);
+            Route::get('/trading-performance', [ReportController::class, 'tradingPerformance']);
             Route::get('/history', [ReportController::class, 'reportHistory']);
         });
 
@@ -390,6 +391,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/deposits', [ReportController::class, 'depositRegister']);
             Route::get('/withdrawals', [ReportController::class, 'withdrawalRegister']);
             Route::get('/audit-trail', [ReportController::class, 'auditTrail']);
+            Route::post('/send-to-user', [ReportController::class, 'sendReportToUser']);
+            Route::post('/send-to-all-users', [ReportController::class, 'sendReportToAllUsers']);
+            Route::get('/search-users', [ReportController::class, 'searchUsers']);
         });
     });
 });

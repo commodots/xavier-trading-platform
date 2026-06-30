@@ -100,7 +100,7 @@
 <body>
     <div class="header">
         <h1>XAVIER TRADING PLATFORM</h1>
-        <p>Account Statement</p>
+        <p>{{ $title ?? 'Account Statement' }}</p>
     </div>
 
     <div class="info">

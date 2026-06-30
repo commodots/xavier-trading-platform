@@ -154,7 +154,7 @@ o<template>
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-xl font-bold text-white mb-1">XAVIER TRADING PLATFORM</h3>
-              <p class="text-sm text-gray-300">Account Statement Preview - {{ form.format.toUpperCase() }} Format</p>
+              <p class="text-sm text-gray-300">{{ form.type === 'trading' ? 'Trading Performance' : 'Account Statement' }} Preview - {{ form.format.toUpperCase() }} Format</p>
             </div>
             <button @click="closeReportModal" class="text-gray-400 hover:text-white">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,7 +183,7 @@ o<template>
               <div class="border-b-2 border-[#0047AB] p-6 text-center bg-gray-50">
                 <img src="/images/xavier-logo.png" alt="Xavier Logo" class="h-16 mx-auto mb-3" />
                 <h2 class="text-2xl font-bold text-[#0047AB] mb-1">XAVIER TRADING PLATFORM</h2>
-                <p class="text-sm text-gray-600">Account Statement</p>
+                <p class="text-sm text-gray-600">{{ form.type === 'trading' ? 'Trading Performance Report' : 'Account Statement' }}</p>
               </div>
               
               <div class="p-4 bg-gray-100 border-b border-gray-300">
@@ -258,7 +258,7 @@ o<template>
                 <div class="text-center space-y-1">
                   <img src="/images/xavier-logo.png" alt="Xavier Logo" class="h-12 mx-auto mb-2" />
                   <h2 class="text-xl font-bold text-gray-800">XAVIER TRADING PLATFORM</h2>
-                  <p class="text-sm text-gray-600">Account Statement</p>
+                  <p class="text-sm text-gray-600">{{ form.type === 'trading' ? 'Trading Performance Report' : 'Account Statement' }}</p>
                 </div>
                 <div class="mt-3 max-w-3xl mx-auto space-y-1 text-sm">
                   <div class="flex">
@@ -330,7 +330,7 @@ o<template>
               <div class="bg-gray-100 p-4 border-b border-gray-300">
                 <div class="text-center space-y-1">
                   <h2 class="text-xl font-bold text-gray-800">XAVIER TRADING PLATFORM</h2>
-                  <p class="text-sm text-gray-600">Account Statement (CSV Format)</p>
+                  <p class="text-sm text-gray-600">{{ form.type === 'trading' ? 'Trading Performance' : 'Account Statement' }} (CSV Format)</p>
                 </div>
                 <div class="mt-3 max-w-3xl mx-auto space-y-1 text-sm">
                   <div class="flex">
@@ -502,7 +502,8 @@ const form = reactive({
       format: 'json', 
     };
 
-    const response = await api.get('/reports/account-statement', { params });
+    const endpoint = form.type === 'trading' ? '/reports/trading-performance' : '/reports/account-statement';
+    const response = await api.get(endpoint, { params });
     reportData.value = response.data;
     showReportModal.value = true;
   } catch (e) {
@@ -537,7 +538,8 @@ const closeReportModal = () => {
       format: form.format,
     };
 
-    const response = await api.get('/reports/account-statement', { 
+    const endpoint = form.type === 'trading' ? '/reports/trading-performance' : '/reports/account-statement';
+    const response = await api.get(endpoint, { 
       params: params,
       responseType: 'blob',
       timeout: 60000 // 60 second timeout
@@ -559,7 +561,8 @@ const closeReportModal = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `account-statement-${form.start_date}-to-${form.end_date}.${form.format === 'excel' ? 'xlsx' : form.format}`;
+      const prefix = form.type === 'trading' ? 'trading-performance' : 'account-statement';
+      link.download = `${prefix}-${form.start_date}-to-${form.end_date}.${form.format === 'excel' ? 'xlsx' : form.format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
