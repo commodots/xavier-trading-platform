@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\KycProfile;
 use App\Models\KycVerification;
+use App\Models\User;
 use App\Notifications\KycStatusNotification;
 use App\Services\DojahService;
 use Illuminate\Http\JsonResponse;
@@ -32,11 +33,10 @@ class DojahKycController extends Controller
         }
 
         $result = $this->dojah->verifyBvn($request->bvn);
-        
-      
+
         $this->dojah->storeResult($user->id, 'bvn', $result);
 
-        if (!($result['success'] ?? false)) {
+        if (! ($result['success'] ?? false)) {
             return response()->json(['message' => $result['message'] ?? 'BVN verification failed.'], 422);
         }
 
@@ -44,7 +44,7 @@ class DojahKycController extends Controller
         ActivityLog::log($user->id, 'KYC BVN Verified', ['bvn_tail' => substr($request->bvn, -4)]);
 
         return response()->json([
-            'message'            => 'BVN verified successfully.',
+            'message' => 'BVN verified successfully.',
             'verification_level' => $user->fresh()->verification_level,
         ]);
     }
@@ -65,7 +65,7 @@ class DojahKycController extends Controller
         $result = $this->dojah->verifyNin($request->nin);
         $this->dojah->storeResult($user->id, 'nin', $result);
 
-        if (!($result['success'] ?? false)) {
+        if (! ($result['success'] ?? false)) {
             return response()->json(['message' => $result['message'] ?? 'NIN verification failed.'], 422);
         }
 
@@ -73,19 +73,25 @@ class DojahKycController extends Controller
         ActivityLog::log($user->id, 'KYC NIN Verified', ['nin_tail' => substr($request->nin, -4)]);
 
         return response()->json([
-            'message'            => 'NIN verified successfully.',
+            'message' => 'NIN verified successfully.',
             'verification_level' => $user->fresh()->verification_level,
         ]);
+    }
+
+    /** POST /api/kyc/verify-liveness */
+    public function verifyLiveness(Request $request): JsonResponse
+    {
+        return $this->verifySelfie($request);
     }
 
     /** POST /api/kyc/selfie */
     public function verifySelfie(Request $request): JsonResponse
     {
-        
+
         $inputKey = $request->has('profile_image') ? 'profile_image' : 'image';
-        
+
         $request->validate([
-            $inputKey => 'required|string|min:10'
+            $inputKey => 'required|string|min:10',
         ]);
 
         $user = $request->user();
@@ -98,10 +104,10 @@ class DojahKycController extends Controller
         }
 
         $image = $request->input($inputKey);
-        
+
         // Store original image for profile picture
         $originalImage = $image;
-        
+
         // If it's a Dojah reference token instead of base64, skip string transformations
         if (str_contains($image, 'base64,')) {
             $image = substr($image, strpos($image, 'base64,') + 7);
@@ -113,11 +119,11 @@ class DojahKycController extends Controller
         // Use test mode or local environment bypass
         if (app()->environment('local') || config('services.dojah.test_mode')) {
             $result = [
-                'success' => true, 
+                'success' => true,
                 'entity' => [
                     'confidence' => 95,
-                    'image' => $originalImage // Store the image in test mode
-                ]
+                    'image' => $originalImage, // Store the image in test mode
+                ],
             ];
         } else {
             $result = $this->dojah->checkLiveness($image);
@@ -126,9 +132,9 @@ class DojahKycController extends Controller
         $this->dojah->storeResult($user->id, 'selfie', $result);
         $confidence = $result['entity']['confidence'] ?? 0;
 
-        if (!($result['success'] ?? false) || $confidence < 70) {
+        if (! ($result['success'] ?? false) || $confidence < 70) {
             return response()->json([
-                'message'    => 'Face verification failed. Please try again in good lighting.',
+                'message' => 'Face verification failed. Please try again in good lighting.',
                 'confidence' => $confidence,
             ], 422);
         }
@@ -138,32 +144,31 @@ class DojahKycController extends Controller
             KycProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'status' => 'verified', 
+                    'status' => 'verified',
                     'tier' => 3,
                     'level' => 'tier3_completed',
-                    'verified_at' => now()
+                    'verified_at' => now(),
                 ]
             );
 
             // Save selfie image as profile image
             $selfieImage = $this->dojah->extractSelfieImage($result);
-            
+
             if ($selfieImage) {
                 $this->saveProfileImage($user, $selfieImage);
             }
 
             $user->update([
-                'verification_level' => 3, 
-                'kyc_status' => 'verified' 
+                'verification_level' => 3,
+                'kyc_status' => 'verified',
             ]);
         });
 
-        
         $user->notify(new KycStatusNotification('verified', 3));
         ActivityLog::log($user->id, 'KYC Face Verified', ['confidence' => $confidence]);
 
         return response()->json([
-            'message'            => 'Face verification successful. KYC complete.',
+            'message' => 'Face verification successful. KYC complete.',
             'verification_level' => 3,
         ]);
     }
@@ -171,17 +176,17 @@ class DojahKycController extends Controller
     /** GET /api/kyc/status */
     public function status(Request $request): JsonResponse
     {
-        $user  = $request->user();
+        $user = $request->user();
         $steps = KycVerification::where('user_id', $user->id)
             ->get(['verification_type', 'status'])
             ->keyBy('verification_type');
 
-        $bvnDone    = ($steps['bvn']->status    ?? '') === 'approved';
-        $ninDone    = ($steps['nin']->status    ?? '') === 'approved';
+        $bvnDone = ($steps['bvn']->status ?? '') === 'approved';
+        $ninDone = ($steps['nin']->status ?? '') === 'approved';
         $selfieDone = ($steps['selfie']->status ?? '') === 'approved';
 
         $completed = array_sum([$bvnDone, $ninDone, $selfieDone]);
-        $progress  = match ($completed) {
+        $progress = match ($completed) {
             0 => 25,
             1 => 50,
             2 => 75,
@@ -211,13 +216,13 @@ class DojahKycController extends Controller
 
             $bvnApproved = KycVerification::where('user_id', $user->id)
                 ->where('verification_type', 'bvn')
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->where('status', 'approved')->orWhere('status', 'success');
                 })->exists();
 
             $ninApproved = KycVerification::where('user_id', $user->id)
                 ->where('verification_type', 'nin')
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->where('status', 'approved')->orWhere('status', 'success');
                 })->exists();
 
@@ -240,29 +245,30 @@ class DojahKycController extends Controller
 
             // Decode base64 image
             $imageData = base64_decode($base64Image, true);
-            
+
             if ($imageData === false) {
                 Log::warning("Invalid base64 image for user {$user->id}");
+
                 return;
             }
 
             // Generate unique filename
-            $filename = 'kyc/selfie/' . uniqid() . '_' . $user->id . '.jpg';
-            
+            $filename = 'kyc/selfie/'.uniqid().'_'.$user->id.'.jpg';
+
             // Store the image
             Storage::disk('public')->put($filename, $imageData);
 
             // Update user profile image and lock it
             $user->update([
                 'profile_image' => $filename,
-                'kyc_locked' => true
+                'kyc_locked' => true,
             ]);
 
             Log::info("Profile image saved for user {$user->id}", ['path' => $filename]);
 
         } catch (\Exception $e) {
             Log::error("Failed to save profile image for user {$user->id}", [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

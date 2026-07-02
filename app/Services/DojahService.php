@@ -3,36 +3,18 @@
 namespace App\Services;
 
 use App\Models\KycVerification;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use App\Services\Kyc\Providers\DojahProvider;
 
 class DojahService
 {
-    private function headers(): array
+    public function __construct(private ?DojahProvider $provider = null)
     {
-        $appId  = config('services.dojah.app_id');
-        $secret = config('services.dojah.secret_key');
-
-        if (empty($appId) || empty($secret)) {
-            throw new \RuntimeException('Dojah properties are missing in config path maps.');
-        }
-
-        return [
-            'AppId'         => $appId,
-            'Authorization' => $secret,
-            'Accept'        => 'application/json',
-        ];
+        $this->provider = $provider ?? app(DojahProvider::class);
     }
 
     private function isTestMode(): bool
     {
         return config('services.dojah.test_mode', false);
-    }
-
-    private function url(string $path): string
-    {
-        return rtrim(config('services.dojah.base_url', 'https://api.dojah.io'), '/') . $path;
     }
 
     public function verifyBvn(string $bvn): array
@@ -45,7 +27,7 @@ class DojahService
                 return [
                     'success' => true,
                     'entity' => [
-                        'id' => 'test_bvn_' . uniqid(),
+                        'id' => 'test_bvn_'.uniqid(),
                         'bvn' => $bvn,
                         'first_name' => 'Test',
                         'last_name' => 'User',
@@ -62,11 +44,7 @@ class DojahService
         }
 
         try {
-            $response = Http::withHeaders($this->headers())
-                ->timeout(15)
-                ->get($this->url('/api/v1/kyc/bvn'), ['bvn' => $bvn]);
-
-            return $this->parse($response);
+            return $this->provider->verifyBvn($bvn);
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'BVN endpoint connection failure.'];
         }
@@ -82,7 +60,7 @@ class DojahService
                 return [
                     'success' => true,
                     'entity' => [
-                        'id' => 'test_nin_' . uniqid(),
+                        'id' => 'test_nin_'.uniqid(),
                         'nin' => $nin,
                         'first_name' => 'Test',
                         'last_name' => 'User',
@@ -99,11 +77,7 @@ class DojahService
         }
 
         try {
-            $response = Http::withHeaders($this->headers())
-                ->timeout(15)
-                ->get($this->url('/api/v1/kyc/nin'), ['nin' => $nin]);
-
-            return $this->parse($response);
+            return $this->provider->verifyNin($nin);
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'NIN endpoint connection failure.'];
         }
@@ -115,8 +89,8 @@ class DojahService
             return [
                 'success' => true,
                 'entity' => [
-                    'id' => 'test_selfie_' . uniqid(),
-                    'reference_id' => 'test_ref_' . uniqid(),
+                    'id' => 'test_selfie_'.uniqid(),
+                    'reference_id' => 'test_ref_'.uniqid(),
                     'confidence' => 95,
                     'liveness_score' => 0.98,
                     'image' => $base64Image, // Return the image so it can be saved as profile picture
@@ -126,11 +100,7 @@ class DojahService
         }
 
         try {
-            $response = Http::withHeaders($this->headers())
-                ->timeout(30)
-                ->post($this->url('/api/v1/kyc/selfie'), ['image' => $base64Image]);
-
-            return $this->parse($response);
+            return $this->provider->verifyFace(['image' => $base64Image]);
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Liveness validation gateway timed out.'];
         }
@@ -139,12 +109,18 @@ class DojahService
     public function verifyWebhookSignature(string $payload, string $signature): bool
     {
         $secret = config('services.dojah.webhook_secret');
-        
+
         if (empty($secret)) {
             return false;
         }
 
+        $signature = trim($signature);
+        if ($signature !== '' && str_starts_with($signature, 'sha256=')) {
+            $signature = substr($signature, 7);
+        }
+
         $expectedSignature = hash_hmac('sha256', $payload, $secret);
+
         return hash_equals($expectedSignature, $signature);
     }
 
@@ -156,8 +132,8 @@ class DojahService
             ['user_id' => $userId, 'verification_type' => $type],
             [
                 'verification_id' => $result['entity']['id'] ?? $result['entity']['reference_id'] ?? null,
-                'status'          => $status,
-                'response_json'   => json_encode($result),
+                'status' => $status,
+                'response_json' => json_encode($result),
             ]
         );
     }
@@ -165,22 +141,9 @@ class DojahService
     public function extractSelfieImage(array $result): ?string
     {
         // Try to get image from various possible locations in the response
-        return $result['entity']['image'] ?? 
-               $result['entity']['selfie_image'] ?? 
-               $result['entity']['photo'] ?? 
+        return $result['entity']['image'] ??
+               $result['entity']['selfie_image'] ??
+               $result['entity']['photo'] ??
                null;
-    }
-
-    private function parse($response): array
-    {
-        if ($response->failed()) {
-            return [
-                'success' => false,
-                'message' => $response->json('error') ?? $response->json('message') ?? 'Dojah gateway response error.',
-            ];
-        }
-
-        $data = $response->json();
-        return is_array($data) ? array_merge(['success' => true], $data) : ['success' => false, 'message' => 'Invalid data stream matrix.'];
     }
 }

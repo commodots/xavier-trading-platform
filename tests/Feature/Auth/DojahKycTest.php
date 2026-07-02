@@ -49,7 +49,7 @@ class DojahKycTest extends TestCase
         $this->mockDojah('verifyBvn', ['success' => true, 'entity' => ['bvn' => '12345678901']]);
 
         $user = $this->makeUser();
-        $res  = $this->actingAs($user)->postJson('/api/kyc/bvn', ['bvn' => '12345678901']);
+        $res = $this->actingAs($user)->postJson('/api/kyc/bvn', ['bvn' => '12345678901']);
 
         $res->assertOk()->assertJsonFragment(['message' => 'BVN verified successfully.']);
     }
@@ -59,7 +59,7 @@ class DojahKycTest extends TestCase
         $this->mockDojah('verifyBvn', ['success' => false, 'message' => 'BVN not found.']);
 
         $user = $this->makeUser();
-        $res  = $this->actingAs($user)->postJson('/api/kyc/bvn', ['bvn' => '00000000000']);
+        $res = $this->actingAs($user)->postJson('/api/kyc/bvn', ['bvn' => '00000000000']);
 
         $res->assertStatus(422)->assertJsonFragment(['message' => 'BVN not found.']);
     }
@@ -80,7 +80,7 @@ class DojahKycTest extends TestCase
         $this->mockDojah('verifyNin', ['success' => true, 'entity' => ['nin' => '12345678901']]);
 
         $user = $this->makeUser();
-        $res  = $this->actingAs($user)->postJson('/api/kyc/nin', ['nin' => '12345678901']);
+        $res = $this->actingAs($user)->postJson('/api/kyc/nin', ['nin' => '12345678901']);
 
         $res->assertOk()->assertJsonFragment(['message' => 'NIN verified successfully.']);
     }
@@ -90,7 +90,7 @@ class DojahKycTest extends TestCase
         $this->mockDojah('verifyNin', ['success' => false, 'message' => 'NIN not found.']);
 
         $user = $this->makeUser();
-        $res  = $this->actingAs($user)->postJson('/api/kyc/nin', ['nin' => '00000000000']);
+        $res = $this->actingAs($user)->postJson('/api/kyc/nin', ['nin' => '00000000000']);
 
         $res->assertStatus(422);
     }
@@ -104,9 +104,9 @@ class DojahKycTest extends TestCase
         $user = $this->makeUser(['verification_level' => 0]);
 
         KycVerification::create([
-            'user_id'           => $user->id,
+            'user_id' => $user->id,
             'verification_type' => 'bvn',
-            'status'            => 'approved',
+            'status' => 'approved',
         ]);
 
         $this->mockDojah('verifyNin', ['success' => true, 'entity' => []]);
@@ -125,13 +125,13 @@ class DojahKycTest extends TestCase
         $mock = Mockery::mock(DojahService::class);
         $mock->shouldReceive('checkLiveness')->andReturn([
             'success' => true,
-            'entity'  => ['confidence' => 95],
+            'entity' => ['confidence' => 95],
         ]);
-        $mock->shouldReceive('storeResult')->andReturn(new KycVerification());
+        $mock->shouldReceive('storeResult')->andReturn(new KycVerification);
         $this->app->instance(DojahService::class, $mock);
 
         $user = $this->makeUser(['verification_level' => 2]);
-        $res  = $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')]);
+        $res = $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')]);
 
         $res->assertOk()->assertJsonFragment(['verification_level' => 3]);
         $this->assertEquals(3, $user->fresh()->verification_level);
@@ -142,14 +142,32 @@ class DojahKycTest extends TestCase
         $mock = Mockery::mock(DojahService::class);
         $mock->shouldReceive('checkLiveness')->andReturn([
             'success' => true,
-            'entity'  => ['confidence' => 40],
+            'entity' => ['confidence' => 40],
         ]);
-        $mock->shouldReceive('storeResult')->andReturn(new KycVerification());
+        $mock->shouldReceive('storeResult')->andReturn(new KycVerification);
         $this->app->instance(DojahService::class, $mock);
 
         $user = $this->makeUser(['verification_level' => 2]);
         $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')])
             ->assertStatus(422);
+    }
+
+    public function test_verify_liveness_route_accepts_the_legacy_endpoint(): void
+    {
+        $mock = Mockery::mock(DojahService::class);
+        $mock->shouldReceive('checkLiveness')->andReturn([
+            'success' => true,
+            'entity' => ['confidence' => 95, 'image' => base64_encode('fakeimagebytes')],
+        ]);
+        $mock->shouldReceive('storeResult')->andReturn(new KycVerification);
+        $this->app->instance(DojahService::class, $mock);
+
+        $user = $this->makeUser(['verification_level' => 2]);
+
+        $this->actingAs($user)
+            ->postJson('/api/kyc/verify-liveness', ['image' => base64_encode('fakeimagebytes')])
+            ->assertOk()
+            ->assertJsonFragment(['verification_level' => 3]);
     }
 
     // -------------------------------------------------------------------------
@@ -200,14 +218,14 @@ class DojahKycTest extends TestCase
     {
         $user = $this->makeUser([
             'verification_level' => 2,
-            'google2fa_enabled'  => true,
+            'google2fa_enabled' => true,
         ]);
 
         $this->actingAs($user)->postJson('/api/security/withdrawals', [
-            'amount'         => 1000,
-            'currency'       => 'NGN',
+            'amount' => 1000,
+            'currency' => 'NGN',
             'account_number' => '0123456789',
-            'account_name'   => 'Test User',
+            'account_name' => 'Test User',
         ])->assertStatus(403)->assertJsonFragment(['required_level' => 3]);
     }
 
@@ -219,15 +237,15 @@ class DojahKycTest extends TestCase
     {
         $user = $this->makeUser([
             'verification_level' => 3,
-            'google2fa_enabled'  => false,
+            'google2fa_enabled' => false,
             'two_factor_enabled' => false,
         ]);
 
         $this->actingAs($user)->postJson('/api/security/withdrawals', [
-            'amount'         => 1000,
-            'currency'       => 'NGN',
+            'amount' => 1000,
+            'currency' => 'NGN',
             'account_number' => '0123456789',
-            'account_name'   => 'Test User',
+            'account_name' => 'Test User',
         ])->assertStatus(422)->assertJsonPath('errors.2fa.0', 'You must enable Two-Factor Authentication before withdrawing.');
     }
 

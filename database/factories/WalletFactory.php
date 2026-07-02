@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Wallet>
+ * @extends Factory<Wallet>
  */
 class WalletFactory extends Factory
 {
@@ -16,15 +17,19 @@ class WalletFactory extends Factory
      * @return array<string, mixed>
      */
     protected $model = Wallet::class;
+
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(), // Creates a user if one isn't provided
+            'user_id' => User::factory(),
             'currency' => 'NGN',
             'balance' => 0,
-            'cleared_balance' => 0,
-            'uncleared_balance' => 0,
+            'ngn_cleared' => 0,
+            'ngn_uncleared' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
             'locked' => 0,
+            'status' => 'active',
         ];
     }
 }

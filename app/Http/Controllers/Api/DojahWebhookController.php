@@ -12,9 +12,9 @@ use App\Services\DojahService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http; 
 
 class DojahWebhookController extends Controller
 {
@@ -27,11 +27,12 @@ class DojahWebhookController extends Controller
     public function handle(Request $request): JsonResponse
     {
         $payload = $request->getContent();
-        $signature = $request->header(config('services.dojah.webhook_signature_header', 'X-Dojah-Signature'));
+        $signature = (string) $request->header(config('services.dojah.webhook_signature_header', 'X-Dojah-Signature'));
 
         // Verify webhook signature
-        if (!$this->dojah->verifyWebhookSignature($payload, $signature)) {
+        if (! $this->dojah->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Dojah webhook signature verification failed');
+
             return response()->json(['message' => 'Invalid signature'], 401);
         }
 
@@ -39,19 +40,19 @@ class DojahWebhookController extends Controller
         Log::info('Dojah webhook received', ['data' => $data]);
 
         try {
-            // Dojah uses 'entity' or 'data' for wrapping webhook data blocks
+            // Dojah commonly wraps webhook sections in either 'entity' or 'data'.
             $webhookData = $data['entity'] ?? $data['data'] ?? $data;
-            
+
             // Process selfie/liveness verification
             if (isset($webhookData['selfie'])) {
                 $this->processSelfieVerification($webhookData['selfie']);
             }
-            
+
             // Process BVN/NIN verification from government_data wrapper
             if (isset($webhookData['government_data'])) {
                 $this->processGovernmentDataVerification($webhookData['government_data']);
             }
-            
+
             // Process other verification sections if they exist
             if (isset($webhookData['aml'])) {
                 $this->processAmlVerification($webhookData['aml']);
@@ -62,7 +63,7 @@ class DojahWebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('Dojah webhook processing error', [
                 'error' => $e->getMessage(),
-                'payload' => $payload
+                'payload' => $payload,
             ]);
 
             return response()->json(['message' => 'Webhook processing failed'], 500);
@@ -71,34 +72,35 @@ class DojahWebhookController extends Controller
 
     private function processSelfieVerification(array $section): void
     {
-        $status = $section['status'] ?? false;
+        $status = $section['status'] ?? $section['verification_status'] ?? false;
         $message = $section['message'] ?? '';
-        $data = $section['data'] ?? [];
-        
-        // Defensive mapping for Dojah reference fields
-        $verificationId = $data['reference_id'] ?? $data['referenceId'] ?? $data['id'] ?? null;
-        
-        if (!$verificationId) {
+        $data = $section['data'] ?? $section['entity'] ?? $section;
+
+        $verificationId = $data['reference_id'] ?? $data['referenceId'] ?? $data['id'] ?? $section['reference_id'] ?? $section['referenceId'] ?? null;
+
+        if (! $verificationId) {
             Log::warning('Dojah webhook: No verification ID found in selfie section');
+
             return;
         }
-        
+
         $verification = KycVerification::where('verification_id', $verificationId)->first();
-        if (!$verification) {
+        if (! $verification) {
             Log::warning("Dojah webhook: Verification record not found for ID {$verificationId}");
+
             return;
         }
 
         // Idempotency: Avoid processing already approved hooks
         if ($verification->status === 'approved') {
             Log::info("Dojah webhook: Selfie verification ID {$verificationId} already processed.");
+
             return;
         }
-        
+
         $user = User::findOrFail($verification->user_id);
-        
-        // Match boolean or truthy string states
-        $isSuccessful = ($status === true || in_array(strtolower((string)$status), ['success', 'completed', 'approved', 'true']));
+
+        $isSuccessful = $this->isSuccessfulStatus($status);
         $verificationStatus = $isSuccessful ? 'approved' : 'failed';
 
         $verification->update([
@@ -115,7 +117,7 @@ class DojahWebhookController extends Controller
                         'status' => 'verified',
                         'tier' => 3,
                         'level' => 'tier3_completed',
-                        'verified_at' => now()
+                        'verified_at' => now(),
                     ]
                 );
 
@@ -128,7 +130,7 @@ class DojahWebhookController extends Controller
                 // Update core user attributes
                 $user->update([
                     'verification_level' => 3,
-                    'kyc_status' => 'verified'
+                    'kyc_status' => 'verified',
                 ]);
 
                 ActivityLog::log($user->id, 'KYC Face Verified (Webhook)', ['message' => $message]);
@@ -143,31 +145,31 @@ class DojahWebhookController extends Controller
     private function processGovernmentDataVerification(array $section): void
     {
         $data = $section['data'] ?? [];
-        
+
         // Check for BVN
         if (isset($data['bvn'])) {
             $bvnBlock = $data['bvn'];
             $bvnData = $bvnBlock['entity'] ?? $bvnBlock['data'] ?? [];
             $verificationId = $bvnData['reference_id'] ?? $bvnData['referenceId'] ?? $bvnData['id'] ?? null;
-            
+
             // Check status at sub-service row
-            $bvnStatus = $bvnBlock['status'] ?? false;
-            $bvnSuccess = ($bvnStatus === true || in_array(strtolower((string)$bvnStatus), ['success', 'completed', 'approved', 'true']));
+            $bvnStatus = $bvnBlock['status'] ?? $bvnBlock['verification_status'] ?? false;
+            $bvnSuccess = $this->isSuccessfulStatus($bvnStatus);
 
             if ($verificationId) {
                 $this->processBvnVerification($verificationId, $bvnSuccess, $bvnBlock);
             }
         }
-        
+
         // Check for NIN
         if (isset($data['nin'])) {
             $ninBlock = $data['nin'];
             $ninData = $ninBlock['entity'] ?? $ninBlock['data'] ?? [];
             $verificationId = $ninData['reference_id'] ?? $ninData['referenceId'] ?? $ninData['id'] ?? null;
-            
+
             // Check status at sub-service row
-            $ninStatus = $ninBlock['status'] ?? false;
-            $ninSuccess = ($ninStatus === true || in_array(strtolower((string)$ninStatus), ['success', 'completed', 'approved', 'true']));
+            $ninStatus = $ninBlock['status'] ?? $ninBlock['verification_status'] ?? false;
+            $ninSuccess = $this->isSuccessfulStatus($ninStatus);
 
             if ($verificationId) {
                 $this->processNinVerification($verificationId, $ninSuccess, $ninBlock);
@@ -178,17 +180,17 @@ class DojahWebhookController extends Controller
     private function processBvnVerification(string $verificationId, bool $status, array $section): void
     {
         $verification = KycVerification::where('verification_id', $verificationId)->first();
-        
+
         if ($verification && $verification->status !== 'approved') {
             $user = User::findOrFail($verification->user_id);
-            
+
             // Wrapped state changes securely inside a database transaction
             DB::transaction(function () use ($verification, $user, $status, $section) {
                 $verification->update([
                     'status' => $status ? 'approved' : 'failed',
                     'response_json' => json_encode($section),
                 ]);
-                
+
                 if ($status) {
                     ActivityLog::log($user->id, 'KYC BVN Verified (Webhook)');
                     $this->updateVerificationLevel($user);
@@ -200,17 +202,17 @@ class DojahWebhookController extends Controller
     private function processNinVerification(string $verificationId, bool $status, array $section): void
     {
         $verification = KycVerification::where('verification_id', $verificationId)->first();
-        
+
         if ($verification && $verification->status !== 'approved') {
             $user = User::findOrFail($verification->user_id);
-            
+
             // Wrapped state changes securely inside a database transaction
             DB::transaction(function () use ($verification, $user, $status, $section) {
                 $verification->update([
                     'status' => $status ? 'approved' : 'failed',
                     'response_json' => json_encode($section),
                 ]);
-                
+
                 if ($status) {
                     ActivityLog::log($user->id, 'KYC NIN Verified (Webhook)');
                     $this->updateVerificationLevel($user);
@@ -221,8 +223,15 @@ class DojahWebhookController extends Controller
 
     private function processAmlVerification(array $section): void
     {
-        $status = $section['status'] ?? 'unknown';
+        $status = $section['status'] ?? $section['verification_status'] ?? 'unknown';
         Log::info('Dojah AML verification received', ['status' => $status]);
+    }
+
+    private function isSuccessfulStatus(mixed $status): bool
+    {
+        return $status === true
+            || $status === 'true'
+            || in_array(strtolower((string) $status), ['success', 'completed', 'approved', 'verified', 'passed'], true);
     }
 
     private function updateVerificationLevel(User $user): void
@@ -248,25 +257,26 @@ class DojahWebhookController extends Controller
     {
         try {
             $imageData = Http::get($imageUrl)->body();
-            
+
             if (empty($imageData)) {
                 Log::warning("Empty image payload retrieved from URL for user {$user->id}");
+
                 return;
             }
 
-            $filename = 'kyc/selfie/' . uniqid() . '_' . $user->id . '.jpg';
+            $filename = 'kyc/selfie/'.uniqid().'_'.$user->id.'.jpg';
             Storage::disk('public')->put($filename, $imageData);
 
             $user->update([
                 'profile_image' => $filename,
-                'kyc_locked' => true
+                'kyc_locked' => true,
             ]);
 
             Log::info("Profile image updated for user {$user->id}", ['path' => $filename]);
 
         } catch (\Exception $e) {
             Log::error("Failed to fetch/save profile image for user {$user->id}", [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
