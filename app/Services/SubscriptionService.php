@@ -51,7 +51,7 @@ class SubscriptionService
                     'user_id' => $user->id,
                     'amount'  => $this->fee,
                     'type'    => 'subscription_fee',
-                    'status'  => 'pending_debt',
+                    'status'  => 'pending',
                 ]);
 
                 $user->notify(new \App\Notifications\BillingAlertNotification('debt', $shortfall));
@@ -85,7 +85,7 @@ class SubscriptionService
         BillingRecord::create([
             'user_id' => $user->id,
             'amount' => $paymentToDebt,
-            'type' => 'debt_repayment',
+            'type' => 'adjustment',
             'status' => 'paid'
         ]);
 

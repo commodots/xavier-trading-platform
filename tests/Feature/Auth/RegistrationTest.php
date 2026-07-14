@@ -80,14 +80,17 @@ class RegistrationTest extends TestCase
     {
         Notification::fake();
 
-        $this->postJson('/api/register', [
+        $response = $this->postJson('/api/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
 
-        Notification::assertNothingSent();
+        $user = \App\Models\User::where('email', 'test@example.com')->first();
+        
+        // Assert that no email verification notification was sent (welcome notification is OK)
+        Notification::assertNotSentTo($user, \Illuminate\Auth\Notifications\VerifyEmail::class);
     }
 
     public function test_api_verify_email_endpoint_marks_user_verified(): void

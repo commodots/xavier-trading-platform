@@ -101,7 +101,13 @@ class DojahKycTest extends TestCase
 
     public function test_verification_level_reaches_2_when_both_bvn_and_nin_approved(): void
     {
-        $user = $this->makeUser(['verification_level' => 0]);
+        $user = $this->makeUser();
+
+        // Create KYC profile with tier 0 initially
+        $kycProfile = $user->kyc()->create([
+            'tier' => 0,
+            'status' => 'pending',
+        ]);
 
         KycVerification::create([
             'user_id' => $user->id,
@@ -113,7 +119,12 @@ class DojahKycTest extends TestCase
 
         $this->actingAs($user)->postJson('/api/kyc/nin', ['nin' => '12345678901']);
 
-        $this->assertEquals(2, $user->fresh()->verification_level);
+        // Refresh both user and kyc profile to get latest data
+        $user->refresh();
+        $kycProfile->refresh();
+        
+        // The verification_level accessor reads from kyc.tier
+        $this->assertEquals(2, $kycProfile->tier);
     }
 
     // -------------------------------------------------------------------------
@@ -127,10 +138,17 @@ class DojahKycTest extends TestCase
             'success' => true,
             'entity' => ['confidence' => 95],
         ]);
+        $mock->shouldReceive('extractSelfieImage')->andReturn('fakeimagebytes');
         $mock->shouldReceive('storeResult')->andReturn(new KycVerification);
         $this->app->instance(DojahService::class, $mock);
 
-        $user = $this->makeUser(['verification_level' => 2]);
+        $user = $this->makeUser();
+        // Create KYC profile with tier 2
+        $user->kyc()->create([
+            'tier' => 2,
+            'status' => 'pending',
+        ]);
+        
         $res = $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')]);
 
         $res->assertOk()->assertJsonFragment(['verification_level' => 3]);
@@ -144,10 +162,17 @@ class DojahKycTest extends TestCase
             'success' => true,
             'entity' => ['confidence' => 40],
         ]);
+        $mock->shouldReceive('extractSelfieImage')->andReturn('fakeimagebytes');
         $mock->shouldReceive('storeResult')->andReturn(new KycVerification);
         $this->app->instance(DojahService::class, $mock);
 
-        $user = $this->makeUser(['verification_level' => 2]);
+        $user = $this->makeUser();
+        // Create KYC profile with tier 2
+        $user->kyc()->create([
+            'tier' => 2,
+            'status' => 'pending',
+        ]);
+        
         $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')])
             ->assertStatus(422);
     }
@@ -159,10 +184,16 @@ class DojahKycTest extends TestCase
             'success' => true,
             'entity' => ['confidence' => 95, 'image' => base64_encode('fakeimagebytes')],
         ]);
+        $mock->shouldReceive('extractSelfieImage')->andReturn('fakeimagebytes');
         $mock->shouldReceive('storeResult')->andReturn(new KycVerification);
         $this->app->instance(DojahService::class, $mock);
 
-        $user = $this->makeUser(['verification_level' => 2]);
+        $user = $this->makeUser();
+        // Create KYC profile with tier 2
+        $user->kyc()->create([
+            'tier' => 2,
+            'status' => 'pending',
+        ]);
 
         $this->actingAs($user)
             ->postJson('/api/kyc/verify-liveness', ['image' => base64_encode('fakeimagebytes')])
@@ -196,9 +227,21 @@ class DojahKycTest extends TestCase
 
     public function test_trading_blocked_for_verification_level_below_2(): void
     {
-        $user = $this->makeUser(['verification_level' => 1]);
+        $user = $this->makeUser();
+        // Create KYC profile with tier 1 (below required level 2)
+        $user->kyc()->create([
+            'tier' => 1,
+            'status' => 'pending',
+        ]);
 
-        $this->actingAs($user)->postJson('/api/orders', [])
+        $this->actingAs($user)->postJson('/api/orders', [
+            'market' => 'crypto',
+            'symbol' => 'BTC',
+            'company' => 'Bitcoin',
+            'market_price' => 50000,
+            'amount' => 1000,
+            'side' => 'buy',
+        ])
             ->assertStatus(403)
             ->assertJsonFragment(['required_level' => 2]);
     }
@@ -206,7 +249,12 @@ class DojahKycTest extends TestCase
     public function test_trading_allowed_for_verification_level_2(): void
     {
         // Just check the middleware passes — OmsController may return other errors
-        $user = $this->makeUser(['verification_level' => 2]);
+        $user = $this->makeUser();
+        // Create KYC profile with tier 2
+        $user->kyc()->create([
+            'tier' => 2,
+            'status' => 'pending',
+        ]);
 
         $res = $this->actingAs($user)->postJson('/api/orders', []);
 
@@ -216,9 +264,16 @@ class DojahKycTest extends TestCase
 
     public function test_withdrawal_blocked_for_level_below_3(): void
     {
-        $user = $this->makeUser([
-            'verification_level' => 2,
-            'google2fa_enabled' => true,
+        $user = $this->makeUser();
+        // Enable 2FA
+        $user->google2fa_enabled = true;
+        $user->google2fa_secret = encrypt('JBSWY3DPEHPK3PXP');
+        $user->save();
+        
+        // Create KYC profile with tier 2 (below required level 3)
+        $user->kyc()->create([
+            'tier' => 2,
+            'status' => 'pending',
         ]);
 
         $this->actingAs($user)->postJson('/api/security/withdrawals', [
@@ -226,6 +281,7 @@ class DojahKycTest extends TestCase
             'currency' => 'NGN',
             'account_number' => '0123456789',
             'account_name' => 'Test User',
+            'otp' => '123456',
         ])->assertStatus(403)->assertJsonFragment(['required_level' => 3]);
     }
 
@@ -235,11 +291,17 @@ class DojahKycTest extends TestCase
 
     public function test_withdrawal_blocked_without_2fa(): void
     {
-        $user = $this->makeUser([
-            'verification_level' => 3,
-            'google2fa_enabled' => false,
-            'two_factor_enabled' => false,
+        $user = $this->makeUser();
+        // Create KYC profile with tier 3
+        $user->kyc()->create([
+            'tier' => 3,
+            'status' => 'pending',
         ]);
+        
+        // Ensure 2FA is disabled
+        $user->google2fa_enabled = false;
+        $user->google2fa_secret = null;
+        $user->save();
 
         $this->actingAs($user)->postJson('/api/security/withdrawals', [
             'amount' => 1000,

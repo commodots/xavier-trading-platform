@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Exports\TransactionsExport;
 use App\Http\Controllers\Controller;
 use App\Models\ReportHistory;
 use App\Models\User;
 use App\Notifications\ReportGeneratedNotification;
-use App\Services\Audit\AuditService;
-use App\Services\Reports\AccountStatementService;
-use App\Services\Reports\AuditTrailService;
-use App\Services\Reports\DepositReportService;
-use App\Services\Reports\WithdrawalReportService;
+use App\Reporting\Exports\TransactionsExport;
+use App\Reporting\Services\AccountStatementService;
+use App\Reporting\Services\AuditService;
+use App\Reporting\Services\AuditTrailService;
+use App\Reporting\Services\DepositReportService;
+use App\Reporting\Services\WithdrawalReportService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use PDF;
