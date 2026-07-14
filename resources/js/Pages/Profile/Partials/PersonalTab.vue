@@ -48,6 +48,11 @@
             <label class="block text-xs text-gray-400 mb-1">Phone Number</label>
             <input v-model="form.phone" type="tel" class="input" />
           </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Date of Birth</label>
+            <input v-model="form.dob" type="date" class="input" />
+          </div>
         </div>
 
         <div class="mt-4">
@@ -118,11 +123,44 @@ const form = reactive({
   last_name: "",
   email: "",
   phone: "",
+  dob: "",
   address: "",
   next_of_kin: "",
   next_of_kin_phone: "",
   next_of_kin_email: "",
 });
+
+const formatDateForInput = (value) => {
+  if (!value) return "";
+
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}/${month}/${day}`;
+  }
+
+  const rawValue = String(value).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  const datePart = rawValue.split("T")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart;
+  }
+
+  const parsedDate = new Date(rawValue);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(parsedDate.getDate()).padStart(2, "0");
+    return `${year}/${month}/${day}`;
+  }
+
+  return "";
+};
 
 watch(() => props.user, (newUser) => {
   if (newUser) {
@@ -130,6 +168,7 @@ watch(() => props.user, (newUser) => {
     form.last_name = newUser.last_name ?? ""; 
     form.email = newUser.email ?? "";
     form.phone = newUser.phone ?? "";
+    form.dob = formatDateForInput(newUser.dob);
     form.address = newUser.address ?? "";
     form.next_of_kin = newUser.next_of_kin ?? "";
     form.next_of_kin_phone = newUser.next_of_kin_phone ?? "";
@@ -140,7 +179,12 @@ watch(() => props.user, (newUser) => {
 const updateProfile = async () => {
   processing.value = true;
   try {
-    await api.put("/user/profile/update", form);
+    const payload = {
+      ...form,
+      dob: formatDateForInput(form.dob),
+    };
+
+    await api.post("/user/profile/update", payload);
     emit('refresh'); 
     successMessage.value = "Profile updated successfully";
     showSuccessModal.value = true;

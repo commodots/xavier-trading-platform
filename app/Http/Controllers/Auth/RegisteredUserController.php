@@ -34,6 +34,7 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'dob' => 'required|date|before:-18 years',
             'bvn' => 'nullable|string',
             'nin' => 'nullable|string',
             'profile_image' => 'nullable|string',
@@ -50,6 +51,7 @@ class RegisteredUserController extends Controller
             'last_name' => $lastName ?: null,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'dob' => $request->dob,
             'bvn' => $request->bvn,
             'nin' => $request->nin,
 'profile_image' => $request->profile_image,        ]);

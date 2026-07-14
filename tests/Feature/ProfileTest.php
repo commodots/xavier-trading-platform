@@ -61,6 +61,28 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
+    public function test_api_profile_update_accepts_first_and_last_name_fields(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson('/api/profile/update', [
+                'first_name' => 'Jane',
+                'last_name' => 'Doe',
+                'email' => 'jane@example.com',
+            ]);
+
+        $response->assertOk();
+
+        $user->refresh();
+
+        $this->assertSame('Jane', $user->first_name);
+        $this->assertSame('Doe', $user->last_name);
+        $this->assertSame('Jane Doe', $user->name);
+        $this->assertSame('jane@example.com', $user->email);
+    }
+
     public function test_user_can_delete_their_account(): void
     {
         $user = User::factory()->create();

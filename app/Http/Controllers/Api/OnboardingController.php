@@ -30,7 +30,7 @@ class OnboardingController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:20',
-            'dob' => 'nullable|date',
+            'dob' => 'required|date',
             'bvn' => 'nullable|string|digits:11',
             'nin' => 'nullable|string|digits:11',
             'profile_image' => 'nullable|string', // Changed from required to nullable

@@ -82,16 +82,30 @@ class ProfileController extends Controller
 
         $r->validate([
             'email' => 'required|email|unique:users,email,' . $user->id,
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'dob' => 'nullable|date',
         ]);
 
-        $data = $r->only(['email', 'phone', 'address']);
+        $data = $r->only(['email', 'phone', 'address', 'dob']);
 
-        $parts = explode(' ', $r->name, 2);
-        $data['first_name'] = $parts[0];
-        $data['last_name'] = $parts[1] ?? '';
+        if ($r->filled('name')) {
+            $parts = preg_split('/\s+/', trim($r->name), 2);
+            $data['first_name'] = $parts[0] ?? '';
+            $data['last_name'] = $parts[1] ?? '';
+            $data['name'] = $r->name;
+        } else {
+            $data['first_name'] = $r->input('first_name');
+            $data['last_name'] = $r->input('last_name');
 
-        $data['name'] = $r->name;
+            if ($r->filled('first_name') || $r->filled('last_name')) {
+                $data['name'] = trim(implode(' ', array_filter([
+                    $r->input('first_name'),
+                    $r->input('last_name'),
+                ])));
+            }
+        }
 
         $user->update($data);
 

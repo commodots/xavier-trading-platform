@@ -26,6 +26,14 @@
           <p v-if="localErrors.email" class="mt-1 text-sm text-red-400">{{ localErrors.email[0] }}</p>
         </div>
 
+         <div>
+          <label class="block mb-1 text-gray-300">Date of Birth</label>
+          <input v-model="dob" type="date"
+            class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#00D4FF] outline-none"
+            required />
+          <p v-if="localErrors.dob" class="mt-1 text-sm text-red-400">{{ localErrors.dob[0] }}</p>
+        </div>
+
         <div>
           <label class="block mb-1 text-gray-300">Password</label>
           <input v-model="password" type="password"
@@ -90,6 +98,7 @@ const router = useRouter();
 const loading = ref(false);
 const name = ref("");
 const email = ref("");
+const dob = ref("");
 const password = ref("");
 const password_confirmation = ref("");
 const localErrors = ref({});
@@ -127,6 +136,7 @@ const submit = async () => {
     const payload = {
       name: name.value,
       email: email.value,
+      dob: dob.value,
       password: password.value,
       password_confirmation: password_confirmation.value,
     };

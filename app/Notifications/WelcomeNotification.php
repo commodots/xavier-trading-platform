@@ -26,7 +26,7 @@ class WelcomeNotification extends Notification
             'title' => 'Welcome to Xavier, ' . $this->userName . '! 🎉',
             'message' => "Welcome to Xavier Trading Platform! You now have access to:\n\n" .
                 "📈 Trade NGX Stocks, Global Stocks, Crypto & Fixed Income\n" .
-                "💰 Fund your wallet via Bank Transfer or Crypto\n" .
+                "💰 Fund your wallet via Bank Transfer\n" .
                 "📊 Real-time market data & portfolio tracking\n" .
                 "🤖 AI-powered advisory & insights\n\n" .
                 "To get started, here are your next steps:\n\n" .
