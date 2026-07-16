@@ -10,8 +10,9 @@
     <aside :class="[
       'w-64 border-r flex flex-col justify-between transition-all duration-300',
       currentView === 'user' ? 'bg-gradient-to-b from-[#0B132B] to-[#111827] border-[#1F2A44]' : 'bg-[#1a253b] border-[#4d69aa]',
-      sidebarOpen ? 'translate-x-0' : '-translate-x-64',
-      'md:translate-x-0 fixed md:sticky md:top-0 md:h-screen inset-y-0 left-0 z-50 sidebar-scroll'
+      sidebarOpen ? 'translate-x-0' : '-translate-x-[75vw]',
+      'md:translate-x-0 absolute md:relative inset-y-0 left-0 z-50',
+      !sidebarOpen && 'hidden md:block'
     ]">
       <div>
         <div class="flex items-center justify-center py-6">
@@ -25,7 +26,7 @@
           </button>
         </div>
 
-        <nav class="px-4 mt-4 space-y-1 text-sm sidebar-scroll-content">
+        <nav class="px-4 mt-4 space-y-1 text-sm">
 
           <div v-if="currentView === 'user'">
 
@@ -131,7 +132,7 @@
       </div>
     </aside>
 
-    <main class="flex-1 p-6 overflow-y-auto bg-[#0B132B]">
+    <main class="flex-1 md:ml-64 bg-[#0B132B]">
       <div class="flex items-center justify-between p-1 md:px-6 bg-[#0B132B]/95 backdrop-blur z-30 sticky top-0">
         <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white " @click="sidebarOpen = !sidebarOpen">
           ☰
@@ -143,7 +144,7 @@
           <DemoToggle v-if="currentView === 'user'" :initialMode="user?.trading_mode || 'live'" />
         </div>
       </div>
-      <div class="flex-1 p-4 pb-20 overflow-y-auto md:p-6">
+      <div class="p-4 pb-20 md:p-6">
         <slot />
       </div>
 
@@ -264,36 +265,6 @@ const toggleAccountMode = () => {
   router.push(currentView.value === 'user' ? '/admin' : '/dashboard');
 };
 
-// Add sidebar scroll styles
-const sidebarScrollStyles = `
-  .sidebar-scroll {
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-  }
-  .sidebar-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-  .sidebar-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .sidebar-scroll::-webkit-scrollbar-thumb {
-    background-color: transparent;
-    border-radius: 3px;
-  }
-  .sidebar-scroll:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-  .sidebar-scroll-content {
-    overflow-y: visible;
-  }
-`
-
-onMounted(() => {
-  const style = document.createElement('style')
-  style.textContent = sidebarScrollStyles
-  document.head.appendChild(style)
-})
 
 const logout = async () => {
   try {
