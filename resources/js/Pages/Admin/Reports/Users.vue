@@ -12,7 +12,7 @@
         <div class="h-6 bg-gray-700 rounded w-16"></div>
       </div>
     </div>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+    <div v-else class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
 
@@ -56,7 +56,7 @@
     <ReportTable v-else :columns="columns" :data="users" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
       <template #cell-avatar="{ row }">
         <img v-if="row.avatar" :src="row.avatar" :alt="row.name" class="w-8 h-8 rounded-full object-cover" />
-        <div v-else class="w-8 h-8 rounded-full bg-[#0047AB] flex items-center justify-center text-white text-xs font-medium">
+        <div v-else class="w-3 h-8 rounded-full bg-[#0047AB] flex items-center justify-center text-white text-xs font-medium">
           {{ row.name?.charAt(0)?.toUpperCase() || 'U' }}
         </div>
       </template>
@@ -77,7 +77,7 @@
         <span :class="row.status === 'active' ? 'text-green-400' : row.status === 'suspended' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
       </template>
       <template #cell-actions="{ row }">
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2">
           <button @click="viewUser(row.id)" class="text-blue-400 hover:text-blue-300 text-xs">View</button>
           <button @click="editUser(row.id)" class="text-green-400 hover:text-green-300 text-xs">Edit</button>
           <button v-if="row.status !== 'suspended'" @click="suspendUser(row.id)" class="text-yellow-400 hover:text-yellow-300 text-xs">Suspend</button>
@@ -111,17 +111,17 @@ const filters = reactive({ search: '', from: '', to: '', kyc_status: '' });
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, perPage: 50 });
 
 const columns = [
-  { key: 'avatar', label: 'Photo', width: '60px' },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'email', label: 'Email' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'wallet_balance', label: 'Wallet', align: 'right' },
-  { key: 'subscription_status', label: 'Subscription' },
-  { key: 'kyc_status', label: 'KYC' },
-  { key: 'status', label: 'Status' },
-  { key: 'joined', label: 'Joined', sortable: true },
-  { key: 'last_login', label: 'Last Login' },
-  { key: 'actions', label: 'Actions', width: '180px' },
+  { key: 'avatar', label: '', width: '50px' },
+  { key: 'name', label: 'Name', sortable: true, width: '140px' },
+  { key: 'email', label: 'Email', width: '160px' },
+  { key: 'phone', label: 'Phone', width: '100px' },
+  { key: 'wallet_balance', label: 'Wallet', align: 'right', width: '100px' },
+  { key: 'kyc_status', label: 'KYC', width: '80px' },
+  { key: 'subscription_status', label: 'Sub', width: '70px' },
+  { key: 'status', label: 'Status', width: '80px' },
+  { key: 'joined', label: 'Joined', sortable: true, width: '110px' },
+  { key: 'last_login', label: 'Last Login', width: '110px' },
+  { key: 'actions', label: 'Actions', width: '130px' },
 ];
 
 const handleSort = (key) => {

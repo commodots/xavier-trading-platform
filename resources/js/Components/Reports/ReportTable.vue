@@ -7,7 +7,7 @@
       <table class="w-full text-sm">
         <thead class="text-xs text-gray-400 bg-black/20">
           <tr>
-            <th v-for="col in columns" :key="col.key" :class="col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'" class="px-5 py-3.5 font-medium uppercase tracking-wider">
+            <th v-for="col in columns" :key="col.key" :class="col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'" class="px-3.5 py-3.5 font-medium uppercase tracking-wider">
               <button v-if="col.sortable" @click="$emit('sort', col.key)" class="flex items-center gap-1 hover:text-white transition">
                 {{ col.label }}
                 <svg v-if="sortBy === col.key" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,7 @@
         </thead>
         <tbody class="divide-y divide-[#1f3348]">
           <tr v-for="(row, i) in data" :key="i" class="hover:bg-[#16213A] transition">
-            <td v-for="col in columns" :key="col.key" :class="col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'" class="px-5 py-4 text-gray-300">
+            <td v-for="col in columns" :key="col.key" :class="col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'" class="px-3.5 py-4 text-gray-300">
               <slot :name="'cell-' + col.key" :row="row" :value="getValue(row, col.key)">
                 {{ getValue(row, col.key) }}
               </slot>

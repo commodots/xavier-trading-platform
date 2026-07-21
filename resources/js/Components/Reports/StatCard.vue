@@ -1,12 +1,14 @@
 <template>
-  <div class="bg-[#0F1724] border border-[#1f3348] rounded-lg p-4 min-w-0">
-    <div class="flex gap-3">
+  <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 hover:border-blue-500/30 transition-all duration-200">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-medium text-gray-400 uppercase tracking-wider truncate">{{ displayTitle }}</p>
+        <p class="text-2xl font-bold text-white mt-1 truncate" :title="fullValue">{{ formattedValue }}</p>
+      </div>
       <div v-if="IconComponent" class="p-3 rounded-lg flex-shrink-0" :style="{ backgroundColor: color + '20' }">
         <component :is="IconComponent" :style="{ color: color }" class="text-xl" />
       </div>
-      <p class="text-xs text-gray-400 uppercase tracking-wider truncate">{{ displayTitle }}</p>
     </div>
-    <p class="text-lg font-bold text-white mt-1 truncate" :title="fullValue">{{ formattedValue }}</p>
   </div>
 </template>
 
@@ -80,9 +82,6 @@ const formattedValue = computed(() => {
     return props.prefix + (num / 1_000).toFixed(1) + 'K';
   }
 
-  return props.prefix + num.toLocaleString(undefined, {
-    minimumFractionDigits: props.decimals,
-    maximumFractionDigits: props.decimals,
-  });
+  return fullValue.value;
 });
 </script>
