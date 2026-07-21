@@ -36,13 +36,14 @@ api.interceptors.response.use(
   async (error) => {
     // If unauthorized, force logout on frontend
     if (error.response && error.response.status === 401) {
-      console.warn("Unauthorized: Removing token and redirecting to login...");
+      console.warn("Unauthorized: Removing auth state and redirecting to the landing page...");
 
       localStorage.removeItem("token");
       localStorage.removeItem("xavier_token");
       localStorage.removeItem("user");
+      localStorage.removeItem("active_view");
 
-      window.location.href = "/login";
+      window.location.href = "/";
     }
 
     return Promise.reject(error);

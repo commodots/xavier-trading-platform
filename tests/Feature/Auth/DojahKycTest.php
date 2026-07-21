@@ -158,6 +158,8 @@ class DojahKycTest extends TestCase
     public function test_selfie_below_confidence_threshold_returns_422(): void
     {
         $mock = Mockery::mock(DojahService::class);
+        config(['services.dojah.test_mode' => false]);
+
         $mock->shouldReceive('checkLiveness')->andReturn([
             'success' => true,
             'entity' => ['confidence' => 40],
@@ -172,9 +174,11 @@ class DojahKycTest extends TestCase
             'tier' => 2,
             'status' => 'pending',
         ]);
-        
-        $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')])
-            ->assertStatus(422);
+
+        $this->actingAs($user)
+            ->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Face verification failed. Please try again in good lighting.');
     }
 
     public function test_verify_liveness_route_accepts_the_legacy_endpoint(): void
@@ -308,7 +312,8 @@ class DojahKycTest extends TestCase
             'currency' => 'NGN',
             'account_number' => '0123456789',
             'account_name' => 'Test User',
-        ])->assertStatus(422)->assertJsonPath('errors.2fa.0', 'You must enable Two-Factor Authentication before withdrawing.');
+        ])->assertStatus(422)
+            ->assertJsonPath('errors.2fa.0', 'You must enable Two-Factor Authentication before withdrawing.');
     }
 
     // -------------------------------------------------------------------------

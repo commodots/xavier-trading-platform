@@ -132,7 +132,7 @@
       </div>
     </aside>
 
-    <main class="flex-1 md:ml-64 bg-[#0B132B]">
+    <main class="flex-1 bg-[#0B132B]">
       <div class="flex items-center justify-between p-1 md:px-6 bg-[#0B132B]/95 backdrop-blur z-30 sticky top-0">
         <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white " @click="sidebarOpen = !sidebarOpen">
           ☰
@@ -149,6 +149,13 @@
       </div>
 
     </main>
+
+    <SessionTimeoutModal
+      :show="showWarning"
+      :countdown="countdown"
+      @stay="stayLoggedIn"
+      @logout="executeLogout"
+    />
   </div>
 </template>
 
@@ -156,6 +163,8 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/api";
+import { useIdleTimeout } from "@/composables/useIdleTimeout";
+import SessionTimeoutModal from "@/Components/SessionTimeoutModal.vue";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
@@ -265,6 +274,8 @@ const toggleAccountMode = () => {
   router.push(currentView.value === 'user' ? '/admin' : '/dashboard');
 };
 
+
+const { showWarning, countdown, stayLoggedIn, executeLogout } = useIdleTimeout();
 
 const logout = async () => {
   try {

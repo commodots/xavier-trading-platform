@@ -53,8 +53,17 @@ class WithdrawalController extends Controller
             ]);
         }
 
+        $currentKycLevel = (int) ($user->verification_level ?? 0);
+        if ($currentKycLevel < 3) {
+            return response()->json([
+                'message'            => 'KYC Level 3 verification required to withdraw. Please upgrade your KYC status.',
+                'verification_level' => $currentKycLevel,
+                'required_level'     => 3,
+            ], 403);
+        }
+
         $cachedOtp = Cache::get('withdrawal_otp_'.$user->id);
-        if (!$cachedOtp || !hash_equals($request->otp, $cachedOtp)) {
+        if (!$cachedOtp || !hash_equals((string) $request->otp, (string) $cachedOtp)) {
             throw ValidationException::withMessages([
                 'otp' => 'Invalid or expired verification code.',
             ]);

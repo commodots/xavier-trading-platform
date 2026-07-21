@@ -26,6 +26,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(201);
@@ -44,6 +45,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(201);
@@ -85,6 +87,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $user = \App\Models\User::where('email', 'test@example.com')->first();
@@ -116,6 +119,7 @@ class RegistrationTest extends TestCase
             'email' => 'invalid-email',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(422);
@@ -129,6 +133,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'short',
             'password_confirmation' => 'short',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(422);
@@ -144,6 +149,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(422);
@@ -157,6 +163,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(201);
@@ -170,6 +177,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $user = User::where('email', 'test@example.com')->first();
@@ -207,6 +215,7 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
         ]);
 
         $response->assertStatus(201);

@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\Security\AuditLogController;
 use App\Http\Controllers\Api\Security\UserDeviceController;
 use App\Http\Controllers\Api\Security\WithdrawalController;
 use App\Http\Controllers\Api\Security\TwoFactorController; 
+use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\DummyNgxController;
 use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\MarketController;
@@ -72,6 +73,7 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('a
 
 Route::post('/login/verify-2fa', [TwoFactorController::class, 'verifyLogin'])->middleware('throttle:5,1');
 Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->middleware('throttle:5,1');
+Route::post('/security/2fa/verify', [TwoFactorController::class, 'verifyLogin'])->middleware('throttle:5,1');
 
     /* Webhooks (rate-limited to prevent abuse) */
     Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback')->middleware('throttle:30,1');
@@ -115,6 +117,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user/sessions', [SecurityController::class, 'getActiveSessions']);
+    Route::post('/user/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
+    Route::put('/user/security/password', [SecurityController::class, 'changePassword']);
 
     Route::post('/email/verification-notification', function (Request $request) {
         if ($request->user()->hasVerifiedEmail()) {
@@ -240,7 +245,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('security')->group(function () {
         Route::prefix('2fa')->group(function () {
             Route::post('/setup', [TwoFactorController::class, 'setup']);
-            Route::post('/verify', [TwoFactorController::class, 'verify']);
+            Route::post('/confirm', [TwoFactorController::class, 'verify']);
+            Route::post('/verify', [TwoFactorController::class, 'verifyLogin']);
             Route::post('/disable', [TwoFactorController::class, 'disable']);
             Route::get('/status', [TwoFactorController::class, 'status']);
         });
@@ -386,14 +392,31 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/risk-flags/{flag}/dismiss', [ComplianceController::class, 'dismissFlag']);
         });
 
-        // ── Reports ──
+        // ── Reports Module (Phase 1) ──
         Route::prefix('reports')->group(function () {
-            Route::get('/deposits', [ReportController::class, 'depositRegister']);
-            Route::get('/withdrawals', [ReportController::class, 'withdrawalRegister']);
-            Route::get('/audit-trail', [ReportController::class, 'auditTrail']);
-            Route::post('/send-to-user', [ReportController::class, 'sendReportToUser']);
-            Route::post('/send-to-all-users', [ReportController::class, 'sendReportToAllUsers']);
-            Route::get('/search-users', [ReportController::class, 'searchUsers']);
+            Route::get('/dashboard', [\App\Http\Controllers\Admin\ReportsController::class, 'dashboard']);
+            Route::get('/users', [\App\Http\Controllers\Admin\ReportsController::class, 'users']);
+            Route::get('/users/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'userSummary']);
+            Route::get('/financial', [\App\Http\Controllers\Admin\ReportsController::class, 'financial']);
+            Route::get('/financial/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'financialSummary']);
+            Route::get('/investments', [\App\Http\Controllers\Admin\ReportsController::class, 'investments']);
+            Route::get('/investments/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentSummary']);
+            Route::get('/investments/charts', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentCharts']);
+            Route::get('/investments/top-investors', [\App\Http\Controllers\Admin\ReportsController::class, 'topInvestors']);
+            Route::get('/investments/distribution', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentDistribution']);
+            Route::get('/wallet-withdrawals', [\App\Http\Controllers\Admin\ReportsController::class, 'walletWithdrawals']);
+            Route::get('/wallet-withdrawals/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'walletWithdrawalSummary']);
+            Route::get('/referrals-subscriptions', [\App\Http\Controllers\Admin\ReportsController::class, 'referralsSubscriptions']);
+            Route::get('/referrals-subscriptions/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'referralSubscriptionSummary']);
+            Route::get('/system', [\App\Http\Controllers\Admin\ReportsController::class, 'system']);
+            Route::get('/system/logs', [\App\Http\Controllers\Admin\ReportsController::class, 'systemLogs']);
+            Route::get('/system/integration-health', [\App\Http\Controllers\Admin\ReportsController::class, 'integrationHealth']);
+            Route::post('/clear-cache', [\App\Http\Controllers\Admin\ReportsController::class, 'clearCache']);
+            Route::post('/optimize', [\App\Http\Controllers\Admin\ReportsController::class, 'optimize']);
+            Route::post('/queue-restart', [\App\Http\Controllers\Admin\ReportsController::class, 'queueRestart']);
+            Route::post('/run-scheduler', [\App\Http\Controllers\Admin\ReportsController::class, 'runScheduler']);
+            Route::get('/logs', [\App\Http\Controllers\Admin\ReportsController::class, 'viewLogs']);
+            Route::get('/search-users', [\App\Http\Controllers\Admin\ReportsController::class, 'searchUsers']);
         });
     });
 });

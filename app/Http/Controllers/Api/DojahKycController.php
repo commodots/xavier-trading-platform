@@ -116,8 +116,9 @@ class DojahKycController extends Controller
             }
         }
 
-        // Use test mode or local environment bypass
-        if (app()->environment('local') || config('services.dojah.test_mode')) {
+        // Use test mode or local environment bypass only when the real service is not mocked.
+        $useLocalBypass = app()->environment('local') && ! app()->bound(DojahService::class);
+        if ($useLocalBypass || config('services.dojah.test_mode')) {
             $result = [
                 'success' => true,
                 'entity' => [
@@ -209,9 +210,33 @@ class DojahKycController extends Controller
     private function updateKycProfileAndLevel($user, string $field, string $value): void
     {
         DB::transaction(function () use ($user, $field, $value) {
+            $bvnApproved = KycVerification::where('user_id', $user->id)
+                ->where('verification_type', 'bvn')
+                ->where(function ($query) {
+                    $query->where('status', 'approved')->orWhere('status', 'success');
+                })->exists();
+
+            $ninApproved = KycVerification::where('user_id', $user->id)
+                ->where('verification_type', 'nin')
+                ->where(function ($query) {
+                    $query->where('status', 'approved')->orWhere('status', 'success');
+                })->exists();
+
+            $nextTier = 0;
+            if ($bvnApproved && $ninApproved) {
+                $nextTier = 2;
+            } elseif ($bvnApproved || $ninApproved) {
+                $nextTier = 1;
+            }
+
             KycProfile::updateOrCreate(
                 ['user_id' => $user->id],
-                [$field => $value, 'status' => 'pending']
+                [
+                    $field => $value,
+                    'status' => 'pending',
+                    'tier' => $nextTier,
+                    'level' => $nextTier === 2 ? 'tier2_completed' : ($nextTier === 1 ? 'tier1_completed' : 'none'),
+                ]
             );
 
             $bvnApproved = KycVerification::where('user_id', $user->id)
@@ -231,6 +256,8 @@ class DojahKycController extends Controller
             } elseif ($user->verification_level < 1 && $user->hasVerifiedEmail()) {
                 // Ensure at least level 1 for email-verified users
                 $user->update(['verification_level' => 1]);
+            } elseif ($nextTier > $user->verification_level) {
+                $user->update(['verification_level' => $nextTier]);
             }
         });
     }

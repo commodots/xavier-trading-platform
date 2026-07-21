@@ -41,6 +41,18 @@ class OmsController extends Controller
 
     public function placeOrder(Request $request)
     {
+        $user = Auth::user();
+
+        $currentKycLevel = (int) ($user->kyc?->tier ?? 0);
+        if ($currentKycLevel < 2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This action requires KYC Level 2 verification.',
+                'required_level' => 2,
+                'current_level' => $currentKycLevel,
+            ], 403);
+        }
+
         $data = $request->validate([
             'market' => 'required|in:NGX,GLOBAL,CRYPTO,FIXED_INCOME',
             'symbol' => 'required',
@@ -49,8 +61,6 @@ class OmsController extends Controller
             'amount' => 'required|numeric|min:1',
             'side' => 'required|in:buy,sell',
         ]);
-
-        $user = Auth::user();
 
         // RBAC: Check user can trade
         $this->authorize('create', Order::class);

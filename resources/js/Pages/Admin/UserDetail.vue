@@ -25,18 +25,72 @@
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="py-10 text-center text-gray-400">Loading user…</div>
+      <div v-if="loading" class="space-y-6">
+        <!-- User Card Skeleton -->
+        <div class="bg-[#0F172A] p-6 rounded-xl border border-[#1F2A44] grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+          <div class="col-span-2 flex items-start gap-4">
+            <div class="w-20 h-20 rounded-full bg-gray-700 animate-pulse"></div>
+            <div class="flex-1 space-y-3">
+              <div class="h-6 bg-gray-700 rounded w-1/2 animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded w-1/3 animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded w-1/4 animate-pulse"></div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-3">
+            <div class="h-10 bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-10 bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-10 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Wallet + KYC Skeleton -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44] space-y-3">
+            <div class="h-5 bg-gray-700 rounded w-1/3 animate-pulse"></div>
+            <div class="space-y-2">
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+            </div>
+          </div>
+          <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44] space-y-3">
+            <div class="h-5 bg-gray-700 rounded w-1/3 animate-pulse"></div>
+            <div class="space-y-2">
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transactions Skeleton -->
+        <div class="bg-[#111827] p-4 rounded-xl border border-[#1F2A44] mt-6 space-y-3">
+          <div class="h-5 bg-gray-700 rounded w-1/4 animate-pulse"></div>
+          <div class="space-y-2">
+            <div v-for="i in 5" :key="i" class="h-12 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Devices Skeleton -->
+        <div class="bg-[#111827] p-4 rounded-xl border border-[#1F2A44] mt-6 space-y-3">
+          <div class="h-5 bg-gray-700 rounded w-1/4 animate-pulse"></div>
+          <div class="space-y-2">
+            <div v-for="i in 3" :key="i" class="h-16 bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- Error -->
       <div
-        v-if="error"
+        v-else-if="error"
         class="p-4 text-red-300 border border-red-600 rounded bg-red-600/10"
       >
         {{ error }}
       </div>
 
       <!-- MAIN CONTENT -->
-      <div v-if="!loading && !error">
+      <div v-else>
 
         <!-- USER CARD -->
         <div class="bg-[#0F172A] p-6 rounded-xl border border-[#1F2A44] grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
@@ -102,7 +156,7 @@
 
           <!-- Wallet + Account Health -->
           <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
-            <h3 class="mb-4 font-semibold">Wallet & Account Health</h3>
+            <h3 class="mb-4 font-semibold text-white">Wallet & Account Health</h3>
 
             <div class="space-y-2">
               <div class="flex justify-between">
@@ -136,7 +190,7 @@
 
           <!-- KYC -->
           <div class="bg-[#111827] p-6 rounded-xl border border-[#1F2A44]">
-            <h3 class="mb-4 font-semibold">KYC Information</h3>
+            <h3 class="mb-4 font-semibold text-white">KYC Information</h3>
 
             <div v-if="kyc">
               <div class="text-sm text-gray-300">
@@ -175,7 +229,7 @@
         <!-- TRANSACTIONS -->
         <div class="bg-[#111827] p-4 rounded-xl border border-[#1F2A44] mt-6">
           <div class="flex items-center justify-between mb-3">
-            <h4 class="font-semibold">Recent Transactions</h4>
+            <h4 class="font-semibold text-white">Recent Transactions</h4>
             <div class="text-xs text-gray-400">Latest 20</div>
           </div>
 
@@ -224,7 +278,7 @@
 
         <!-- DEVICES -->
         <div class="bg-[#111827] p-4 rounded-xl border border-[#1F2A44] mt-6">
-          <h4 class="font-semibold mb-3">Known Devices & Sessions</h4>
+          <h4 class="font-semibold mb-3 text-white">Known Devices & Sessions</h4>
           <div v-if="devices.length === 0" class="text-sm text-gray-500 py-4 text-center">No devices recorded.</div>
           <table v-else class="w-full text-sm">
             <thead class="text-left text-xs text-gray-400 border-b border-[#1F2A44]">

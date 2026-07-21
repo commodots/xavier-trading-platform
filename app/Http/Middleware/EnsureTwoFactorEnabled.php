@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureTwoFactorEnabled
@@ -13,9 +14,9 @@ class EnsureTwoFactorEnabled
         $user = $request->user();
 
         if (! $user || ! $user->google2fa_enabled) {
-            return response()->json([
-                'message' => '2FA required',
-            ], 403);
+            throw ValidationException::withMessages([
+                '2fa' => ['You must enable Two-Factor Authentication before withdrawing.'],
+            ]);
         }
 
         return $next($request);

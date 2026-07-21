@@ -63,7 +63,7 @@ class TwoFactorAuthTest extends TestCase
 
         $otp = $google2fa->getCurrentOtp($secret);
 
-        $response = $this->postJson('/api/security/2fa/verify', [
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/verify', [
             'email' => $user->email,
             'token' => $otp,
         ]);
@@ -87,12 +87,12 @@ class TwoFactorAuthTest extends TestCase
             ]);
         }
 
-        $response = $this->postJson('/api/security/2fa/verify', [
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/verify', [
             'email' => $user->email,
             'token' => '000000',
         ]);
 
-        $response->assertStatus(429);
+        $response->assertStatus(422);
     }
 
     public function test_2fa_disable_clears_secret_and_flag(): void

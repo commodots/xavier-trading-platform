@@ -41,7 +41,6 @@ import AdminTransactions from "@/Pages/Admin/Transactions.vue";
 import AdminOrders from "@/Pages/Admin/Orders.vue";
 import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
 import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
-import AdminReports from "@/Pages/Admin/Reports.vue";
 import AdminNotifications from "@/Pages/Admin/AdminNotifications.vue";
 import AdminFxManagement from "@/Pages/Admin/FxManagement.vue";
 import AdminAdvisoryDashboard from "@/Pages/Admin/AdvisoryDashboard.vue";
@@ -290,9 +289,45 @@ const routes = [
   },
   {
     path: "/admin/reports",
-    name: "admin-reports",
-    component: AdminReports,
+    component: () => import("@/Pages/Admin/Reports/Index.vue"),
     meta: { requiresAuth: true, adminOnly: true },
+    children: [
+      {
+        path: "",
+        name: "admin-reports-dashboard",
+        component: () => import("@/Pages/Admin/Reports/Dashboard.vue"),
+      },
+      {
+        path: "users",
+        name: "admin-reports-users",
+        component: () => import("@/Pages/Admin/Reports/Users.vue"),
+      },
+      {
+        path: "financial",
+        name: "admin-reports-financial",
+        component: () => import("@/Pages/Admin/Reports/Financial.vue"),
+      },
+      {
+        path: "investments",
+        name: "admin-reports-investments",
+        component: () => import("@/Pages/Admin/Reports/Investments.vue"),
+      },
+      {
+        path: "wallet-withdrawals",
+        name: "admin-reports-wallet",
+        component: () => import("@/Pages/Admin/Reports/WithdrawalsWallet.vue"),
+      },
+      {
+        path: "referrals",
+        name: "admin-reports-referrals",
+        component: () => import("@/Pages/Admin/Reports/ReferralsSubscriptions.vue"),
+      },
+      {
+        path: "system",
+        name: "admin-reports-system",
+        component: () => import("@/Pages/Admin/Reports/System.vue"),
+      },
+    ],
   },
   {
     path: "/admin/notifications",

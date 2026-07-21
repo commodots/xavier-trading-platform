@@ -42,11 +42,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      console.warn("Unauthorized: Clearing login and redirecting to login...");
+      console.warn("Unauthorized: Clearing auth state and redirecting to the landing page...");
       localStorage.removeItem("xavier_token");
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      localStorage.removeItem("active_view");
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }
