@@ -7,19 +7,73 @@ use App\Models\WithdrawalRequest;
 use App\Models\WalletTransaction;
 use App\Models\Fee;
 use App\Models\PlatformEarning;
+use App\Models\Wallet;
+use App\Models\RevenueRecord;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class FinancialReportService
 {
     public function summary(): array
     {
+        $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
+        $thisWeek = Carbon::now()->startOfWeek();
+        $thisMonth = Carbon::now()->startOfMonth();
+
         return [
-            ['label' => 'Total Deposits', 'value' => Transaction::where('type', 'deposit')->sum('amount'), 'prefix' => '$'],
-            ['label' => 'Total Withdrawals', 'value' => WithdrawalRequest::where('status', 'approved')->sum('amount'), 'prefix' => '$'],
-            ['label' => 'Pending Withdrawals', 'value' => WithdrawalRequest::where('status', 'pending')->sum('amount'), 'prefix' => '$'],
-            ['label' => 'Wallet Balance', 'value' => \App\Models\Wallet::sum('balance'), 'prefix' => '$'],
-            ['label' => 'Fees', 'value' => Fee::sum('amount'), 'prefix' => '$'],
-            ['label' => 'Revenue', 'value' => PlatformEarning::sum('amount'), 'prefix' => '$'],
+            ['title' => 'Total Deposits', 'value' => Transaction::where('type', 'deposit')->sum('amount'), 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '$'],
+            ['title' => 'Total Withdrawals', 'value' => Transaction::where('type', 'withdrawal')->sum('amount'), 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '$'],
+            ['title' => 'Pending Withdrawals', 'value' => Transaction::where('type', 'withdrawal')->where('status', 'pending')->sum('amount'), 'icon' => 'clock', 'color' => '#F59E0B', 'prefix' => '$'],
+            ['title' => 'Wallet Balance', 'value' => Wallet::sum('balance'), 'icon' => 'dollar', 'color' => '#0047AB', 'prefix' => '$'],
+            ['title' => 'Fees', 'value' => Transaction::where('type', 'fee')->sum('amount'), 'icon' => 'receipt', 'color' => '#8B5CF6', 'prefix' => '$'],
+            ['title' => 'Revenue', 'value' => RevenueRecord::sum('amount'), 'icon' => 'activity', 'color' => '#F59E0B', 'prefix' => '$'],
+            ['title' => 'Commissions', 'value' => Transaction::where('type', 'commission')->sum('amount'), 'icon' => 'shield', 'color' => '#10B981', 'prefix' => '$'],
+        ];
+    }
+
+    public function getStatistics(string $type = 'deposits'): array
+    {
+        $query = match($type) {
+            'withdrawals' => Transaction::where('type', 'withdrawal'),
+            'fees' => Transaction::where('type', 'fee'),
+            'revenue' => RevenueRecord::query(),
+            default => Transaction::where('type', 'deposit'),
+        };
+
+        $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
+        $thisWeek = Carbon::now()->startOfWeek();
+        $thisMonth = Carbon::now()->startOfMonth();
+
+        return [
+            'today' => $query->whereDate('created_at', $today)->sum('amount'),
+            'yesterday' => $query->whereDate('created_at', $yesterday)->sum('amount'),
+            'this_week' => $query->where('created_at', '>=', $thisWeek)->sum('amount'),
+            'this_month' => $query->where('created_at', '>=', $thisMonth)->sum('amount'),
+        ];
+    }
+
+    public function statistics(array $filters = []): array
+    {
+        $type = $filters['type'] ?? 'deposits';
+        $query = match($type) {
+            'withdrawals' => Transaction::where('type', 'withdrawal'),
+            'fees' => Transaction::where('type', 'fee'),
+            'revenue' => RevenueRecord::query(),
+            default => Transaction::where('type', 'deposit'),
+        };
+
+        $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
+        $thisWeek = Carbon::now()->startOfWeek();
+        $thisMonth = Carbon::now()->startOfMonth();
+
+        return [
+            'today' => $query->whereDate('created_at', $today)->sum('amount'),
+            'yesterday' => $query->whereDate('created_at', $yesterday)->sum('amount'),
+            'this_week' => $query->where('created_at', '>=', $thisWeek)->sum('amount'),
+            'this_month' => $query->where('created_at', '>=', $thisMonth)->sum('amount'),
         ];
     }
 

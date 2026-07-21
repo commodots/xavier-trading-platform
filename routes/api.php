@@ -397,13 +397,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/dashboard', [\App\Http\Controllers\Admin\ReportsController::class, 'dashboard']);
             Route::get('/users', [\App\Http\Controllers\Admin\ReportsController::class, 'users']);
             Route::get('/users/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'userSummary']);
+            Route::get('/users/filters', [\App\Http\Controllers\Admin\ReportsController::class, 'userFilters']);
+            Route::get('/users/{id}', [\App\Http\Controllers\Admin\ReportsController::class, 'userDetail']);
             Route::get('/financial', [\App\Http\Controllers\Admin\ReportsController::class, 'financial']);
             Route::get('/financial/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'financialSummary']);
+            Route::get('/financial/summary/statistics', [\App\Http\Controllers\Admin\ReportsController::class, 'financialStatistics']);
             Route::get('/investments', [\App\Http\Controllers\Admin\ReportsController::class, 'investments']);
             Route::get('/investments/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentSummary']);
             Route::get('/investments/charts', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentCharts']);
             Route::get('/investments/top-investors', [\App\Http\Controllers\Admin\ReportsController::class, 'topInvestors']);
             Route::get('/investments/distribution', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentDistribution']);
+            Route::get('/investments/filters', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentFilters']);
             Route::get('/wallet-withdrawals', [\App\Http\Controllers\Admin\ReportsController::class, 'walletWithdrawals']);
             Route::get('/wallet-withdrawals/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'walletWithdrawalSummary']);
             Route::get('/referrals-subscriptions', [\App\Http\Controllers\Admin\ReportsController::class, 'referralsSubscriptions']);

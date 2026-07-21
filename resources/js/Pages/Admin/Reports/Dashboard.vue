@@ -1,17 +1,25 @@
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold text-white">Xavier Report Dashboard</h1>
-      <p class="text-sm text-gray-400 mt-1">Today's Summary & Platform Health</p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Xavier Report Dashboard</h1>
+        <p class="text-sm text-gray-400 mt-1">Today's Summary - {{ new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+      </div>
+      <button @click="fetchDashboard" :disabled="loading" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+        <span v-if="loading">Refreshing...</span>
+        <span v-else>Refresh</span>
+      </button>
     </div>
 
-    <!-- Summary Cards -->
-    <SkeletonLoader v-if="loading" type="card" :count="16" class="opacity-40" />
-    <div v-else>
-      <div v-for="(cards, section) in summary" :key="section">
-        <h2 class="text-lg font-semibold text-white mb-4 capitalize">{{ section }}</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <SummaryCard v-for="card in cards" :key="card.title" v-bind="card" />
+    <!-- Today's Summary Cards -->
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold text-white mb-4">Today's Summary</h2>
+      <SkeletonLoader v-if="loading" type="card" :count="16" class="opacity-40" />
+      <div v-else>
+        <div v-for="(cards, section) in summary" :key="section">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <SummaryCard v-for="card in cards" :key="card.title" v-bind="card" />
+          </div>
         </div>
       </div>
     </div>

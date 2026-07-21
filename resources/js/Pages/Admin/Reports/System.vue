@@ -55,11 +55,23 @@
     <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
       <h3 class="text-lg font-semibold text-white mb-4">Maintenance Tools (Super Admin)</h3>
       <div class="flex flex-wrap gap-3">
-        <button v-for="action in maintenanceActions" :key="action.key" @click="runAction(action.key)" class="px-4 py-2 bg-[#16213A] border border-gray-700 rounded-lg text-white text-sm hover:border-blue-500 transition">
+        <button v-for="action in maintenanceActions" :key="action.key" @click="confirmAction(action.key, action.label)" class="px-4 py-2 bg-[#16213A] border border-gray-700 rounded-lg text-white text-sm hover:border-blue-500 transition">
           {{ action.label }}
         </button>
       </div>
-      <div v-if="actionMessage" class="mt-4 text-sm text-green-400">{{ actionMessage }}</div>
+      <div v-if="actionMessage" class="mt-4 text-sm" :class="actionMessage.includes('failed') ? 'text-red-400' : 'text-green-400'">{{ actionMessage }}</div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="showModal = false">
+      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-white mb-2">Confirm Action</h3>
+        <p class="text-gray-400 text-sm mb-6">{{ modalMessage }}</p>
+        <div class="flex gap-3 justify-end">
+          <button @click="showModal = false" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm hover:bg-gray-600 transition">Cancel</button>
+          <button @click="executeConfirmedAction" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm hover:bg-blue-600 transition">Confirm</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -98,7 +110,26 @@ const fetchSystem = async () => {
   }
 };
 
-const runAction = async (key) => {
+const showModal = ref(false);
+const modalMessage = ref('');
+const pendingActionKey = ref('');
+
+const confirmAction = (key, label) => {
+  pendingActionKey.value = key;
+  const confirmMessages = {
+    'clear-cache': 'Are you sure you want to clear all application caches? This may temporarily slow down the application while caches rebuild.',
+    'optimize': 'Are you sure you want to optimize the application? This will cache routes, config, and views.',
+    'queue-restart': 'Are you sure you want to restart the queue worker? Any currently processing jobs will be interrupted.',
+    'run-scheduler': 'Are you sure you want to run the scheduler now? This will execute all scheduled tasks.',
+    'logs': 'Are you sure you want to view the latest application logs?',
+  };
+  modalMessage.value = confirmMessages[key] || `Are you sure you want to run "${label}"?`;
+  showModal.value = true;
+};
+
+const executeConfirmedAction = async () => {
+  showModal.value = false;
+  const key = pendingActionKey.value;
   try {
     if (key === 'logs') {
       const res = await api.get('/admin/reports/logs');

@@ -74,6 +74,20 @@ class ReportsController extends Controller
         return response()->json($this->userReport->summary());
     }
 
+    public function userFilters()
+    {
+        return response()->json($this->userReport->filters());
+    }
+
+    public function userDetail($id)
+    {
+        $user = $this->userReport->getUserById($id);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+        return response()->json($user);
+    }
+
     protected function exportUsers(Request $request)
     {
         $data = $this->userReport->export($request->all());
@@ -108,6 +122,12 @@ class ReportsController extends Controller
     public function financialSummary()
     {
         return response()->json($this->financial->summary());
+    }
+
+    public function financialStatistics(Request $request)
+    {
+        $type = $request->get('type', 'deposits');
+        return response()->json($this->financial->getStatistics($type));
     }
 
     // Investments
@@ -237,6 +257,11 @@ class ReportsController extends Controller
             ->limit(20)
             ->get(['id', 'name', 'email']);
         return response()->json(['users' => $users]);
+    }
+
+    public function investmentFilters()
+    {
+        return response()->json($this->investment->filters());
     }
 }
 

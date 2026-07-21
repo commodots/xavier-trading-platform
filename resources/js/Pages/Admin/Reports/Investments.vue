@@ -13,15 +13,32 @@
       <StatCard v-for="s in summary" :key="s.label" v-bind="s" />
     </div>
 
-    <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
+    <!-- Filters -->
+    <div v-if="!loading" class="flex flex-wrap items-center gap-4">
+      <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
+      <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
+        <option value="">All Status</option>
+        <option value="open">Active</option>
+        <option value="pending">Pending</option>
+        <option value="filled">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select v-model="filters.plan" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
+        <option value="">All Plans</option>
+        <option v-for="plan in filterOptions.plans" :key="plan" :value="plan">{{ plan }}</option>
+      </select>
+      <button @click="fetchInvestments" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
+      <button @click="resetFilters" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Reset</button>
+      <ExportButton @export-csv="exportReport('csv')" @export-excel="exportReport('excel')" />
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="5" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="columns" :data="investments">
+      <ReportTable v-else :columns="columns" :data="investments" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
         <template #cell-status="{ row }">
-          <span :class="row.status === 'filled' ? 'text-green-400' : 'text-yellow-400'" class="text-xs font-medium">{{ row.status }}</span>
+          <span :class="row.status === 'filled' ? 'text-green-400' : row.status === 'cancelled' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
       </ReportTable>
       <div>
@@ -50,11 +67,13 @@ const loading = ref(false);
 const filters = reactive({ from: '', to: '' });
 
 const columns = [
-  { key: 'investor', label: 'Investor' },
+  { key: 'investor', label: 'Investor', sortable: true },
   { key: 'plan', label: 'Plan' },
-  { key: 'amount', label: 'Amount', align: 'right' },
+  { key: 'amount', label: 'Amount', align: 'right', sortable: true },
+  { key: 'roi', label: 'ROI', align: 'right' },
+  { key: 'start_date', label: 'Start Date', sortable: true },
+  { key: 'maturity', label: 'Maturity' },
   { key: 'status', label: 'Status' },
-  { key: 'start_date', label: 'Start Date' },
 ];
 
 const investorColumns = [
@@ -63,21 +82,67 @@ const investorColumns = [
   { key: 'total_investments', label: 'Total', align: 'right' },
 ];
 
+const filterOptions = ref({
+  plans: [],
+  statuses: ['open', 'pending', 'filled', 'cancelled']
+});
+
+const sortBy = ref('');
+const sortDir = ref('desc');
+
 const fetchInvestments = async () => {
   loading.value = true;
   try {
-    const [sumRes, invRes, topRes] = await Promise.all([
+    const params = { ...filters, sort: sortBy.value, dir: sortDir.value };
+    const [sumRes, invRes, topRes, filtersRes] = await Promise.all([
       api.get('/admin/reports/investments/summary'),
-      api.get('/admin/reports/investments', { params: filters }),
+      api.get('/admin/reports/investments', { params }),
       api.get('/admin/reports/investments/top-investors'),
+      api.get('/admin/reports/investments/filters').catch(() => ({ data: { plans: [] } })),
     ]);
     summary.value = sumRes.data;
     investments.value = invRes.data.data || [];
     topInvestors.value = topRes.data || [];
+    filterOptions.value = filtersRes.data;
   } catch (e) {
     console.error(e);
   } finally {
     loading.value = false;
+  }
+};
+
+const handleSort = (key) => {
+  if (sortBy.value === key) { sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'; }
+  else { sortBy.value = key; sortDir.value = 'asc'; }
+  fetchInvestments();
+};
+
+const resetFilters = () => {
+  filters.from = '';
+  filters.to = '';
+  filters.status = '';
+  filters.plan = '';
+  filters.user = '';
+  filters.amount_min = '';
+  filters.amount_max = '';
+  sortBy.value = '';
+  sortDir.value = 'desc';
+  fetchInvestments();
+};
+
+const exportReport = async (format) => {
+  try {
+    const params = { ...filters, export: format };
+    const res = await api.get('/admin/reports/investments', { params, responseType: 'blob' });
+    const blob = new Blob([res.data]);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `investments-report.${format === 'csv' ? 'csv' : 'xlsx'}`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error(e);
   }
 };
 

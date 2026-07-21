@@ -24,10 +24,10 @@ class UserReportService
 
     public function list(array $filters = []): array
     {
-        $query = User::query()->with('kyc');
+        $query = User::query()->with('kyc', 'wallet');
         
         $builder = new ReportQueryBuilder($query);
-        $builder->setAllowedSorts(['name', 'email', 'created_at', 'kyc_status', 'last_active_at'])
+        $builder->setAllowedSorts(['name', 'email', 'created_at', 'kyc_status', 'last_active_at', 'subscription_status'])
             ->setDefaultSort('created_at', 'desc')
             ->applySearch($filters['search'] ?? null, ['name', 'email', 'phone'])
             ->applyDateRange($filters['from'] ?? null, $filters['to'] ?? null, 'created_at')
@@ -39,11 +39,16 @@ class UserReportService
         if (!empty($filters['subscription'])) {
             $query->where('subscription_status', $filters['subscription']);
         }
+        if (!empty($filters['role'])) {
+            $query->where('role', $filters['role']);
+        }
         if (!empty($filters['status'])) {
             if ($filters['status'] === 'suspended') {
                 $query->where('is_suspended', true);
             } elseif ($filters['status'] === 'active') {
-                $query->where('is_suspended', false);
+                $query->where('is_suspended', false)->where('kyc_status', 'verified');
+            } elseif ($filters['status'] === 'inactive') {
+                $query->where('last_active_at', '<', now()->subDays(30));
             }
         }
 
@@ -55,14 +60,15 @@ class UserReportService
             'name' => $u->name,
             'email' => $u->email,
             'phone' => $u->phone,
-            'country' => $u->country,
-            'wallet_balance' => $u->wallet_balance,
-            'subscription_status' => $u->subscription_status,
+            'country' => $u->country ?? 'N/A',
+            'wallet_balance' => $u->wallet_balance ?? 0,
+            'subscription_status' => $u->subscription_status ?? 'none',
             'kyc_status' => $u->kyc_status ?? ($u->kyc?->status ?? 'none'),
             'is_suspended' => $u->is_suspended,
             'status' => $u->is_suspended ? 'suspended' : ($u->kyc_status === 'verified' ? 'active' : 'pending'),
             'joined' => $u->created_at?->format('Y-m-d H:i'),
             'last_login' => $u->last_active_at?->format('Y-m-d H:i'),
+            'avatar' => $u->avatar ?? null,
         ])->toArray();
 
         return [
@@ -74,9 +80,42 @@ class UserReportService
         ];
     }
 
+    public function filters(): array
+    {
+        return [
+            'countries' => User::select('country')->distinct()->whereNotNull('country')->orderBy('country')->pluck('country'),
+            'subscriptions' => ['active', 'inactive', 'trial'],
+            'roles' => ['user', 'admin', 'staff'],
+            'statuses' => ['active', 'suspended', 'inactive'],
+            'kyc_statuses' => ['verified', 'pending', 'rejected', 'none'],
+        ];
+    }
+
     public function export(array $filters = []): array
     {
         $result = $this->list($filters + ['per_page' => 10000]);
         return $result['data'];
+    }
+
+    public function getUserById(int $id): ?array
+    {
+        $user = User::with('kyc')->find($id);
+        if (!$user) return null;
+        
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'country' => $user->country ?? 'N/A',
+            'wallet_balance' => $user->wallet_balance ?? 0,
+            'subscription_status' => $user->subscription_status ?? 'none',
+            'kyc_status' => $user->kyc_status ?? ($user->kyc?->status ?? 'none'),
+            'is_suspended' => $user->is_suspended,
+            'status' => $user->is_suspended ? 'suspended' : ($user->kyc_status === 'verified' ? 'active' : 'pending'),
+            'joined' => $user->created_at?->format('Y-m-d H:i'),
+            'last_login' => $user->last_active_at?->format('Y-m-d H:i'),
+            'avatar' => $user->avatar ?? null,
+        ];
     }
 }

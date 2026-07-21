@@ -34,11 +34,26 @@ class InvestmentReportService
         $query = Order::with('user:id,name,email');
 
         $builder = new ReportQueryBuilder($query);
-        $builder->setAllowedSorts(['created_at', 'amount', 'status'])
+        $builder->setAllowedSorts(['created_at', 'amount', 'status', 'market'])
             ->setDefaultSort('created_at', 'desc')
             ->applyDateRange($filters['from'] ?? null, $filters['to'] ?? null)
             ->applyStatus($filters['status'] ?? null)
             ->applySearch($filters['search'] ?? null, ['symbol', 'market']);
+
+        if (!empty($filters['plan'])) {
+            $query->where('market', $filters['plan']);
+        }
+        if (!empty($filters['user'])) {
+            $query->whereHas('user', function($q) use ($filters) {
+                $q->where('name', 'like', "%{$filters['user']}%");
+            });
+        }
+        if (!empty($filters['amount_min'])) {
+            $query->where(DB::raw('amount * price'), '>=', $filters['amount_min']);
+        }
+        if (!empty($filters['amount_max'])) {
+            $query->where(DB::raw('amount * price'), '<=', $filters['amount_max']);
+        }
 
         $perPage = (int) ($filters['per_page'] ?? 50);
         $paginator = $builder->paginate($perPage);
@@ -58,6 +73,14 @@ class InvestmentReportService
             'per_page' => $paginator->perPage(),
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
+        ];
+    }
+
+    public function filters(): array
+    {
+        return [
+            'plans' => Order::select('market')->distinct()->whereNotNull('market')->orderBy('market')->pluck('market'),
+            'statuses' => ['open', 'pending', 'filled', 'cancelled'],
         ];
     }
 
