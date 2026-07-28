@@ -169,7 +169,7 @@ import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
   ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store,
-  CreditCard, ArrowLeftRight
+  CreditCard, ArrowLeftRight, History
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
@@ -194,9 +194,14 @@ const user = ref(getUser());
 
 const isAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
-  return role === "admin" ||
+  const roles = user.value?.roles || [];
+  const hasAdminRole = role === "admin" ||
     (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin')) ||
     user.value?.permissions?.manage_system_settings === true;
+  const hasSuperAdminRole = role === "super-admin" ||
+    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'super-admin'));
+  
+  return hasAdminRole || hasSuperAdminRole;
 });
 
 const userPermissions = ref(user.value?.permissions || []);

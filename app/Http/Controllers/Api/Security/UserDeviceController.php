@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Security;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserDeviceSession;
-use App\Services\AuditService;
+use App\Services\Audit\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

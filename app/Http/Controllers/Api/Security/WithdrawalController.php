@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Security;
 
 use App\Http\Controllers\Controller;
 use App\Models\WithdrawalRequest;
-use App\Services\AuditService;
+use App\Services\Audit\AuditService;
 use App\Services\RateLimitService;
 use App\Services\WithdrawalService;
 use Illuminate\Http\JsonResponse;

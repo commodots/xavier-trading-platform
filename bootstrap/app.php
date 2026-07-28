@@ -6,13 +6,6 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
-use Illuminate\Support\Facades\Log;
-use App\Reporting\Jobs\GenerateDailyPortfolioSnapshot;
-use App\Reporting\Jobs\GenerateRevenueSnapshot;
-use App\Reporting\Jobs\GenerateAnalyticsSnapshot;
-use App\Reporting\Jobs\DeleteExpiredExports;
-use App\Reporting\Jobs\WarmReportCache;
-use App\Reporting\Jobs\PurgeOldCache;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -64,6 +57,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ->dailyAt('00:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/portfolio_performance.log'));
+
+        $schedule->command('telescope:prune --hours=48')->daily();
 
     })
     ->withExceptions(function (Exceptions $exceptions): void {

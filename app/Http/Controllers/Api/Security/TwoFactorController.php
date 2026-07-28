@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\Security;
 
 use App\Http\Controllers\Controller;
-use App\Services\AuditService;
+use App\Services\Audit\AuditService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

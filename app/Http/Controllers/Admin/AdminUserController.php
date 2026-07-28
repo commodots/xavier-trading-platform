@@ -190,4 +190,28 @@ class AdminUserController extends Controller
             'message' => 'Two-factor authentication has been reset',
         ]);
     }
+
+    /**
+     * Assign roles to a user.
+     */
+    public function assignRole(Request $request, User $user): JsonResponse
+    {
+        $validated = $request->validate([
+            'roles' => 'required|array',
+            'roles.*' => 'string|in:user,admin,super-admin,accounts,compliance,manager,support',
+        ]);
+
+        // Sync roles
+        $user->syncRoles($validated['roles']);
+
+        // Set primary role as the first role or default to 'user'
+        $user->role = $validated['roles'][0] ?? 'user';
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Roles updated successfully',
+            'roles' => $user->getRoleNames()->toArray(),
+        ]);
+    }
 }

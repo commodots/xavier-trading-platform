@@ -40,7 +40,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['close','role-updated']);
 
-const roles = ['user','admin','accounts','compliance','manager','support'];
+const roles = ['user','admin','super-admin','accounts','compliance','manager','support'];
 const selected = ref((props.user && props.user.roles && props.user.roles.length)
   ? props.user.roles.map(r => (typeof r === 'string' ? r : r.name))
   : [props.user?.role || 'user']

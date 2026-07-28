@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Models\KycProfile;
 use App\Observers\KycProfileObserver;
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
+use Laravel\Pulse\Facades\Pulse;
 use App\Services\Stocks\Contracts\MarketDataProvider;
 use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Mock\MockDriveWealthService;
@@ -38,6 +41,11 @@ class AppServiceProvider extends ServiceProvider
                 throw new \RuntimeException('MarketDataProvider not configured for production');
             });
         }
+
+        if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
+        $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
+        $this->app->register(TelescopeServiceProvider::class);
+    }
     }
 
     /**
@@ -53,6 +61,21 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(DatabaseNotification::class, function () {
         return new CustomNotification();
+        
     });
+
+        Gate::guessPolicyNamesUsing(function (string $modelClass) {
+            return 'App\\Policies\\'.class_basename($modelClass).'Policy';
+        });
+
+         Gate::define('viewPulse', function (User $user) {
+        return $user->isAdmin();
+    });
+
+     Pulse::user(fn ($user) => [
+        'name' => $user->name,
+        'extra' => $user->email,
+        'avatar' => $user->avatar,
+    ]);
     }
 }

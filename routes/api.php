@@ -364,6 +364,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users/{user}/unsuspend', [AdminUserController::class, 'unsuspend']);
         Route::post('/users/{user}/force-logout', [AdminUserController::class, 'forceLogout']);
         Route::post('/users/{user}/reset-2fa', [AdminUserController::class, 'reset2FA']);
+        Route::post('/users/{user}/role', [AdminUserController::class, 'assignRole']);
 
         // ── Billing Dashboard ──
         Route::prefix('billing')->group(function () {

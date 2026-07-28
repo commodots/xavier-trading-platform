@@ -6,10 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class ActivityLog extends Model
 {
-    protected $fillable = ['user_id', 'activity', 'ip_address', 'user_agent', 'details'];
+    protected $fillable = [
+        'user_id',
+        'activity',
+        'description',
+        'properties',
+    ];
 
     protected $casts = [
-        'details' => 'array',
+        'properties' => 'array',
     ];
 
     public function user()
@@ -17,14 +22,15 @@ class ActivityLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    public static function log($userId, $activity, $details = null)
-{
-    return self::create([
-        'user_id' => $userId,
-        'activity' => $activity,
-        'ip_address' => request()->ip(),
-        'user_agent' => request()->userAgent(),
-        'details' => $details,
-    ]);
-}
+    /**
+     * Log an activity
+     */
+    public static function log($userId, string $activity, array $properties = []): self
+    {
+        return static::create([
+            'user_id' => $userId,
+            'activity' => $activity,
+            'properties' => $properties,
+        ]);
+    }
 }

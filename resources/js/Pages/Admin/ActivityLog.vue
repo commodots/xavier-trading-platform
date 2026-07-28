@@ -69,7 +69,24 @@
         </div>
       </div>
 
-      <div class="mb-4 overflow-x-auto">
+      <!-- Activity Type Tabs -->
+      <div class="flex gap-2 mb-4 border-b border-gray-800">
+        <button
+          @click="activityTab = 'all'"
+          :class="['px-4 py-2 text-sm font-medium transition', activityTab === 'all' ? 'text-[#00D4FF] border-b-2 border-[#00D4FF]' : 'text-gray-400 hover:text-white']"
+        >
+          All Activity
+        </button>
+        <button
+          @click="activityTab = 'login'"
+          :class="['px-4 py-2 text-sm font-medium transition', activityTab === 'login' ? 'text-[#00D4FF] border-b-2 border-[#00D4FF]' : 'text-gray-400 hover:text-white']"
+        >
+          Login History
+        </button>
+      </div>
+
+      <!-- All Activity Tab -->
+      <div v-if="activityTab === 'all'" class="mb-4 overflow-x-auto">
         <table class="w-full text-sm text-left text-gray-400">
           <thead class="bg-gray-800/50 text-gray-200 uppercase text-[11px] tracking-wider">
             <tr>
@@ -105,6 +122,11 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Login History Tab -->
+      <div v-else-if="activityTab === 'login'">
+        <LoginHistoryTable ref="loginHistoryTableRef" />
       </div>
 
       <div v-if="logsData.last_page > 1" class="flex items-center justify-between pt-4 border-t border-gray-800">
@@ -181,15 +203,18 @@
 import { ref, reactive, onMounted } from 'vue';
 import api from '@/api';
 import MainLayout from '@/Layouts/MainLayout.vue';
+import LoginHistoryTable from '@/Components/admin/LoginHistoryTable.vue';
 
 const logsData = ref({ data: [], total: 0, current_page: 1, last_page: 1 });
 const selectedLog = ref(null);
+const activityTab = ref('all');
 const filters = reactive({
   q: '',
   type: '',
   start_date: '',
   end_date: ''
 });
+const loginHistoryTableRef = ref(null);
 
 let searchTimeout = null;
 

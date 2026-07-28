@@ -41,6 +41,14 @@ class WalletController extends Controller
         ];
     }
 
+    /**
+     * Display the wallet page 
+     */
+    public function index(Request $request)
+    {
+        return $this->balances($request);
+    }
+
     public function balances(Request $request)
     {
         $user = Auth::user();
@@ -123,11 +131,9 @@ class WalletController extends Controller
 
             // Log audit trail for wallet adjustment (deposit)
             AuditService::log(
-                'wallet_adjustment',
-                'wallet',
-                $wallet->id,
-                ['cleared_balance' => $walletBefore],
-                ['cleared_balance' => $wallet->{$clearedCol}]
+                'Wallet Adjusted',
+                $wallet,
+                "Deposit: {$request->amount} {$currency}"
             );
 
             Log::info('Wallet Deposit Finished', [

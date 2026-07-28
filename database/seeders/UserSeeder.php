@@ -10,8 +10,8 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Admin
-        User::updateOrCreate(
+        // Super Admin
+        $superAdmin = User::updateOrCreate(
             [
                 'email' => 'admin@xavier.com',
             ],
@@ -21,13 +21,18 @@ class UserSeeder extends Seeder
                 'last_name' => 'Admin',
                 'name' => 'System Admin',
                 'phone' => '08000000000',
-                'role' => 'admin',
+                'role' => 'super-admin',
                 'status' => 'active',
                 'trading_mode' => 'live',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ]
         );
+
+        // Assign super-admin role using Spatie
+        if (method_exists($superAdmin, 'syncRoles')) {
+            $superAdmin->syncRoles(['super-admin']);
+        }
 
         // 20 normal users
         User::factory()->count(20)->create();
