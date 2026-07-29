@@ -21,7 +21,7 @@ class FxReconciliationController extends Controller
     public function getReconciliation(): JsonResponse
     {
         // Verify admin authorization
-        if (! Auth::user() || ! Auth::user()->hasRole('admin')) {
+        if (! Auth::user() || ! Auth::user()->hasRole(['super-admin', 'admin'])) {
             ActivityLog::log(
                 Auth::id(),
                 'fx_reconciliation_access_denied',
@@ -91,8 +91,12 @@ class FxReconciliationController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('FX reconciliation failed', ['error' => $e->getMessage()]);
-            return response()->json(['status' => 'error', 'message' => 'Unable to fetch reconciliation data.'], 422);
+            Log::error('FX reconciliation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'status' => 'error', 
+                'message' => 'Unable to fetch reconciliation data.',
+                'debug' => config('app.debug') ? $e->getMessage() : null
+            ], 422);
         }
     }
 
@@ -102,7 +106,7 @@ class FxReconciliationController extends Controller
     public function getRecentTransactions(): JsonResponse
     {
         // Verify admin authorization
-        if (! Auth::user() || ! Auth::user()->hasRole('admin')) {
+        if (! Auth::user() || ! Auth::user()->hasRole(['super-admin', 'admin'])) {
             ActivityLog::log(
                 Auth::id(),
                 'fx_transactions_access_denied',
@@ -150,7 +154,7 @@ class FxReconciliationController extends Controller
     public function runReconciliation(): JsonResponse
     {
         // Verify admin authorization
-        if (! Auth::user() || ! Auth::user()->hasRole('admin')) {
+        if (! Auth::user() || ! Auth::user()->hasRole(['super-admin', 'admin'])) {
             ActivityLog::log(
                 Auth::id(),
                 'fx_reconciliation_run_denied',
@@ -193,7 +197,7 @@ class FxReconciliationController extends Controller
      */
     public function getPendingSettlements(): JsonResponse
     {
-        if (! Auth::user() || ! Auth::user()->hasRole('admin')) {
+        if (! Auth::user() || ! Auth::user()->hasRole(['super-admin', 'admin'])) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
 

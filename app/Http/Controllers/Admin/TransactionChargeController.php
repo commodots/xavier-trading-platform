@@ -16,7 +16,8 @@ class TransactionChargeController extends Controller
     {
         $user = auth()->user();
 
-        $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
+        $isAdmin = (isset($user->role) && in_array(strtolower($user->role), ['super-admin', 'admin'])) 
+                    || $user->hasRole(['super-admin', 'admin']);
 
         if (!$isAdmin && !StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
 
@@ -38,7 +39,7 @@ class TransactionChargeController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole('admin') && !StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
+        if (!$user->hasRole('super-admin') && !StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
             $assignedRoles = $user->getRoleNames();
 
             $staffRole = $assignedRoles->reject(fn($name) => $name === 'user')->first();
@@ -63,7 +64,7 @@ class TransactionChargeController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole('admin') && !StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
+        if (!$user->hasRole('super-admin') && !StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
             $assignedRoles = $user->getRoleNames();
 
             $staffRole = $assignedRoles->reject(fn($name) => $name === 'user')->first();

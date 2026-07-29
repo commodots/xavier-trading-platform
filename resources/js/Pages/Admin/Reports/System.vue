@@ -3,12 +3,7 @@
     <h1 class="text-2xl font-bold text-white">System Report</h1>
 
     <!-- Cards -->
-    <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      <div v-for="i in 8" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-        <div class="h-3 bg-gray-700 rounded w-20"></div>
-        <div class="h-6 bg-gray-700 rounded w-16"></div>
-      </div>
-    </div>
+    <SkeletonLoader v-if="loading" type="card" :count="8" class="opacity-40" />
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       <StatCard v-for="c in cards" :key="c.label" v-bind="c" />
     </div>
@@ -16,15 +11,7 @@
     <!-- Integration Health -->
     <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
       <h3 class="text-lg font-semibold text-white mb-4">Integration Health</h3>
-      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div v-for="i in 5" :key="i" class="flex items-center gap-3 bg-[#16213A] rounded-lg p-4 animate-pulse">
-          <div class="h-8 w-8 bg-gray-700 rounded-full"></div>
-          <div class="flex-1 space-y-2">
-            <div class="h-4 bg-gray-700 rounded w-20"></div>
-            <div class="h-3 bg-gray-700 rounded w-16"></div>
-          </div>
-        </div>
-      </div>
+      <SkeletonLoader v-if="loading" type="list" :count="5" class="opacity-40" />
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div v-for="item in integrations" :key="item.name" class="flex items-center gap-3 bg-[#16213A] rounded-lg p-4">
           <span class="text-2xl">{{ item.icon }}</span>
@@ -40,9 +27,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div v-for="(logEntries, logType) in logs" :key="logType" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <h3 class="text-lg font-semibold text-white mb-3 capitalize">{{ logType.replace('_', ' ') }}</h3>
-        <div v-if="loading" class="space-y-2">
-          <div v-for="i in 5" :key="i" class="h-8 bg-gray-700 rounded animate-pulse"></div>
-        </div>
+        <SkeletonLoader v-if="loading" type="list" :count="5" class="opacity-40" />
         <div v-else-if="logEntries.length === 0" class="text-gray-500 text-sm italic py-4 text-center">No entries</div>
         <div v-else v-for="(entry, i) in logEntries.slice(0, 5)" :key="i" class="text-xs text-gray-400 border-b border-[#1f3348] py-2 flex justify-between">
           <span>{{ entry.message }}</span>

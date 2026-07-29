@@ -121,8 +121,13 @@ try {
 }
 
 const isAdmin = computed(() => {
-  return user.value.role === "admin" ||
-    (user.value.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin'));
+  const userRole = (user.value.role || '').toLowerCase();
+  const hasAdminRole = user.value.roles && user.value.roles.some(r => {
+    const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
+    return ['admin', 'super-admin'].includes(roleName);
+  });
+  
+  return ['admin', 'super-admin'].includes(userRole) || hasAdminRole;
 });
 
 const hasRole = (...rolesAllowed) => {

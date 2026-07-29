@@ -5,13 +5,8 @@
     </div>
 
     <!-- Summary Cards -->
-    <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
-      <div v-for="i in 7" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-        <div class="h-3 bg-gray-700 rounded w-20"></div>
-        <div class="h-6 bg-gray-700 rounded w-16"></div>
-      </div>
-    </div>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+    <SkeletonLoader v-if="loading" type="card" :count="7" class="opacity-40" />
+    <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
 
@@ -21,7 +16,7 @@
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div v-for="(value, key) in statistics" :key="key" class="bg-[#16213A] rounded-lg p-4">
           <p class="text-xs text-gray-400 uppercase tracking-wider">{{ formatStatLabel(key) }}</p>
-          <p class="text-xl font-bold text-white mt-1">${{ Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</p>
+          <p class="text-xl font-bold text-white mt-1">${{ formatNumber(Number(value)) }}</p>
         </div>
       </div>
     </div>
@@ -50,7 +45,7 @@
     </div>
     <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
       <template #cell-amount="{ row }">
-        <span class="text-right block font-mono">{{ getCurrencySymbol(row.currency || 'USD') }}{{ Number(row.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+        <span class="text-right block font-mono">{{ getCurrencySymbol(row.currency || 'USD') }}{{ formatNumber(Number(row.amount)) }}</span>
       </template>
       <template #cell-status="{ row }">
         <span :class="row.status === 'completed' || row.status === 'approved' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
@@ -191,6 +186,25 @@ const resetFilters = () => {
   sortBy.value = '';
   sortDir.value = 'desc';
   fetchData(1);
+};
+
+const formatNumber = (num) => {
+  // Format with maximum precision first
+  const parts = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+  }).split('.');
+  
+  // Remove trailing zeros from decimal part
+  if (parts[1]) {
+    parts[1] = parts[1].replace(/0+$/, '');
+    if (parts[1] === '') {
+      return parts[0];
+    }
+    return parts.join('.');
+  }
+  
+  return parts[0];
 };
 
 const formatStatLabel = (key) => {

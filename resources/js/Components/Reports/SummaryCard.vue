@@ -1,9 +1,9 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 hover:border-blue-500/30 transition-all duration-200">
     <div class="flex items-start justify-between gap-4">
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 w-fit">
         <p class="text-xs font-medium text-gray-400 uppercase tracking-wider truncate">{{ title }}</p>
-        <p class="text-2xl font-bold text-white mt-1 break-words">{{ formattedValue }}</p>
+        <p class="text-xl font-bold text-white mt-1 break-words">{{ formattedValue }}</p>
         <div v-if="percentage !== undefined" class="flex items-center gap-1.5 mt-2">
           <span :class="trend === 'up' ? 'text-green-400' : 'text-red-400'" class="text-sm font-medium">
             {{ trend === 'up' ? '↑' : '↓' }} {{ Math.abs(percentage) }}%
@@ -63,22 +63,37 @@ const IconComponent = computed(() => {
 });
 
 const formattedValue = computed(() => {
-  if (typeof props.value === 'string') return props.value;
+  // Convert to number first, even if it's a string
   const num = Number(props.value) || 0;
 
   if (num >= 1_000_000_000) {
-    return props.prefix + (num / 1_000_000_000).toFixed(1) + 'B';
+    const value = (num / 1_000_000_000).toFixed(1).replace(/\.0$/, '');
+    return props.prefix + value + 'B';
   }
   if (num >= 1_000_000) {
-    return props.prefix + (num / 1_000_000).toFixed(1) + 'M';
+    const value = (num / 1_000_000).toFixed(1).replace(/\.0$/, '');
+    return props.prefix + value + 'M';
   }
   if (num >= 1_000) {
-    return props.prefix + (num / 1_000).toFixed(1) + 'K';
+    const value = (num / 1_000).toFixed(1).replace(/\.0$/, '');
+    return props.prefix + value + 'K';
   }
 
-  return props.prefix + num.toLocaleString(undefined, {
-    minimumFractionDigits: props.decimals,
-    maximumFractionDigits: props.decimals,
-  });
+  // Format with maximum precision first and comma separators
+  const parts = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+  }).split('.');
+  
+  // Remove trailing zeros from decimal part
+  if (parts[1]) {
+    parts[1] = parts[1].replace(/0+$/, '');
+    if (parts[1] === '') {
+      return props.prefix + parts[0];
+    }
+    return props.prefix + parts.join('.');
+  }
+  
+  return props.prefix + parts[0];
 });
 </script>

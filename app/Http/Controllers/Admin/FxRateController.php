@@ -13,7 +13,8 @@ class FxRateController extends Controller
     {
 
         $user = auth()->user();
-        $isAdmin = $user && (strtolower($user->role ?? '') === 'admin' || $user->hasRole('admin'));
+        $isAdmin = $user && (in_array(strtolower($user->role ?? ''), ['admin', 'super-admin']) 
+                    || $user->hasRole(['super-admin', 'admin']));
 
         if (!$isAdmin) {
             return response()->json(['success' => false, 'message' => 'Forbidden: Admins only'], 403);
@@ -51,20 +52,20 @@ class FxRateController extends Controller
         }
     }
     public function destroy($id)
-{
-    $user = auth()->user();
-    // Check if admin
-    if (!$user || strtolower($user->role ?? '') !== 'admin') {
-        return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
-    }
+    {
+        $user = auth()->user();
+        // Check if admin
+        if (!$user || !in_array(strtolower($user->role ?? ''), ['admin', 'super-admin'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
 
-    try {
-        $rate = FxRate::findOrFail($id);
-        $rate->delete();
+        try {
+            $rate = FxRate::findOrFail($id);
+            $rate->delete();
 
-        return response()->json(['success' => true, 'message' => 'Rate deleted successfully']);
-    } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => 'Failed to delete rate'], 500);
+            return response()->json(['success' => true, 'message' => 'Rate deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete rate'], 500);
+        }
     }
-}
 }

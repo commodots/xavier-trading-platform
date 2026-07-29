@@ -7,19 +7,13 @@
       <div class="space-y-4">
         <h3 class="text-lg font-semibold text-white mb-3">Withdrawal Summary</h3>
         <div class="grid grid-cols-2 gap-4">
-          <div v-for="i in 4" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-            <div class="h-3 bg-gray-700 rounded w-20"></div>
-            <div class="h-6 bg-gray-700 rounded w-16"></div>
-          </div>
+          <SkeletonLoader type="card" :count="4" class="opacity-40" />
         </div>
       </div>
       <div class="space-y-4">
         <h3 class="text-lg font-semibold text-white mb-3">Wallet Summary</h3>
         <div class="grid grid-cols-2 gap-4">
-          <div v-for="i in 4" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-            <div class="h-3 bg-gray-700 rounded w-20"></div>
-            <div class="h-6 bg-gray-700 rounded w-16"></div>
-          </div>
+          <SkeletonLoader type="card" :count="4" class="opacity-40" />
         </div>
       </div>
     </div>

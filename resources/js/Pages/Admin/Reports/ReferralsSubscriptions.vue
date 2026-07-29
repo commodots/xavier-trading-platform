@@ -14,12 +14,7 @@
 
     <div v-if="activeTab === 'referrals'">
       <!-- Referral Summary Cards -->
-      <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div v-for="i in 4" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-          <div class="h-3 bg-gray-700 rounded w-20"></div>
-          <div class="h-6 bg-gray-700 rounded w-16"></div>
-        </div>
-      </div>
+      <SkeletonLoader v-if="loading" type="card" :count="4" class="opacity-40 mb-6" />
       <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <StatCard v-for="s in referralSummary" :key="s.label" v-bind="s" />
       </div>
@@ -37,12 +32,7 @@
 
     <div v-else>
       <!-- Subscription Summary Cards -->
-      <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div v-for="i in 4" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-          <div class="h-3 bg-gray-700 rounded w-20"></div>
-          <div class="h-6 bg-gray-700 rounded w-16"></div>
-        </div>
-      </div>
+      <SkeletonLoader v-if="loading" type="card" :count="4" class="opacity-40 mb-6" />
       <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <StatCard v-for="s in subscriptionSummary" :key="s.label" v-bind="s" />
       </div>

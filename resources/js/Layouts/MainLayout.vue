@@ -19,7 +19,7 @@
           <img src="/images/xavier-logo.png" alt="Logo" class="h-[60px] object-contain" />
         </div>
 
-        <div v-if="hasStaffAccess" class="px-4 mb-4">
+          <div v-if="hasStaffAccess" class="px-4 mb-4">
           <button @click="toggleAccountMode"
             class="w-full py-2 px-3 text-[10px] font-bold tracking-widest rounded-lg border border-[#00D4FF] text-[#00D4FF] hover:bg-[#00D4FF] hover:text-black transition-all duration-300 uppercase">
             SWITCH TO {{ currentView === 'user' ? 'STAFF MODE' : 'CLIENT MODE' }}
@@ -195,13 +195,20 @@ const user = ref(getUser());
 const isAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
   const roles = user.value?.roles || [];
-  const hasAdminRole = role === "admin" ||
+  const hasAdminRole = role === "super-admin" || "admin" ||
     (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin')) ||
     user.value?.permissions?.manage_system_settings === true;
   const hasSuperAdminRole = role === "super-admin" ||
     (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'super-admin'));
   
   return hasAdminRole || hasSuperAdminRole;
+});
+
+const isSuperAdmin = computed(() => {
+  const role = (user.value?.role || '').toLowerCase();
+  const roles = user.value?.roles || [];
+  return role === "super-admin" ||
+    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'super-admin'));
 });
 
 const userPermissions = ref(user.value?.permissions || []);
@@ -248,7 +255,7 @@ onMounted(fetchPermissions);
 const hasStaffAccess = computed(() => {
   if (!user.value) return false;
   const role = (user.value.role || '').toLowerCase();
-  const staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
+  const staffRoles = ['super-admin','admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
   
   const hasPermission = user.value.permissions && typeof user.value.permissions === 'object' 
     ? Object.values(user.value.permissions).some(v => v === true) 

@@ -48,17 +48,20 @@ class SettlementDashboardController extends Controller
 
     /**
      * Settlement metrics: pending, completed, failed counts.
+     * Consolidated to use ledgers table for consistency with FxReconciliationController
      */
     public function metrics()
     {
         return response()->json([
-            'pending' => Trade::unsettled()
-                ->where(function ($q) {
-                    $q->whereNull('settlement_status')
-                      ->orWhere('settlement_status', 'pending');
-                })->count(),
-            'completed' => Trade::where('settlement_status', 'settled')->count(),
-            'failed' => Trade::where('settlement_status', 'failed')->count(),
+            'pending' => \App\Models\Ledger::where('status', 'pending')
+                ->whereIn('type', ['FUND', 'FX_CONVERSION'])
+                ->count(),
+            'completed' => \App\Models\Ledger::where('status', 'completed')
+                ->whereIn('type', ['FUND', 'FX_CONVERSION'])
+                ->count(),
+            'failed' => \App\Models\Ledger::where('status', 'failed')
+                ->whereIn('type', ['FUND', 'FX_CONVERSION'])
+                ->count(),
         ]);
     }
 

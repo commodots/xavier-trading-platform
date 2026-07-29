@@ -1,9 +1,9 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 hover:border-blue-500/30 transition-all duration-200">
     <div class="flex items-start justify-between gap-4">
-      <div class="flex-1 min-w-0">
+      <div class="flex-1  w-fit">
         <p class="text-xs font-medium text-gray-400 uppercase tracking-wider truncate">{{ displayTitle }}</p>
-        <p class="text-2xl font-bold text-white mt-1 truncate" :title="fullValue">{{ formattedValue }}</p>
+        <p class="lg:text-[16px] sm:text-[13px] font-bold text-white mt-1 truncate" :title="fullValue">{{ formattedValue }}</p>
       </div>
       <div v-if="IconComponent" class="p-3 rounded-lg flex-shrink-0" :style="{ backgroundColor: color + '20' }">
         <component :is="IconComponent" :style="{ color: color }" class="text-xl" />
@@ -62,26 +62,31 @@ const IconComponent = computed(() => {
 const fullValue = computed(() => {
   if (typeof props.value === 'string') return props.value;
   const num = Number(props.value) || 0;
-  return props.prefix + num.toLocaleString(undefined, {
+  return num.toLocaleString(undefined, {
     minimumFractionDigits: props.decimals,
-    maximumFractionDigits: props.decimals,
+    maximumFractionDigits: props.decimals, 
   });
 });
 
 const formattedValue = computed(() => {
-  if (typeof props.value === 'string') return props.value;
+  // Convert to number first, even if it's a string
   const num = Number(props.value) || 0;
-
-  if (num >= 1_000_000_000) {
-    return props.prefix + (num / 1_000_000_000).toFixed(1) + 'B';
+  
+  // Format with maximum precision first and comma separators
+  const parts = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+  }).split('.');
+  
+  // Remove trailing zeros from decimal part
+  if (parts[1]) {
+    parts[1] = parts[1].replace(/0+$/, '');
+    if (parts[1] === '') {
+      return props.prefix + parts[0];
+    }
+    return props.prefix + parts.join('.');
   }
-  if (num >= 1_000_000) {
-    return props.prefix + (num / 1_000_000).toFixed(1) + 'M';
-  }
-  if (num >= 1_000) {
-    return props.prefix + (num / 1_000).toFixed(1) + 'K';
-  }
-
-  return fullValue.value;
+  
+  return props.prefix + parts[0];
 });
 </script>

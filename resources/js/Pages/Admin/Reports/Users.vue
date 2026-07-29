@@ -6,13 +6,8 @@
     </div>
 
     <!-- Summary Cards -->
-    <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
-      <div v-for="i in 7" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-        <div class="h-3 bg-gray-700 rounded w-20"></div>
-        <div class="h-6 bg-gray-700 rounded w-16"></div>
-      </div>
-    </div>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <SkeletonLoader v-if="loading" type="card" :count="6" class="opacity-40" />
+    <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
 
@@ -48,11 +43,7 @@
     </div>
 
     <!-- Table -->
-    <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-lg overflow-hidden">
-      <div class="p-4 space-y-3">
-        <div v-for="i in 8" :key="i" class="h-12 bg-gray-700/50 rounded animate-pulse"></div>
-      </div>
-    </div>
+    <SkeletonLoader v-if="loading" type="table" :count="8" class="opacity-40" />
     <ReportTable v-else :columns="columns" :data="users" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
       <template #cell-avatar="{ row }">
         <img v-if="row.avatar" :src="row.avatar" :alt="row.name" class="w-8 h-8 rounded-full object-cover" />
@@ -61,7 +52,7 @@
         </div>
       </template>
       <template #cell-wallet_balance="{ row }">
-        <span class="font-mono text-sm">${{ Number(row.wallet_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+        <span class="font-mono text-sm">${{ formatNumber(Number(row.wallet_balance || 0)) }}</span>
       </template>
       <template #cell-subscription_status="{ row }">
         <span :class="row.subscription_status === 'active' ? 'text-green-400' : row.subscription_status === 'trial' ? 'text-blue-400' : 'text-gray-400'" class="text-xs font-medium capitalize">
@@ -98,7 +89,25 @@ import SearchBar from '@/Components/Reports/SearchBar.vue';
 import DateRangeFilter from '@/Components/Reports/DateRangeFilter.vue';
 import ExportButton from '@/Components/Reports/ExportButton.vue';
 import Pagination from '@/Components/Reports/Pagination.vue';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
+
+const formatNumber = (num) => {
+  const parts = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+  }).split('.');
+  
+  if (parts[1]) {
+    parts[1] = parts[1].replace(/0+$/, '');
+    if (parts[1] === '') {
+      return parts[0];
+    }
+    return parts.join('.');
+  }
+  
+  return parts[0];
+};
 
 const summary = ref([]);
 const users = ref([]);

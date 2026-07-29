@@ -80,7 +80,7 @@ try {
   user.value = {};
 }
 
-const isAdmin = computed(() => user.value.role === "admin");
+const isAdmin = computed(() => user.value.role === "super-admin" || "admin");
 const isStaff = computed(() => !isAdmin.value && hasAnyPermissions());
 
 const sidebarBg = computed(() => {
@@ -111,7 +111,7 @@ const fetchPermissions = async () => {
 
 // Fetch on mount if not admin
 onMounted(() => {
-  if (user.value?.role !== "admin") {
+  if (user.value?.role !== "super-admin" || "admin") {
     fetchPermissions();
   }
 });

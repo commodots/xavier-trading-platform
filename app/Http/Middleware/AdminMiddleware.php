@@ -11,7 +11,7 @@ class AdminMiddleware
     public function handle(Request $request, Closure $next)
     {
         
-        $staffRoles = ['admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
+        $staffRoles = ['super-admin','admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
 
         if (!auth()->check()) {
             return response()->json([

@@ -130,7 +130,7 @@ const fetch = async () => {
     });
     
     const current = me.data.data;
-    isAdmin.value = current?.roles?.includes('admin') || current?.role === 'admin';
+    isAdmin.value = current?.roles?.includes('admin' || 'super-admin') || current?.role === 'admin'||'super-admin';
   } catch (e) {
     console.error('Failed to fetch staff permissions', e);
   } finally { 

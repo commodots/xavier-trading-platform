@@ -11,6 +11,13 @@ class StaffPermissionSeeder extends Seeder
     public function run()
     {
         $defaults = [
+            'super-admin' => [
+                'manage_transaction_charges' => true,
+                'manage_services' => true,
+                'manage_kyc_settings' => true,
+                'manage_platform_earnings' => true,
+                'manage_system_settings' => true,
+            ],
             'admin' => [
                 'manage_transaction_charges' => true,
                 'manage_services' => true,

@@ -5,10 +5,6 @@
         <h1 class="text-2xl font-bold text-white">Xavier Report Dashboard</h1>
         <p class="text-sm text-gray-400 mt-1">Today's Summary - {{ new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
       </div>
-      <button @click="fetchDashboard" :disabled="loading" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
-        <span v-if="loading">Refreshing...</span>
-        <span v-else>Refresh</span>
-      </button>
     </div>
 
     <!-- Today's Summary Cards -->
@@ -56,7 +52,7 @@
       <ReportTable :columns="depositColumns" :data="latestDeposits">
         <template #header><h3 class="text-lg font-semibold text-white">Latest Deposits</h3></template>
         <template #cell-amount="{ row }">
-          <span class="text-right block font-mono">${{ Number(row.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span class="text-right block font-mono">${{ formatNumber(Number(row.amount)) }}</span>
         </template>
         <template #cell-status="{ row }">
           <span :class="row.status === 'completed' ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
@@ -67,7 +63,7 @@
       <ReportTable :columns="withdrawalColumns" :data="latestWithdrawals">
         <template #header><h3 class="text-lg font-semibold text-white">Latest Withdrawals</h3></template>
         <template #cell-amount="{ row }">
-          <span class="text-right block font-mono">${{ Number(row.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span class="text-right block font-mono">${{ formatNumber(Number(row.amount)) }}</span>
         </template>
         <template #cell-status="{ row }">
           <span :class="row.status === 'approved' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
@@ -76,7 +72,7 @@
       <ReportTable :columns="investmentColumns" :data="latestInvestments">
         <template #header><h3 class="text-lg font-semibold text-white">Latest Investments</h3></template>
         <template #cell-amount="{ row }">
-          <span class="text-right block font-mono">${{ Number(row.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span class="text-right block font-mono">${{ formatNumber(Number(row.amount)) }}</span>
         </template>
         <template #cell-status="{ row }">
           <span :class="row.status === 'filled' ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
@@ -92,6 +88,23 @@ import SummaryCard from '@/Components/Reports/SummaryCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
+
+const formatNumber = (num) => {
+  const parts = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+  }).split('.');
+  
+  if (parts[1]) {
+    parts[1] = parts[1].replace(/0+$/, '');
+    if (parts[1] === '') {
+      return parts[0];
+    }
+    return parts.join('.');
+  }
+  
+  return parts[0];
+};
 
 const loading = ref(false);
 const summary = ref(null);

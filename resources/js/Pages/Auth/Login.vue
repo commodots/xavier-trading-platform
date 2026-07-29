@@ -173,7 +173,13 @@ const saveSessionAndRedirect = (payload) => {
   localStorage.setItem("xavier_token", payload.token);
   localStorage.setItem("user", JSON.stringify(payload.user));
 
-  if (payload.user?.role === "admin") {
+  const userRole = payload.user?.role?.toLowerCase();
+  const hasAdminRole = payload.user?.roles?.some(r => {
+    const roleName = (typeof r === 'string' ? r : r.name)?.toLowerCase();
+    return ['admin', 'super-admin'].includes(roleName);
+  });
+
+  if (userRole === 'admin' || userRole === 'super-admin' || hasAdminRole) {
     router.push("/admin");
   } else {
     router.push("/dashboard");

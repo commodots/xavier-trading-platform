@@ -85,7 +85,7 @@ class UserReportService
         return [
             'countries' => User::select('country')->distinct()->whereNotNull('country')->orderBy('country')->pluck('country'),
             'subscriptions' => ['active', 'inactive', 'trial'],
-            'roles' => ['user', 'admin', 'staff'],
+            'roles' => ['user','super-admin', 'admin', 'staff'],
             'statuses' => ['active', 'suspended', 'inactive'],
             'kyc_statuses' => ['verified', 'pending', 'rejected', 'none'],
         ];

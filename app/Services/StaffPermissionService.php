@@ -26,7 +26,7 @@ class StaffPermissionService
         } elseif ($roleOrUser && method_exists($roleOrUser, 'getRoleNames')) {
             // Check Spatie roles first, ignoring generic ones
             $names = $roleOrUser->getRoleNames();
-            $roleName = $names->reject(fn($name) => in_array($name, ['user', 'admin']))->first();
+            $roleName = $names->reject(fn($name) => in_array($name, ['user', 'super-admin', 'admin']))->first();
             
             // Fallback to the 'role' column on the User model if Spatie is empty
             if (!$roleName && isset($roleOrUser->role)) {

@@ -3,13 +3,8 @@
     <h1 class="text-2xl font-bold text-white">Investment Report</h1>
 
     <!-- Summary Cards -->
-    <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-      <div v-for="i in 6" :key="i" class="p-4 bg-[#0F1724] border border-[#1f3348] rounded-lg space-y-3 animate-pulse">
-        <div class="h-3 bg-gray-700 rounded w-20"></div>
-        <div class="h-6 bg-gray-700 rounded w-16"></div>
-      </div>
-    </div>
-    <div v-else class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+    <SkeletonLoader v-if="loading" type="card" :count="6" class="opacity-40" />
+    <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
       <StatCard v-for="s in summary" :key="s.label" v-bind="s" />
     </div>
 

@@ -79,7 +79,7 @@
                 <td>{{ formatQuantity(h.uncleared_quantity || 0, h.category || '') }}</td>
                 <td>
                   <span :class="(h.uncleared_quantity || 0) > 0 ? 'text-yellow-400' : 'text-green-400'">
-                    {{ (h.uncleared_quantity || 0) > 0 ? '&#x1F7E1; Pending' : '&#X1F7E2; Settled' }}
+                    {{ (h.uncleared_quantity || 0) > 0 ? '&#x1F7E1; Pending' : '&#x1F7E2; Settled' }}
                   </span>
                 </td>
                 <td>

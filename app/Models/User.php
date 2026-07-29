@@ -301,13 +301,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function isStaff(): bool
     {
-        return $this->hasAnyRole(['admin', 'accounts', 'manager', 'compliance', 'support'])
-            || in_array($this->role, ['admin', 'accounts', 'manager', 'compliance', 'support'], true);
+        return $this->hasAnyRole(['super-admin','admin', 'accounts', 'manager', 'compliance', 'support'])
+            || in_array($this->role, ['super-admin','admin', 'accounts', 'manager', 'compliance', 'support'], true);
     }
 
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin') || $this->role === 'admin';
+        return $this->hasRole('super-admin') || $this->role === 'admin';
     }
 
     /**

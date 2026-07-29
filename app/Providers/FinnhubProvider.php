@@ -14,11 +14,7 @@ class FinnhubProvider
     {
         $this->key = config('services.finnhub.api_key');
         $this->baseUrl = config('services.finnhub.base_url', 'https://finnhub.io');
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> 333fe6e (WIP: Cpanel local changes before pulling updates)
+        
         if (!$this->key) {
             throw new \RuntimeException('FINNHUB_API_KEY not configured');
         }

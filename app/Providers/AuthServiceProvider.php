@@ -29,15 +29,15 @@ class AuthServiceProvider extends ServiceProvider
         /**
          * Gate for superadmin access (prevent privilege escalation).
          */
-        Gate::define('superadmin', function (User $user): bool {
-            return $user->hasRole('superadmin');
+        Gate::define('super-admin', function (User $user): bool {
+            return $user->hasRole('super-admin');
         });
 
         /**
          * Gate for staff access (support, analyst, moderator).
          */
         Gate::define('staff', function (User $user): bool {
-            return $user->hasRole('superadmin','support');
+            return $user->hasRole('super-admin','support');
         });
 
         /**
@@ -53,7 +53,7 @@ class AuthServiceProvider extends ServiceProvider
          * Gate for admin view access.
          */
         Gate::define('view-admin', function (User $user): bool {
-            return $user->hasRole('superadmin', 'support');
+            return $user->hasRole('super-admin', 'support');
         });
     }
 }

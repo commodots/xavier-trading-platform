@@ -49,7 +49,7 @@ Route::middleware('auth')->group(function () {
 
     // Dashboard
     Route::get('/dashboard', function () {
-        return view('dashboard');
+        return view('app');
     })->name('dashboard');
 
     // Wallet
@@ -77,3 +77,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/security/sessions/{id}', [SecurityController::class, 'logoutSession'])->name('security.logout-session');
     Route::delete('/security/sessions/user/{userId}', [SecurityController::class, 'logoutAllSessions'])->name('security.logout-all-sessions');
 });
+
+// Catch-all route for Vue Router 
+Route::get('/{any}', function () {
+    return view('app');
+})->where('any', '.*');

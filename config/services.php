@@ -72,11 +72,7 @@ return [
     'finnhub' => [
         'api_key' => env('FINNHUB_API_KEY'),
         'secret' => env('FINNHUB_SECRET'),
-<<<<<<< HEAD
-        'base_url' => env ('FINNHUB_BASE_URL'),
-=======
         'base_url' => env('FINNHUB_BASE_URL', 'https://finnhub.io'),
->>>>>>> 333fe6e (WIP: Cpanel local changes before pulling updates)
     ],
     'alpaca' => [
         'api_key' => env('ALPACA_API_KEY'),
