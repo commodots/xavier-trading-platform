@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Reports\DashboardReportService;
+use App\Services\Reports\DashboardService;
 use App\Services\Reports\UserReportService;
 use App\Services\Reports\FinancialReportService;
 use App\Services\Reports\InvestmentReportService;
@@ -13,13 +14,19 @@ use App\Services\Reports\ReferralReportService;
 use App\Services\Reports\SubscriptionReportService;
 use App\Services\Reports\SystemReportService;
 use App\Services\Reports\ReportExportService;
+use App\Services\Reports\RevenueReportService;
+use App\Services\Reports\ProfitLossService;
+use App\Services\Reports\ExpenseReportService;
 use App\Models\User;
+use App\Models\ReportHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Inertia\Inertia;
 
 class ReportsController extends Controller
 {
     protected DashboardReportService $dashboard;
+    protected DashboardService $execDashboard;
     protected UserReportService $userReport;
     protected FinancialReportService $financial;
     protected InvestmentReportService $investment;
@@ -29,9 +36,13 @@ class ReportsController extends Controller
     protected SubscriptionReportService $subscription;
     protected SystemReportService $system;
     protected ReportExportService $export;
+    protected RevenueReportService $revenueReport;
+    protected ProfitLossService $profitLoss;
+    protected ExpenseReportService $expenseReport;
 
     public function __construct(
         DashboardReportService $dashboard,
+        DashboardService $execDashboard,
         UserReportService $userReport,
         FinancialReportService $financial,
         InvestmentReportService $investment,
@@ -40,9 +51,13 @@ class ReportsController extends Controller
         ReferralReportService $referral,
         SubscriptionReportService $subscription,
         SystemReportService $system,
-        ReportExportService $export
+        ReportExportService $export,
+        RevenueReportService $revenueReport,
+        ProfitLossService $profitLoss,
+        ExpenseReportService $expenseReport
     ) {
         $this->dashboard = $dashboard;
+        $this->execDashboard = $execDashboard;
         $this->userReport = $userReport;
         $this->financial = $financial;
         $this->investment = $investment;
@@ -52,6 +67,9 @@ class ReportsController extends Controller
         $this->subscription = $subscription;
         $this->system = $system;
         $this->export = $export;
+        $this->revenueReport = $revenueReport;
+        $this->profitLoss = $profitLoss;
+        $this->expenseReport = $expenseReport;
     }
 
     // Dashboard
@@ -262,6 +280,85 @@ class ReportsController extends Controller
     public function investmentFilters()
     {
         return response()->json($this->investment->filters());
+    }
+
+
+    public function execDashboard()
+    {
+        return response()->json([
+            'summary' => $this->execDashboard->summary(),
+            'charts' => $this->execDashboard->charts(),
+            'recentTransactions' => $this->execDashboard->latestTransactions(),
+            'pendingApprovals' => $this->execDashboard->pendingApprovals(),
+            'systemHealth' => $this->execDashboard->systemHealth(),
+        ]);
+    }
+
+    public function revenue(Request $request)
+    {
+        return response()->json(
+            app(RevenueReportService::class)->generate($request)
+        );
+    }
+
+    public function profitLoss(Request $request)
+    {
+        return response()->json(
+            app(ProfitLossService::class)->generate($request)
+        );
+    }
+
+    public function expenses(Request $request)
+    {
+        return response()->json(
+            app(ExpenseReportService::class)->generate($request)
+        );
+    }
+
+    public function downloads()
+    {
+        $history = ReportHistory::with('user:id,name')
+            ->latest()
+            ->paginate(20);
+
+        return response()->json([
+            'history' => $history,
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $request->validate([
+            'format' => 'required|in:csv,excel,pdf',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'type' => 'required|string',
+        ]);
+
+        $service = app(ReportExportService::class);
+        $rows = $request->get('rows', []);
+        $headers = $request->get('headers', []);
+        $title = $request->get('title', 'report');
+
+        // Log the export
+        ReportHistory::create([
+            'user_id' => auth()->id(),
+            'name' => $title,
+            'type' => $request->type,
+            'format' => $request->format,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'status' => 'completed',
+        ]);
+
+        return $service->export(
+            $request->format,
+            $rows,
+            $headers,
+            $title,
+            $request->start_date,
+            $request->end_date
+        );
     }
 }
 

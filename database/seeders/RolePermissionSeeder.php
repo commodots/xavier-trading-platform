@@ -27,6 +27,8 @@ class RolePermissionSeeder extends Seeder
         // Reporting permissions
         $permissions = [
             'view_reports',
+            'view_executive_reports',
+            'view_financial_reports',
             'export_reports',
             'view_audit_reports',
         ];
@@ -42,6 +44,24 @@ class RolePermissionSeeder extends Seeder
         $adminRole = Role::where('name', 'admin')->where('guard_name', 'api')->first();
         if ($adminRole) {
             $adminRole->givePermissionTo($permissions);
+        }
+
+        // Assign to super-admin
+        $superAdmin = Role::where('name', 'super-admin')->where('guard_name', 'api')->first();
+        if ($superAdmin) {
+            $superAdmin->givePermissionTo($permissions);
+        }
+
+        // Assign to compliance
+        $compliance = Role::where('name', 'compliance')->where('guard_name', 'api')->first();
+        if ($compliance) {
+            $compliance->givePermissionTo(['view_reports', 'view_executive_reports', 'view_financial_reports', 'export_reports']);
+        }
+
+        // Assign to manager
+        $manager = Role::where('name', 'manager')->where('guard_name', 'api')->first();
+        if ($manager) {
+            $manager->givePermissionTo(['view_reports', 'view_executive_reports', 'view_financial_reports', 'export_reports']);
         }
     }
 }

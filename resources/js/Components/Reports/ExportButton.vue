@@ -1,25 +1,115 @@
 <template>
-  <div class="relative">
-    <button @click="open = !open" class="flex items-center gap-2 px-4 py-2 bg-[#16213A] border border-gray-700 rounded-lg text-white text-sm hover:border-blue-500 transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
+  <div class="relative" ref="dropdownRef">
+    <button
+      @click="toggleDropdown"
+      class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0047AB] hover:bg-[#003580] rounded-lg transition-colors"
+    >
+      <Download class="w-4 h-4" />
       Export
+      <ChevronDown class="w-3 h-3" :class="{ 'rotate-180': isOpen }" />
     </button>
-    <div v-if="open" class="absolute right-0 mt-2 w-36 bg-[#16213A] border border-[#1f3348] rounded-lg shadow-xl z-10">
-      <button @click="exportCSV" class="w-full px-4 py-2.5 text-left text-white text-sm hover:bg-[#1f3348] first:rounded-t-lg">Export CSV</button>
-      <button @click="exportExcel" class="w-full px-4 py-2.5 text-left text-white text-sm hover:bg-[#1f3348] last:rounded-b-lg">Export Excel</button>
+
+    <div
+      v-if="isOpen"
+      class="absolute right-0 mt-2 w-48 bg-[#1C2541] border border-[#1f3348] rounded-xl shadow-xl z-50 overflow-hidden"
+    >
+      <button
+        v-for="option in exportOptions"
+        :key="option.format"
+        @click="exportReport(option.format)"
+        class="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-300 hover:bg-[#0F1724] hover:text-white transition-colors"
+      >
+        <component :is="option.icon" class="w-4 h-4" />
+        {{ option.label }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import { Download, ChevronDown, FileText, FileSpreadsheet, FileType, Printer } from 'lucide-vue-next';
+import api from '@/api';
 
-const open = ref(false);
+const props = defineProps({
+  title: {
+    type: String,
+    default: 'report',
+  },
+  rows: {
+    type: Array,
+    default: () => [],
+  },
+  headers: {
+    type: Array,
+    default: () => [],
+  },
+  type: {
+    type: String,
+    default: 'report',
+  },
+  startDate: {
+    type: String,
+    default: '',
+  },
+  endDate: {
+    type: String,
+    default: '',
+  },
+});
 
-const emit = defineEmits(['export-csv', 'export-excel']);
+const isOpen = ref(false);
+const dropdownRef = ref(null);
 
-const exportCSV = () => { open.value = false; emit('export-csv'); };
-const exportExcel = () => { open.value = false; emit('export-excel'); };
+const exportOptions = [
+  { format: 'csv', label: 'Export CSV', icon: FileText },
+  { format: 'excel', label: 'Export Excel', icon: FileSpreadsheet },
+  { format: 'pdf', label: 'Export PDF', icon: FileType },
+  { format: 'print', label: 'Print', icon: Printer },
+];
+
+const toggleDropdown = () => {
+  isOpen.value = !isOpen.value;
+};
+
+const exportReport = async (format) => {
+  isOpen.value = false;
+
+  if (format === 'print') {
+    window.print();
+    return;
+  }
+
+  try {
+    const response = await api.post('/admin/reports/export', {
+      format,
+      title: props.title,
+      rows: props.rows,
+      headers: props.headers,
+      type: props.type,
+      start_date: props.startDate,
+      end_date: props.endDate,
+    }, {
+      responseType: 'blob',
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${props.title}.${format === 'excel' ? 'xlsx' : format}`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('Export failed:', e);
+  }
+};
+
+// Close dropdown on click outside
+document.addEventListener('click', (e) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
+    isOpen.value = false;
+  }
+});
 </script>

@@ -422,6 +422,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/run-scheduler', [\App\Http\Controllers\Admin\ReportsController::class, 'runScheduler']);
             Route::get('/logs', [\App\Http\Controllers\Admin\ReportsController::class, 'viewLogs']);
             Route::get('/search-users', [\App\Http\Controllers\Admin\ReportsController::class, 'searchUsers']);
+
+            Route::get('/exec-dashboard', [\App\Http\Controllers\Admin\ReportsController::class, 'execDashboard']);
+            Route::get('/revenue', [\App\Http\Controllers\Admin\ReportsController::class, 'revenue']);
+            Route::get('/profit-loss', [\App\Http\Controllers\Admin\ReportsController::class, 'profitLoss']);
+            Route::get('/expenses', [\App\Http\Controllers\Admin\ReportsController::class, 'expenses']);
+            Route::get('/downloads', [\App\Http\Controllers\Admin\ReportsController::class, 'downloads']);
+            Route::post('/export', [\App\Http\Controllers\Admin\ReportsController::class, 'export']);
         });
     });
 });

@@ -17,6 +17,10 @@ class StaffPermissionSeeder extends Seeder
                 'manage_kyc_settings' => true,
                 'manage_platform_earnings' => true,
                 'manage_system_settings' => true,
+                'view_reports' => true,
+                'view_executive_reports' => true,
+                'view_financial_reports' => true,
+                'export_reports' => true,
             ],
             'admin' => [
                 'manage_transaction_charges' => true,
@@ -24,6 +28,10 @@ class StaffPermissionSeeder extends Seeder
                 'manage_kyc_settings' => true,
                 'manage_platform_earnings' => true,
                 'manage_system_settings' => true,
+                'view_reports' => true,
+                'view_executive_reports' => true,
+                'view_financial_reports' => true,
+                'export_reports' => true,
             ],
             'manager' => [
                 'manage_transaction_charges' => true,
@@ -31,6 +39,10 @@ class StaffPermissionSeeder extends Seeder
                 'manage_kyc_settings' => true,
                 'manage_platform_earnings' => true,
                 'manage_system_settings' => false,
+                'view_reports' => true,
+                'view_executive_reports' => true,
+                'view_financial_reports' => true,
+                'export_reports' => true,
             ],
             'accounts' => [
                 'manage_transaction_charges' => true,
@@ -38,6 +50,10 @@ class StaffPermissionSeeder extends Seeder
                 'manage_kyc_settings' => false,
                 'manage_platform_earnings' => true,
                 'manage_system_settings' => false,
+                'view_reports' => true,
+                'view_executive_reports' => false,
+                'view_financial_reports' => true,
+                'export_reports' => true,
             ],
             'compliance' => [
                 'manage_transaction_charges' => false,
@@ -45,6 +61,10 @@ class StaffPermissionSeeder extends Seeder
                 'manage_kyc_settings' => true,
                 'manage_platform_earnings' => true,
                 'manage_system_settings' => false,
+                'view_reports' => true,
+                'view_executive_reports' => true,
+                'view_financial_reports' => true,
+                'export_reports' => true,
             ],
             'support' => [
                 'manage_transaction_charges' => false,
@@ -52,6 +72,10 @@ class StaffPermissionSeeder extends Seeder
                 'manage_kyc_settings' => false,
                 'manage_platform_earnings' => true,
                 'manage_system_settings' => false,
+                'view_reports' => true,
+                'view_executive_reports' => false,
+                'view_financial_reports' => false,
+                'export_reports' => false,
             ],
         ];
 

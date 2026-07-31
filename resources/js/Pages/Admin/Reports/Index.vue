@@ -31,5 +31,9 @@ const navLinks = [
   { path: '/admin/reports/wallet-withdrawals', label: 'Wallet' },
   { path: '/admin/reports/referrals', label: 'Referrals' },
   { path: '/admin/reports/system', label: 'System' },
+  { path: '/admin/reports/revenue', label: 'Revenue' },
+  { path: '/admin/reports/profit-loss', label: 'P&L' },
+  { path: '/admin/reports/expenses', label: 'Expenses' },
+  { path: '/admin/reports/downloads', label: 'Downloads' },
 ];
 </script>

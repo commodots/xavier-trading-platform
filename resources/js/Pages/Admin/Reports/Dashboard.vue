@@ -1,186 +1,168 @@
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-white">Xavier Report Dashboard</h1>
-        <p class="text-sm text-gray-400 mt-1">Today's Summary - {{ new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-white">Xavier Report Dashboard</h1>
       </div>
-    </div>
 
-    <!-- Today's Summary Cards -->
-    <div class="mb-8">
-      <h2 class="text-lg font-semibold text-white mb-4">Today's Summary</h2>
-      <SkeletonLoader v-if="loading" type="card" :count="16" class="opacity-40" />
-      <div v-else class="space-y-6">
-        <div v-for="(cards, section) in summary" :key="section">
-          <h3 class="text-base font-semibold text-gray-300 uppercase tracking-wider mb-3">{{ section }}</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <SummaryCard v-for="card in cards" :key="card.title" v-bind="card" />
-          </div>
+      <div v-if="loading" class="space-y-6">
+        <SkeletonLoader type="card" :count="8" />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SkeletonLoader type="table" />
+          <SkeletonLoader type="table" />
+          <SkeletonLoader type="table" />
+          <SkeletonLoader type="table" />
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <SkeletonLoader type="list" :count="5" />
+          <SkeletonLoader type="list" :count="3" />
+          <SkeletonLoader type="list" :count="5" />
         </div>
       </div>
-    </div>
 
-    <!-- Charts -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h3 class="text-sm font-medium text-gray-300 mb-4">Users Registered (Last 30 Days)</h3>
-        <apexchart v-if="charts?.usersGrowth" type="area" height="300" :options="chartOptions('#0047AB')" :series="charts.usersGrowth.series" />
-      </div>
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h3 class="text-sm font-medium text-gray-300 mb-4">Deposits vs Withdrawals</h3>
-        <apexchart v-if="charts?.depositsVsWithdrawals" type="area" height="300" :options="chartOptions(['#10B981', '#EF4444'])" :series="charts.depositsVsWithdrawals.series" />
-      </div>
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h3 class="text-sm font-medium text-gray-300 mb-4">Investments</h3>
-        <apexchart v-if="charts?.investments" type="bar" height="300" :options="chartOptions('#8B5CF6', 'bar')" :series="charts.investments.series" />
-      </div>
-      <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h3 class="text-sm font-medium text-gray-300 mb-4">Revenue</h3>
-        <apexchart v-if="charts?.revenue" type="area" height="300" :options="chartOptions('#F59E0B')" :series="charts.revenue.series" />
-      </div>
-    </div>
+      <template v-else>
+        <!-- Summary Cards -->
+        <SummaryCards :cards="summary.totals" />
 
-    <!-- Latest Tables -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <ReportTable :columns="userColumns" :data="latestUsers">
-        <template #header><h3 class="text-lg font-semibold text-white">Latest Users</h3></template>
-        <template #cell-status="{ row }">
-          <span :class="row.status === 'active' ? 'text-green-400' : row.status === 'suspended' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
-        </template>
-      </ReportTable>
-      <ReportTable :columns="depositColumns" :data="latestDeposits">
-        <template #header><h3 class="text-lg font-semibold text-white">Latest Deposits</h3></template>
-        <template #cell-amount="{ row }">
-          <span class="text-right block font-mono">${{ formatNumber(Number(row.amount)) }}</span>
-        </template>
-        <template #cell-status="{ row }">
-          <span :class="row.status === 'completed' ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
-        </template>
-      </ReportTable>
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ReportChart
+            title="Revenue Trend"
+            type="line"
+            :categories="charts.revenueTrend.categories"
+            :series="charts.revenueTrend.series"
+          />
+          <ReportChart
+            title="Investment Trend"
+            type="bar"
+            :categories="charts.investmentTrend.categories"
+            :series="charts.investmentTrend.series"
+          />
+          <ReportChart
+            title="User Growth"
+            type="line"
+            :categories="charts.userGrowth.categories"
+            :series="charts.userGrowth.series"
+          />
+          <ReportChart
+            title="Transactions"
+            type="bar"
+            :categories="charts.transactions.categories"
+            :series="charts.transactions.series"
+          />
+        </div>
+
+        <!-- Bottom Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
+            <h3 class="text-sm font-medium text-white mb-4">Recent Transactions</h3>
+            <div v-if="recentTransactions.length === 0">
+              <EmptyState message="No recent transactions" />
+            </div>
+            <div v-else class="space-y-3">
+              <div v-for="tx in recentTransactions.slice(0, 5)" :key="tx.id" class="flex items-center justify-between py-2 border-b border-[#1f3348] last:border-0">
+                <div>
+                  <p class="text-sm text-white">{{ tx.user }}</p>
+                  <p class="text-xs text-gray-500">{{ tx.type }} - {{ tx.date }}</p>
+                </div>
+                <span class="text-sm font-medium" :class="tx.type === 'deposit' ? 'text-green-400' : 'text-red-400'">
+                  ${{ formatNumber(tx.amount) }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
+            <h3 class="text-sm font-medium text-white mb-4">Latest Users</h3>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between py-2 border-b border-[#1f3348]">
+                <span class="text-sm text-gray-400">Total Users</span>
+                <span class="text-sm font-medium text-white">{{ formatNumber(summary.totals[0]?.value) }}</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-[#1f3348]">
+                <span class="text-sm text-gray-400">Pending KYC</span>
+                <span class="text-sm font-medium text-yellow-400">{{ formatNumber(summary.totals[6]?.value) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
+            <h3 class="text-sm font-medium text-white mb-4">Pending Approvals</h3>
+            <div v-if="pendingApprovals.length === 0">
+              <EmptyState message="No pending approvals" />
+            </div>
+            <div v-else class="space-y-3">
+              <div v-for="(item, index) in pendingApprovals.slice(0, 5)" :key="index" class="flex items-center justify-between py-2 border-b border-[#1f3348] last:border-0">
+                <div>
+                  <p class="text-sm text-white">{{ item.user }}</p>
+                  <p class="text-xs text-gray-500">{{ item.type }}</p>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium" :class="item.status === 'pending' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-gray-900/50 text-gray-400'">{{ item.status }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
+          <h3 class="text-sm font-medium text-white mb-4">System Health</h3>
+          <div class="flex items-center gap-4">
+            <div class="w-3 h-3 rounded-full" :class="systemHealth.healthy ? 'bg-green-400' : 'bg-red-400'"></div>
+            <span class="text-sm text-white">{{ systemHealth.status }}</span>
+            <div class="flex gap-4 ml-4">
+              <div v-for="check in systemHealth.checks" :key="check.name" class="flex items-center gap-2">
+                <span class="text-xs text-gray-400">{{ check.name }}</span>
+                <span class="text-xs font-medium" :class="check.status === 'healthy' ? 'text-green-400' : 'text-red-400'">{{ check.status }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <ReportTable :columns="withdrawalColumns" :data="latestWithdrawals">
-        <template #header><h3 class="text-lg font-semibold text-white">Latest Withdrawals</h3></template>
-        <template #cell-amount="{ row }">
-          <span class="text-right block font-mono">${{ formatNumber(Number(row.amount)) }}</span>
-        </template>
-        <template #cell-status="{ row }">
-          <span :class="row.status === 'approved' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
-        </template>
-      </ReportTable>
-      <ReportTable :columns="investmentColumns" :data="latestInvestments">
-        <template #header><h3 class="text-lg font-semibold text-white">Latest Investments</h3></template>
-        <template #cell-amount="{ row }">
-          <span class="text-right block font-mono">${{ formatNumber(Number(row.amount)) }}</span>
-        </template>
-        <template #cell-status="{ row }">
-          <span :class="row.status === 'filled' ? 'text-green-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
-        </template>
-      </ReportTable>
-    </div>
-  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import SummaryCard from '@/Components/Reports/SummaryCard.vue';
-import ReportTable from '@/Components/Reports/ReportTable.vue';
+import SummaryCards from '@/Components/Reports/SummaryCards.vue';
+import ReportChart from '@/Components/Reports/ReportChart.vue';
+import EmptyState from '@/Components/Reports/EmptyState.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
 
-const formatNumber = (num) => {
-  const parts = num.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 20,
-  }).split('.');
-  
-  if (parts[1]) {
-    parts[1] = parts[1].replace(/0+$/, '');
-    if (parts[1] === '') {
-      return parts[0];
-    }
-    return parts.join('.');
-  }
-  
-  return parts[0];
-};
-
-const loading = ref(false);
-const summary = ref(null);
-const charts = ref(null);
-const latestUsers = ref([]);
-const latestDeposits = ref([]);
-const latestWithdrawals = ref([]);
-const latestInvestments = ref([]);
-
-const userColumns = [
-  { key: 'name', label: 'Name' },
-  { key: 'email', label: 'Email' },
-  { key: 'country', label: 'Country' },
-  { key: 'status', label: 'Status' },
-  { key: 'joined', label: 'Joined' },
-];
-const depositColumns = [
-  { key: 'user', label: 'User' },
-  { key: 'amount', label: 'Amount', align: 'right' },
-  { key: 'method', label: 'Method' },
-  { key: 'status', label: 'Status' },
-  { key: 'time', label: 'Time' },
-];
-const withdrawalColumns = [
-  { key: 'user', label: 'User' },
-  { key: 'amount', label: 'Amount', align: 'right' },
-  { key: 'status', label: 'Status' },
-  { key: 'requested', label: 'Requested' },
-];
-const investmentColumns = [
-  { key: 'user', label: 'User' },
-  { key: 'plan', label: 'Plan' },
-  { key: 'amount', label: 'Amount', align: 'right' },
-  { key: 'status', label: 'Status' },
-];
-
-const chartOptions = (colors, type = 'area') => ({
-  chart: {
-    type,
-    toolbar: { show: false },
-    foreColor: '#9CA3AF',
-    zoom: { enabled: false },
-  },
-  colors: Array.isArray(colors) ? colors : [colors],
-  grid: { borderColor: '#1f3348', strokeDashArray: 3 },
-  stroke: { curve: 'smooth', width: 2 },
-  fill: type === 'area' ? { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0 } } : {},
-  dataLabels: { enabled: false },
-  xaxis: {
-    type: 'category',
-    labels: { style: { colors: '#6B7280', fontSize: '10px' } },
-    axisBorder: { show: false },
-    axisTicks: { show: false },
-  },
-  yaxis: { labels: { style: { colors: '#6B7280', fontSize: '10px' } } },
-  legend: { position: 'top', labels: { colors: '#D1D5DB' } },
-  tooltip: { theme: 'dark' },
+const loading = ref(true);
+const summary = ref({ totals: [] });
+const charts = ref({
+  revenueTrend: { categories: [], series: [] },
+  investmentTrend: { categories: [], series: [] },
+  userGrowth: { categories: [], series: [] },
+  transactions: { categories: [], series: [] },
 });
+const recentTransactions = ref([]);
+const pendingApprovals = ref([]);
+const systemHealth = ref({ healthy: true, status: 'Healthy', checks: [] });
 
-const fetchDashboard = async () => {
-  loading.value = true;
+onMounted(async () => {
   try {
-    const res = await api.get('/admin/reports/dashboard');
-    const d = res.data;
-    summary.value = d.summary;
-    charts.value = d.charts;
-    latestUsers.value = d.latest_users || [];
-    latestDeposits.value = d.latest_deposits || [];
-    latestWithdrawals.value = d.latest_withdrawals || [];
-    latestInvestments.value = d.latest_investments || [];
+    const res = await api.get('/admin/reports/exec-dashboard');
+    summary.value = res.data.summary || { totals: [] };
+    charts.value = res.data.charts || {
+      revenueTrend: { categories: [], series: [] },
+      investmentTrend: { categories: [], series: [] },
+      userGrowth: { categories: [], series: [] },
+      transactions: { categories: [], series: [] },
+    };
+    recentTransactions.value = res.data.recentTransactions || [];
+    pendingApprovals.value = res.data.pendingApprovals || [];
+    systemHealth.value = res.data.systemHealth || { healthy: true, status: 'Healthy', checks: [] };
   } catch (e) {
     console.error('Failed to load dashboard:', e);
   } finally {
     loading.value = false;
   }
-};
+});
 
-onMounted(fetchDashboard);
+const formatNumber = (value) => {
+  if (value === null || value === undefined) return '0';
+  if (typeof value === 'number') {
+    return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  return value;
+};
 </script>

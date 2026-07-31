@@ -371,6 +371,39 @@ const routes = [
     component: ComplianceDashboard,
     meta: { requiresAuth: true, adminOnly: true },
   },
+  
+  {
+    path: '/admin/reports',
+    component: () => import("@/Pages/Admin/Reports/Index.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+    children: [
+      {
+        path: "",
+        name: "reports-dashboard",
+        component: () => import("@/Pages/Admin/Reports/Dashboard.vue"),
+      },
+      {
+        path: "revenue",
+        name: "reports-revenue",
+        component: () => import("@/Pages/Admin/Reports/Revenue.vue"),
+      },
+      {
+        path: "profit-loss",
+        name: "reports-profit-loss",
+        component: () => import("@/Pages/Admin/Reports/ProfitLoss.vue"),
+      },
+      {
+        path: "expenses",
+        name: "reports-expenses",
+        component: () => import("@/Pages/Admin/Reports/Expenses.vue"),
+      },
+      {
+        path: "downloads",
+        name: "reports-downloads",
+        component: () => import("@/Pages/Admin/Reports/Downloads.vue"),
+      },
+    ],
+  },
 ];
 
 /* --------------------------------------------------

@@ -75,8 +75,8 @@
             <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/audit-logs" :icon="ShieldCheck">Audit Logs</SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/reports" :icon="FileSpreadsheet">
-              Generate Report</SidebarLink>
+            <SidebarLink to="/admin/reports" :icon="FileSpreadsheet">Generate Reports</SidebarLink>
+
             <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">
               Notifications</SidebarLink>
 
@@ -97,6 +97,7 @@
             <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/orders" :icon="FileText">Orders
             </SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
+
 
             <div v-if="isAdmin"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Finance
@@ -169,7 +170,7 @@ import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
   ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store,
-  CreditCard, ArrowLeftRight, History
+  CreditCard, ArrowLeftRight, History, Download
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
