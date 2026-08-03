@@ -20,8 +20,9 @@
               v-for="col in columns"
               :key="col.key"
               @click="col.sortable !== false ? toggleSort(col.key) : null"
-              class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white"
+              class="px-4 py-3 text-xs font-medium tracking-wider text-left text-gray-400 uppercase cursor-pointer hover:text-white"
               :class="col.sortable !== false ? 'cursor-pointer' : ''"
+              :style="col.width ? { width: col.width } : null"
             >
               <span class="flex items-center gap-1">
                 {{ col.label }}
@@ -44,19 +45,29 @@
             :key="rowIndex"
             class="border-b border-[#1f3348] hover:bg-[#1C2541] transition-colors"
           >
-            <td v-for="col in columns" :key="col.key" class="px-4 py-3 text-white">
-              <span v-if="col.format">{{ col.format(row[col.key], row) }}</span>
-              <span v-else-if="col.type === 'currency'">{{ formatCurrency(row[col.key]) }}</span>
-              <span v-else-if="col.type === 'date'">{{ formatDate(row[col.key]) }}</span>
-              <span v-else-if="col.type === 'status'">
-                <span
-                  class="px-2 py-0.5 rounded-full text-xs font-medium"
-                  :class="getStatusClass(row[col.key])"
-                >
-                  {{ row[col.key] }}
+            <td
+              v-for="col in columns"
+              :key="col.key"
+              :class="['text-white', col.cellClass || 'px-4 py-3']"
+              :style="col.width ? { width: col.width } : null"
+            >
+              <template v-if="slots[`cell-${col.key}`]">
+                <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]" />
+              </template>
+              <template v-else>
+                <span v-if="col.format">{{ col.format(row[col.key], row) }}</span>
+                <span v-else-if="col.type === 'currency'">{{ formatCurrency(row[col.key]) }}</span>
+                <span v-else-if="col.type === 'date'">{{ formatDate(row[col.key]) }}</span>
+                <span v-else-if="col.type === 'status'">
+                  <span
+                    class="px-2 py-0.5 rounded-full text-xs font-medium"
+                    :class="getStatusClass(row[col.key])"
+                  >
+                    {{ row[col.key] }}
+                  </span>
                 </span>
-              </span>
-              <span v-else>{{ row[col.key] }}</span>
+                <span v-else>{{ row[col.key] }}</span>
+              </template>
             </td>
           </tr>
         </tbody>
@@ -64,9 +75,9 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="pagination && pagination.total > pagination.per_page" class="flex items-center justify-between px-4 py-3 border-t border-[#1f3348]">
+    <div v-if="computedPagination && computedPagination.total > computedPagination.per_page" class="flex items-center justify-between px-4 py-3 border-t border-[#1f3348]">
       <span class="text-xs text-gray-500">
-        Showing {{ pagination.from }} - {{ pagination.to }} of {{ pagination.total }}
+        Showing {{ computedPagination.from }} - {{ computedPagination.to }} of {{ computedPagination.total }}
       </span>
       <div class="flex items-center gap-1">
         <button
@@ -90,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, useSlots } from 'vue';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -99,6 +110,10 @@ const props = defineProps({
     required: true,
   },
   rows: {
+    type: Array,
+    default: () => [],
+  },
+  data: {
     type: Array,
     default: () => [],
   },
@@ -117,9 +132,14 @@ const emit = defineEmits(['sort', 'page-change', 'search']);
 const searchQuery = ref('');
 const sortColumn = ref('');
 const sortDirection = ref('asc');
+const slots = useSlots();
+
+const tableRows = computed(() => {
+  return props.data.length ? props.data : props.rows;
+});
 
 const sortedRows = computed(() => {
-  let data = [...props.rows];
+  let data = [...tableRows.value];
 
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
@@ -147,6 +167,21 @@ const paginatedRows = computed(() => {
   if (!props.pagination) return sortedRows.value;
   const start = (props.pagination.current_page - 1) * props.pagination.per_page;
   return sortedRows.value.slice(start, start + props.pagination.per_page);
+});
+
+const computedPagination = computed(() => {
+  if (!props.pagination) {
+    return null;
+  }
+
+  const from = (props.pagination.current_page - 1) * props.pagination.per_page + 1;
+  const to = Math.min(props.pagination.current_page * props.pagination.per_page, props.pagination.total);
+
+  return {
+    ...props.pagination,
+    from: from > props.pagination.total ? 0 : from,
+    to: to > props.pagination.total ? props.pagination.total : to,
+  };
 });
 
 const toggleSort = (key) => {

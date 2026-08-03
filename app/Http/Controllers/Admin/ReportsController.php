@@ -3,41 +3,54 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ReportHistory;
+use App\Models\User;
 use App\Services\Reports\DashboardReportService;
 use App\Services\Reports\DashboardService;
-use App\Services\Reports\UserReportService;
+use App\Services\Reports\ExpenseReportService;
 use App\Services\Reports\FinancialReportService;
 use App\Services\Reports\InvestmentReportService;
-use App\Services\Reports\WalletReportService;
-use App\Services\Reports\WithdrawalReportService;
+use App\Services\Reports\ProfitLossService;
 use App\Services\Reports\ReferralReportService;
-use App\Services\Reports\SubscriptionReportService;
-use App\Services\Reports\SystemReportService;
 use App\Services\Reports\ReportExportService;
 use App\Services\Reports\RevenueReportService;
-use App\Services\Reports\ProfitLossService;
-use App\Services\Reports\ExpenseReportService;
-use App\Models\User;
-use App\Models\ReportHistory;
+use App\Services\Reports\SubscriptionReportService;
+use App\Services\Reports\SystemReportService;
+use App\Services\Reports\UserReportService;
+use App\Services\Reports\WalletReportService;
+use App\Services\Reports\WithdrawalReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 class ReportsController extends Controller
 {
     protected DashboardReportService $dashboard;
+
     protected DashboardService $execDashboard;
+
     protected UserReportService $userReport;
+
     protected FinancialReportService $financial;
+
     protected InvestmentReportService $investment;
+
     protected WalletReportService $wallet;
+
     protected WithdrawalReportService $withdrawal;
+
     protected ReferralReportService $referral;
+
     protected SubscriptionReportService $subscription;
+
     protected SystemReportService $system;
+
     protected ReportExportService $export;
+
     protected RevenueReportService $revenueReport;
+
     protected ProfitLossService $profitLoss;
+
     protected ExpenseReportService $expenseReport;
 
     public function __construct(
@@ -84,6 +97,7 @@ class ReportsController extends Controller
         if ($request->export) {
             return $this->exportUsers($request);
         }
+
         return response()->json($this->userReport->list($request->all()));
     }
 
@@ -100,9 +114,10 @@ class ReportsController extends Controller
     public function userDetail($id)
     {
         $user = $this->userReport->getUserById($id);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'User not found'], 404);
         }
+
         return response()->json($user);
     }
 
@@ -110,7 +125,7 @@ class ReportsController extends Controller
     {
         $data = $this->userReport->export($request->all());
         $headers = ['Name', 'Email', 'Phone', 'Country', 'KYC Status', 'Status', 'Joined', 'Last Login'];
-        $rows = array_map(fn($u) => [
+        $rows = array_map(fn ($u) => [
             $u['name'], $u['email'], $u['phone'] ?? 'N/A',
             $u['country'] ?? 'N/A', $u['kyc_status'] ?? 'N/A',
             $u['status'] ?? 'N/A', $u['joined'] ?? 'N/A',
@@ -120,6 +135,7 @@ class ReportsController extends Controller
         if ($request->export === 'csv') {
             return $this->export->csv($rows, $headers, 'users-report');
         }
+
         return $this->export->excel($rows, $headers, 'users-report');
     }
 
@@ -127,6 +143,7 @@ class ReportsController extends Controller
     public function financial(Request $request)
     {
         $tab = $request->tab ?? 'deposits';
+
         return response()->json(match ($tab) {
             'deposits' => $this->financial->deposits($request->all()),
             'withdrawals' => $this->financial->withdrawals($request->all()),
@@ -145,6 +162,7 @@ class ReportsController extends Controller
     public function financialStatistics(Request $request)
     {
         $type = $request->get('type', 'deposits');
+
         return response()->json($this->financial->getStatistics($type));
     }
 
@@ -178,6 +196,7 @@ class ReportsController extends Controller
     public function walletWithdrawals(Request $request)
     {
         $tab = $request->tab ?? 'withdrawals';
+
         return response()->json(match ($tab) {
             'withdrawals' => $this->withdrawal->list($request->all()),
             'wallet_ledger' => $this->wallet->ledger($request->all()),
@@ -198,6 +217,7 @@ class ReportsController extends Controller
     public function referralsSubscriptions(Request $request)
     {
         $tab = $request->tab ?? 'referrals';
+
         return response()->json(match ($tab) {
             'referrals' => $this->referral->list($request->all()),
             'subscriptions' => $this->subscription->list($request->all()),
@@ -235,45 +255,52 @@ class ReportsController extends Controller
         Artisan::call('cache:clear');
         Artisan::call('config:clear');
         Artisan::call('view:clear');
+
         return response()->json(['message' => 'Cache cleared successfully']);
     }
 
     public function optimize()
     {
         Artisan::call('optimize');
+
         return response()->json(['message' => 'Application optimized']);
     }
 
     public function queueRestart()
     {
         Artisan::call('queue:restart');
+
         return response()->json(['message' => 'Queue worker restart signal sent']);
     }
 
     public function runScheduler()
     {
         Artisan::call('schedule:run');
+
         return response()->json(['message' => 'Scheduler executed']);
     }
 
     public function viewLogs()
     {
         $logFile = storage_path('logs/laravel.log');
-        if (!file_exists($logFile)) {
+        if (! file_exists($logFile)) {
             return response()->json(['logs' => []]);
         }
         $lines = tail($logFile, 100);
-        $logs = array_map(fn($line) => ['message' => $line], $lines);
+        $logs = array_map(fn ($line) => ['message' => $line], $lines);
+
         return response()->json(['logs' => $logs]);
     }
 
     public function searchUsers(Request $request)
     {
-        $query = $request->get('query', '');
-        $users = User::where('name', 'like', "%{$query}%")
-            ->orWhere('email', 'like', "%{$query}%")
+        $search = $request->get('query', '');
+        $users = User::query()
+            ->where('name', 'like', "%{$search}%")
+            ->orWhere('email', 'like', "%{$search}%")
             ->limit(20)
             ->get(['id', 'name', 'email']);
+
         return response()->json(['users' => $users]);
     }
 
@@ -281,7 +308,6 @@ class ReportsController extends Controller
     {
         return response()->json($this->investment->filters());
     }
-
 
     public function execDashboard()
     {
@@ -330,62 +356,204 @@ class ReportsController extends Controller
     {
         $request->validate([
             'format' => 'required|in:csv,excel,pdf',
+            'report_type' => 'required|string',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'type' => 'required|string',
         ]);
 
-        $service = app(ReportExportService::class);
-        $rows = $request->get('rows', []);
-        $headers = $request->get('headers', []);
-        $title = $request->get('title', 'report');
+        $reportType = $request->report_type;
+
+        // Get data from appropriate service
+        $data = match ($reportType) {
+            'revenue' => app(RevenueReportService::class)->generate($request),
+            'profit-loss' => app(ProfitLossService::class)->generate($request),
+            'expenses' => app(ExpenseReportService::class)->generate($request),
+            'users' => $this->getUsersExportData($request),
+            'financial' => $this->getFinancialExportData($request),
+            'investments' => $this->getInvestmentsExportData($request),
+            'referrals-subscriptions' => $this->getReferralsSubscriptionsExportData($request),
+            'wallet-withdrawals' => $this->getWalletWithdrawalsExportData($request),
+            default => throw new \InvalidArgumentException("Unsupported report type: {$reportType}"),
+        };
 
         // Log the export
         ReportHistory::create([
-            'user_id' => auth()->id(),
-            'name' => $title,
-            'type' => $request->type,
+            'user_id' => Auth::id(),
+            'name' => ucwords(str_replace('-', ' ', $reportType)).' Report',
+            'type' => $reportType,
             'format' => $request->format,
+            'period' => 'custom',
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'status' => 'completed',
         ]);
 
-        return $service->export(
+        return app(ReportExportService::class)->export(
             $request->format,
-            $rows,
-            $headers,
-            $title,
+            $data,
+            $reportType,
             $request->start_date,
             $request->end_date
         );
     }
+
+    protected function getUsersExportData(Request $request): array
+    {
+        $params = $request->all();
+        $data = app(UserReportService::class)->export($params);
+
+        $headers = ['Name', 'Email', 'Phone', 'Country', 'KYC Status', 'Status', 'Joined', 'Last Login'];
+        $rows = array_map(fn ($u) => [
+            $u['name'], $u['email'], $u['phone'] ?? 'N/A',
+            $u['country'] ?? 'N/A', $u['kyc_status'] ?? 'N/A',
+            $u['status'] ?? 'N/A', $u['joined'] ?? 'N/A',
+            $u['last_login'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getFinancialExportData(Request $request): array
+    {
+        $tab = $request->get('tab', 'deposits');
+        $params = array_merge($request->all(), ['per_page' => 10000]);
+        $result = app(FinancialReportService::class)->$tab($params);
+
+        // Handle paginated response - extract the data array
+        $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
+
+        $headers = ['User', 'Reference', 'Amount', 'Method', 'Status', 'Date'];
+        $rows = array_map(fn ($item) => [
+            $item['user'] ?? 'N/A',
+            $item['reference'] ?? 'N/A',
+            $item['amount'] ?? 0,
+            $item['method'] ?? 'N/A',
+            $item['status'] ?? 'N/A',
+            $item['created_at'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows, 'tab' => $tab];
+    }
+
+    protected function getInvestmentsExportData(Request $request): array
+    {
+        $params = array_merge($request->all(), ['per_page' => 10000]);
+        $result = app(InvestmentReportService::class)->list($params);
+        $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
+
+        $headers = ['Investor', 'Plan', 'Amount', 'ROI', 'Start Date', 'Maturity', 'Status'];
+        $rows = array_map(fn ($item) => [
+            $item['investor'] ?? 'N/A',
+            $item['plan'] ?? 'N/A',
+            $item['amount'] ?? 0,
+            $item['roi'] ?? '0%',
+            $item['start_date'] ?? 'N/A',
+            $item['maturity'] ?? 'N/A',
+            $item['status'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getReferralsSubscriptionsExportData(Request $request): array
+    {
+        $tab = $request->get('tab', 'referrals');
+        $params = array_merge($request->all(), ['per_page' => 10000]);
+
+        if ($tab === 'referrals') {
+            $result = app(ReferralReportService::class)->list($params);
+            $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
+            $headers = ['Referrer', 'Invitee', 'Investment', 'Commission', 'Status', 'Date'];
+            $rows = array_map(fn ($item) => [
+                $item['referrer'] ?? 'N/A',
+                $item['invitee'] ?? 'N/A',
+                $item['investment'] ?? 0,
+                $item['commission'] ?? 0,
+                $item['status'] ?? 'N/A',
+                $item['created_at'] ?? 'N/A',
+            ], $data);
+        } else {
+            $data = app(SubscriptionReportService::class)->list($params);
+            $headers = ['User', 'Plan', 'Started', 'Expires', 'Auto Renew', 'Status'];
+            $rows = array_map(fn ($item) => [
+                $item['user'] ?? 'N/A',
+                $item['plan'] ?? 'N/A',
+                $item['started'] ?? 'N/A',
+                $item['expires'] ?? 'N/A',
+                $item['auto_renew'] ? 'Yes' : 'No',
+                $item['status'] ?? 'N/A',
+            ], $data);
+        }
+
+        return ['headers' => $headers, 'rows' => $rows, 'tab' => $tab];
+    }
+
+    protected function getWalletWithdrawalsExportData(Request $request): array
+    {
+        $tab = $request->get('tab', 'withdrawals');
+        $params = array_merge($request->all(), ['per_page' => 10000]);
+        $result = app(WalletReportService::class)->$tab($params);
+        $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
+
+        $headers = match ($tab) {
+            'withdrawals' => ['User', 'Amount', 'Method', 'Status', 'Requested'],
+            'wallet_ledger' => ['Type', 'User', 'Amount', 'Currency', 'Date'],
+            'adjustments' => ['User', 'Amount', 'Type', 'Reason', 'Date'],
+            default => ['Type', 'Amount', 'Currency', 'Date'],
+        };
+
+        $rows = match ($tab) {
+            'withdrawals' => array_map(fn ($item) => [
+                $item['user'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['method'] ?? 'N/A',
+                $item['status'] ?? 'N/A',
+                $item['created_at'] ?? 'N/A',
+            ], $data),
+            'wallet_ledger' => array_map(fn ($item) => [
+                $item['type'] ?? 'N/A',
+                $item['user'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['currency'] ?? 'USD',
+                $item['created_at'] ?? 'N/A',
+            ], $data),
+            'adjustments' => array_map(fn ($item) => [
+                $item['user'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['type'] ?? 'N/A',
+                $item['reason'] ?? 'N/A',
+                $item['created_at'] ?? 'N/A',
+            ], $data),
+            default => [],
+        };
+
+        return ['headers' => $headers, 'rows' => $rows, 'tab' => $tab];
+    }
 }
 
-if (!function_exists('tail')) {
-    function tail($file, $lines = 100) {
-        $fp = fopen($file, 'r');
-        fseek($fp, -1, SEEK_END);
-        $pos = ftell($fp);
-        $output = [];
-        $currentLine = '';
-
-        while ($pos > 0 && count($output) < $lines) {
-            $char = fgetc($fp);
-            if ($char === "\n") {
-                $output[] = strrev($currentLine);
-                $currentLine = '';
-            } else {
-                $currentLine .= $char;
-            }
-            fseek($fp, --$pos, SEEK_SET);
+if (! function_exists('tail')) {
+    function tail($file, $lines = 100)
+    {
+        if (! file_exists($file) || ! is_readable($file)) {
+            return [];
         }
 
-        if ($currentLine !== '') {
-            $output[] = strrev($currentLine);
+        // Use file() to read lines into an array and return the last N lines.
+        // This is simpler and avoids edge cases with fseek on small files.
+        $linesArr = @file($file, FILE_IGNORE_NEW_LINES);
+        if ($linesArr === false) {
+            return [];
         }
 
-        fclose($fp);
-        return array_reverse($output);
+        if ($lines <= 0) {
+            return [];
+        }
+
+        $total = count($linesArr);
+        if ($total === 0) {
+            return [];
+        }
+
+        return array_slice($linesArr, max(0, $total - $lines), $lines);
     }
 }

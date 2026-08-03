@@ -6,38 +6,45 @@
 
     <!-- Summary Cards -->
     <SkeletonLoader v-if="loading" type="card" :count="7" class="opacity-40" />
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
 
     <!-- Statistics -->
     <div v-if="!loading && statistics" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-      <h3 class="text-lg font-semibold text-white mb-4">Statistics</h3>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <h3 class="mb-4 text-lg font-semibold text-white">Statistics</h3>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div v-for="(value, key) in statistics" :key="key" class="bg-[#16213A] rounded-lg p-4">
-          <p class="text-xs text-gray-400 uppercase tracking-wider">{{ formatStatLabel(key) }}</p>
-          <p class="text-xl font-bold text-white mt-1">${{ formatNumber(Number(value)) }}</p>
+          <p class="text-xs tracking-wider text-gray-400 uppercase">{{ formatStatLabel(key) }}</p>
+          <p class="mt-1 text-xl font-bold text-white">${{ formatNumber(Number(value)) }}</p>
         </div>
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="flex flex-wrap items-center gap-4">
-      <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
-        <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition">{{ tab.label }}</button>
+    <!-- Tabs and Filters -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
+          <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 text-sm font-medium transition rounded-lg">{{ tab.label }}</button>
+        </div>
+        <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
+        <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
+          <option disabled value="" class="text-white">Status</option>
+          <option value="completed">Completed</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
+        <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
       </div>
-      <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
-      <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="">All Status</option>
-        <option value="completed">Completed</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="rejected">Rejected</option>
-      </select>
-      <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-      <button @click="resetFilters" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Reset</button>
-      <ExportButton @export-csv="exportReport('csv')" @export-excel="exportReport('excel')" />
-    </div>
+      <ExportButton
+          reportType="financial"
+          :startDate="filters.from"
+          :endDate="filters.to"
+          :extraParams="{ tab: activeTab }"
+        />
+      </div>
 
     <!-- Table with Skeleton -->
     <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
@@ -45,7 +52,7 @@
     </div>
     <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
       <template #cell-amount="{ row }">
-        <span class="text-right block font-mono">{{ getCurrencySymbol(row.currency || 'USD') }}{{ formatNumber(Number(row.amount)) }}</span>
+        <span class="block font-mono text-right">{{ getCurrencySymbol(row.currency || 'USD') }}{{ formatNumber(Number(row.amount)) }}</span>
       </template>
       <template #cell-status="{ row }">
         <span :class="row.status === 'completed' || row.status === 'approved' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
@@ -78,14 +85,14 @@ const summary = ref([]);
 const statistics = ref(null);
 const rows = ref([]);
 const loading = ref(false);
-const activeTab = ref('deposits');
+const activeTab = ref('wallet_transactions');
 const filters = reactive({ from: '', to: '', status: '' });
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
 
 const tabs = [
+  { key: 'wallet_transactions', label: 'All Transactions' },
   { key: 'deposits', label: 'Deposits' },
   { key: 'withdrawals', label: 'Withdrawals' },
-  { key: 'wallet_transactions', label: 'Wallet Transactions' },
   { key: 'fees', label: 'Fees' },
   { key: 'revenue', label: 'Revenue' },
 ];
@@ -215,22 +222,6 @@ const formatStatLabel = (key) => {
     this_month: 'This Month'
   };
   return labels[key] || key;
-};
-
-const exportReport = async (format) => {
-  try {
-    const params = { tab: activeTab.value, ...filters, export: format };
-    const res = await api.get('/admin/reports/financial', { params, responseType: 'blob' });
-    const blob = new Blob([res.data]);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `financial-report-${activeTab.value}.${format === 'csv' ? 'csv' : 'xlsx'}`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error(e);
-  }
 };
 
 const handlePageChange = (page) => {

@@ -1,10 +1,12 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-white">Investment Report</h1>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold text-white">Investment Report</h1>
+    </div>
 
     <!-- Summary Cards -->
     <SkeletonLoader v-if="loading" type="card" :count="6" class="opacity-40" />
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-3">
       <StatCard v-for="s in summary" :key="s.label" v-bind="s" />
     </div>
 
@@ -12,22 +14,27 @@
     <div v-if="!loading" class="flex flex-wrap items-center gap-4">
       <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
       <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="">All Status</option>
+        <option disabled value="" class="text-white">Status</option>
         <option value="open">Active</option>
         <option value="pending">Pending</option>
         <option value="filled">Completed</option>
         <option value="cancelled">Cancelled</option>
       </select>
       <select v-model="filters.plan" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="">All Plans</option>
+        <option disabled value="" class="text-white">Plan</option>
         <option v-for="plan in filterOptions.plans" :key="plan" :value="plan">{{ plan }}</option>
       </select>
       <button @click="fetchInvestments" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-      <button @click="resetFilters" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Reset</button>
-      <ExportButton @export-csv="exportReport('csv')" @export-excel="exportReport('excel')" />
+      <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
+      <ExportButton
+        reportType="investments"
+        :startDate="filters.from"
+        :endDate="filters.to"
+        :extraParams="{ status: filters.status, plan: filters.plan }"
+      />
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="5" class="opacity-40" />
       </div>
@@ -37,7 +44,7 @@
         </template>
       </ReportTable>
       <div>
-        <h3 class="text-lg font-semibold text-white mb-3">Top Investors</h3>
+        <h3 class="mb-3 text-lg font-semibold text-white">Top Investors</h3>
         <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
           <SkeletonLoader type="table" :count="5" class="opacity-40" />
         </div>
@@ -53,6 +60,7 @@ import StatCard from '@/Components/Reports/StatCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
 import DateRangeFilter from '@/Components/Reports/DateRangeFilter.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
+import ExportButton from '@/Components/Reports/ExportButton.vue';
 import api from '@/api';
 
 const summary = ref([]);
@@ -123,22 +131,6 @@ const resetFilters = () => {
   sortBy.value = '';
   sortDir.value = 'desc';
   fetchInvestments();
-};
-
-const exportReport = async (format) => {
-  try {
-    const params = { ...filters, export: format };
-    const res = await api.get('/admin/reports/investments', { params, responseType: 'blob' });
-    const blob = new Blob([res.data]);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `investments-report.${format === 'csv' ? 'csv' : 'xlsx'}`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error(e);
-  }
 };
 
 onMounted(fetchInvestments);

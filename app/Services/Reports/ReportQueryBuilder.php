@@ -3,13 +3,15 @@
 namespace App\Services\Reports;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 class ReportQueryBuilder
 {
     protected Builder $query;
+
     protected array $allowedSorts = [];
+
     protected string $defaultSort = 'created_at';
+
     protected string $defaultSortDir = 'desc';
 
     public function __construct(Builder $query)
@@ -20,6 +22,7 @@ class ReportQueryBuilder
     public function setAllowedSorts(array $sorts): self
     {
         $this->allowedSorts = $sorts;
+
         return $this;
     }
 
@@ -27,6 +30,7 @@ class ReportQueryBuilder
     {
         $this->defaultSort = $column;
         $this->defaultSortDir = $dir;
+
         return $this;
     }
 
@@ -36,8 +40,9 @@ class ReportQueryBuilder
             $this->query->where($column, '>=', $from);
         }
         if ($to) {
-            $this->query->where($column, '<=', $to . ' 23:59:59');
+            $this->query->where($column, '<=', $to.' 23:59:59');
         }
+
         return $this;
     }
 
@@ -46,6 +51,7 @@ class ReportQueryBuilder
         if ($status && $status !== 'all') {
             $this->query->where($column, $status);
         }
+
         return $this;
     }
 
@@ -62,6 +68,7 @@ class ReportQueryBuilder
                 }
             });
         }
+
         return $this;
     }
 
@@ -70,12 +77,16 @@ class ReportQueryBuilder
         $column = in_array($sort, $this->allowedSorts) ? $sort : $this->defaultSort;
         $direction = in_array(strtolower($dir ?? ''), ['asc', 'desc']) ? $dir : $this->defaultSortDir;
         $this->query->orderBy($column, $direction);
+
         return $this;
     }
 
     public function paginate(int $perPage = 50)
     {
-        $perPage = in_array($perPage, [10, 25, 50, 100, 200]) ? $perPage : 50;
+        if ($perPage <= 0) {
+            $perPage = 50;
+        }
+
         return $this->query->paginate($perPage);
     }
 

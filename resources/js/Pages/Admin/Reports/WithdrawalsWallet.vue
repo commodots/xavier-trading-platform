@@ -1,52 +1,61 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-white">Withdrawal & Wallet Report</h1>
-
     <!-- Summary Cards -->
-    <div v-if="loading" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div v-if="loading" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-white mb-3">Withdrawal Summary</h3>
+        <h3 class="mb-3 text-lg font-semibold text-white">Withdrawal Summary</h3>
         <div class="grid grid-cols-2 gap-4">
           <SkeletonLoader type="card" :count="4" class="opacity-40" />
         </div>
       </div>
       <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-white mb-3">Wallet Summary</h3>
+        <h3 class="mb-3 text-lg font-semibold text-white">Wallet Summary</h3>
         <div class="grid grid-cols-2 gap-4">
           <SkeletonLoader type="card" :count="4" class="opacity-40" />
         </div>
       </div>
     </div>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div v-else class="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div>
-        <h3 class="text-lg font-semibold text-white mb-3">Withdrawal Summary</h3>
+        <h3 class="mb-3 text-lg font-semibold text-white">Withdrawal Summary</h3>
         <div class="grid grid-cols-2 gap-4">
           <StatCard v-for="s in withdrawalSummary" :key="s.label" v-bind="s" />
         </div>
       </div>
       <div>
-        <h3 class="text-lg font-semibold text-white mb-3">Wallet Summary</h3>
+        <h3 class="mb-3 text-lg font-semibold text-white">Wallet Summary</h3>
         <div class="grid grid-cols-2 gap-4">
           <StatCard v-for="s in walletSummary" :key="s.label" v-bind="s" />
         </div>
       </div>
     </div>
 
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Withdrawal & Wallet Report</h1>
+      </div>
+    </div>
+
     <div class="flex flex-wrap items-center gap-4">
       <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
-        <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition">{{ tab.label }}</button>
+        <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 text-sm font-medium transition rounded-lg">{{ tab.label }}</button>
       </div>
       <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
       <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="" selected >All Status</option>
+        <option disabled value="" class="text-white">Status</option>
         <option value="pending">Pending</option>
         <option value="approved">Approved</option>
         <option value="rejected">Rejected</option>
         <option value="paid">Paid</option>
       </select>
       <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-      <button @click="resetFilters" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Reset</button>
-      <ExportButton @export-csv="exportReport('csv')" @export-excel="exportReport('excel')" />
+      <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
+      <ExportButton
+        reportType="wallet-withdrawals"
+        :startDate="filters.from"
+        :endDate="filters.to"
+        :extraParams="{ tab: activeTab, status: filters.status }"
+      />
     </div>
 
     <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
@@ -58,9 +67,9 @@
       </template>
       <template #cell-actions="{ row }" v-if="activeTab === 'withdrawals'">
         <div class="flex gap-2">
-          <button v-if="row.status === 'pending'" @click="approveWithdrawal(row.id)" class="text-green-400 hover:text-green-300 text-xs">Approve</button>
-          <button v-if="row.status === 'pending'" @click="rejectWithdrawal(row.id)" class="text-red-400 hover:text-red-300 text-xs">Reject</button>
-          <button @click="viewWithdrawal(row.id)" class="text-blue-400 hover:text-blue-300 text-xs">View</button>
+          <button v-if="row.status === 'pending'" @click="approveWithdrawal(row.id)" class="text-xs text-green-400 hover:text-green-300">Approve</button>
+          <button v-if="row.status === 'pending'" @click="rejectWithdrawal(row.id)" class="text-xs text-red-400 hover:text-red-300">Reject</button>
+          <button @click="viewWithdrawal(row.id)" class="text-xs text-blue-400 hover:text-blue-300">View</button>
         </div>
       </template>
     </ReportTable>
@@ -73,6 +82,7 @@ import StatCard from '@/Components/Reports/StatCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
 import DateRangeFilter from '@/Components/Reports/DateRangeFilter.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
+import ExportButton from '@/Components/Reports/ExportButton.vue';
 import api from '@/api';
 
 const withdrawalSummary = ref([]);
@@ -194,22 +204,6 @@ const rejectWithdrawal = async (id) => {
 
 const viewWithdrawal = (id) => {
   window.open(`/admin/users?withdrawal=${id}`, '_blank');
-};
-
-const exportReport = async (format) => {
-  try {
-    const params = { tab: activeTab.value, ...filters, export: format };
-    const res = await api.get('/admin/reports/wallet-withdrawals', { params, responseType: 'blob' });
-    const blob = new Blob([res.data]);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wallet-withdrawals-report-${activeTab.value}.${format === 'csv' ? 'csv' : 'xlsx'}`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error(e);
-  }
 };
 
 const handlePageChange = (page) => {

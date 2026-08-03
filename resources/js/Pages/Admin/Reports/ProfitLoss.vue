@@ -2,17 +2,16 @@
   <div class="space-y-6">
       <div class="flex items-center justify-between">
         <h1 class="text-xl font-bold text-white">Profit & Loss</h1>
+      </div>
+
+      <div class="flex items-center justify-between gap-4">
+        <DateFilter @filter-change="onFilterChange" />
         <ExportButton
-          title="profit-loss-report"
-          :rows="exportRows"
-          :headers="['Source', 'Amount', 'Type']"
-          type="profit-loss"
+          reportType="profit-loss"
           :startDate="filters.start_date"
           :endDate="filters.end_date"
         />
       </div>
-
-      <DateFilter @filter-change="onFilterChange" />
 
       <div v-if="loading" class="space-y-6">
         <SkeletonLoader type="card" :count="4" />

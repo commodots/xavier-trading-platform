@@ -2,8 +2,8 @@
 
 namespace App\Services\Reports;
 
-use App\Models\User;
 use App\Models\KycProfile;
+use App\Models\User;
 
 class UserReportService
 {
@@ -24,8 +24,8 @@ class UserReportService
 
     public function list(array $filters = []): array
     {
-        $query = User::query()->with('kyc', 'wallet');
-        
+        $query = User::query()->with('kyc')->withSum('wallets', 'balance');
+
         $builder = new ReportQueryBuilder($query);
         $builder->setAllowedSorts(['name', 'email', 'created_at', 'kyc_status', 'last_active_at', 'subscription_status'])
             ->setDefaultSort('created_at', 'desc')
@@ -33,16 +33,16 @@ class UserReportService
             ->applyDateRange($filters['from'] ?? null, $filters['to'] ?? null, 'created_at')
             ->applyStatus($filters['kyc_status'] ?? null, 'kyc_status');
 
-        if (!empty($filters['country'])) {
+        if (! empty($filters['country'])) {
             $query->where('country', $filters['country']);
         }
-        if (!empty($filters['subscription'])) {
+        if (! empty($filters['subscription'])) {
             $query->where('subscription_status', $filters['subscription']);
         }
-        if (!empty($filters['role'])) {
+        if (! empty($filters['role'])) {
             $query->where('role', $filters['role']);
         }
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             if ($filters['status'] === 'suspended') {
                 $query->where('is_suspended', true);
             } elseif ($filters['status'] === 'active') {
@@ -55,13 +55,13 @@ class UserReportService
         $perPage = (int) ($filters['per_page'] ?? 50);
         $paginator = $builder->paginate($perPage);
 
-        $users = collect($paginator->items())->map(fn($u) => [
+        $users = collect($paginator->items())->map(fn ($u) => [
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
             'phone' => $u->phone,
             'country' => $u->country ?? 'N/A',
-            'wallet_balance' => $u->wallet_balance ?? 0,
+            'wallet_balance' => $u->wallets_sum_balance ?? $u->wallet_balance ?? 0,
             'subscription_status' => $u->subscription_status ?? 'none',
             'kyc_status' => $u->kyc_status ?? ($u->kyc?->status ?? 'none'),
             'is_suspended' => $u->is_suspended,
@@ -85,7 +85,7 @@ class UserReportService
         return [
             'countries' => User::select('country')->distinct()->whereNotNull('country')->orderBy('country')->pluck('country'),
             'subscriptions' => ['active', 'inactive', 'trial'],
-            'roles' => ['user','super-admin', 'admin', 'staff'],
+            'roles' => ['user', 'super-admin', 'admin', 'staff'],
             'statuses' => ['active', 'suspended', 'inactive'],
             'kyc_statuses' => ['verified', 'pending', 'rejected', 'none'],
         ];
@@ -94,14 +94,17 @@ class UserReportService
     public function export(array $filters = []): array
     {
         $result = $this->list($filters + ['per_page' => 10000]);
+
         return $result['data'];
     }
 
     public function getUserById(int $id): ?array
     {
         $user = User::with('kyc')->find($id);
-        if (!$user) return null;
-        
+        if (! $user) {
+            return null;
+        }
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -116,6 +119,7 @@ class UserReportService
             'joined' => $user->created_at?->format('Y-m-d H:i'),
             'last_login' => $user->last_active_at?->format('Y-m-d H:i'),
             'avatar' => $user->avatar ?? null,
+            'wallet_balance' => $user->wallets_sum_balance ?? $user->wallet_balance ?? 0,
         ];
     }
 }

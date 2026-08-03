@@ -1,21 +1,28 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-white">Referral & Subscription Report</h1>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold text-white">Referral & Subscription Report</h1>
+    </div>
 
     <div class="flex flex-wrap items-center gap-4">
       <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
-        <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition">{{ tab.label }}</button>
+        <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 text-sm font-medium transition rounded-lg">{{ tab.label }}</button>
       </div>
       <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
       <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-      <button @click="resetFilters" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Reset</button>
-      <ExportButton @export-csv="exportReport('csv')" @export-excel="exportReport('excel')" />
+      <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
+      <ExportButton
+        reportType="referrals-subscriptions"
+        :startDate="filters.from"
+        :endDate="filters.to"
+        :extraParams="{ tab: activeTab }"
+      />
     </div>
 
     <div v-if="activeTab === 'referrals'">
       <!-- Referral Summary Cards -->
-      <SkeletonLoader v-if="loading" type="card" :count="4" class="opacity-40 mb-6" />
-      <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <SkeletonLoader v-if="loading" type="card" :count="4" class="mb-6 opacity-40" />
+      <div v-else class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-4">
         <StatCard v-for="s in referralSummary" :key="s.label" v-bind="s" />
       </div>
 
@@ -32,8 +39,8 @@
 
     <div v-else>
       <!-- Subscription Summary Cards -->
-      <SkeletonLoader v-if="loading" type="card" :count="4" class="opacity-40 mb-6" />
-      <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <SkeletonLoader v-if="loading" type="card" :count="4" class="mb-6 opacity-40" />
+      <div v-else class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-4">
         <StatCard v-for="s in subscriptionSummary" :key="s.label" v-bind="s" />
       </div>
 
@@ -140,22 +147,6 @@ const resetFilters = () => {
   sortBy.value = '';
   sortDir.value = 'desc';
   fetchData(1);
-};
-
-const exportReport = async (format) => {
-  try {
-    const params = { tab: activeTab.value, ...filters, export: format };
-    const res = await api.get('/admin/reports/referrals-subscriptions', { params, responseType: 'blob' });
-    const blob = new Blob([res.data]);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `referrals-subscriptions-report-${activeTab.value}.${format === 'csv' ? 'csv' : 'xlsx'}`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error(e);
-  }
 };
 
 const handlePageChange = (page) => {

@@ -35,8 +35,11 @@
             @foreach($rows as $row)
             <tr>
                 @foreach($headers as $h)
-                    @php $k = strtolower(str_replace(' ','_',$h)); $v = $row[$k]??$row[$h]??'N/A'; @endphp
-                    @if($h === 'Amount')<td class="amount">{{ number_format($v,2) }}</td>
+                    @php
+                        $k = strtolower(str_replace(' ','_',$h));
+                        $v = $row[$loop->index] ?? $row[$k] ?? $row[$h] ?? 'N/A';
+                    @endphp
+                    @if($h === 'Amount')<td class="amount">{{ is_numeric($v) ? number_format((float) $v, 2) : $v }}</td>
                     @elseif($h === 'Status')<td><span class="status-{{ strtolower($v) }}">{{ ucfirst($v) }}</span></td>
                     @else<td>{{ $v }}</td>@endif
                 @endforeach

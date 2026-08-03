@@ -104,8 +104,10 @@ const getFormatClass = (format) => {
 const downloadReport = async (item) => {
   try {
     const response = await api.post('/admin/reports/export', {
-      format: item.format, title: item.name, type: item.type,
-      start_date: item.start_date, end_date: item.end_date,
+      format: item.format,
+      report_type: item.type,
+      start_date: item.start_date,
+      end_date: item.end_date,
     }, { responseType: 'blob' });
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
