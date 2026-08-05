@@ -1,5 +1,13 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
+    <div v-if="title || description" class="flex items-start justify-between gap-3 border-b border-[#1f3348] px-4 py-4">
+      <div>
+        <h3 v-if="title" class="text-sm font-semibold text-white">{{ title }}</h3>
+        <p v-if="description" class="mt-1 text-xs leading-5 text-gray-400">{{ description }}</p>
+      </div>
+      <slot name="actions" />
+    </div>
+
     <!-- Search -->
     <div v-if="searchable" class="p-3 border-b border-[#1f3348]">
       <input
@@ -57,6 +65,7 @@
               <template v-else>
                 <span v-if="col.format">{{ col.format(row[col.key], row) }}</span>
                 <span v-else-if="col.type === 'currency'">{{ formatCurrency(row[col.key]) }}</span>
+                <span v-else-if="col.type === 'number' || col.type === 'count'">{{ formatNumber(row[col.key]) }}</span>
                 <span v-else-if="col.type === 'date'">{{ formatDate(row[col.key]) }}</span>
                 <span v-else-if="col.type === 'status'">
                   <span
@@ -124,6 +133,14 @@ const props = defineProps({
   searchable: {
     type: Boolean,
     default: false,
+  },
+  title: {
+    type: String,
+    default: '',
+  },
+  description: {
+    type: String,
+    default: '',
   },
 });
 
@@ -207,6 +224,14 @@ const formatCurrency = (value) => {
   return '$' + Number(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  });
+};
+
+const formatNumber = (value) => {
+  if (value === null || value === undefined) return '0';
+  return Number(value).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 };
 

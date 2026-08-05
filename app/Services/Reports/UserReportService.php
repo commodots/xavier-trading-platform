@@ -4,11 +4,61 @@ namespace App\Services\Reports;
 
 use App\Models\KycProfile;
 use App\Models\User;
+use Illuminate\Http\Request;
 
-class UserReportService
+class UserReportService extends BaseReportService
 {
     protected ReportQueryBuilder $queryBuilder;
 
+    use Concerns\InteractsWithCharts;
+
+    /**
+     * Main Report
+     */
+    public function generate(Request $request): array
+    {
+        $query = User::query()
+            ->with(['kyc'])
+            ->withSum('wallets', 'balance');
+
+        $this->applyFilters($query, $request);
+
+        $this->applySorting($query, $request);
+
+        $table = $this->paginate($query, $request);
+
+        return $this->response(
+            $this->summaryData(),
+            $table,
+            [
+                $this->monthlyChart(User::class, 'created_at', 'id', 'count', 'User Growth'),
+                $this->statusChart(User::class, 'kyc_status', 'KYC Status'),
+            ],
+            $request->all()
+        );
+    }
+
+    /**
+     * Summary for new generate() - associative array format.
+     */
+    public function summaryData(): array
+    {
+        return [
+            'total_users' => User::count(),
+            'verified' => User::where('kyc_status', 'verified')->count(),
+            'active' => User::where('is_suspended', false)->whereNotNull('email_verified_at')->count(),
+            'suspended' => User::where('is_suspended', true)->count(),
+            'premium' => User::where('subscription_status', 'active')->count(),
+            'trial' => User::where('subscription_status', 'trial')->count(),
+            'expired' => User::where('subscription_status', 'expired')->count(),
+            'pending_kyc' => KycProfile::where('status', 'pending')->count(),
+            'pending' => KycProfile::where('status', 'pending')->count(),
+        ];
+    }
+
+    /**
+     * Summary for existing Users.vue page - array of StatCard objects.
+     */
     public function summary(): array
     {
         return [
@@ -121,5 +171,17 @@ class UserReportService
             'avatar' => $user->avatar ?? null,
             'wallet_balance' => $user->wallets_sum_balance ?? $user->wallet_balance ?? 0,
         ];
+    }
+
+    /**
+     * Search
+     */
+    protected function applySearch($query, string $search): void
+    {
+        $query->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('phone', 'like', "%{$search}%");
+        });
     }
 }

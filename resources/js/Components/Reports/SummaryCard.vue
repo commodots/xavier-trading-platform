@@ -63,37 +63,26 @@ const IconComponent = computed(() => {
 });
 
 const formattedValue = computed(() => {
-  // Convert to number first, even if it's a string
   const num = Number(props.value) || 0;
+  const isMoney = Boolean(props.prefix);
+  const formatter = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: isMoney ? 2 : 0,
+    maximumFractionDigits: isMoney ? 2 : 0,
+  });
 
   if (num >= 1_000_000_000) {
-    const value = (num / 1_000_000_000).toFixed(1).replace(/\.0$/, '');
+    const value = (num / 1_000_000_000).toFixed(isMoney ? 2 : 0).replace(/\.0$/, '');
     return props.prefix + value + 'B';
   }
   if (num >= 1_000_000) {
-    const value = (num / 1_000_000).toFixed(1).replace(/\.0$/, '');
+    const value = (num / 1_000_000).toFixed(isMoney ? 2 : 0).replace(/\.0$/, '');
     return props.prefix + value + 'M';
   }
   if (num >= 1_000) {
-    const value = (num / 1_000).toFixed(1).replace(/\.0$/, '');
+    const value = (num / 1_000).toFixed(isMoney ? 2 : 0).replace(/\.0$/, '');
     return props.prefix + value + 'K';
   }
 
-  // Format with maximum precision first and comma separators
-  const parts = num.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 20,
-  }).split('.');
-  
-  // Remove trailing zeros from decimal part
-  if (parts[1]) {
-    parts[1] = parts[1].replace(/0+$/, '');
-    if (parts[1] === '') {
-      return props.prefix + parts[0];
-    }
-    return props.prefix + parts.join('.');
-  }
-  
-  return props.prefix + parts[0];
+  return `${props.prefix}${formatter.format(num)}`;
 });
 </script>

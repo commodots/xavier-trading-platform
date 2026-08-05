@@ -42,6 +42,26 @@ class ReportsControllerTest extends TestCase
         $res->assertStatus(200);
     }
 
+    public function test_export_financial_wallet_transactions_tab_as_admin_returns_file()
+    {
+        Role::create(['name' => 'super-admin']);
+        $admin = User::factory()->create();
+        $admin->assignRole('super-admin');
+
+        $res = $this->actingAs($admin)->postJson('/api/admin/reports/export', [
+            'format' => 'csv',
+            'report_type' => 'financial',
+            'tab' => 'wallet_transactions',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-08-03',
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertHeader('content-disposition', 'attachment; filename="wallet_transactions.csv"');
+        $content = $res->getContent();
+        $this->assertStringContainsString('User,Reference,Type,Amount,Currency,Status,Date', $content);
+    }
+
     public function test_export_users_includes_all_users_in_export()
     {
         Role::create(['name' => 'super-admin']);

@@ -15,7 +15,7 @@
       <div v-else class="space-y-6">
         <div v-for="(cards, section) in summary" :key="section">
           <h3 class="mb-3 text-base font-semibold tracking-wider text-gray-300 uppercase">{{ section }}</h3>
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <SummaryCard v-for="card in cards" :key="card.title" v-bind="card" />
           </div>
         </div>

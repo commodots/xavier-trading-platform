@@ -23,7 +23,7 @@ import {
 const props = defineProps({
   title: { type: String, default: '' },
   label: { type: String, default: '' },
-  value: { type: [Number, String], required: true },
+  value: { type: [Number, String], default: 0 },
   prefix: { type: String, default: '' },
   decimals: { type: Number, default: 2 },
   icon: { type: String, default: '' },
@@ -59,34 +59,26 @@ const IconComponent = computed(() => {
   return iconMap[props.icon] || null;
 });
 
+const isMoneyValue = computed(() => Boolean(props.prefix));
+
 const fullValue = computed(() => {
   if (typeof props.value === 'string') return props.value;
   const num = Number(props.value) || 0;
-  return num.toLocaleString(undefined, {
-    minimumFractionDigits: props.decimals,
-    maximumFractionDigits: props.decimals, 
-  });
+  return formatNumericValue(num);
 });
 
 const formattedValue = computed(() => {
-  // Convert to number first, even if it's a string
+  if (typeof props.value === 'string') return props.value;
   const num = Number(props.value) || 0;
-  
-  // Format with maximum precision first and comma separators
-  const parts = num.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 20,
-  }).split('.');
-  
-  // Remove trailing zeros from decimal part
-  if (parts[1]) {
-    parts[1] = parts[1].replace(/0+$/, '');
-    if (parts[1] === '') {
-      return props.prefix + parts[0];
-    }
-    return props.prefix + parts.join('.');
-  }
-  
-  return props.prefix + parts[0];
+  return formatNumericValue(num);
 });
+
+const formatNumericValue = (num) => {
+  const formatter = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: isMoneyValue.value ? 2 : 0,
+    maximumFractionDigits: isMoneyValue.value ? 2 : 0,
+  });
+
+  return `${props.prefix}${formatter.format(num)}`;
+};
 </script>

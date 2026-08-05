@@ -40,7 +40,7 @@
       <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
         <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 text-sm font-medium transition rounded-lg">{{ tab.label }}</button>
       </div>
-      <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
+      <DateFilter @filter-change="handleFilterChange" />
       <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
         <option disabled value="" class="text-white">Status</option>
         <option value="pending">Pending</option>
@@ -61,7 +61,7 @@
     <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
       <SkeletonLoader type="table" :count="8" class="opacity-40" />
     </div>
-    <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
+    <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" :title="activeTab === 'withdrawals' ? 'Withdrawal activity' : activeTab === 'wallet_ledger' ? 'Wallet ledger' : 'Adjustment history'" :description="activeTab === 'withdrawals' ? 'Withdrawal requests and their review outcome.' : activeTab === 'wallet_ledger' ? 'Wallet movements for the selected range.' : 'Manual balance adjustments and reasons.'">
       <template #cell-status="{ row }">
         <span :class="row.status === 'approved' || row.status === 'paid' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
       </template>
@@ -80,7 +80,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import StatCard from '@/Components/Reports/StatCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
-import DateRangeFilter from '@/Components/Reports/DateRangeFilter.vue';
+import DateFilter from '@/Components/Reports/DateFilter.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import ExportButton from '@/Components/Reports/ExportButton.vue';
 import api from '@/api';
@@ -90,7 +90,7 @@ const walletSummary = ref([]);
 const rows = ref([]);
 const loading = ref(false);
 const activeTab = ref('withdrawals');
-const filters = reactive({ from: '', to: '' });
+const filters = reactive({ from: '', to: '', period: 'month' });
 
 const tabs = [
   { key: 'withdrawals', label: 'Withdrawals' },
@@ -139,6 +139,13 @@ const sortBy = ref('');
 const sortDir = ref('desc');
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
 
+const handleFilterChange = (payload) => {
+  filters.from = payload.start_date || '';
+  filters.to = payload.end_date || '';
+  filters.period = payload.period || 'month';
+  fetchData(1);
+};
+
 const fetchData = async (page = 1) => {
   loading.value = true;
   try {
@@ -172,6 +179,7 @@ const handleSort = (key) => {
 const resetFilters = () => {
   filters.from = '';
   filters.to = '';
+  filters.period = 'month';
   filters.status = '';
   sortBy.value = '';
   sortDir.value = 'desc';

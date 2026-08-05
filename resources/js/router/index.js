@@ -327,6 +327,56 @@ const routes = [
         name: "admin-reports-system",
         component: () => import("@/Pages/Admin/Reports/System.vue"),
       },
+      {
+        path: "revenue",
+        name: "reports-revenue",
+        component: () => import("@/Pages/Admin/Reports/Revenue.vue"),
+      },
+      {
+        path: "profit-loss",
+        name: "reports-profit-loss",
+        component: () => import("@/Pages/Admin/Reports/ProfitLoss.vue"),
+      },
+      {
+        path: "expenses",
+        name: "reports-expenses",
+        component: () => import("@/Pages/Admin/Reports/Expenses.vue"),
+      },
+      {
+        path: "downloads",
+        name: "reports-downloads",
+        component: () => import("@/Pages/Admin/Reports/Downloads.vue"),
+      },
+      {
+        path: "roi",
+        name: "reports-roi",
+        component: () => import("@/Pages/Admin/Reports/ROI.vue"),
+      },
+      {
+        path: "maturity",
+        name: "reports-maturity",
+        component: () => import("@/Pages/Admin/Reports/Maturity.vue"),
+      },
+      {
+        path: "investment-plans",
+        name: "reports-investment-plans",
+        component: () => import("@/Pages/Admin/Reports/InvestmentPlans.vue"),
+      },
+      {
+        path: "subscriptions",
+        name: "reports-subscriptions",
+        component: () => import("@/Pages/Admin/Reports/Subscriptions.vue"),
+      },
+      {
+        path: "kyc",
+        name: "reports-kyc",
+        component: () => import("@/Pages/Admin/Reports/KYC.vue"),
+      },
+      {
+        path: "login-history",
+        name: "reports-login-history",
+        component: () => import("@/Pages/Admin/Reports/LoginHistory.vue"),
+      },
     ],
   },
   {
@@ -372,38 +422,6 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   
-  {
-    path: '/admin/reports',
-    component: () => import("@/Pages/Admin/Reports/Index.vue"),
-    meta: { requiresAuth: true, adminOnly: true },
-    children: [
-      {
-        path: "",
-        name: "reports-dashboard",
-        component: () => import("@/Pages/Admin/Reports/Dashboard.vue"),
-      },
-      {
-        path: "revenue",
-        name: "reports-revenue",
-        component: () => import("@/Pages/Admin/Reports/Revenue.vue"),
-      },
-      {
-        path: "profit-loss",
-        name: "reports-profit-loss",
-        component: () => import("@/Pages/Admin/Reports/ProfitLoss.vue"),
-      },
-      {
-        path: "expenses",
-        name: "reports-expenses",
-        component: () => import("@/Pages/Admin/Reports/Expenses.vue"),
-      },
-      {
-        path: "downloads",
-        name: "reports-downloads",
-        component: () => import("@/Pages/Admin/Reports/Downloads.vue"),
-      },
-    ],
-  },
 ];
 
 /* --------------------------------------------------

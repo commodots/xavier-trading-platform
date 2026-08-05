@@ -1,7 +1,10 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
-    <div v-if="title" class="flex items-center justify-between mb-4">
-      <h3 class="text-sm font-medium text-white">{{ title }}</h3>
+    <div v-if="title || subtitle" class="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h3 v-if="title" class="text-sm font-semibold text-white">{{ title }}</h3>
+        <p v-if="subtitle" class="mt-1 text-xs leading-5 text-gray-400">{{ subtitle }}</p>
+      </div>
     </div>
     <div v-if="!hasData" class="flex items-center justify-center h-64 text-gray-500">
       <EmptyState message="No chart data available" />
@@ -16,6 +19,10 @@ import EmptyState from './EmptyState.vue';
 
 const props = defineProps({
   title: {
+    type: String,
+    default: '',
+  },
+  subtitle: {
     type: String,
     default: '',
   },
@@ -44,8 +51,23 @@ const props = defineProps({
 const chartContainer = ref(null);
 let chartInstance = null;
 
+// Sanitize series data - filter out empty or invalid series
+const cleanSeries = computed(() => {
+  return props.series
+    .map((s) => {
+      if (Array.isArray(s)) return s;
+      if (s && Array.isArray(s.data)) return s;
+      return null;
+    })
+    .filter(Boolean)
+    .map((s) => {
+      if (Array.isArray(s)) return { data: s };
+      return s;
+    });
+});
+
 const hasData = computed(() => {
-  return props.categories.length > 0 && props.series.length > 0;
+  return props.categories.length > 0 && cleanSeries.value.length > 0;
 });
 
 const initChart = async () => {
@@ -65,7 +87,7 @@ const initChart = async () => {
         background: 'transparent',
       },
       colors: props.colors,
-      series: props.series,
+      series: cleanSeries.value,
       xaxis: {
         categories: props.categories,
         labels: { style: { colors: '#9CA3AF' } },
@@ -147,7 +169,7 @@ watch(
   () => {
     if (chartInstance) {
       chartInstance.updateOptions({
-        series: props.series,
+        series: cleanSeries.value,
         xaxis: { categories: props.categories },
       });
     } else {

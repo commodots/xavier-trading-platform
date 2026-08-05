@@ -2,23 +2,37 @@
 
 namespace Tests\Unit;
 
+use App\Models\Order;
 use App\Services\Reports\InvestmentReportService;
-use App\Services\Reports\ReportCacheService;
 use Mockery;
 use Tests\TestCase;
 
 class InvestmentReportServiceTest extends TestCase
 {
-    public function test_summary_uses_cache()
+    protected function tearDown(): void
     {
-        $expected = [['label' => 'Total Investments', 'value' => 10, 'icon' => 'chart-bar', 'color' => '#0047AB']];
+        Mockery::close();
+        parent::tearDown();
+    }
 
-        $cacheMock = Mockery::mock(ReportCacheService::class);
-        $cacheMock->shouldReceive('remember')->once()->andReturn($expected);
+    public function test_summary_contains_key_metrics()
+    {
+        $orderMock = Mockery::mock('alias:'.Order::class);
+        $orderMock->shouldReceive('count')->andReturn(10);
+        $orderMock->shouldReceive('where')->andReturnSelf();
+        $orderMock->shouldReceive('whereIn')->andReturnSelf();
+        $orderMock->shouldReceive('sum')->andReturn(1000);
 
-        $svc = new InvestmentReportService($cacheMock);
-        $res = $svc->summary();
+        $service = new InvestmentReportService;
+        $summary = $service->summary();
 
-        $this->assertSame($expected, $res);
+        $this->assertArrayHasKey('total_investments', $summary);
+        $this->assertArrayHasKey('active', $summary);
+        $this->assertArrayHasKey('completed', $summary);
+        $this->assertArrayHasKey('cancelled', $summary);
+        $this->assertArrayHasKey('pending', $summary);
+        $this->assertArrayHasKey('principal', $summary);
+        $this->assertArrayHasKey('expected_roi', $summary);
+        $this->assertArrayHasKey('paid_roi', $summary);
     }
 }

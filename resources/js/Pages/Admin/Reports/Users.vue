@@ -13,28 +13,28 @@
     <!-- Search & Filters -->
     <div v-if="!loading" class="flex flex-wrap items-center gap-4">
       <SearchBar v-model="filters.search" placeholder="Search users..." />
-      <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
+      <DateFilter @filter-change="handleFilterChange" />
       <select v-model="filters.kyc_status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option disabled value="" class="text-white">KYC status</option>
+        <option value="" class="text-white">KYC status</option>
         <option value="verified">Verified</option>
         <option value="pending">Pending</option>
         <option value="rejected">Rejected</option>
         <option value="none">None</option>
       </select>
       <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option disabled value="" class="text-white">User status</option>
+        <option value="" class="text-white">User status</option>
         <option value="active">Active</option>
         <option value="suspended">Suspended</option>
         <option value="inactive">Inactive</option>
       </select>
       <select v-model="filters.subscription" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option disabled value="" class="text-white">Subscription</option>
+        <option value="" class="text-white">Subscription</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
         <option value="trial">Trial</option>
       </select>
       <select v-model="filters.country" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option disabled value="" class="text-white">Country</option>
+        <option value="" class="text-white">Country</option>
         <option v-for="country in filterOptions.countries" :key="country" :value="country">{{ country }}</option>
       </select>
       <button @click="fetchUsers" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
@@ -48,7 +48,7 @@
 
     <!-- Table -->
     <SkeletonLoader v-if="loading" type="table" :count="8" class="opacity-40" />
-    <ReportTable v-else :columns="columns" :data="users" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
+    <ReportTable v-else :columns="columns" :data="users" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" title="User activity" description="Users matching the current filters and their account status.">
       <template #cell-avatar="{ row }">
         <div class="inline-flex items-center justify-center w-8 h-8 rounded-full overflow-hidden border border-[#1f3348]">
           <img v-if="row.avatar" :src="row.avatar" :alt="row.name" class="w-full h-full object-cover" />
@@ -89,7 +89,7 @@ import { ref, reactive, onMounted } from 'vue';
 import StatCard from '@/Components/Reports/StatCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
 import SearchBar from '@/Components/Reports/SearchBar.vue';
-import DateRangeFilter from '@/Components/Reports/DateRangeFilter.vue';
+import DateFilter from '@/Components/Reports/DateFilter.vue';
 import ExportButton from '@/Components/Reports/ExportButton.vue';
 import Pagination from '@/Components/Reports/Pagination.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
@@ -119,7 +119,7 @@ const currentPage = ref(1);
 const perPage = ref(50);
 const sortBy = ref('');
 const sortDir = ref('desc');
-const filters = reactive({ search: '', from: '', to: '', kyc_status: '' });
+const filters = reactive({ search: '', from: '', to: '', period: 'month', kyc_status: '' });
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, perPage: 50 });
 
 const columns = [
@@ -148,6 +148,13 @@ const filterOptions = ref({
   kyc_statuses: ['verified', 'pending', 'rejected', 'none']
 });
 
+const handleFilterChange = (payload) => {
+  filters.from = payload.start_date || '';
+  filters.to = payload.end_date || '';
+  filters.period = payload.period || 'month';
+  fetchUsers();
+};
+
 const fetchUsers = async () => {
   loading.value = true;
   try {
@@ -175,6 +182,7 @@ const resetFilters = () => {
   filters.search = '';
   filters.from = '';
   filters.to = '';
+  filters.period = 'month';
   filters.kyc_status = '';
   filters.status = '';
   filters.subscription = '';

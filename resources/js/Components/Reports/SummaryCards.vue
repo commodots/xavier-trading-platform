@@ -9,17 +9,15 @@
         <span class="text-xs text-gray-400 uppercase tracking-wider">{{ card.label }}</span>
         <component :is="getIcon(card.icon)" v-if="card.icon" class="w-5 h-5" :style="{ color: card.color }" />
       </div>
-      <div class="text-2xl font-bold text-white">
-        <span v-if="card.prefix">{{ card.prefix }}</span>
-        {{ formatAmount(card.value) }}
+      <div class="text-xl font-bold text-white">
+        {{ formatAmount(card.value, card.prefix, card.isMoney ?? Boolean(card.prefix)) }}
       </div>
       <div v-if="card.change !== undefined" class="flex items-center mt-1">
         <span
           class="text-xs font-medium"
           :class="card.change >= 0 ? 'text-green-400' : 'text-red-400'"
         >
-          <TrendingUp v-if="card.change >= 0" class="w-3 h-3 inline mr-1" />
-          <TrendingDown v-else class="w-3 h-3 inline mr-1" />
+          <component :is="card.change >= 0 ? TrendingUp : TrendingDown" class="w-3 h-3 inline mr-1" />
           {{ Math.abs(card.change) }}%
         </span>
         <span class="text-xs text-gray-500 ml-1">vs last period</span>
@@ -29,8 +27,8 @@
 </template>
 
 <script setup>
-import { h } from 'vue';
 import * as LucideIcons from 'lucide-vue-next';
+import { TrendingUp, TrendingDown } from 'lucide-vue-next';
 
 const props = defineProps({
   cards: {
@@ -41,18 +39,32 @@ const props = defineProps({
 
 const getIcon = (iconName) => {
   if (!iconName) return null;
-  const icon = LucideIcons[iconName];
-  return icon || null;
+
+  const normalized = String(iconName)
+    .split('-')
+    .map((part, index) => index === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+
+  const pascalName = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+
+  return LucideIcons[pascalName] || LucideIcons[iconName] || null;
 };
 
-const formatAmount = (value) => {
-  if (value === null || value === undefined) return '0.00';
-  if (typeof value === 'number') {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+const formatAmount = (value, prefix = '', isMoney = false) => {
+  if (value === null || value === undefined) {
+    return isMoney ? `${prefix}0.00` : '0';
   }
-  return value;
+
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return isMoney ? `${prefix}${value}` : value;
+  }
+
+  const formatter = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: isMoney ? 2 : 0,
+    maximumFractionDigits: isMoney ? 2 : 0,
+  });
+
+  return `${prefix}${formatter.format(num)}`;
 };
 </script>

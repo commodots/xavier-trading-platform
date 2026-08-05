@@ -2,21 +2,23 @@
 
 namespace App\Exports;
 
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Font;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class TransactionsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize, WithTitle
+class TransactionsExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $data;
+
     protected $startDate;
+
     protected $endDate;
 
     public function __construct($data, $startDate = null, $endDate = null)
@@ -28,7 +30,7 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, W
 
     public function collection()
     {
-        if ($this->data instanceof \Illuminate\Support\Collection) {
+        if ($this->data instanceof Collection) {
             return $this->data;
         }
         if (is_array($this->data)) {
@@ -37,6 +39,7 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, W
         if (is_object($this->data) && method_exists($this->data, 'items')) {
             return collect($this->data->items());
         }
+
         return collect($this->data);
     }
 
@@ -56,8 +59,9 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, W
     public function map($row): array
     {
         if (isset($row['transaction'])) {
-            //ledger format with balances
+            // ledger format with balances
             $tx = $row['transaction'];
+
             return [
                 $tx->created_at?->format('Y-m-d H:i:s'),
                 $tx->reference ?? 'N/A',
@@ -68,7 +72,7 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, W
                 $tx->status ?? 'N/A',
             ];
         }
-        
+
         // Legacy format
         return [
             $row->created_at?->format('Y-m-d H:i:s'),
@@ -97,56 +101,56 @@ class TransactionsExport implements FromCollection, WithHeadings, WithMapping, W
     public function registerEvents(): array
     {
         return [
-            \Maatwebsite\Excel\Events\AfterSheet::class => function(\Maatwebsite\Excel\Events\AfterSheet $event) {
+            AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                
+
                 // Set title in row 1
                 $sheet->setCellValue('A1', 'XAVIER TRADING PLATFORM');
                 $sheet->mergeCells('A1:G1');
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB('0047AB');
-                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::CENTER);
-                
+                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
                 // Set subtitle in row 2
                 $sheet->setCellValue('A2', 'Account Statement');
                 $sheet->mergeCells('A2:G2');
                 $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('666666');
-                $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::CENTER);
-                
+                $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
                 // Add blank row 3
                 $sheet->setCellValue('A3', '');
-                
+
                 // Add info section starting row 4 (header will be row 4, data starts row 5)
                 if ($this->startDate && $this->endDate) {
                     $sheet->setCellValue('A4', 'Period:');
-                    $sheet->setCellValue('B4', $this->startDate . ' to ' . $this->endDate);
+                    $sheet->setCellValue('B4', $this->startDate.' to '.$this->endDate);
                     $sheet->mergeCells('B4:G4');
                     $sheet->getStyle('A4')->getFont()->setBold(true);
-                    
+
                     $sheet->setCellValue('A5', 'Generated On:');
                     $sheet->setCellValue('B5', date('Y-m-d H:i:s'));
                     $sheet->mergeCells('B5:G5');
                     $sheet->getStyle('A5')->getFont()->setBold(true);
-                    
+
                     $sheet->setCellValue('A6', 'Total Transactions:');
                     $sheet->setCellValue('B6', is_array($this->data) ? count($this->data) : $this->data->count());
                     $sheet->mergeCells('B6:G6');
                     $sheet->getStyle('A6')->getFont()->setBold(true);
-                    
+
                     // Add blank row 7
                     $sheet->setCellValue('A7', '');
-                    
+
                     // Headers will be in row 8, data starts row 9
                     $headerRow = 8;
                 } else {
                     // Headers in row 4, data starts row 5
                     $headerRow = 4;
                 }
-                
+
                 // Style the header row
                 $sheet->getStyle($headerRow)->getFont()->setBold(true)->setSize(11)->getColor()->setRGB('FFFFFF');
                 $sheet->getStyle($headerRow)->getFill()->getStartColor()->setRGB('0047AB');
                 $sheet->getStyle($headerRow)->getAlignment()->setHorizontal(Alignment::CENTER);
-                
+
                 // Set row heights
                 $sheet->getRowDimension(1)->setRowHeight(30);
                 $sheet->getRowDimension(2)->setRowHeight(20);

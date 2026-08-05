@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\StaffPermission;
+use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 
 class StaffPermissionSeeder extends Seeder
@@ -20,6 +20,9 @@ class StaffPermissionSeeder extends Seeder
                 'view_reports' => true,
                 'view_executive_reports' => true,
                 'view_financial_reports' => true,
+                'view_investment_reports' => true,
+                'view_user_reports' => true,
+                'view_compliance_reports' => true,
                 'export_reports' => true,
             ],
             'admin' => [
@@ -31,6 +34,9 @@ class StaffPermissionSeeder extends Seeder
                 'view_reports' => true,
                 'view_executive_reports' => true,
                 'view_financial_reports' => true,
+                'view_investment_reports' => true,
+                'view_user_reports' => true,
+                'view_compliance_reports' => true,
                 'export_reports' => true,
             ],
             'manager' => [
@@ -42,6 +48,9 @@ class StaffPermissionSeeder extends Seeder
                 'view_reports' => true,
                 'view_executive_reports' => true,
                 'view_financial_reports' => true,
+                'view_investment_reports' => true,
+                'view_user_reports' => true,
+                'view_compliance_reports' => true,
                 'export_reports' => true,
             ],
             'accounts' => [
@@ -53,6 +62,9 @@ class StaffPermissionSeeder extends Seeder
                 'view_reports' => true,
                 'view_executive_reports' => false,
                 'view_financial_reports' => true,
+                'view_investment_reports' => true,
+                'view_user_reports' => true,
+                'view_compliance_reports' => false,
                 'export_reports' => true,
             ],
             'compliance' => [
@@ -64,6 +76,9 @@ class StaffPermissionSeeder extends Seeder
                 'view_reports' => true,
                 'view_executive_reports' => true,
                 'view_financial_reports' => true,
+                'view_investment_reports' => false,
+                'view_user_reports' => true,
+                'view_compliance_reports' => true,
                 'export_reports' => true,
             ],
             'support' => [
@@ -75,6 +90,9 @@ class StaffPermissionSeeder extends Seeder
                 'view_reports' => true,
                 'view_executive_reports' => false,
                 'view_financial_reports' => false,
+                'view_investment_reports' => false,
+                'view_user_reports' => true,
+                'view_compliance_reports' => false,
                 'export_reports' => false,
             ],
         ];

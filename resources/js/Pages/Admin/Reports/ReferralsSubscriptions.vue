@@ -8,7 +8,7 @@
       <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
         <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 text-sm font-medium transition rounded-lg">{{ tab.label }}</button>
       </div>
-      <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" />
+      <DateFilter @filter-change="handleFilterChange" />
       <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
       <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
       <ExportButton
@@ -30,7 +30,7 @@
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="8" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="referralColumns" :data="referrals" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
+      <ReportTable v-else :columns="referralColumns" :data="referrals" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" title="Referral activity" description="Referral conversions and commissions captured in the selected period.">
         <template #cell-status="{ row }">
           <span :class="row.status === 'paid' ? 'text-green-400' : row.status === 'pending' ? 'text-yellow-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
@@ -48,7 +48,7 @@
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="8" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="subColumns" :data="subscriptions" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort">
+      <ReportTable v-else :columns="subColumns" :data="subscriptions" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" title="Subscription activity" description="Plan subscriptions and renewal status for the selected range.">
         <template #cell-status="{ row }">
           <span :class="row.status === 'active' ? 'text-green-400' : row.status === 'expired' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
@@ -61,7 +61,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import StatCard from '@/Components/Reports/StatCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
-import DateRangeFilter from '@/Components/Reports/DateRangeFilter.vue';
+import DateFilter from '@/Components/Reports/DateFilter.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import ExportButton from '@/Components/Reports/ExportButton.vue';
 import Pagination from '@/Components/Reports/Pagination.vue';
@@ -73,7 +73,7 @@ const referralSummary = ref([]);
 const subscriptionSummary = ref([]);
 const referrals = ref([]);
 const subscriptions = ref([]);
-const filters = reactive({ from: '', to: '' });
+const filters = reactive({ from: '', to: '', period: 'month' });
 const sortBy = ref('');
 const sortDir = ref('desc');
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
@@ -100,6 +100,13 @@ const subColumns = [
   { key: 'auto_renew', label: 'Auto Renew' },
   { key: 'status', label: 'Status' },
 ];
+
+const handleFilterChange = (payload) => {
+  filters.from = payload.start_date || '';
+  filters.to = payload.end_date || '';
+  filters.period = payload.period || 'month';
+  fetchData(1);
+};
 
 const fetchData = async (page = 1) => {
   loading.value = true;
@@ -144,6 +151,7 @@ const handleSort = (key) => {
 const resetFilters = () => {
   filters.from = '';
   filters.to = '';
+  filters.period = 'month';
   sortBy.value = '';
   sortDir.value = 'desc';
   fetchData(1);

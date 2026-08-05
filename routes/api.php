@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\ComplianceController;
 use App\Http\Controllers\Admin\FxManagementController;
 use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
+use App\Http\Controllers\Admin\NotificationController;
+use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SettlementDashboardController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AdvisoryController;
@@ -20,13 +22,12 @@ use App\Http\Controllers\Api\AdminServiceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CryptoController;
 use App\Http\Controllers\Api\CryptoWebhookController;
+use App\Http\Controllers\Api\DojahKycController;
+use App\Http\Controllers\Api\DojahWebhookController;
 use App\Http\Controllers\Api\DummyCscsController;
-use App\Http\Controllers\Api\Security\AuditLogController;
-use App\Http\Controllers\Api\Security\UserDeviceController;
-use App\Http\Controllers\Api\Security\WithdrawalController;
-use App\Http\Controllers\Api\Security\TwoFactorController; 
-use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\DummyNgxController;
+use App\Http\Controllers\Api\FincraWebhookController;
+use App\Http\Controllers\Api\FxConversionController;
 use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\MarketController;
 use App\Http\Controllers\Api\MarketDataController;
@@ -37,25 +38,27 @@ use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\Security\AuditLogController;
+use App\Http\Controllers\Api\Security\TwoFactorController;
+// Admin Controllers
+use App\Http\Controllers\Api\Security\UserDeviceController;
+use App\Http\Controllers\Api\Security\WithdrawalController;
 use App\Http\Controllers\Api\TradeController;
 use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
-use App\Http\Controllers\Admin\NotificationController;
-// Admin Controllers
+use App\Http\Controllers\Api\User\SecurityController;
+use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\WatchlistController;
-use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\DemoController;
+// Dummy/Testing
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\Api\DojahKycController;
-use App\Http\Controllers\Api\FincraWebhookController;
-use App\Http\Controllers\DojahController;
 use Illuminate\Http\Request;
-// Dummy/Testing
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
@@ -75,14 +78,14 @@ Route::post('/login/verify-2fa', [TwoFactorController::class, 'verifyLogin'])->m
 Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->middleware('throttle:5,1');
 Route::post('/security/2fa/verify', [TwoFactorController::class, 'verifyLogin'])->middleware('throttle:5,1');
 
-    /* Webhooks (rate-limited to prevent abuse) */
-    Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback')->middleware('throttle:30,1');
-    Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle'])->middleware('throttle:30,1');
-    Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle'])->middleware('throttle:30,1');
-    Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle'])->middleware('throttle:30,1');
-    Route::post('/fincra/webhook', [FincraWebhookController::class, 'handle'])->middleware('throttle:30,1');
-    Route::post('/webhooks/dojah', [\App\Http\Controllers\Api\DojahWebhookController::class, 'handle'])->middleware('throttle:30,1');
-    Route::post('/market/update', [TradeController::class, 'updateMarket'])->middleware('throttle:60,1');
+/* Webhooks (rate-limited to prevent abuse) */
+Route::match(['get', 'post'], '/paystack/callback', [PaystackController::class, 'callback'])->name('paystack.callback')->middleware('throttle:30,1');
+Route::post('/paystack/webhook', [PaystackWebhookController::class, 'handle'])->middleware('throttle:30,1');
+Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle'])->middleware('throttle:30,1');
+Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle'])->middleware('throttle:30,1');
+Route::post('/fincra/webhook', [FincraWebhookController::class, 'handle'])->middleware('throttle:30,1');
+Route::post('/webhooks/dojah', [DojahWebhookController::class, 'handle'])->middleware('throttle:30,1');
+Route::post('/market/update', [TradeController::class, 'updateMarket'])->middleware('throttle:60,1');
 
 Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);
 Route::post('/stocks/track', [TradeController::class, 'trackSymbol']);
@@ -114,7 +117,7 @@ Route::prefix('dummy')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user/sessions', [SecurityController::class, 'getActiveSessions']);
@@ -127,9 +130,11 @@ Route::middleware('auth:sanctum')->group(function () {
         }
         try {
             $request->user()->sendEmailVerificationNotification();
+
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
+
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
     })->middleware('throttle:2,1');
@@ -137,10 +142,10 @@ Route::middleware('auth:sanctum')->group(function () {
     /* kyc Providers (Dojah) */
     Route::post('/kyc/verify-liveness', [DojahKycController::class, 'verifyLiveness']);
     Route::prefix('kyc')->group(function () {
-        Route::post('/bvn',    [DojahKycController::class, 'verifyBvn']);
-        Route::post('/nin',    [DojahKycController::class, 'verifyNin']);
+        Route::post('/bvn', [DojahKycController::class, 'verifyBvn']);
+        Route::post('/nin', [DojahKycController::class, 'verifyNin']);
         Route::post('/selfie', [DojahKycController::class, 'verifySelfie']);
-        Route::get('/status',  [DojahKycController::class, 'status']);
+        Route::get('/status', [DojahKycController::class, 'status']);
     });
 
     /* Basic Market Reads (Open to Unverified Accounts) */
@@ -161,20 +166,20 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     /* Global Ledger & Structural Portfolios (Read Only) */
-    Route::get('/wallet/balances', [\App\Http\Controllers\Api\WalletController::class, 'balances']);
+    Route::get('/wallet/balances', [WalletController::class, 'balances']);
     Route::get('/transactions', [NewTransactionController::class, 'index']);
     Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
     Route::get('/portfolio', [PortfolioController::class, 'index']);
     Route::get('/portfolio/history', [PortfolioController::class, 'performance']);
     Route::get('/portfolio/trading', [PortfolioController::class, 'trading']);
-    Route::get('/fx-rates', [\App\Http\Controllers\Api\WalletController::class, 'getRates']);
+    Route::get('/fx-rates', [WalletController::class, 'getRates']);
     Route::get('/crypto/address', [CryptoController::class, 'getAddress']);
 
-    // FX Conversion Routes 
+    // FX Conversion Routes
     Route::prefix('fx')->group(function () {
-        Route::post('/quote', [\App\Http\Controllers\Api\FxConversionController::class, 'quote']);
-        Route::post('/convert', [\App\Http\Controllers\Api\FxConversionController::class, 'convert']);
-        Route::get('/history', [\App\Http\Controllers\Api\FxConversionController::class, 'history']);
+        Route::post('/quote', [FxConversionController::class, 'quote']);
+        Route::post('/convert', [FxConversionController::class, 'convert']);
+        Route::get('/history', [FxConversionController::class, 'history']);
     });
 
     Route::get('/orders', [OmsController::class, 'listOrders']);
@@ -186,12 +191,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/watchlist', [WatchlistController::class, 'store']);
     Route::delete('/watchlist/{id}', [WatchlistController::class, 'destroy']);
 
-        /* Reports */
-        Route::prefix('reports')->group(function () {
-            Route::get('/account-statement', [ReportController::class, 'accountStatement']);
-            Route::get('/trading-performance', [ReportController::class, 'tradingPerformance']);
-            Route::get('/history', [ReportController::class, 'reportHistory']);
-        });
+    /* Reports */
+    Route::prefix('reports')->group(function () {
+        Route::get('/account-statement', [ReportController::class, 'accountStatement']);
+        Route::get('/trading-performance', [ReportController::class, 'tradingPerformance']);
+        Route::get('/history', [ReportController::class, 'reportHistory']);
+    });
 
     /* Profile Modification & Sandboxes */
     Route::get('/profile/me', [ProfileController::class, 'show']);
@@ -209,7 +214,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/kyc/submit', [KycController::class, 'submit']);
         Route::get('/profile/show', [ProfileController::class, 'show']);
         Route::post('/profile/update', [ProfileController::class, 'update']);
-        
+
         Route::get('/linked-accounts/index', [LinkedAccountController::class, 'index']);
         Route::post('/linked-accounts/store', [LinkedAccountController::class, 'store']);
         Route::delete('/linked-accounts/{id}', [LinkedAccountController::class, 'destroy']);
@@ -255,7 +260,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('withdrawals')->middleware(['kyc:2', '2fa', 'throttle:3,60'])->group(function () {
             Route::get('/', [WithdrawalController::class, 'index']);
             Route::post('/', [WithdrawalController::class, 'store']);
-            Route::post('/otp', [WithdrawalController::class, 'sendWithdrawalOtp']); 
+            Route::post('/otp', [WithdrawalController::class, 'sendWithdrawalOtp']);
             Route::get('/{withdrawal}', [WithdrawalController::class, 'show']);
             Route::post('/{withdrawal}/approve', [WithdrawalController::class, 'approve']);
             Route::post('/{withdrawal}/reject', [WithdrawalController::class, 'reject']);
@@ -276,7 +281,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /* Verified Transaction Boundaries (Requires Verified Email) */
     Route::middleware('verified')->group(function () {
-        Route::post('/wallet/convert', [\App\Http\Controllers\Api\WalletController::class, 'convert'])->middleware('throttle:10,1');
+        Route::post('/wallet/convert', [WalletController::class, 'convert'])->middleware('throttle:10,1');
         Route::post('/transfer', [NewTransactionController::class, 'transfer']);
         Route::get('/account', [TradeController::class, 'account']);
 
@@ -395,40 +400,48 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // ── Reports Module (Phase 1) ──
         Route::prefix('reports')->group(function () {
-            Route::get('/dashboard', [\App\Http\Controllers\Admin\ReportsController::class, 'dashboard']);
-            Route::get('/users', [\App\Http\Controllers\Admin\ReportsController::class, 'users']);
-            Route::get('/users/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'userSummary']);
-            Route::get('/users/filters', [\App\Http\Controllers\Admin\ReportsController::class, 'userFilters']);
-            Route::get('/users/{id}', [\App\Http\Controllers\Admin\ReportsController::class, 'userDetail']);
-            Route::get('/financial', [\App\Http\Controllers\Admin\ReportsController::class, 'financial']);
-            Route::get('/financial/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'financialSummary']);
-            Route::get('/financial/summary/statistics', [\App\Http\Controllers\Admin\ReportsController::class, 'financialStatistics']);
-            Route::get('/investments', [\App\Http\Controllers\Admin\ReportsController::class, 'investments']);
-            Route::get('/investments/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentSummary']);
-            Route::get('/investments/charts', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentCharts']);
-            Route::get('/investments/top-investors', [\App\Http\Controllers\Admin\ReportsController::class, 'topInvestors']);
-            Route::get('/investments/distribution', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentDistribution']);
-            Route::get('/investments/filters', [\App\Http\Controllers\Admin\ReportsController::class, 'investmentFilters']);
-            Route::get('/wallet-withdrawals', [\App\Http\Controllers\Admin\ReportsController::class, 'walletWithdrawals']);
-            Route::get('/wallet-withdrawals/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'walletWithdrawalSummary']);
-            Route::get('/referrals-subscriptions', [\App\Http\Controllers\Admin\ReportsController::class, 'referralsSubscriptions']);
-            Route::get('/referrals-subscriptions/summary', [\App\Http\Controllers\Admin\ReportsController::class, 'referralSubscriptionSummary']);
-            Route::get('/system', [\App\Http\Controllers\Admin\ReportsController::class, 'system']);
-            Route::get('/system/logs', [\App\Http\Controllers\Admin\ReportsController::class, 'systemLogs']);
-            Route::get('/system/integration-health', [\App\Http\Controllers\Admin\ReportsController::class, 'integrationHealth']);
-            Route::post('/clear-cache', [\App\Http\Controllers\Admin\ReportsController::class, 'clearCache']);
-            Route::post('/optimize', [\App\Http\Controllers\Admin\ReportsController::class, 'optimize']);
-            Route::post('/queue-restart', [\App\Http\Controllers\Admin\ReportsController::class, 'queueRestart']);
-            Route::post('/run-scheduler', [\App\Http\Controllers\Admin\ReportsController::class, 'runScheduler']);
-            Route::get('/logs', [\App\Http\Controllers\Admin\ReportsController::class, 'viewLogs']);
-            Route::get('/search-users', [\App\Http\Controllers\Admin\ReportsController::class, 'searchUsers']);
+            Route::get('/dashboard', [ReportsController::class, 'dashboard']);
+            Route::get('/users', [ReportsController::class, 'users']);
+            Route::get('/users/summary', [ReportsController::class, 'userSummary']);
+            Route::get('/users/filters', [ReportsController::class, 'userFilters']);
+            Route::get('/users/{id}', [ReportsController::class, 'userDetail']);
+            Route::get('/financial', [ReportsController::class, 'financial']);
+            Route::get('/financial/summary', [ReportsController::class, 'financialSummary']);
+            Route::get('/financial/summary/statistics', [ReportsController::class, 'financialStatistics']);
+            Route::get('/investments', [ReportsController::class, 'investments']);
+            Route::get('/investments/summary', [ReportsController::class, 'investmentSummary']);
+            Route::get('/investments/charts', [ReportsController::class, 'investmentCharts']);
+            Route::get('/investments/top-investors', [ReportsController::class, 'topInvestors']);
+            Route::get('/investments/distribution', [ReportsController::class, 'investmentDistribution']);
+            Route::get('/investments/filters', [ReportsController::class, 'investmentFilters']);
+            Route::get('/wallet-withdrawals', [ReportsController::class, 'walletWithdrawals']);
+            Route::get('/wallet-withdrawals/summary', [ReportsController::class, 'walletWithdrawalSummary']);
+            Route::get('/referrals-subscriptions', [ReportsController::class, 'referralsSubscriptions']);
+            Route::get('/referrals-subscriptions/summary', [ReportsController::class, 'referralSubscriptionSummary']);
+            Route::get('/system', [ReportsController::class, 'system']);
+            Route::get('/system/logs', [ReportsController::class, 'systemLogs']);
+            Route::get('/system/integration-health', [ReportsController::class, 'integrationHealth']);
+            Route::post('/clear-cache', [ReportsController::class, 'clearCache']);
+            Route::post('/optimize', [ReportsController::class, 'optimize']);
+            Route::post('/queue-restart', [ReportsController::class, 'queueRestart']);
+            Route::post('/run-scheduler', [ReportsController::class, 'runScheduler']);
+            Route::get('/logs', [ReportsController::class, 'viewLogs']);
+            Route::get('/search-users', [ReportsController::class, 'searchUsers']);
 
-            Route::get('/exec-dashboard', [\App\Http\Controllers\Admin\ReportsController::class, 'execDashboard']);
-            Route::get('/revenue', [\App\Http\Controllers\Admin\ReportsController::class, 'revenue']);
-            Route::get('/profit-loss', [\App\Http\Controllers\Admin\ReportsController::class, 'profitLoss']);
-            Route::get('/expenses', [\App\Http\Controllers\Admin\ReportsController::class, 'expenses']);
-            Route::get('/downloads', [\App\Http\Controllers\Admin\ReportsController::class, 'downloads']);
-            Route::post('/export', [\App\Http\Controllers\Admin\ReportsController::class, 'export']);
+            Route::get('/exec-dashboard', [ReportsController::class, 'execDashboard']);
+            Route::get('/revenue', [ReportsController::class, 'revenue']);
+            Route::get('/profit-loss', [ReportsController::class, 'profitLoss']);
+            Route::get('/expenses', [ReportsController::class, 'expenses']);
+            Route::get('/downloads', [ReportsController::class, 'downloads']);
+            Route::post('/export', [ReportsController::class, 'export']);
+
+            // Module C: Investment & User Reports
+            Route::get('/roi', [ReportsController::class, 'roi']);
+            Route::get('/maturity', [ReportsController::class, 'maturity']);
+            Route::get('/investment-plans', [ReportsController::class, 'investmentPlans']);
+            Route::get('/subscriptions', [ReportsController::class, 'subscriptions']);
+            Route::get('/kyc', [ReportsController::class, 'kyc']);
+            Route::get('/login-history', [ReportsController::class, 'loginHistory']);
         });
     });
 });

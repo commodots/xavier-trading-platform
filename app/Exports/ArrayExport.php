@@ -49,17 +49,17 @@ class ArrayExport implements FromCollection, ShouldAutoSize, WithEvents, WithHea
                 $sheet->setCellValue('A1', 'XAVIER TRADING PLATFORM');
                 $sheet->mergeCells("A1:{$lastColumn}1");
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB('0047AB');
-                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::CENTER);
+                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $sheet->setCellValue('A2', $subtitle);
                 $sheet->mergeCells("A2:{$lastColumn}2");
                 $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('666666');
-                $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::CENTER);
+                $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $headerRange = "A4:{$lastColumn}4";
                 $sheet->getStyle($headerRange)->getFont()->setBold(true)->setSize(11)->getColor()->setRGB('FFFFFF');
                 $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('0047AB');
-                $sheet->getStyle($headerRange)->getAlignment()->setHorizontal(Alignment::CENTER);
+                $sheet->getStyle($headerRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             },
         ];
     }

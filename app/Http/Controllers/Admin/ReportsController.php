@@ -9,11 +9,16 @@ use App\Services\Reports\DashboardReportService;
 use App\Services\Reports\DashboardService;
 use App\Services\Reports\ExpenseReportService;
 use App\Services\Reports\FinancialReportService;
+use App\Services\Reports\InvestmentPlanReportService;
 use App\Services\Reports\InvestmentReportService;
+use App\Services\Reports\KYCReportService;
+use App\Services\Reports\LoginHistoryReportService;
+use App\Services\Reports\MaturityReportService;
 use App\Services\Reports\ProfitLossService;
 use App\Services\Reports\ReferralReportService;
 use App\Services\Reports\ReportExportService;
 use App\Services\Reports\RevenueReportService;
+use App\Services\Reports\ROIReportService;
 use App\Services\Reports\SubscriptionReportService;
 use App\Services\Reports\SystemReportService;
 use App\Services\Reports\UserReportService;
@@ -190,6 +195,49 @@ class ReportsController extends Controller
     public function investmentDistribution()
     {
         return response()->json($this->investment->distribution());
+    }
+
+    // Investment & User Reports
+    public function roi(Request $request)
+    {
+        return response()->json(
+            app(ROIReportService::class)->generate($request)
+        );
+    }
+
+    public function maturity(Request $request)
+    {
+        return response()->json(
+            app(MaturityReportService::class)->generate($request)
+        );
+    }
+
+    public function investmentPlans(Request $request)
+    {
+        return response()->json(
+            app(InvestmentPlanReportService::class)->generate($request)
+        );
+    }
+
+    public function kyc(Request $request)
+    {
+        return response()->json(
+            app(KYCReportService::class)->generate($request)
+        );
+    }
+
+    public function subscriptions(Request $request)
+    {
+        return response()->json(
+            app(SubscriptionReportService::class)->generate($request)
+        );
+    }
+
+    public function loginHistory(Request $request)
+    {
+        return response()->json(
+            app(LoginHistoryReportService::class)->generate($request)
+        );
     }
 
     // Wallet & Withdrawals
@@ -371,6 +419,12 @@ class ReportsController extends Controller
             'users' => $this->getUsersExportData($request),
             'financial' => $this->getFinancialExportData($request),
             'investments' => $this->getInvestmentsExportData($request),
+            'roi' => $this->getROIExportData($request),
+            'maturity' => $this->getMaturityExportData($request),
+            'investment-plans' => $this->getInvestmentPlansExportData($request),
+            'subscriptions' => $this->getSubscriptionsExportData($request),
+            'kyc' => $this->getKYCExportData($request),
+            'login-history' => $this->getLoginHistoryExportData($request),
             'referrals-subscriptions' => $this->getReferralsSubscriptionsExportData($request),
             'wallet-withdrawals' => $this->getWalletWithdrawalsExportData($request),
             default => throw new \InvalidArgumentException("Unsupported report type: {$reportType}"),
@@ -416,21 +470,64 @@ class ReportsController extends Controller
     protected function getFinancialExportData(Request $request): array
     {
         $tab = $request->get('tab', 'deposits');
+        $methodMap = [
+            'deposits' => 'deposits',
+            'withdrawals' => 'withdrawals',
+            'wallet_transactions' => 'walletTransactions',
+            'fees' => 'fees',
+            'revenue' => 'revenue',
+        ];
+        $method = $methodMap[$tab] ?? 'deposits';
         $params = array_merge($request->all(), ['per_page' => 10000]);
-        $result = app(FinancialReportService::class)->$tab($params);
+        $result = app(FinancialReportService::class)->{$method}($params);
 
         // Handle paginated response - extract the data array
         $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
 
-        $headers = ['User', 'Reference', 'Amount', 'Method', 'Status', 'Date'];
-        $rows = array_map(fn ($item) => [
-            $item['user'] ?? 'N/A',
-            $item['reference'] ?? 'N/A',
-            $item['amount'] ?? 0,
-            $item['method'] ?? 'N/A',
-            $item['status'] ?? 'N/A',
-            $item['created_at'] ?? 'N/A',
-        ], $data);
+        $headers = match ($tab) {
+            'wallet_transactions' => ['Date', 'Reference', 'User', 'Type', 'Amount', 'Currency', 'Status'],
+            'fees' => ['Date', 'Reference', 'User', 'Fee Type', 'Amount', 'Currency', 'Status'],
+            'revenue' => ['Date', 'Source', 'Type', 'Amount', 'Currency', 'Status'],
+            default => ['Date', 'Reference', 'User', 'Amount', 'Currency', 'Method', 'Status'],
+        };
+
+        $rows = match ($tab) {
+            'wallet_transactions' => array_map(fn ($item) => [
+                $item['created_at'] ?? 'N/A',
+                $item['reference'] ?? 'N/A',
+                $item['user'] ?? 'N/A',
+                $item['type'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['currency'] ?? 'N/A',
+                $item['status'] ?? 'N/A',
+            ], $data),
+            'fees' => array_map(fn ($item) => [
+                $item['created_at'] ?? 'N/A',
+                $item['reference'] ?? 'N/A',
+                $item['user'] ?? 'N/A',
+                $item['type'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['currency'] ?? 'N/A',
+                $item['status'] ?? 'N/A',
+            ], $data),
+            'revenue' => array_map(fn ($item) => [
+                $item['created_at'] ?? 'N/A',
+                $item['source'] ?? 'N/A',
+                $item['type'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['currency'] ?? 'N/A',
+                $item['status'] ?? 'N/A',
+            ], $data),
+            default => array_map(fn ($item) => [
+                $item['created_at'] ?? 'N/A',
+                $item['reference'] ?? 'N/A',
+                $item['user'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['currency'] ?? 'N/A',
+                $item['method'] ?? 'N/A',
+                $item['status'] ?? 'N/A',
+            ], $data),
+        };
 
         return ['headers' => $headers, 'rows' => $rows, 'tab' => $tab];
     }
@@ -450,6 +547,98 @@ class ReportsController extends Controller
             $item['start_date'] ?? 'N/A',
             $item['maturity'] ?? 'N/A',
             $item['status'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getROIExportData(Request $request): array
+    {
+        $data = app(ROIReportService::class)->export($request);
+        $headers = ['Reference', 'Investor', 'Plan', 'Principal', 'Expected ROI', 'Status', 'Created'];
+        $rows = array_map(fn ($item) => [
+            $item['id'] ?? 'N/A',
+            $item['user']['name'] ?? 'N/A',
+            $item['market'] ?? $item['symbol'] ?? 'N/A',
+            $item['amount'] ?? 0,
+            '0%',
+            $item['status'] ?? 'N/A',
+            $item['created_at'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getMaturityExportData(Request $request): array
+    {
+        $data = app(MaturityReportService::class)->export($request);
+        $headers = ['Reference', 'Investor', 'Plan', 'Principal', 'Status', 'Created'];
+        $rows = array_map(fn ($item) => [
+            $item['id'] ?? 'N/A',
+            $item['user']['name'] ?? 'N/A',
+            $item['market'] ?? $item['symbol'] ?? 'N/A',
+            $item['amount'] ?? 0,
+            $item['status'] ?? 'N/A',
+            $item['created_at'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getInvestmentPlansExportData(Request $request): array
+    {
+        $data = app(InvestmentPlanReportService::class)->export($request);
+        $headers = ['Plan', 'Investors', 'Total Amount'];
+        $rows = array_map(fn ($item) => [
+            $item['market'] ?? 'N/A',
+            $item['total_investments'] ?? 0,
+            $item['total_amount'] ?? 0,
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getSubscriptionsExportData(Request $request): array
+    {
+        $data = app(SubscriptionReportService::class)->export($request);
+        $headers = ['User', 'Plan', 'Started', 'Expires', 'Status'];
+        $rows = array_map(fn ($item) => [
+            $item['user']['name'] ?? 'N/A',
+            $item['plan']['name'] ?? 'N/A',
+            $item['starts_at'] ?? 'N/A',
+            $item['expires_at'] ?? 'N/A',
+            $item['status'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getKYCExportData(Request $request): array
+    {
+        $data = app(KYCReportService::class)->export($request);
+        $headers = ['User', 'Document', 'Submitted', 'Status'];
+        $rows = array_map(fn ($item) => [
+            $item['user']['name'] ?? 'N/A',
+            $item['id_type'] ?? $item['document'] ?? 'N/A',
+            $item['created_at'] ?? 'N/A',
+            $item['status'] ?? 'N/A',
+        ], $data);
+
+        return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    protected function getLoginHistoryExportData(Request $request): array
+    {
+        $data = app(LoginHistoryReportService::class)->export($request);
+        $headers = ['User', 'IP', 'Device', 'Browser', 'Location', 'Time', 'Status'];
+        $rows = array_map(fn ($item) => [
+            $item['user']['name'] ?? 'N/A',
+            $item['ip_address'] ?? 'N/A',
+            $item['device'] ?? 'N/A',
+            $item['browser'] ?? 'N/A',
+            $item['location'] ?? 'N/A',
+            $item['logged_in_at'] ?? 'N/A',
+            $item['successful'] ? 'Success' : 'Failed',
         ], $data);
 
         return ['headers' => $headers, 'rows' => $rows];
