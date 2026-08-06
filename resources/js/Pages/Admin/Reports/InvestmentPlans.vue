@@ -2,6 +2,7 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-bold text-white">Investment Plan Report</h1>
+      <p class="text-sm text-gray-400">Track performance and metrics across all investment markets</p>
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-4">
@@ -38,7 +39,7 @@
         />
       </div>
 
-      <h2 class="text-sm font-medium text-white">Plan Performance</h2>
+      <h2 class="text-sm font-medium text-white">Investment Plan Performance</h2>
       <ReportTable :columns="tableColumns" :rows="tableRows" searchable>
         <template #cell-status="{ row }">
           <span

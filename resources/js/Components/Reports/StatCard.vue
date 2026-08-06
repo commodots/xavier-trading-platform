@@ -1,12 +1,12 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5 hover:border-blue-500/30 transition-all duration-200">
-    <div class="flex items-start justify-between gap-4">
-      <div class="flex-1  w-fit">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex-1 w-fit">
         <p class="text-xs font-medium text-gray-400 uppercase tracking-wider truncate">{{ displayTitle }}</p>
         <p class="lg:text-[16px] sm:text-[13px] font-bold text-white mt-1 truncate" :title="fullValue">{{ formattedValue }}</p>
       </div>
-      <div v-if="IconComponent" class="p-3 rounded-lg flex-shrink-0" :style="{ backgroundColor: color + '20' }">
-        <component :is="IconComponent" :style="{ color: color }" class="text-xl" />
+      <div v-if="IconComponent" class="p-2 rounded-lg flex-shrink-0" :style="{ backgroundColor: color + '20' }">
+        <component :is="IconComponent" :style="{ color: color }" class="w-4 h-4" />
       </div>
     </div>
   </div>
@@ -62,20 +62,18 @@ const IconComponent = computed(() => {
 const isMoneyValue = computed(() => Boolean(props.prefix));
 
 const fullValue = computed(() => {
-  if (typeof props.value === 'string') return props.value;
   const num = Number(props.value) || 0;
   return formatNumericValue(num);
 });
 
 const formattedValue = computed(() => {
-  if (typeof props.value === 'string') return props.value;
   const num = Number(props.value) || 0;
   return formatNumericValue(num);
 });
 
 const formatNumericValue = (num) => {
   const formatter = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: isMoneyValue.value ? 2 : 0,
+    minimumFractionDigits: 0,
     maximumFractionDigits: isMoneyValue.value ? 2 : 0,
   });
 

@@ -8,16 +8,19 @@ class WithdrawalReportService
 {
     public function summary(): array
     {
+        $ngnWithdrawals = WithdrawalRequest::where('currency', 'NGN')->where('status', 'approved')->sum('amount');
+        $usdWithdrawals = WithdrawalRequest::where('currency', 'USD')->where('status', 'approved')->sum('amount');
+
         return [
             ['label' => 'Pending', 'value' => WithdrawalRequest::where('status', 'pending')->count()],
             ['label' => 'Approved', 'value' => WithdrawalRequest::where('status', 'approved')->count()],
             ['label' => 'Rejected', 'value' => WithdrawalRequest::where('status', 'rejected')->count()],
-            ['label' => 'Paid Today', 'value' => WithdrawalRequest::where('status', 'approved')
+            ['label' => 'NGN Paid Today', 'value' => WithdrawalRequest::where('currency', 'NGN')->where('status', 'approved')
+                ->whereDate('created_at', today())->sum('amount'), 'prefix' => '₦'],
+            ['label' => 'USD Paid Today', 'value' => WithdrawalRequest::where('currency', 'USD')->where('status', 'approved')
                 ->whereDate('created_at', today())->sum('amount'), 'prefix' => '$'],
-            ['label' => 'Average Withdrawal', 'value' => round(WithdrawalRequest::where('status', 'approved')
-                ->avg('amount') ?? 0, 2), 'prefix' => '$'],
-            ['label' => 'Largest Withdrawal', 'value' => WithdrawalRequest::where('status', 'approved')
-                ->max('amount') ?? 0, 'prefix' => '$'],
+            ['label' => 'NGN Average', 'value' => round($ngnWithdrawals > 0 ? $ngnWithdrawals / WithdrawalRequest::where('currency', 'NGN')->where('status', 'approved')->count() : 0, 2), 'prefix' => '₦'],
+            ['label' => 'USD Average', 'value' => round($usdWithdrawals > 0 ? $usdWithdrawals / WithdrawalRequest::where('currency', 'USD')->where('status', 'approved')->count() : 0, 2), 'prefix' => '$'],
         ];
     }
 

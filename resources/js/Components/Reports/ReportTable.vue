@@ -90,16 +90,16 @@
       </span>
       <div class="flex items-center gap-1">
         <button
-          @click="changePage(pagination.current_page - 1)"
-          :disabled="!pagination.prev_page_url"
+          @click="changePage(computedPagination.current_page - 1)"
+          :disabled="computedPagination.current_page <= 1"
           class="px-2 py-1 text-xs rounded hover:bg-[#1C2541] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft class="w-4 h-4" />
         </button>
-        <span class="px-2 py-1 text-xs text-white">{{ pagination.current_page }}</span>
+        <span class="px-2 py-1 text-xs text-white">{{ computedPagination.current_page }}</span>
         <button
-          @click="changePage(pagination.current_page + 1)"
-          :disabled="!pagination.next_page_url"
+          @click="changePage(computedPagination.current_page + 1)"
+          :disabled="computedPagination.current_page >= computedPagination.last_page"
           class="px-2 py-1 text-xs rounded hover:bg-[#1C2541] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronRight class="w-4 h-4" />
@@ -110,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, computed, useSlots } from 'vue';
+import { ref, computed, useSlots, watch } from 'vue';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -134,6 +134,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  sortBy: {
+    type: String,
+    default: '',
+  },
+  sortDir: {
+    type: String,
+    default: 'asc',
+  },
   title: {
     type: String,
     default: '',
@@ -147,8 +155,8 @@ const props = defineProps({
 const emit = defineEmits(['sort', 'page-change', 'search']);
 
 const searchQuery = ref('');
-const sortColumn = ref('');
-const sortDirection = ref('asc');
+const sortColumn = ref(props.sortBy || '');
+const sortDirection = ref(props.sortDir || 'asc');
 const slots = useSlots();
 
 const tableRows = computed(() => {
@@ -182,8 +190,12 @@ const sortedRows = computed(() => {
 
 const paginatedRows = computed(() => {
   if (!props.pagination) return sortedRows.value;
-  const start = (props.pagination.current_page - 1) * props.pagination.per_page;
-  return sortedRows.value.slice(start, start + props.pagination.per_page);
+  
+  const { current_page, per_page } = props.pagination;
+  const start = (current_page - 1) * per_page;
+  const end = start + per_page;
+  
+  return sortedRows.value.slice(start, end);
 });
 
 const computedPagination = computed(() => {
@@ -201,6 +213,20 @@ const computedPagination = computed(() => {
   };
 });
 
+watch(
+  () => props.sortBy,
+  (value) => {
+    sortColumn.value = value || '';
+  }
+);
+
+watch(
+  () => props.sortDir,
+  (value) => {
+    sortDirection.value = value || 'asc';
+  }
+);
+
 const toggleSort = (key) => {
   if (sortColumn.value === key) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -212,6 +238,10 @@ const toggleSort = (key) => {
 };
 
 const changePage = (page) => {
+  if (page < 1 || (props.pagination && page > props.pagination.last_page)) {
+    return;
+  }
+
   emit('page-change', page);
 };
 
@@ -220,9 +250,9 @@ const onSearch = () => {
 };
 
 const formatCurrency = (value) => {
-  if (value === null || value === undefined) return '$0.00';
-  return '$' + Number(value).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
+  if (value === null || value === undefined) return '0';
+  return Number(value).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
 };

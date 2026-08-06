@@ -62,6 +62,9 @@
       <SkeletonLoader type="table" :count="8" class="opacity-40" />
     </div>
     <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" :title="activeTab === 'withdrawals' ? 'Withdrawal activity' : activeTab === 'wallet_ledger' ? 'Wallet ledger' : 'Adjustment history'" :description="activeTab === 'withdrawals' ? 'Withdrawal requests and their review outcome.' : activeTab === 'wallet_ledger' ? 'Wallet movements for the selected range.' : 'Manual balance adjustments and reasons.'">
+      <template #cell-amount="{ row }">
+        <span class="block font-mono text-right">{{ getCurrencySymbol(row.currency || 'USD') }}{{ formatNumber(Number(row.amount)) }}</span>
+      </template>
       <template #cell-status="{ row }">
         <span :class="row.status === 'approved' || row.status === 'paid' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
       </template>
@@ -102,7 +105,7 @@ const columns = computed(() => {
   if (activeTab.value === 'withdrawals') {
     return [
       { key: 'user', label: 'User', sortable: true },
-      { key: 'amount', label: 'Amount', align: 'right', sortable: true },
+      { key: 'amount', label: 'Amount', align: 'right', sortable: true, type: 'currency' },
       { key: 'method', label: 'Method' },
       { key: 'status', label: 'Status' },
       { key: 'created_at', label: 'Requested', sortable: true },
@@ -113,7 +116,7 @@ const columns = computed(() => {
     return [
       { key: 'type', label: 'Type' },
       { key: 'user', label: 'User' },
-      { key: 'amount', label: 'Amount', align: 'right' },
+      { key: 'amount', label: 'Amount', align: 'right', type: 'currency' },
       { key: 'currency', label: 'Currency' },
       { key: 'created_at', label: 'Date' },
     ];
@@ -121,7 +124,7 @@ const columns = computed(() => {
   if (activeTab.value === 'adjustments') {
     return [
       { key: 'user', label: 'User' },
-      { key: 'amount', label: 'Amount', align: 'right' },
+      { key: 'amount', label: 'Amount', align: 'right', type: 'currency' },
       { key: 'type', label: 'Type' },
       { key: 'reason', label: 'Reason' },
       { key: 'created_at', label: 'Date' },
@@ -129,7 +132,7 @@ const columns = computed(() => {
   }
   return [
     { key: 'type', label: 'Type' },
-    { key: 'amount', label: 'Amount', align: 'right' },
+    { key: 'amount', label: 'Amount', align: 'right', type: 'currency' },
     { key: 'currency', label: 'Currency' },
     { key: 'created_at', label: 'Date' },
   ];
@@ -137,7 +140,34 @@ const columns = computed(() => {
 
 const sortBy = ref('');
 const sortDir = ref('desc');
-const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
+
+const getCurrencySymbol = (currency) => {
+  const symbols = {
+    'USD': '$',
+    'NGN': '₦',
+    'GBP': '£',
+    'EUR': '€',
+  };
+  return symbols[currency] || '$';
+};
+
+const formatNumber = (num) => {
+  const parts = num.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 20,
+  }).split('.');
+  
+  if (parts[1]) {
+    parts[1] = parts[1].replace(/0+$/, '');
+    if (parts[1] === '') {
+      return parts[0];
+    }
+    return parts.join('.');
+  }
+  
+  return parts[0];
+};
 
 const handleFilterChange = (payload) => {
   filters.from = payload.start_date || '';
@@ -160,7 +190,7 @@ const fetchData = async (page = 1) => {
     pagination.value = {
       current_page: dataRes.data.current_page || 1,
       last_page: dataRes.data.last_page || 1,
-      per_page: dataRes.data.per_page || 50,
+      per_page: dataRes.data.per_page || 20,
       total: dataRes.data.total || 0,
     };
   } catch (e) {

@@ -5,7 +5,7 @@
     </div>
 
     <!-- Summary Cards -->
-    <SkeletonLoader v-if="loading" type="card" :count="7" class="opacity-40" />
+    <SkeletonLoader v-if="loading" type="card" :count="12" class="opacity-40" />
     <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
@@ -16,7 +16,7 @@
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div v-for="(value, key) in statistics" :key="key" class="bg-[#16213A] rounded-lg p-4">
           <p class="text-xs tracking-wider text-gray-400 uppercase">{{ formatStatLabel(key) }}</p>
-          <p class="mt-1 text-xl font-bold text-white">${{ formatNumber(Number(value)) }}</p>
+          <p class="mt-1 text-xl font-bold text-white">{{ getCurrencySymbol('USD') }}{{ formatNumber(Number(value)) }}</p>
         </div>
       </div>
     </div>
@@ -106,7 +106,7 @@ const rows = ref([]);
 const loading = ref(false);
 const activeTab = ref('wallet_transactions');
 const filters = reactive({ from: '', to: '', period: 'month', status: '' });
-const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
 
 const tabs = [
   { key: 'wallet_transactions', label: 'All Transactions' },
@@ -141,7 +141,7 @@ const columns = computed(() => {
   const base = [
     { key: 'user', label: 'User' },
     { key: 'reference', label: 'Reference' },
-    { key: 'amount', label: 'Amount', align: 'right' },
+    { key: 'amount', label: 'Amount', align: 'right', type: 'currency' },
     { key: 'method', label: 'Method' },
     { key: 'status', label: 'Status' },
     { key: 'created_at', label: 'Date' },
@@ -153,7 +153,7 @@ const columns = computed(() => {
     return [{ key: 'source', label: 'Source' }, ...base];
   }
   if (activeTab.value === 'wallet_transactions') {
-    return [{ key: 'type', label: 'Type' }, { key: 'user', label: 'User' }, { key: 'amount', label: 'Amount', align: 'right' }, { key: 'currency', label: 'Currency' }, { key: 'created_at', label: 'Date' }];
+    return [{ key: 'type', label: 'Type' }, { key: 'user', label: 'User' }, { key: 'amount', label: 'Amount', align: 'right', type: 'currency' }, { key: 'currency', label: 'Currency' }, { key: 'created_at', label: 'Date' }];
   }
   return base;
 });
@@ -209,7 +209,7 @@ const fetchData = async (page = 1) => {
     pagination.value = {
       current_page: dataRes.data.current_page || 1,
       last_page: dataRes.data.last_page || 1,
-      per_page: dataRes.data.per_page || 50,
+      per_page: dataRes.data.per_page || 20,
       total: dataRes.data.total || 0,
     };
     

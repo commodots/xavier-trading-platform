@@ -12,13 +12,15 @@ class WalletReportService
     {
         $totalNgnCleared = Wallet::where('currency', 'NGN')->sum('ngn_cleared');
         $totalUsdCleared = Wallet::where('currency', 'USD')->sum('usd_cleared');
-        $totalLocked = Wallet::sum('locked');
+        $ngnLocked = Wallet::where('currency', 'NGN')->sum('locked');
+        $usdLocked = Wallet::where('currency', 'USD')->sum('locked');
         $totalWallets = Wallet::count();
 
         return [
             ['label' => 'Total NGN Balance', 'value' => $totalNgnCleared, 'prefix' => '₦', 'icon' => 'dollar', 'color' => '#0047AB'],
             ['label' => 'Total USD Balance', 'value' => $totalUsdCleared, 'prefix' => '$', 'icon' => 'dollar', 'color' => '#10B981'],
-            ['label' => 'Locked Balance', 'value' => $totalLocked, 'prefix' => '$', 'icon' => 'shield', 'color' => '#F59E0B'],
+            ['label' => 'NGN Locked', 'value' => $ngnLocked, 'prefix' => '₦', 'icon' => 'shield', 'color' => '#F59E0B'],
+            ['label' => 'USD Locked', 'value' => $usdLocked, 'prefix' => '$', 'icon' => 'shield', 'color' => '#EF4444'],
             ['label' => 'Total Wallets', 'value' => $totalWallets, 'icon' => 'users', 'color' => '#8B5CF6'],
         ];
     }

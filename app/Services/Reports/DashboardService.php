@@ -28,7 +28,8 @@ class DashboardService
             ->where('status', 'pending')
             ->sum('amount');
         $pendingKyc = KycProfile::where('status', 'pending')->count();
-        $walletFloat = Wallet::sum('balance');
+        $ngnBalance = Wallet::where('currency', 'NGN')->sum('ngn_cleared');
+        $usdBalance = Wallet::where('currency', 'USD')->sum('usd_cleared');
 
         $totalRevenue = RevenueRecord::sum('amount');
         $todayRevenue = RevenueRecord::whereDate('record_date', $today)->sum('amount');
@@ -42,7 +43,8 @@ class DashboardService
             'totals' => [
                 ['label' => 'Total Users', 'value' => $totalUsers, 'icon' => 'Users', 'color' => '#0047AB'],
                 ['label' => 'Total Revenue', 'value' => $totalRevenue, 'icon' => 'DollarSign', 'color' => '#10B981', 'prefix' => '$'],
-                ['label' => 'Wallet Float', 'value' => $walletFloat, 'icon' => 'Wallet', 'color' => '#8B5CF6', 'prefix' => '$'],
+                ['label' => 'NGN Balance', 'value' => $ngnBalance, 'icon' => 'Wallet', 'color' => '#0047AB', 'prefix' => '₦'],
+                ['label' => 'USD Balance', 'value' => $usdBalance, 'icon' => 'Wallet', 'color' => '#10B981', 'prefix' => '$'],
                 ['label' => 'Active Investments', 'value' => $activeInvestments, 'icon' => 'TrendingUp', 'color' => '#F59E0B'],
                 ['label' => 'Pending Withdrawals', 'value' => $pendingWithdrawals, 'icon' => 'ArrowUpRight', 'color' => '#EF4444', 'prefix' => '$'],
                 ['label' => 'Pending Deposits', 'value' => $pendingDeposits, 'icon' => 'ArrowDownLeft', 'color' => '#3B82F6', 'prefix' => '$'],

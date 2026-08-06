@@ -12,7 +12,7 @@
         </div>
       </div>
       <div v-if="IconComponent" class="p-3 rounded-lg flex-shrink-0" :style="{ backgroundColor: color + '20' }">
-        <component :is="IconComponent" :style="{ color: color }" class="text-xl" />
+        <component :is="IconComponent" :style="{ color: color }" class="text-xs" />
       </div>
     </div>
   </div>
@@ -66,22 +66,19 @@ const formattedValue = computed(() => {
   const num = Number(props.value) || 0;
   const isMoney = Boolean(props.prefix);
   const formatter = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: isMoney ? 2 : 0,
+    minimumFractionDigits: 0,
     maximumFractionDigits: isMoney ? 2 : 0,
   });
 
-  if (num >= 1_000_000_000) {
-    const value = (num / 1_000_000_000).toFixed(isMoney ? 2 : 0).replace(/\.0$/, '');
-    return props.prefix + value + 'B';
-  }
-  if (num >= 1_000_000) {
-    const value = (num / 1_000_000).toFixed(isMoney ? 2 : 0).replace(/\.0$/, '');
-    return props.prefix + value + 'M';
-  }
-  if (num >= 1_000) {
-    const value = (num / 1_000).toFixed(isMoney ? 2 : 0).replace(/\.0$/, '');
-    return props.prefix + value + 'K';
-  }
+  const formatWithAbbreviation = (divisor, suffix) => {
+    const value = (num / divisor).toFixed(isMoney ? 2 : 0);
+    const trimmed = isMoney ? value.replace(/\.?0+$/, '') : value;
+    return props.prefix + trimmed + suffix;
+  };
+
+  if (num >= 1_000_000_000) return formatWithAbbreviation(1_000_000_000, 'B');
+  if (num >= 1_000_000) return formatWithAbbreviation(1_000_000, 'M');
+  if (num >= 1_000) return formatWithAbbreviation(1_000, 'K');
 
   return `${props.prefix}${formatter.format(num)}`;
 });

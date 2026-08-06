@@ -22,7 +22,7 @@
     <div v-if="activeTab === 'referrals'">
       <!-- Referral Summary Cards -->
       <SkeletonLoader v-if="loading" type="card" :count="4" class="mb-6 opacity-40" />
-      <div v-else class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-4">
+      <div v-else class="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-2">
         <StatCard v-for="s in referralSummary" :key="s.label" v-bind="s" />
       </div>
 
@@ -30,7 +30,7 @@
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="8" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="referralColumns" :data="referrals" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" title="Referral activity" description="Referral conversions and commissions captured in the selected period.">
+      <ReportTable v-else :columns="referralColumns" :data="referrals" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="Referral activity" description="Referral conversions and commissions captured in the selected period.">
         <template #cell-status="{ row }">
           <span :class="row.status === 'paid' ? 'text-green-400' : row.status === 'pending' ? 'text-yellow-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
@@ -48,7 +48,7 @@
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="8" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="subColumns" :data="subscriptions" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" title="Subscription activity" description="Plan subscriptions and renewal status for the selected range.">
+      <ReportTable v-else :columns="subColumns" :data="subscriptions" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="Subscription activity" description="Plan subscriptions and renewal status for the selected range.">
         <template #cell-status="{ row }">
           <span :class="row.status === 'active' ? 'text-green-400' : row.status === 'expired' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
@@ -76,7 +76,7 @@ const subscriptions = ref([]);
 const filters = reactive({ from: '', to: '', period: 'month' });
 const sortBy = ref('');
 const sortDir = ref('desc');
-const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
 
 const tabs = [
   { key: 'referrals', label: 'Referrals' },
@@ -123,7 +123,7 @@ const fetchData = async (page = 1) => {
       pagination.value = {
         current_page: dataRes.data.current_page || 1,
         last_page: dataRes.data.last_page || 1,
-        per_page: dataRes.data.per_page || 50,
+        per_page: dataRes.data.per_page || 20,
         total: dataRes.data.total || 0,
       };
     } else {
@@ -131,7 +131,7 @@ const fetchData = async (page = 1) => {
       pagination.value = {
         current_page: dataRes.data.current_page || 1,
         last_page: dataRes.data.last_page || 1,
-        per_page: dataRes.data.per_page || 50,
+        per_page: dataRes.data.per_page || 20,
         total: dataRes.data.total || 0,
       };
     }

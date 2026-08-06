@@ -22,58 +22,85 @@ class ExpenseReportService
 
     public function summary(array $filters): array
     {
-        $query = Expense::query();
-        $this->applyDateFilter($query, $filters);
+        try {
+            $query = Expense::query();
+            $this->applyDateFilter($query, $filters);
 
-        $totalExpenses = (float) (clone $query)->sum('amount');
-        $largestCategory = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
-            $this->applyDateFilter($q, $filters);
-        }])->get()->sortByDesc(fn($cat) => $cat->expenses->sum('amount'))->first();
+            $totalExpenses = (float) (clone $query)->sum('amount');
+            
+            $largestCategory = null;
+            try {
+                $largestCategory = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
+                    $this->applyDateFilter($q, $filters);
+                }])->get()->sortByDesc(fn($cat) => $cat->expenses->sum('amount'))->first();
+            } catch (\Exception $e) {
+                
+                $largestCategory = null;
+            }
 
-        $outstanding = (float) (clone $query)->where('status', 'unpaid')->sum('amount');
-        $averageMonthly = $this->averageMonthly($filters);
+            $outstanding = (float) (clone $query)->where('status', 'unpaid')->sum('amount');
+            $averageMonthly = $this->averageMonthly($filters);
 
-        return [
-            'total' => $totalExpenses,
-            'largest_category' => $largestCategory ? [
-                'name' => $largestCategory->name,
-                'amount' => (float) $largestCategory->expenses->sum('amount'),
-            ] : null,
-            'outstanding' => $outstanding,
-            'average_monthly' => $averageMonthly,
-        ];
+            return [
+                'total' => $totalExpenses,
+                'largest_category' => $largestCategory ? [
+                    'name' => $largestCategory->name,
+                    'amount' => (float) $largestCategory->expenses->sum('amount'),
+                ] : null,
+                'outstanding' => $outstanding,
+                'average_monthly' => $averageMonthly,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'total' => 0,
+                'largest_category' => null,
+                'outstanding' => 0,
+                'average_monthly' => 0,
+            ];
+        }
     }
 
     public function chart(array $filters): array
     {
-        $categories = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
-            $this->applyDateFilter($q, $filters);
-        }])->get();
+        try {
+            $categories = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
+                $this->applyDateFilter($q, $filters);
+            }])->get();
 
-        return [
-            'categories' => $categories->pluck('name')->toArray(),
-            'series' => [
-                [
-                    'name' => 'Expenses',
-                    'data' => $categories->map(fn($c) => (float) $c->expenses->sum('amount'))->toArray(),
+            return [
+                'categories' => $categories->pluck('name')->toArray(),
+                'series' => [
+                    [
+                        'name' => 'Expenses',
+                        'data' => $categories->map(fn($c) => (float) $c->expenses->sum('amount'))->toArray(),
+                    ],
                 ],
-            ],
-        ];
+            ];
+        } catch (\Exception $e) {
+            return [
+                'categories' => [],
+                'series' => [],
+            ];
+        }
     }
 
     public function categories(array $filters): array
     {
-        $query = Expense::with('category');
-        $this->applyDateFilter($query, $filters);
+        try {
+            $query = Expense::with('category');
+            $this->applyDateFilter($query, $filters);
 
-        return $query->latest()->get()->map(fn($e) => [
-            'id' => $e->id,
-            'date' => $e->created_at?->format('Y-m-d'),
-            'category' => $e->category?->name ?? 'N/A',
-            'vendor' => $e->vendor ?? 'N/A',
-            'amount' => (float) $e->amount,
-            'status' => $e->status ?? 'paid',
-        ])->toArray();
+            return $query->latest()->get()->map(fn($e) => [
+                'id' => $e->id,
+                'date' => $e->created_at?->format('Y-m-d'),
+                'category' => $e->category?->name ?? 'N/A',
+                'vendor' => $e->vendor ?? 'N/A',
+                'amount' => (float) $e->amount,
+                'status' => $e->status ?? 'paid',
+            ])->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     protected function averageMonthly(array $filters): float

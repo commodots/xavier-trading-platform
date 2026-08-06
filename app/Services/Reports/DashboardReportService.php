@@ -69,8 +69,8 @@ class DashboardReportService
                     ['title' => 'Premium Users', 'value' => $premiumUsers, 'icon' => 'star', 'color' => '#8B5CF6'],
                 ],
                 'wallet' => [
-                    ['title' => 'Total Wallet Balance (NGN)', 'value' => $totalNgnBalance, 'prefix' => '₦', 'icon' => 'dollar', 'color' => '#0047AB'],
-                    ['title' => 'Total Wallet Balance (USD)', 'value' => $totalUsdBalance, 'prefix' => '$', 'icon' => 'dollar', 'color' => '#10B981'],
+                    ['title' => 'NGN Balance', 'value' => $totalNgnBalance, 'prefix' => '₦', 'icon' => 'dollar', 'color' => '#0047AB'],
+                    ['title' => 'USD Balance', 'value' => $totalUsdBalance, 'prefix' => '$', 'icon' => 'dollar', 'color' => '#10B981'],
                     ['title' => "Today's Deposits", 'value' => $todayDeposits, 'prefix' => '$', 'icon' => 'trending-up', 'color' => '#10B981'],
                     ['title' => "Today's Withdrawals", 'value' => $todayWithdrawals, 'prefix' => '$', 'icon' => 'activity', 'color' => '#EF4444'],
                     ['title' => 'Pending Withdrawals', 'value' => $pendingWithdrawals, 'prefix' => '$', 'icon' => 'clock', 'color' => '#F59E0B'],

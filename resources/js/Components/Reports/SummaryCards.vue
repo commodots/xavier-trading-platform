@@ -9,8 +9,8 @@
         <span class="text-xs text-gray-400 uppercase tracking-wider">{{ card.label }}</span>
         <component :is="getIcon(card.icon)" v-if="card.icon" class="w-5 h-5" :style="{ color: card.color }" />
       </div>
-      <div class="text-xl font-bold text-white">
-        {{ formatAmount(card.value, card.prefix, card.isMoney ?? Boolean(card.prefix)) }}
+      <div class="text-lg font-bold text-white">
+        {{ formatAmount(card.value, card.prefix, card.isMoney ?? Boolean(card.prefix), card.suffix || '') }}
       </div>
       <div v-if="card.change !== undefined" class="flex items-center mt-1">
         <span
@@ -50,9 +50,9 @@ const getIcon = (iconName) => {
   return LucideIcons[pascalName] || LucideIcons[iconName] || null;
 };
 
-const formatAmount = (value, prefix = '', isMoney = false) => {
+const formatAmount = (value, prefix = '', isMoney = false, suffix = '') => {
   if (value === null || value === undefined) {
-    return isMoney ? `${prefix}0.00` : '0';
+    return isMoney ? `${prefix}0` : '0';
   }
 
   const num = Number(value);
@@ -61,10 +61,10 @@ const formatAmount = (value, prefix = '', isMoney = false) => {
   }
 
   const formatter = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: isMoney ? 2 : 0,
+    minimumFractionDigits: 0,
     maximumFractionDigits: isMoney ? 2 : 0,
   });
 
-  return `${prefix}${formatter.format(num)}`;
+  return `${prefix}${formatter.format(num)}${suffix}`;
 };
 </script>

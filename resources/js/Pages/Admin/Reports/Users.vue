@@ -48,7 +48,7 @@
 
     <!-- Table -->
     <SkeletonLoader v-if="loading" type="table" :count="8" class="opacity-40" />
-    <ReportTable v-else :columns="columns" :data="users" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" title="User activity" description="Users matching the current filters and their account status.">
+    <ReportTable v-else :columns="columns" :data="users" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="User activity" description="Users matching the current filters and their account status.">
       <template #cell-avatar="{ row }">
         <div class="inline-flex items-center justify-center w-8 h-8 rounded-full overflow-hidden border border-[#1f3348]">
           <img v-if="row.avatar" :src="row.avatar" :alt="row.name" class="w-full h-full object-cover" />
@@ -116,11 +116,11 @@ const summary = ref([]);
 const users = ref([]);
 const loading = ref(false);
 const currentPage = ref(1);
-const perPage = ref(50);
+const perPage = ref(20);
 const sortBy = ref('');
 const sortDir = ref('desc');
 const filters = reactive({ search: '', from: '', to: '', period: 'month', kyc_status: '' });
-const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, perPage: 50 });
+const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, perPage: 20 });
 
 const columns = [
   { key: 'avatar', label: '', width: '48px', cellClass: 'px-2 py-2' },
@@ -138,6 +138,11 @@ const columns = [
 const handleSort = (key) => {
   if (sortBy.value === key) { sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'; }
   else { sortBy.value = key; sortDir.value = 'asc'; }
+  fetchUsers();
+};
+
+const handlePageChange = (page) => {
+  currentPage.value = page;
   fetchUsers();
 };
 

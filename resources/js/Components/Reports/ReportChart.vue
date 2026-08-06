@@ -52,19 +52,76 @@ const chartContainer = ref(null);
 let chartInstance = null;
 
 // Sanitize series data - filter out empty or invalid series
-const cleanSeries = computed(() => {
-  return props.series
-    .map((s) => {
-      if (Array.isArray(s)) return s;
-      if (s && Array.isArray(s.data)) return s;
+const normalizeSeries = (rawSeries) => {
+  if (!Array.isArray(rawSeries)) {
+    return [];
+  }
+
+  const normalizeValue = (value) => {
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  };
+
+  if (props.type === 'pie' || props.type === 'donut') {
+    return rawSeries
+      .map((item) => {
+        if (typeof item === 'number' || typeof item === 'string') {
+          return normalizeValue(item);
+        }
+
+        if (item && typeof item === 'object') {
+          if (Array.isArray(item.data)) {
+            return normalizeValue(item.data[0]);
+          }
+          if (typeof item.y === 'number' || typeof item.y === 'string') {
+            return normalizeValue(item.y);
+          }
+          if (typeof item.value === 'number' || typeof item.value === 'string') {
+            return normalizeValue(item.value);
+          }
+          if (Array.isArray(item)) {
+            return normalizeValue(item[0]);
+          }
+        }
+
+        return null;
+      })
+      .filter((value) => value !== null);
+  }
+
+  return rawSeries
+    .map((item) => {
+      if (typeof item === 'number' || typeof item === 'string') {
+        const normalized = normalizeValue(item);
+        return { data: normalized === null ? [] : [normalized] };
+      }
+      if (Array.isArray(item)) {
+        return { data: item };
+      }
+      if (item && typeof item === 'object') {
+        if (Array.isArray(item.data)) {
+          return item;
+        }
+        if (typeof item.data === 'number' || typeof item.data === 'string') {
+          return { ...item, data: [normalizeValue(item.data)] };
+        }
+        if (typeof item.y === 'number' || typeof item.y === 'string') {
+          return { name: item.name ?? 'Series', data: [normalizeValue(item.y)] };
+        }
+      }
+
       return null;
     })
-    .filter(Boolean)
-    .map((s) => {
-      if (Array.isArray(s)) return { data: s };
-      return s;
-    });
-});
+    .filter((item) => item && Array.isArray(item.data));
+};
+
+const cleanSeries = computed(() => normalizeSeries(props.series));
 
 const hasData = computed(() => {
   return props.categories.length > 0 && cleanSeries.value.length > 0;
@@ -172,12 +229,22 @@ watch(
         series: cleanSeries.value,
         xaxis: { categories: props.categories },
       });
-    } else {
+    } else if (hasData.value) {
       initChart();
     }
   },
   { deep: true }
 );
 
-onMounted(initChart);
+watch(hasData, (newValue) => {
+  if (newValue && !chartInstance) {
+    initChart();
+  }
+});
+
+onMounted(() => {
+  if (hasData.value) {
+    initChart();
+  }
+});
 </script>

@@ -34,6 +34,23 @@
       />
     </div>
 
+    <div v-if="!loading && (growthChart || distributionChart)" class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <ReportChart
+        v-if="growthChart"
+        title="Investment Volume"
+        type="line"
+        :categories="growthChart.categories"
+        :series="growthChart.series"
+      />
+      <ReportChart
+        v-if="distributionChart"
+        title="Investments by Plan"
+        type="pie"
+        :categories="distributionChart.labels"
+        :series="distributionChart.values.map((value, index) => ({ name: distributionChart.labels[index], data: [value] }))"
+      />
+    </div>
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="5" class="opacity-40" />
@@ -57,6 +74,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
 import StatCard from '@/Components/Reports/StatCard.vue';
+import ReportChart from '@/Components/Reports/ReportChart.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
 import DateFilter from '@/Components/Reports/DateFilter.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
@@ -66,9 +84,10 @@ import api from '@/api';
 const summary = ref({});
 const investments = ref([]);
 const topInvestors = ref([]);
+const charts = ref({});
 const loading = ref(false);
 const filters = reactive({ from: '', to: '', period: 'month', status: '', plan: '' });
-const pagination = ref({ current_page: 1, last_page: 1, per_page: 50, total: 0 });
+const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
 
 const columns = [
   { key: 'investor', label: 'Investor', sortable: true },
@@ -93,6 +112,18 @@ const filterOptions = ref({
 
 const sortBy = ref('');
 const sortDir = ref('desc');
+
+const growthChart = computed(() => charts.value.growth || null);
+const distributionChart = computed(() => {
+  if (!charts.value.distribution?.length) {
+    return null;
+  }
+
+  return {
+    labels: charts.value.distribution.map((item) => item.plan || item.market || 'N/A'),
+    values: charts.value.distribution.map((item) => item.total ?? 0),
+  };
+});
 
 const summaryCards = computed(() => [
   { label: 'Total Investments', value: summary.value.total_investments ?? 0, icon: 'activity', color: '#0047AB' },
@@ -120,20 +151,22 @@ const fetchInvestments = async (page = 1) => {
       sort: sortBy.value,
       dir: sortDir.value,
     };
-    const [sumRes, invRes, topRes, filtersRes] = await Promise.all([
+    const [sumRes, invRes, topRes, filtersRes, chartsRes] = await Promise.all([
       api.get('/admin/reports/investments/summary'),
       api.get('/admin/reports/investments', { params }),
       api.get('/admin/reports/investments/top-investors'),
       api.get('/admin/reports/investments/filters').catch(() => ({ data: { plans: [] } })),
+      api.get('/admin/reports/investments/charts').catch(() => ({ data: {} })),
     ]);
     summary.value = sumRes.data || {};
     investments.value = invRes.data.data || [];
     topInvestors.value = topRes.data || [];
     filterOptions.value = filtersRes.data || { plans: [] };
+    charts.value = chartsRes.data || {};
     pagination.value = {
       current_page: invRes.data.current_page || 1,
       last_page: invRes.data.last_page || 1,
-      per_page: invRes.data.per_page || 50,
+      per_page: invRes.data.per_page || 20,
       total: invRes.data.total || 0,
     };
   } catch (e) {

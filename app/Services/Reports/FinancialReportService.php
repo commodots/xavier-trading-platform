@@ -13,11 +13,32 @@ class FinancialReportService
 {
     public function summary(): array
     {
+        $ngnBalance = Wallet::where('currency', 'NGN')->sum('ngn_cleared');
+        $usdBalance = Wallet::where('currency', 'USD')->sum('usd_cleared');
+
+        $totalDeposits = NewTransaction::query()->where('type', 'deposit');
+        $totalNgnDeposits = (clone $totalDeposits)->where('currency', 'NGN')->sum('amount');
+        $totalUsdDeposits = (clone $totalDeposits)->where('currency', 'USD')->sum('amount');
+
+        $totalWithdrawals = WithdrawalRequest::query();
+        $totalNgnWithdrawals = (clone $totalWithdrawals)->where('currency', 'NGN')->sum('amount');
+        $totalUsdWithdrawals = (clone $totalWithdrawals)->where('currency', 'USD')->sum('amount');
+
+        $pendingWithdrawals = WithdrawalRequest::query()->where('status', 'pending');
+        $pendingNgnWithdrawals = (clone $pendingWithdrawals)->where('currency', 'NGN')->sum('amount');
+        $pendingUsdWithdrawals = (clone $pendingWithdrawals)->where('currency', 'USD')->sum('amount');
+
         return [
-            ['title' => 'Total Deposits', 'value' => NewTransaction::query()->where('type', 'deposit')->sum('amount'), 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '$'],
-            ['title' => 'Total Withdrawals', 'value' => WithdrawalRequest::query()->sum('amount'), 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '$'],
-            ['title' => 'Pending Withdrawals', 'value' => WithdrawalRequest::query()->where('status', 'pending')->sum('amount'), 'icon' => 'clock', 'color' => '#F59E0B', 'prefix' => '$'],
-            ['title' => 'Wallet Balance', 'value' => Wallet::query()->sum('balance'), 'icon' => 'dollar', 'color' => '#0047AB', 'prefix' => '$'],
+            ['title' => 'Total Deposits', 'value' => $totalDeposits->sum('amount'), 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '$'],
+            ['title' => 'Total NGN Deposits', 'value' => $totalNgnDeposits, 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '₦'],
+            ['title' => 'Total USD Deposits', 'value' => $totalUsdDeposits, 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '$'],
+            ['title' => 'Total Withdrawals', 'value' => $totalWithdrawals->sum('amount'), 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '$'],
+            ['title' => 'Total NGN Withdrawals', 'value' => $totalNgnWithdrawals, 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '₦'],
+            ['title' => 'Total USD Withdrawals', 'value' => $totalUsdWithdrawals, 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '$'],
+            ['title' => 'Pending NGN Withdrawals', 'value' => $pendingNgnWithdrawals, 'icon' => 'clock', 'color' => '#F59E0B', 'prefix' => '₦'],
+            ['title' => 'Pending USD Withdrawals', 'value' => $pendingUsdWithdrawals, 'icon' => 'clock', 'color' => '#F59E0B', 'prefix' => '$'],
+            ['title' => 'NGN Balance', 'value' => $ngnBalance, 'icon' => 'dollar', 'color' => '#0047AB', 'prefix' => '₦'],
+            ['title' => 'USD Balance', 'value' => $usdBalance, 'icon' => 'dollar', 'color' => '#10B981', 'prefix' => '$'],
             ['title' => 'Fees', 'value' => Fee::query()->sum('amount'), 'icon' => 'receipt', 'color' => '#8B5CF6', 'prefix' => '$'],
             ['title' => 'Revenue', 'value' => PlatformEarning::query()->sum('amount'), 'icon' => 'activity', 'color' => '#F59E0B', 'prefix' => '$'],
             ['title' => 'Commissions', 'value' => NewTransaction::query()->where('type', 'commission')->sum('amount'), 'icon' => 'shield', 'color' => '#10B981', 'prefix' => '$'],

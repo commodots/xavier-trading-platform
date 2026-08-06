@@ -62,11 +62,12 @@ class InvestmentReportService extends BaseReportService
         $query = Order::with('user:id,name,email');
 
         $builder = new ReportQueryBuilder($query);
-        $builder->setAllowedSorts(['created_at', 'amount', 'status', 'market'])
+        $builder->setAllowedSorts(['created_at', 'amount', 'status', 'market', 'symbol', 'price'])
             ->setDefaultSort('created_at', 'desc')
             ->applyDateRange($filters['from'] ?? null, $filters['to'] ?? null)
             ->applyStatus($filters['status'] ?? null)
-            ->applySearch($filters['search'] ?? null, ['symbol', 'market']);
+            ->applySearch($filters['search'] ?? null, ['symbol', 'market'])
+            ->applySort($filters['sort'] ?? null, $filters['dir'] ?? null);
 
         if (! empty($filters['plan'])) {
             $query->where('market', $filters['plan']);
