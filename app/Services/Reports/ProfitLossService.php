@@ -56,11 +56,12 @@ class ProfitLossService
 
     public function expenses(array $filters): array
     {
-        $query = Expense::query();
+        $query = Expense::query()->where('status', '!=', 'cancelled');
         $this->applyDateFilter($query, $filters);
 
         $total = (float) (clone $query)->sum('amount');
         $breakdown = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
+            $q->where('status', '!=', 'cancelled');
             $this->applyDateFilter($q, $filters);
         }])->get()->map(fn($cat) => [
             'category' => $cat->name,
@@ -99,7 +100,9 @@ class ProfitLossService
             $monthEnd = $date->copy()->endOfMonth();
 
             $income = RevenueRecord::whereBetween('record_date', [$monthStart, $monthEnd])->sum('amount');
-            $expenses = Expense::whereBetween('created_at', [$monthStart, $monthEnd])->sum('amount');
+            $expenses = Expense::whereBetween('expense_date', [$monthStart, $monthEnd])
+                ->where('status', '!=', 'cancelled')
+                ->sum('amount');
 
             $months[] = [
                 'month' => $date->format('Y-m'),
@@ -130,7 +133,7 @@ class ProfitLossService
 
     protected function applyDateFilter($query, array $filters): void
     {
-        $dateField = $query->getModel() instanceof Expense ? 'created_at' : 'record_date';
+        $dateField = $query->getModel() instanceof Expense ? 'expense_date' : 'record_date';
 
         if (!empty($filters['start_date'])) {
             $query->whereDate($dateField, '>=', $filters['start_date']);

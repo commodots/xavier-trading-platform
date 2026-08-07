@@ -104,6 +104,7 @@
             </div>
             <SidebarLink v-if="isAdmin" to="/admin/billing" :icon="CreditCard">Billing Dashboard</SidebarLink>
             <SidebarLink v-if="isAdmin" to="/admin/settlements" :icon="ArrowLeftRight">Settlements Dashboard</SidebarLink>
+            <SidebarLink v-if="isAdmin" to="/admin/expenses" :icon="Receipt">Expenses</SidebarLink>
 
             <div v-if="isAdmin || can('manage_kyc_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance
@@ -170,7 +171,7 @@ import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
   ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store,
-  CreditCard, ArrowLeftRight, History, Download
+  CreditCard, ArrowLeftRight, History, Download, Receipt
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

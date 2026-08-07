@@ -52,12 +52,13 @@ const filters = ref({ start_date: '', end_date: '', period: 'month' });
 
 const summaryCards = computed(() => [
   { label: 'Total Expenses', value: summary.value.total, icon: 'DollarSign', color: '#EF4444', prefix: '$' },
-  { label: 'Largest Category', value: summary.value.largest_category?.name || 'N/A', icon: 'PieChart', color: '#F59E0B' },
+  { label: 'This Month', value: summary.value.month, icon: 'Calendar', color: '#0047AB', prefix: '$' },
+  { label: 'Today', value: summary.value.today, icon: 'Clock', color: '#10B981', prefix: '$' },
   { label: 'Outstanding', value: summary.value.outstanding, icon: 'AlertTriangle', color: '#F59E0B', prefix: '$' },
-  { label: 'Average Monthly', value: summary.value.average_monthly, icon: 'TrendingUp', color: '#0047AB', prefix: '$' },
 ]);
 
 const tableColumns = [
+  { key: 'expense_no', label: 'Expense No' },
   { key: 'date', label: 'Date', type: 'date' },
   { key: 'category', label: 'Category' },
   { key: 'vendor', label: 'Vendor' },

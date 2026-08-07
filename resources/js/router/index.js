@@ -282,6 +282,30 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
+    path: "/admin/expenses",
+    name: "admin-expenses",
+    component: () => import("@/Pages/Admin/Expenses/Index.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/expenses/create",
+    name: "admin-expenses-create",
+    component: () => import("@/Pages/Admin/Expenses/Create.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/expenses/:id",
+    name: "admin-expenses-show",
+    component: () => import("@/Pages/Admin/Expenses/Show.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/expenses/:id/edit",
+    name: "admin-expenses-edit",
+    component: () => import("@/Pages/Admin/Expenses/Edit.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
     path: "/admin/audit-logs",
     name: "admin-audit-logs",
     component: () => import("@/Pages/Admin/AuditLogs.vue"),

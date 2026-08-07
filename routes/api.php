@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\BillingDashboardController;
 use App\Http\Controllers\Admin\ComplianceController;
+use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\FxManagementController;
 use App\Http\Controllers\Admin\FxRateController;
 use App\Http\Controllers\Admin\FxReconciliationController;
@@ -335,7 +336,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/fx-rates', [FxRateController::class, 'store']);
         Route::delete('/fx-rates/{id}', [FxRateController::class, 'destroy']);
         Route::get('/settings', [SystemSettingsController::class, 'get']);
-        Route::post('/settings/update', [SystemSettingsController::class, 'update']);
+        Route::post('/settings/update', [SystemSettingsController::class, 'updateSettings']);
         Route::get('/transaction-charges', [AdminController::class, 'getCharges']);
         Route::put('/transaction-charges/{id}', [AdminController::class, 'updateCharge']);
         Route::apiResource('transaction-types', TransactionTypeController::class);
@@ -443,5 +444,20 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/kyc', [ReportsController::class, 'kyc']);
             Route::get('/login-history', [ReportsController::class, 'loginHistory']);
         });
+
+        // ── Expense Management ──
+        Route::prefix('expenses')->group(function () {
+            Route::get('/', [ExpenseController::class, 'index']);
+            Route::get('/create', [ExpenseController::class, 'create']);
+            Route::post('/', [ExpenseController::class, 'store']);
+            Route::get('/{expense}', [ExpenseController::class, 'show']);
+            Route::get('/{expense}/edit', [ExpenseController::class, 'edit']);
+            Route::put('/{expense}', [ExpenseController::class, 'update']);
+            Route::delete('/{expense}', [ExpenseController::class, 'destroy']);
+        });
+
+        // ── Expense Categories & Vendors (API) ──
+        Route::get('/expense-categories', [ExpenseController::class, 'categories']);
+        Route::get('/vendors', [ExpenseController::class, 'vendors']);
     });
 });

@@ -26,26 +26,33 @@ class ExpenseReportService
             $query = Expense::query();
             $this->applyDateFilter($query, $filters);
 
-            $totalExpenses = (float) (clone $query)->sum('amount');
+            $totalExpenses = (float) (clone $query)->where('status', '!=', 'cancelled')->sum('amount');
             
             $largestCategory = null;
             try {
                 $largestCategory = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
                     $this->applyDateFilter($q, $filters);
-                }])->get()->sortByDesc(fn($cat) => $cat->expenses->sum('amount'))->first();
+                }])->get()->sortByDesc(fn($cat) => $cat->expenses->where('status', '!=', 'cancelled')->sum('amount'))->first();
             } catch (\Exception $e) {
-                
                 $largestCategory = null;
             }
 
-            $outstanding = (float) (clone $query)->where('status', 'unpaid')->sum('amount');
+            $outstanding = (float) (clone $query)->whereIn('status', ['draft', 'approved'])->sum('amount');
             $averageMonthly = $this->averageMonthly($filters);
+
+            $today = Expense::whereDate('expense_date', today())->where('status', '!=', 'cancelled')->sum('amount');
+            $thisMonth = Expense::whereMonth('expense_date', now()->month)
+                ->whereYear('expense_date', now()->year)
+                ->where('status', '!=', 'cancelled')
+                ->sum('amount');
 
             return [
                 'total' => $totalExpenses,
+                'today' => (float) $today,
+                'month' => (float) $thisMonth,
                 'largest_category' => $largestCategory ? [
                     'name' => $largestCategory->name,
-                    'amount' => (float) $largestCategory->expenses->sum('amount'),
+                    'amount' => (float) $largestCategory->expenses->where('status', '!=', 'cancelled')->sum('amount'),
                 ] : null,
                 'outstanding' => $outstanding,
                 'average_monthly' => $averageMonthly,
@@ -53,6 +60,8 @@ class ExpenseReportService
         } catch (\Exception $e) {
             return [
                 'total' => 0,
+                'today' => 0,
+                'month' => 0,
                 'largest_category' => null,
                 'outstanding' => 0,
                 'average_monthly' => 0,
@@ -87,16 +96,17 @@ class ExpenseReportService
     public function categories(array $filters): array
     {
         try {
-            $query = Expense::with('category');
+            $query = Expense::with(['category', 'vendor']);
             $this->applyDateFilter($query, $filters);
 
             return $query->latest()->get()->map(fn($e) => [
                 'id' => $e->id,
-                'date' => $e->created_at?->format('Y-m-d'),
+                'expense_no' => $e->expense_no,
+                'date' => $e->expense_date?->format('Y-m-d'),
                 'category' => $e->category?->name ?? 'N/A',
-                'vendor' => $e->vendor ?? 'N/A',
+                'vendor' => $e->vendor?->name ?? 'N/A',
                 'amount' => (float) $e->amount,
-                'status' => $e->status ?? 'paid',
+                'status' => $e->status ?? 'draft',
             ])->toArray();
         } catch (\Exception $e) {
             return [];
@@ -132,19 +142,19 @@ class ExpenseReportService
     protected function applyDateFilter($query, array $filters): void
     {
         if (!empty($filters['start_date'])) {
-            $query->whereDate('created_at', '>=', $filters['start_date']);
+            $query->whereDate('expense_date', '>=', $filters['start_date']);
         }
         if (!empty($filters['end_date'])) {
-            $query->whereDate('created_at', '<=', $filters['end_date']);
+            $query->whereDate('expense_date', '<=', $filters['end_date']);
         }
         if (empty($filters['start_date']) && empty($filters['end_date'])) {
             $period = $filters['period'] ?? 'month';
             match ($period) {
-                'today' => $query->whereDate('created_at', Carbon::today()),
-                'week' => $query->whereDate('created_at', '>=', Carbon::now()->subWeek()),
-                'month' => $query->whereMonth('created_at', Carbon::now()->month)
-                    ->whereYear('created_at', Carbon::now()->year),
-                'year' => $query->whereYear('created_at', Carbon::now()->year),
+                'today' => $query->whereDate('expense_date', Carbon::today()),
+                'week' => $query->whereDate('expense_date', '>=', Carbon::now()->subWeek()),
+                'month' => $query->whereMonth('expense_date', Carbon::now()->month)
+                    ->whereYear('expense_date', Carbon::now()->year),
+                'year' => $query->whereYear('expense_date', Carbon::now()->year),
                 default => null,
             };
         }

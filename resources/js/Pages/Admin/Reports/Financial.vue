@@ -10,6 +10,29 @@
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
 
+    <!-- Expense Summary  -->
+    <div v-if="activeTab === 'expenses' && expenseSummary" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
+      <h3 class="mb-4 text-lg font-semibold text-white">Expense Overview</h3>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div class="bg-[#16213A] rounded-lg p-4">
+          <p class="text-xs tracking-wider text-gray-400 uppercase">Total Expenses</p>
+          <p class="mt-1 text-xl font-bold text-white">${{ formatNumber(expenseSummary.total || 0) }}</p>
+        </div>
+        <div class="bg-[#16213A] rounded-lg p-4">
+          <p class="text-xs tracking-wider text-gray-400 uppercase">This Month</p>
+          <p class="mt-1 text-xl font-bold text-white">${{ formatNumber(expenseSummary.month || 0) }}</p>
+        </div>
+        <div class="bg-[#16213A] rounded-lg p-4">
+          <p class="text-xs tracking-wider text-gray-400 uppercase">Today</p>
+          <p class="mt-1 text-xl font-bold text-white">${{ formatNumber(expenseSummary.today || 0) }}</p>
+        </div>
+        <div class="bg-[#16213A] rounded-lg p-4">
+          <p class="text-xs tracking-wider text-gray-400 uppercase">Outstanding</p>
+          <p class="mt-1 text-xl font-bold text-white">${{ formatNumber(expenseSummary.outstanding || 0) }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Statistics -->
     <div v-if="!loading && statistics" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
       <h3 class="mb-4 text-lg font-semibold text-white">Statistics</h3>
@@ -107,6 +130,7 @@ const loading = ref(false);
 const activeTab = ref('wallet_transactions');
 const filters = reactive({ from: '', to: '', period: 'month', status: '' });
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
+const expenseSummary = ref(null);
 
 const tabs = [
   { key: 'wallet_transactions', label: 'All Transactions' },
@@ -114,6 +138,7 @@ const tabs = [
   { key: 'withdrawals', label: 'Withdrawals' },
   { key: 'fees', label: 'Fees' },
   { key: 'revenue', label: 'Revenue' },
+  { key: 'expenses', label: 'Expenses' },
 ];
 
 const tabLabels = {
@@ -219,6 +244,18 @@ const fetchData = async (page = 1) => {
       statistics.value = statsRes.data;
     } catch (e) {
       statistics.value = null;
+    }
+
+    // Fetch expense summary 
+    if (activeTab.value === 'expenses') {
+      try {
+        const expRes = await api.get('/admin/reports/expenses', { params });
+        expenseSummary.value = expRes.data.summary || null;
+      } catch (e) {
+        expenseSummary.value = null;
+      }
+    } else {
+      expenseSummary.value = null;
     }
   } catch (e) {
     console.error(e);
