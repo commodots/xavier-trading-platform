@@ -45,16 +45,16 @@ import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
 
 const loading = ref(true);
-const summary = ref({ total: 0, largest_category: null, outstanding: 0, average_monthly: 0 });
+const summary = ref({ total: 0, total_ngn: 0, total_usd: 0, largest_category: null, outstanding: 0, average_monthly: 0 });
 const chart = ref({ categories: [], series: [] });
 const categories = ref([]);
 const filters = ref({ start_date: '', end_date: '', period: 'month' });
 
 const summaryCards = computed(() => [
-  { label: 'Total Expenses', value: summary.value.total, icon: 'DollarSign', color: '#EF4444', prefix: '$' },
-  { label: 'This Month', value: summary.value.month, icon: 'Calendar', color: '#0047AB', prefix: '$' },
-  { label: 'Today', value: summary.value.today, icon: 'Clock', color: '#10B981', prefix: '$' },
-  { label: 'Outstanding', value: summary.value.outstanding, icon: 'AlertTriangle', color: '#F59E0B', prefix: '$' },
+  { label: 'Total Expenses (NGN)', value: summary.value.total_ngn, icon: 'DollarSign', color: '#EF4444', prefix: '₦' },
+  { label: 'Total Expenses (USD)', value: summary.value.total_usd, icon: 'DollarSign', color: '#0047AB', prefix: '$' },
+  { label: 'This Month', value: summary.value.month, icon: 'Calendar', color: '#10B981', prefix: '₦' },
+  { label: 'Today', value: summary.value.today, icon: 'Clock', color: '#F59E0B', prefix: '₦' },
 ]);
 
 const tableColumns = [
@@ -62,7 +62,11 @@ const tableColumns = [
   { key: 'date', label: 'Date', type: 'date' },
   { key: 'category', label: 'Category' },
   { key: 'vendor', label: 'Vendor' },
-  { key: 'amount', label: 'Amount', type: 'currency' },
+  {
+    key: 'amount',
+    label: 'Amount',
+    format: (value, row) => `${row.currency || 'NGN'} ${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  },
   { key: 'status', label: 'Status', type: 'status' },
 ];
 

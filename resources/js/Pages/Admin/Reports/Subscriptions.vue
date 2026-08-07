@@ -41,12 +41,12 @@
 
       <div class="flex items-center justify-between gap-4 mb-3">
         <h2 class="text-sm font-medium text-white">Subscription Records</h2>
-        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="trial">Trial</option>
-          <option value="expired">Expired</option>
-          <option value="cancelled">Cancelled</option>
+        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
+          <option value="" disabled selected class="text-gray-500">All Status</option>
+          <option value="active" class="text-white">Active</option>
+          <option value="trial" class="text-white">Trial</option>
+          <option value="expired" class="text-white">Expired</option>
+          <option value="cancelled" class="text-white">Cancelled</option>
         </select>
       </div>
 

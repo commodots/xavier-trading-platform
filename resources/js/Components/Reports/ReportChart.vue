@@ -44,7 +44,7 @@ const props = defineProps({
   },
   colors: {
     type: Array,
-    default: () => ['#0047AB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+    default: () => ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#C084FC', '#2DD4BF', '#FB923C', '#A3E635'],
   },
 });
 
@@ -179,16 +179,16 @@ const initChart = async () => {
       },
       stroke: {
         curve: 'smooth',
-        width: 2,
+        width: 3,
       },
       fill: {
         type: 'gradient',
         gradient: {
-          shade: 'dark',
+          shade: 'light',
           type: 'vertical',
-          shadeIntensity: 0.3,
-          opacityFrom: 0.4,
-          opacityTo: 0.1,
+          shadeIntensity: 0.5,
+          opacityFrom: 0.85,
+          opacityTo: 0.3,
         },
       },
       dataLabels: {
@@ -201,6 +201,11 @@ const initChart = async () => {
         bar: {
           borderRadius: 4,
           columnWidth: '60%',
+          colors: {
+            ranges: [
+              { from: -Infinity, to: Infinity, color: props.colors[0] },
+            ],
+          },
         },
       };
     }

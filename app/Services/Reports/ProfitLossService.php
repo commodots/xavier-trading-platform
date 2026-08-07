@@ -60,17 +60,32 @@ class ProfitLossService
         $this->applyDateFilter($query, $filters);
 
         $total = (float) (clone $query)->sum('amount');
+
+        $byCurrency = (clone $query)
+            ->select('currency', DB::raw('SUM(amount) as total'))
+            ->groupBy('currency')
+            ->pluck('total', 'currency')
+            ->map(fn ($total) => (float) $total)
+            ->toArray();
+
+        $totalNgn = (float) ($byCurrency['NGN'] ?? 0);
+        $totalUsd = (float) ($byCurrency['USD'] ?? 0);
+
         $breakdown = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
             $q->where('status', '!=', 'cancelled');
             $this->applyDateFilter($q, $filters);
         }])->get()->map(fn($cat) => [
             'category' => $cat->name,
             'amount' => (float) $cat->expenses->sum('amount'),
+            'currency' => $cat->expenses->first()?->currency ?? 'NGN',
             'percentage' => $total > 0 ? round(($cat->expenses->sum('amount') / $total) * 100, 2) : 0,
         ])->toArray();
 
         return [
             'total' => $total,
+            'total_ngn' => $totalNgn,
+            'total_usd' => $totalUsd,
+            'by_currency' => $byCurrency,
             'breakdown' => $breakdown,
         ];
     }
@@ -78,14 +93,36 @@ class ProfitLossService
     public function profit(array $filters): array
     {
         $income = $this->income($filters)['total'];
-        $expenses = $this->expenses($filters)['total'];
-        $netProfit = $income - $expenses;
+        $expenses = $this->expenses($filters);
+        $usdExpenses = $expenses['total_usd'];
+        $ngnExpenses = $expenses['total_ngn'];
+
+        $netProfit = $income - $usdExpenses;
+        $netLoss = 0;
+        $netLossCurrency = 'USD';
+
+        // If income can't cover USD expenses, the shortfall is a USD loss
+        if ($netProfit < 0) {
+            $netLoss = abs($netProfit);
+            $netLossCurrency = 'USD';
+        }
+
+        // NGN expenses represent a loss when there's no NGN income to offset them
+        if ($ngnExpenses > 0 && $income <= 0) {
+            $netLoss = $ngnExpenses;
+            $netLossCurrency = 'NGN';
+        }
+
         $margin = $income > 0 ? round(($netProfit / $income) * 100, 2) : 0;
 
         return [
             'income' => $income,
-            'expenses' => $expenses,
+            'expenses' => $expenses['total'],
+            'expenses_usd' => $usdExpenses,
+            'expenses_ngn' => $ngnExpenses,
             'net_profit' => $netProfit,
+            'net_loss' => $netLoss,
+            'net_loss_currency' => $netLossCurrency,
             'margin' => $margin,
         ];
     }

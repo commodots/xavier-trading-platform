@@ -27,7 +27,18 @@ class ExpenseReportService
             $this->applyDateFilter($query, $filters);
 
             $totalExpenses = (float) (clone $query)->where('status', '!=', 'cancelled')->sum('amount');
-            
+
+            $byCurrency = (clone $query)
+                ->where('status', '!=', 'cancelled')
+                ->select('currency', DB::raw('SUM(amount) as total'))
+                ->groupBy('currency')
+                ->pluck('total', 'currency')
+                ->map(fn ($total) => (float) $total)
+                ->toArray();
+
+            $totalNgn = (float) ($byCurrency['NGN'] ?? 0);
+            $totalUsd = (float) ($byCurrency['USD'] ?? 0);
+
             $largestCategory = null;
             try {
                 $largestCategory = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
@@ -48,6 +59,9 @@ class ExpenseReportService
 
             return [
                 'total' => $totalExpenses,
+                'total_ngn' => $totalNgn,
+                'total_usd' => $totalUsd,
+                'by_currency' => $byCurrency,
                 'today' => (float) $today,
                 'month' => (float) $thisMonth,
                 'largest_category' => $largestCategory ? [
@@ -60,6 +74,9 @@ class ExpenseReportService
         } catch (\Exception $e) {
             return [
                 'total' => 0,
+                'total_ngn' => 0,
+                'total_usd' => 0,
+                'by_currency' => [],
                 'today' => 0,
                 'month' => 0,
                 'largest_category' => null,
@@ -106,6 +123,7 @@ class ExpenseReportService
                 'category' => $e->category?->name ?? 'N/A',
                 'vendor' => $e->vendor?->name ?? 'N/A',
                 'amount' => (float) $e->amount,
+                'currency' => $e->currency ?? 'NGN',
                 'status' => $e->status ?? 'draft',
             ])->toArray();
         } catch (\Exception $e) {

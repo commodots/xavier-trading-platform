@@ -14,28 +14,28 @@
     <div v-if="!loading" class="flex flex-wrap items-center gap-4">
       <SearchBar v-model="filters.search" placeholder="Search users..." />
       <DateFilter @filter-change="handleFilterChange" />
-      <select v-model="filters.kyc_status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="" class="text-white">KYC status</option>
-        <option value="verified">Verified</option>
-        <option value="pending">Pending</option>
-        <option value="rejected">Rejected</option>
-        <option value="none">None</option>
+      <select v-model="filters.kyc_status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
+        <option value="" disabled selected class="text-gray-500">KYC status</option>
+        <option value="verified" class="text-white">Verified</option>
+        <option value="pending" class="text-white">Pending</option>
+        <option value="rejected" class="text-white">Rejected</option>
+        <option value="none" class="text-white">None</option>
       </select>
-      <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="" class="text-white">User status</option>
-        <option value="active">Active</option>
-        <option value="suspended">Suspended</option>
-        <option value="inactive">Inactive</option>
+      <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
+        <option value="" disabled selected class="text-gray-500">User status</option>
+        <option value="active" class="text-white">Active</option>
+        <option value="suspended" class="text-white">Suspended</option>
+        <option value="inactive" class="text-white">Inactive</option>
       </select>
-      <select v-model="filters.subscription" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="" class="text-white">Subscription</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-        <option value="trial">Trial</option>
+      <select v-model="filters.subscription" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
+        <option value="" disabled selected class="text-white">Subscription</option>
+        <option value="active" class="text-white">Active</option>
+        <option value="inactive" class="text-white">Inactive</option>
+        <option value="trial" class="text-white">Trial</option>
       </select>
-      <select v-model="filters.country" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option value="" class="text-white">Country</option>
-        <option v-for="country in filterOptions.countries" :key="country" :value="country">{{ country }}</option>
+      <select v-model="filters.country" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
+        <option value="" disabled selected class="text-gray-500">Country</option>
+        <option v-for="country in filterOptions.countries" :key="country" :value="country" class="text-white">{{ country }}</option>
       </select>
       <button @click="fetchUsers" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
       <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
@@ -79,8 +79,6 @@
         </div>
       </template>
     </ReportTable>
-
-    <Pagination v-if="!loading && pagination.total > 0" v-bind="pagination" @update:perPage="perPage = $event; fetchUsers()" @page="currentPage = $event; fetchUsers()" />
   </div>
 </template>
 
@@ -120,7 +118,7 @@ const perPage = ref(20);
 const sortBy = ref('');
 const sortDir = ref('desc');
 const filters = reactive({ search: '', from: '', to: '', period: 'month', kyc_status: '' });
-const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, perPage: 20 });
+const pagination = reactive({ current_page: 1, last_page: 1, total: 0, per_page: 20 });
 
 const columns = [
   { key: 'avatar', label: '', width: '48px', cellClass: 'px-2 py-2' },
@@ -142,7 +140,7 @@ const handleSort = (key) => {
 };
 
 const handlePageChange = (page) => {
-  currentPage.value = page;
+  pagination.current_page = page;
   fetchUsers();
 };
 
@@ -172,10 +170,10 @@ const fetchUsers = async () => {
     summary.value = sumRes.data;
     users.value = listRes.data.data || [];
     filterOptions.value = filtersRes.data;
-    pagination.currentPage = listRes.data.current_page;
-    pagination.lastPage = listRes.data.last_page;
+    pagination.current_page = listRes.data.current_page;
+    pagination.last_page = listRes.data.last_page;
     pagination.total = listRes.data.total;
-    pagination.perPage = listRes.data.per_page;
+    pagination.per_page = listRes.data.per_page;
   } catch (e) {
     console.error(e);
   } finally {
@@ -192,7 +190,7 @@ const resetFilters = () => {
   filters.status = '';
   filters.subscription = '';
   filters.country = '';
-  currentPage.value = 1;
+  pagination.current_page = 1;
   fetchUsers();
 };
 

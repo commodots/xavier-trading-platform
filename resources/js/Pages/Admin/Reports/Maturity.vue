@@ -41,9 +41,9 @@
       <div class="flex items-center justify-between gap-4 mb-3">
         <h2 class="text-sm font-medium text-white">Maturity Schedule</h2>
         <div class="flex items-center gap-2">
-          <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
-            <option value="">All Status</option>
-            <option value="filled">Completed</option>
+        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
+          <option value="" disabled selected class="text-gray-500">All Status</option>
+          <option value="filled" class="text-white">Completed</option>
             <option value="pending">Pending</option>
             <option value="cancelled">Cancelled</option>
           </select>
