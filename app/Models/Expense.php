@@ -41,6 +41,11 @@ class Expense extends Model
         return $this->belongsTo(Vendor::class);
     }
 
+    public function department()
+    {
+        return $this->belongsTo(\App\Models\Department::class);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Expense $expense) {

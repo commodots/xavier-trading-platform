@@ -33,8 +33,10 @@ class DatabaseSeeder extends Seeder
             FxSettingSeeder::class,
             FxPairSeeder::class,
             ComplianceSeeder::class,
+            DepartmentSeeder::class,
             ExpenseCategorySeeder::class,
             VendorSeeder::class,
+            ExpenseSeeder::class,
         ]);
     }
 }

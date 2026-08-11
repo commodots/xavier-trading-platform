@@ -24,13 +24,13 @@
         <SummaryCards :cards="summaryCards" />
 
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
-          <h3 class="text-sm font-medium text-white mb-4">Income</h3>
+          <h3 class="mb-4 text-sm font-medium text-white">Income</h3>
           <div class="space-y-2">
             <div v-for="item in data.income.breakdown" :key="item.source" class="flex items-center justify-between py-2 border-b border-[#1f3348] last:border-0">
               <span class="text-sm text-gray-300">{{ item.source }}</span>
               <div class="flex items-center gap-4">
                 <span class="text-sm text-white">${{ formatNumber(item.amount) }}</span>
-                <span class="text-xs text-gray-500 w-12 text-right">{{ item.percentage }}%</span>
+                <span class="w-12 text-xs text-right text-gray-500">{{ item.percentage }}%</span>
               </div>
             </div>
             <div class="flex items-center justify-between py-2 font-medium">
@@ -41,13 +41,13 @@
         </div>
 
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
-          <h3 class="text-sm font-medium text-white mb-4">Expenses</h3>
+          <h3 class="mb-4 text-sm font-medium text-white">Expenses</h3>
           <div class="space-y-2">
             <div v-for="item in data.expenses.breakdown" :key="item.category" class="flex items-center justify-between py-2 border-b border-[#1f3348] last:border-0">
               <span class="text-sm text-gray-300">{{ item.category }}</span>
               <div class="flex items-center gap-4">
-                <span class="text-sm text-white">{{ item.currency || 'NGN' }} {{ formatNumber(item.amount) }}</span>
-                <span class="text-xs text-gray-500 w-12 text-right">{{ item.percentage }}%</span>
+                 <span class="text-sm text-white">{{ item.currency || 'NGN' }} {{ formatNumber(item.amount) }}</span>
+                <span class="w-12 text-xs text-right text-gray-500">{{ item.percentage }}%</span>
               </div>
             </div>
             <div class="flex items-center justify-between py-2 font-medium">
@@ -89,7 +89,7 @@
           </div>
         </div>
 
-        <ReportChart title="Monthly Profit & Loss" type="line" :categories="data.chart.categories" :series="data.chart.series" />
+        <ReportChart title="Monthly Profit & Loss" type="line" currency-symbol="$" :categories="data.chart.categories" :series="data.chart.series" />
       </template>
     </div>
 </template>

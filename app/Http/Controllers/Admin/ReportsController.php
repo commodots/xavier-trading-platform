@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
+use App\Models\ExpenseCategory;
 use App\Models\ReportHistory;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\Reports\DashboardReportService;
 use App\Services\Reports\DashboardService;
 use App\Services\Reports\ExpenseReportService;
@@ -27,6 +30,7 @@ use App\Services\Reports\WithdrawalReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class ReportsController extends Controller
 {
@@ -384,9 +388,24 @@ class ReportsController extends Controller
 
     public function expenses(Request $request)
     {
-        return response()->json(
-            app(ExpenseReportService::class)->generate($request)
-        );
+        $data = app(ExpenseReportService::class)->generate($request);
+
+        // Add filter dropdown data
+        $data['categories'] = ExpenseCategory::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $data['vendors'] = Vendor::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $data['departments'] = Department::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json($data);
     }
 
     public function downloads()
@@ -415,7 +434,7 @@ class ReportsController extends Controller
         $data = match ($reportType) {
             'revenue' => app(RevenueReportService::class)->generate($request),
             'profit-loss' => app(ProfitLossService::class)->generate($request),
-            'expenses' => app(ExpenseReportService::class)->generate($request),
+            'expenses' => $this->getExpensesExportData($request),
             'users' => $this->getUsersExportData($request),
             'financial' => $this->getFinancialExportData($request),
             'investments' => $this->getInvestmentsExportData($request),
@@ -717,6 +736,56 @@ class ReportsController extends Controller
         };
 
         return ['headers' => $headers, 'rows' => $rows, 'tab' => $tab];
+    }
+
+    protected function getExpensesExportData(Request $request): array
+    {
+        $params = array_merge($request->all(), ['per_page' => 10000]);
+        $result = app(ExpenseReportService::class)->generate($params);
+        
+        // Extract table data from paginator
+        $tableData = is_array($result['table']) && isset($result['table']['data']) 
+            ? $result['table']['data'] 
+            : ($result['table'] ?? []);
+        
+        $headers = [
+            'Expense No',
+            'Expense Date',
+            'Category',
+            'Vendor',
+            'Department',
+            'Amount',
+            'Payment Method',
+            'Reference',
+            'Invoice Number',
+            'Status',
+            'Requested By',
+            'Description'
+        ];
+        
+        $rows = array_map(function ($item) {
+            return [
+                $item['expense_no'] ?? 'N/A',
+                $item['expense_date'] ?? 'N/A',
+                $item['category'] ?? 'N/A',
+                $item['vendor'] ?? 'N/A',
+                $item['department'] ?? 'N/A',
+                $item['amount'] ?? 0,
+                $item['payment_method'] ?? 'N/A',
+                $item['reference'] ?? 'N/A',
+                $item['invoice_number'] ?? 'N/A',
+                $item['status'] ?? 'N/A',
+                $item['requester'] ?? 'N/A',
+                $item['description'] ?? 'N/A',
+            ];
+        }, $tableData);
+        
+        return [
+            'headers' => $headers,
+            'rows' => $rows,
+            'summary' => $result['summary'] ?? [],
+            'charts' => $result['charts'] ?? [],
+        ];
     }
 }
 

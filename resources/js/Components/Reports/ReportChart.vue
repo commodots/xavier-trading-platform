@@ -1,6 +1,6 @@
 <template>
   <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
-    <div v-if="title || subtitle" class="mb-4 flex items-start justify-between gap-3">
+    <div v-if="title || subtitle" class="flex items-start justify-between gap-3 mb-4">
       <div>
         <h3 v-if="title" class="text-sm font-semibold text-white">{{ title }}</h3>
         <p v-if="subtitle" class="mt-1 text-xs leading-5 text-gray-400">{{ subtitle }}</p>
@@ -44,7 +44,11 @@ const props = defineProps({
   },
   colors: {
     type: Array,
-    default: () => ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#C084FC', '#2DD4BF', '#FB923C', '#A3E635'],
+    default: () => ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'],
+  },
+  currencySymbol: {
+    type: String,
+    default: '₦',
   },
 });
 
@@ -68,31 +72,37 @@ const normalizeSeries = (rawSeries) => {
     return null;
   };
 
-  if (props.type === 'pie' || props.type === 'donut') {
-    return rawSeries
-      .map((item) => {
-        if (typeof item === 'number' || typeof item === 'string') {
-          return normalizeValue(item);
+  if (props.type === 'pie' || props.type === 'donut' || props.type === 'doughnut') {
+    // For pie/donut charts, extract all numeric values from the series
+    const values = [];
+    
+    for (const item of rawSeries) {
+      if (typeof item === 'number' || typeof item === 'string') {
+        const normalized = normalizeValue(item);
+        if (normalized !== null) values.push(normalized);
+      } else if (item && typeof item === 'object') {
+        if (Array.isArray(item.data)) {
+          // Extract all values from the data array
+          item.data.forEach(val => {
+            const normalized = normalizeValue(val);
+            if (normalized !== null) values.push(normalized);
+          });
+        } else if (typeof item.y === 'number' || typeof item.y === 'string') {
+          const normalized = normalizeValue(item.y);
+          if (normalized !== null) values.push(normalized);
+        } else if (typeof item.value === 'number' || typeof item.value === 'string') {
+          const normalized = normalizeValue(item.value);
+          if (normalized !== null) values.push(normalized);
+        } else if (Array.isArray(item)) {
+          item.forEach(val => {
+            const normalized = normalizeValue(val);
+            if (normalized !== null) values.push(normalized);
+          });
         }
-
-        if (item && typeof item === 'object') {
-          if (Array.isArray(item.data)) {
-            return normalizeValue(item.data[0]);
-          }
-          if (typeof item.y === 'number' || typeof item.y === 'string') {
-            return normalizeValue(item.y);
-          }
-          if (typeof item.value === 'number' || typeof item.value === 'string') {
-            return normalizeValue(item.value);
-          }
-          if (Array.isArray(item)) {
-            return normalizeValue(item[0]);
-          }
-        }
-
-        return null;
-      })
-      .filter((value) => value !== null);
+      }
+    }
+    
+    return values;
   }
 
   return rawSeries
@@ -135,9 +145,12 @@ const initChart = async () => {
   try {
     const ApexCharts = (await import('apexcharts')).default;
 
+    // Normalize chart type aliases (ApexCharts uses "donut", Chart.js uses "doughnut")
+    const chartType = props.type === 'doughnut' ? 'donut' : props.type;
+
     const options = {
       chart: {
-        type: props.type,
+        type: chartType,
         height: props.height,
         toolbar: { show: false },
         foreColor: '#9CA3AF',
@@ -155,9 +168,9 @@ const initChart = async () => {
         labels: {
           style: { colors: '#9CA3AF' },
           formatter: (val) => {
-            if (val >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
-            if (val >= 1000) return '$' + (val / 1000).toFixed(1) + 'K';
-            return '$' + val.toFixed(0);
+            if (val >= 1000000) return props.currencySymbol + (val / 1000000).toFixed(1) + 'M';
+            if (val >= 1000) return props.currencySymbol + (val / 1000).toFixed(1) + 'K';
+            return props.currencySymbol + val.toFixed(0);
           },
         },
       },
@@ -167,8 +180,9 @@ const initChart = async () => {
       },
       tooltip: {
         theme: 'dark',
+        x: { show: false },
         y: {
-          formatter: (val) => '$' + Number(val).toLocaleString('en-US', {
+          formatter: (val) => props.currencySymbol + Number(val).toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }),
@@ -180,16 +194,6 @@ const initChart = async () => {
       stroke: {
         curve: 'smooth',
         width: 3,
-      },
-      fill: {
-        type: 'gradient',
-        gradient: {
-          shade: 'light',
-          type: 'vertical',
-          shadeIntensity: 0.5,
-          opacityFrom: 0.85,
-          opacityTo: 0.3,
-        },
       },
       dataLabels: {
         enabled: false,
@@ -210,9 +214,11 @@ const initChart = async () => {
       };
     }
 
-    if (props.type === 'pie' || props.type === 'donut') {
+    if (props.type === 'pie' || props.type === 'donut' || props.type === 'doughnut') {
       options.labels = props.categories;
       options.xaxis = undefined;
+      
+      options.series = cleanSeries.value;
     }
 
     if (chartInstance) {
