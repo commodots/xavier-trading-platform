@@ -1,4 +1,4 @@
-<template>
+  <template>
   <div class="space-y-6">
     <div>
       <h1 class="text-2xl font-bold text-white">Financial Report</h1>
@@ -131,6 +131,7 @@ const activeTab = ref('wallet_transactions');
 const filters = reactive({ from: '', to: '', period: 'month', status: '' });
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
 const expenseSummary = ref(null);
+const serverCharts = ref(null);
 
 const tabs = [
   { key: 'wallet_transactions', label: 'All Transactions' },
@@ -237,7 +238,9 @@ const fetchData = async (page = 1) => {
       per_page: dataRes.data.per_page || 20,
       total: dataRes.data.total || 0,
     };
-    
+
+    serverCharts.value = dataRes.data.charts || null;
+
     // Fetch statistics separately with catch
     try {
       const statsRes = await api.get('/admin/reports/financial/summary/statistics', { params: { type: statsType } });
@@ -309,7 +312,12 @@ const formatStatLabel = (key) => {
   return labels[key] || key;
 };
 
+
 const chartCategories = computed(() => {
+  if (serverCharts.value?.trend?.categories?.length) {
+    return serverCharts.value.trend.categories;
+  }
+
   const buckets = rows.value.reduce((acc, row) => {
     const key = row.created_at ? row.created_at.slice(0, 10) : 'Unknown';
     if (!acc[key]) acc[key] = 0;
@@ -321,6 +329,10 @@ const chartCategories = computed(() => {
 });
 
 const chartSeries = computed(() => {
+  if (serverCharts.value?.trend?.series?.length) {
+    return serverCharts.value.trend.series;
+  }
+
   const filtered = rows.value.filter((row) => row.created_at);
   const buckets = filtered.reduce((acc, row) => {
     const key = row.created_at ? row.created_at.slice(0, 10) : 'Unknown';
@@ -334,6 +346,10 @@ const chartSeries = computed(() => {
 });
 
 const statusLabels = computed(() => {
+  if (serverCharts.value?.status?.categories?.length) {
+    return serverCharts.value.status.categories;
+  }
+
   const buckets = rows.value.reduce((acc, row) => {
     const key = (row.status || 'unknown').toString();
     if (!acc[key]) acc[key] = 0;
@@ -345,6 +361,10 @@ const statusLabels = computed(() => {
 });
 
 const statusSeries = computed(() => {
+  if (serverCharts.value?.status?.series?.length) {
+    return serverCharts.value.status.series;
+  }
+
   const buckets = rows.value.reduce((acc, row) => {
     const key = (row.status || 'unknown').toString();
     if (!acc[key]) acc[key] = 0;

@@ -261,9 +261,10 @@ const getStatusClass = (status) => {
 };
 
 onMounted(() => {
-  // Default to current month to match DateFilter's 'month' preset and other report pages
+  // Set default date range to last 90 days to show more data including all statuses
   const now = new Date();
-  filters.date_from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+  filters.date_from = ninetyDaysAgo.toISOString().split('T')[0];
   filters.date_to = now.toISOString().split('T')[0];
   fetchData(1);
 });

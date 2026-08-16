@@ -432,6 +432,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/exec-dashboard', [ReportsController::class, 'execDashboard']);
             Route::get('/revenue', [ReportsController::class, 'revenue']);
             Route::get('/profit-loss', [ReportsController::class, 'profitLoss']);
+            Route::get('/financial-summary', [ReportsController::class, 'financialSummaryReport']);
+            Route::get('/executive-dashboard', [ReportsController::class, 'executiveDashboard']);
             Route::get('/expenses', [ReportsController::class, 'expenses']);
             Route::get('/downloads', [ReportsController::class, 'downloads']);
             Route::post('/export', [ReportsController::class, 'export']);

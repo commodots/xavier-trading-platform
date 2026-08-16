@@ -143,15 +143,39 @@ class ReportExportService
     protected function formatRevenueCsv(array $data, array &$headers, array &$rows): void
     {
         $headers = ['Metric', 'Value'];
-        $rows[] = ['Period', $data['from'].' to '.$data['to']];
-        $rows[] = ['Today', '$'.number_format($data['summary']['today'] ?? 0, 2)];
-        $rows[] = ['This Month', '$'.number_format($data['summary']['month'] ?? 0, 2)];
-        $rows[] = ['This Year', '$'.number_format($data['summary']['year'] ?? 0, 2)];
-        $rows[] = ['Total Revenue', '$'.number_format($data['summary']['total'] ?? 0, 2)];
+        $rows[] = ['Period', ($data['from'] ?? 'N/A').' to '.($data['to'] ?? 'N/A')];
+        $rows[] = ['Total Revenue', '₦'.number_format($data['summary']['total_revenue'] ?? 0, 2)];
+        $rows[] = ['Revenue This Month', '₦'.number_format($data['summary']['revenue_this_month'] ?? 0, 2)];
+        $rows[] = ['Revenue This Year', '₦'.number_format($data['summary']['revenue_this_year'] ?? 0, 2)];
+        $rows[] = ['Transaction Count', $data['summary']['transaction_count'] ?? 0];
+        $rows[] = ['Average Revenue', '₦'.number_format($data['summary']['average_revenue'] ?? 0, 2)];
         $rows[] = [];
-        $rows[] = ['Revenue Source', 'Amount', 'Percentage'];
-        foreach ($data['table'] as $row) {
-            $rows[] = [$row['source'], '$'.number_format($row['amount'], 2), $row['percentage'].'%'];
+
+        // Revenue by source
+        if (isset($data['charts'][1])) {
+            $chart = $data['charts'][1];
+            $rows[] = ['Revenue by Source', 'Amount (₦)'];
+            foreach ($chart['labels'] as $index => $label) {
+                $rows[] = [$label, '₦'.number_format($chart['series'][0]['data'][$index] ?? 0, 2)];
+            }
+            $rows[] = [];
+        }
+
+        // Detailed register
+        $rows[] = ['Date', 'Source', 'Reference', 'Description', 'User', 'Amount (₦)', 'Status'];
+        $table = is_array($data['table'] ?? null) && isset($data['table']['data'])
+            ? $data['table']['data']
+            : ($data['table'] ?? []);
+        foreach ($table as $row) {
+            $rows[] = [
+                $row['date'] ?? 'N/A',
+                $row['source_label'] ?? $row['source'] ?? 'N/A',
+                $row['reference'] ?? 'N/A',
+                $row['description'] ?? 'N/A',
+                $row['user_id'] ?? 'N/A',
+                '₦'.number_format($row['amount'] ?? 0, 2),
+                ucfirst($row['status'] ?? 'N/A'),
+            ];
         }
     }
 

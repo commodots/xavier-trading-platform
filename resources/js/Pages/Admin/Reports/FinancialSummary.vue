@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-bold text-white">Profit & Loss Report</h1>
+      <h1 class="text-xl font-bold text-white">Financial Summary</h1>
     </div>
 
     <div class="flex items-center justify-between gap-4">
       <DateFilter @filter-change="onFilterChange" />
       <ExportButton
-        reportType="profit-loss"
+        reportType="financial-summary"
         :startDate="filters.start_date"
         :endDate="filters.end_date"
       />
@@ -19,7 +19,7 @@
     </div>
 
     <template v-else>
-      <!-- Summary Cards -->
+      <!-- KPI Cards -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           v-for="card in summaryCards"
@@ -28,18 +28,18 @@
         />
       </div>
 
-      <!-- Revenue vs Expenses Chart -->
+      <!-- Main Financial Chart -->
       <ReportChart
-        v-if="charts[0] && charts[0].labels && charts[0].labels.length > 0"
-        title="Revenue vs Expenses"
+        v-if="charts.profit_loss && charts.profit_loss.labels && charts.profit_loss.labels.length > 0"
+        title="Revenue vs Expenses vs Profit"
         type="bar"
-        :categories="charts[0].labels"
-        :series="charts[0].series"
+        :categories="charts.profit_loss.labels"
+        :series="charts.profit_loss.series"
       />
 
-      <!-- Monthly P&L Table -->
+      <!-- Monthly Financial Summary -->
       <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
-        <h2 class="mb-4 text-lg font-semibold text-white">Monthly Profit & Loss</h2>
+        <h2 class="mb-4 text-lg font-semibold text-white">Monthly Financial Summary</h2>
         <ReportTable
           :columns="tableColumns"
           :data="tableRows"
@@ -76,7 +76,7 @@ import api from '@/api';
 
 const loading = ref(true);
 const summary = ref({});
-const charts = ref([]);
+const charts = ref({});
 const tableData = ref([]);
 const filters = reactive({
   start_date: '',
@@ -109,12 +109,12 @@ const fetchData = async () => {
     if (filters.end_date) params.end_date = filters.end_date;
     if (filters.period) params.period = filters.period;
 
-    const res = await api.get('/admin/reports/profit-loss', { params });
+    const res = await api.get('/admin/reports/financial-summary', { params });
     summary.value = res.data.summary || {};
-    charts.value = res.data.charts || [];
+    charts.value = res.data.charts || {};
     tableData.value = res.data.table || [];
   } catch (e) {
-    console.error('Failed to load P&L:', e);
+    console.error('Failed to load financial summary:', e);
   } finally {
     loading.value = false;
   }

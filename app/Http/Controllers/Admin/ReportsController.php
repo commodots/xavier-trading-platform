@@ -17,6 +17,9 @@ use App\Services\Reports\InvestmentReportService;
 use App\Services\Reports\KYCReportService;
 use App\Services\Reports\LoginHistoryReportService;
 use App\Services\Reports\MaturityReportService;
+use App\Services\Reports\ExecutiveDashboardService;
+use App\Services\Reports\FinancialSummaryReportService;
+use App\Services\Reports\ProfitLossReportService;
 use App\Services\Reports\ProfitLossService;
 use App\Services\Reports\ReferralReportService;
 use App\Services\Reports\ReportExportService;
@@ -153,14 +156,18 @@ class ReportsController extends Controller
     {
         $tab = $request->tab ?? 'deposits';
 
-        return response()->json(match ($tab) {
+        $data = match ($tab) {
             'deposits' => $this->financial->deposits($request->all()),
             'withdrawals' => $this->financial->withdrawals($request->all()),
             'wallet_transactions' => $this->financial->walletTransactions($request->all()),
             'fees' => $this->financial->fees($request->all()),
             'revenue' => $this->financial->revenue($request->all()),
             default => $this->financial->deposits($request->all()),
-        });
+        };
+
+        $data['charts'] = $this->financial->charts($tab, $request->all());
+
+        return response()->json($data);
     }
 
     public function financialSummary()
@@ -382,8 +389,22 @@ class ReportsController extends Controller
     public function profitLoss(Request $request)
     {
         return response()->json(
-            app(ProfitLossService::class)->generate($request)
+            app(ProfitLossReportService::class)->generate($request)
         );
+    }
+
+    public function financialSummaryReport(
+        Request $request,
+        FinancialSummaryReportService $service
+    ) {
+        return response()->json($service->generate($request));
+    }
+
+    public function executiveDashboard(
+        Request $request,
+        ExecutiveDashboardService $service
+    ) {
+        return response()->json($service->generate($request));
     }
 
     public function expenses(Request $request)
@@ -446,6 +467,7 @@ class ReportsController extends Controller
             'login-history' => $this->getLoginHistoryExportData($request),
             'referrals-subscriptions' => $this->getReferralsSubscriptionsExportData($request),
             'wallet-withdrawals' => $this->getWalletWithdrawalsExportData($request),
+            'financial-summary' => $this->getFinancialSummaryExportData($request),
             default => throw new \InvalidArgumentException("Unsupported report type: {$reportType}"),
         };
 
@@ -736,6 +758,22 @@ class ReportsController extends Controller
         };
 
         return ['headers' => $headers, 'rows' => $rows, 'tab' => $tab];
+    }
+
+    protected function getFinancialSummaryExportData(Request $request): array
+    {
+        $data = app(FinancialSummaryReportService::class)->generate($request);
+
+        $headers = ['Month', 'Revenue', 'Expenses', 'Net Profit', 'Margin'];
+        $rows = array_map(fn ($item) => [
+            $item['month'] ?? 'N/A',
+            $item['revenue'] ?? 0,
+            $item['expenses'] ?? 0,
+            $item['profit'] ?? 0,
+            ($item['margin'] ?? 0).'%',
+        ], $data['table'] ?? []);
+
+        return ['headers' => $headers, 'rows' => $rows];
     }
 
     protected function getExpensesExportData(Request $request): array

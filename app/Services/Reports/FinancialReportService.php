@@ -2,12 +2,14 @@
 
 namespace App\Services\Reports;
 
+use App\Models\Expense;
 use App\Models\Fee;
 use App\Models\NewTransaction;
 use App\Models\PlatformEarning;
 use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class FinancialReportService
 {
@@ -29,10 +31,8 @@ class FinancialReportService
         $pendingUsdWithdrawals = (clone $pendingWithdrawals)->where('currency', 'USD')->sum('amount');
 
         return [
-            ['title' => 'Total Deposits', 'value' => $totalDeposits->sum('amount'), 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '$'],
             ['title' => 'Total NGN Deposits', 'value' => $totalNgnDeposits, 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '₦'],
             ['title' => 'Total USD Deposits', 'value' => $totalUsdDeposits, 'icon' => 'trending-up', 'color' => '#10B981', 'prefix' => '$'],
-            ['title' => 'Total Withdrawals', 'value' => $totalWithdrawals->sum('amount'), 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '$'],
             ['title' => 'Total NGN Withdrawals', 'value' => $totalNgnWithdrawals, 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '₦'],
             ['title' => 'Total USD Withdrawals', 'value' => $totalUsdWithdrawals, 'icon' => 'trending-down', 'color' => '#EF4444', 'prefix' => '$'],
             ['title' => 'Pending NGN Withdrawals', 'value' => $pendingNgnWithdrawals, 'icon' => 'clock', 'color' => '#F59E0B', 'prefix' => '₦'],
@@ -217,6 +217,70 @@ class FinancialReportService
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
         ];
+    }
+
+    /**
+     * Server-side chart aggregation.
+     *
+     * Computes activity trend + status mix at database level over the FULL
+     * filtered dataset (not just the current page), so charts are never empty.
+     */
+    public function charts(string $tab, array $filters = []): array
+    {
+        $from = $filters['from'] ?? null;
+        $to = $filters['to'] ?? null;
+        $status = $filters['status'] ?? null;
+
+        // Activity trend (daily buckets)
+        $trend = $this->chartQueryForTab($tab, $filters)
+            ->select(
+                DB::raw('DATE(created_at) as day'),
+                DB::raw('SUM(COALESCE(amount, 0)) as total')
+            )
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to.' 23:59:59'))
+            ->when($status && $status !== 'all', fn ($q) => $q->where('status', $status))
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get();
+
+        // Status mix (record counts)
+        $mix = $this->chartQueryForTab($tab, $filters)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to.' 23:59:59'))
+            ->when($status && $status !== 'all', fn ($q) => $q->where('status', $status))
+            ->groupBy('status')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        return [
+            'trend' => [
+                'categories' => $trend->pluck('day')->map(fn ($d) => (string) substr((string) $d, 0, 10))->values()->toArray(),
+                'series' => [[
+                    'name' => ucwords(str_replace('_', ' ', $tab)),
+                    'data' => $trend->pluck('total')->map(fn ($v) => (float) $v)->values()->toArray(),
+                ]],
+            ],
+            'status' => [
+                'categories' => $mix->pluck('status')->map(fn ($s) => $s ?: 'unknown')->values()->toArray(),
+                'series' => [[
+                    'name' => 'Records',
+                    'data' => $mix->pluck('total')->map(fn ($v) => (int) $v)->values()->toArray(),
+                ]],
+            ],
+        ];
+    }
+
+    protected function chartQueryForTab(string $tab, array $filters = [])
+    {
+        return match ($tab) {
+            'withdrawals' => WithdrawalRequest::query(),
+            'fees' => Fee::query(),
+            'revenue' => PlatformEarning::query(),
+            'expenses' => Expense::query()->where('status', '!=', 'cancelled'),
+            default => NewTransaction::query()->where('type', 'deposit'),
+        };
     }
 
     protected function paginateTransactionQuery($query, array $filters): array

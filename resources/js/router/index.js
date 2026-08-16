@@ -319,7 +319,7 @@ const routes = [
       {
         path: "",
         name: "admin-reports-dashboard",
-        component: () => import("@/Pages/Admin/Reports/Dashboard.vue"),
+        component: () => import("@/Pages/Admin/Reports/ExecutiveDashboard.vue"),
       },
       {
         path: "users",
@@ -360,6 +360,15 @@ const routes = [
         path: "profit-loss",
         name: "reports-profit-loss",
         component: () => import("@/Pages/Admin/Reports/ProfitLoss.vue"),
+      },
+      {
+        path: "financial-summary",
+        name: "reports-financial-summary",
+        component: () => import("@/Pages/Admin/Reports/FinancialSummary.vue"),
+      },
+      {
+        path: "executive-dashboard",
+        redirect: "/admin/reports",
       },
       {
         path: "expenses",

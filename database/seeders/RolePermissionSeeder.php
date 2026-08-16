@@ -32,6 +32,10 @@ class RolePermissionSeeder extends Seeder
             'export_reports',
             'view_audit_reports',
             'reports.expenses.view',
+            'reports.revenue.view',
+            'reports.profit_loss.view',
+            'reports.financial_summary.view',
+            'reports.executive_dashboard.view',
         ];
 
         foreach ($permissions as $permission) {
