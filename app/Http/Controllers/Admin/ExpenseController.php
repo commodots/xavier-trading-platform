@@ -9,6 +9,7 @@ use App\Models\ExpenseCategory;
 use App\Models\Vendor;
 use App\Services\Audit\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ExpenseController extends Controller
 {
@@ -118,19 +119,43 @@ class ExpenseController extends Controller
             $query->whereDate('expenses.expense_date', '<=', $request->to);
         }
 
-        // Summary aggregates (database-level, no loading all rows into Vue)
-        $summary = (clone $query)->selectRaw('
-                COALESCE(SUM(amount), 0) as total
-            ')
-            ->first();
+        // Summary aggregates (database-level, no loading all rows into Vue).
+        // Multi-currency totals cannot be merged blindly, so every figure also
+        // carries a per-currency breakdown for the summary cards.
+        $byCurrency = function (?string $status = null) use ($query): array {
+            $q = clone $query;
+
+            if ($status !== null) {
+                $q->where('expenses.status', $status);
+            }
+
+            return $q
+                ->groupBy('expenses.currency')
+                ->orderByRaw('SUM(amount) DESC')
+                ->get([
+                    'expenses.currency',
+                    DB::raw('SUM(amount) as total'),
+                ])
+                ->mapWithKeys(fn ($row) => [$row->currency => round((float) $row->total, 2)])
+                ->all();
+        };
+
+        $totalByCurrency = $byCurrency();
+        $draftByCurrency = $byCurrency('draft');
+        $approvedByCurrency = $byCurrency('approved');
+        $paidByCurrency = $byCurrency('paid');
 
         return response()->json([
             'expenses' => $query->latest('expenses.expense_date')->paginate(20),
             'summary' => [
-                'total' => (float) $summary->total,
-                'draft' => (float) (clone $query)->where('expenses.status', 'draft')->sum('amount'),
-                'approved' => (float) (clone $query)->where('expenses.status', 'approved')->sum('amount'),
-                'paid' => (float) (clone $query)->where('expenses.status', 'paid')->sum('amount'),
+                'total' => round(array_sum($totalByCurrency), 2),
+                'total_by_currency' => $totalByCurrency,
+                'draft' => round(array_sum($draftByCurrency), 2),
+                'draft_by_currency' => $draftByCurrency,
+                'approved' => round(array_sum($approvedByCurrency), 2),
+                'approved_by_currency' => $approvedByCurrency,
+                'paid' => round(array_sum($paidByCurrency), 2),
+                'paid_by_currency' => $paidByCurrency,
             ],
         ]);
     }

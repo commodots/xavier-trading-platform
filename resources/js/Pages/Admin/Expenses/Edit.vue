@@ -2,7 +2,12 @@
   <MainLayout>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-white">Edit Expense</h1>
+      <div class="flex items-center gap-3">
+        <button type="button" @click="goBack" class="p-2 text-white transition-colors bg-gray-700 rounded-lg hover:bg-gray-600" aria-label="Go back">
+          <ArrowLeft class="w-4 h-4" />
+        </button>
+        <h1 class="text-2xl font-bold text-white">Edit Expense</h1>
+      </div>
     </div>
 
     <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6">
@@ -10,9 +15,9 @@
     </div>
 
     <form v-else @submit.prevent="submit" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-6 space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Expense Category *</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Expense Category *</label>
           <select v-model="form.expense_category_id" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
             <option value="">Select Category</option>
             <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }} ({{ category.code }})</option>
@@ -20,7 +25,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Vendor</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Vendor</label>
           <select v-model="form.vendor_id" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
             <option value="">Select Vendor</option>
             <option v-for="vendor in vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option>
@@ -28,7 +33,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Department</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Department</label>
           <select v-model="form.department_id" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
             <option value="">Select Department</option>
             <option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option>
@@ -36,12 +41,12 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Amount *</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Amount *</label>
           <input v-model="form.amount" type="text" inputmode="decimal" @input="formatAmountInput" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Currency</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Currency</label>
           <select v-model="form.currency" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none uppercase">
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
@@ -53,36 +58,36 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Expense Date *</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Expense Date *</label>
           <input v-model="form.expense_date" type="date" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Payment Method *</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Payment Method *</label>
           <select v-model="form.payment_method" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
             <option v-for="method in paymentMethods" :key="method" :value="method">{{ method }}</option>
           </select>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Reference</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Reference</label>
           <input v-model="form.reference" type="text" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Invoice Number</label>
+          <label class="block mb-2 text-sm font-medium text-gray-400">Invoice Number</label>
           <input v-model="form.invoice_number" type="text" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-400 mb-2">Description *</label>
+        <label class="block mb-2 text-sm font-medium text-gray-400">Description *</label>
         <textarea v-model="form.description" rows="4" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none"></textarea>
       </div>
 
       <div class="flex gap-3">
         <button type="submit" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Update Expense</button>
-        <button type="button" @click="$router.push('/admin/expenses')" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Cancel</button>
+        <button type="button" @click="$router.push('/admin/expenses')" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Cancel</button>
       </div>
     </form>
   </div>
@@ -91,13 +96,24 @@
 
 <script setup>
 import { reactive, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { ArrowLeft } from 'lucide-vue-next';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import api from '@/api';
 
 const route = useRoute();
 const expenseId = route.params.id;
+const router = useRouter();
+
+// Return to wherever the user came from
+const goBack = () => {
+  if (window.history.state?.back) {
+    router.back();
+  } else {
+    router.push('/admin/expenses');
+  }
+};
 
 // Paid expenses can never be edited here — the backend rejects it and the
 // Show page hides the Edit button for paid records.

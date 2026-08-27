@@ -306,16 +306,14 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
+    // Categories & vendors now live as tabs inside the Expenses page
+    
     path: "/admin/expense-categories",
-    name: "admin-expense-categories",
-    component: () => import("@/Pages/Admin/ExpenseCategories/Index.vue"),
-    meta: { requiresAuth: true, adminOnly: true },
+    redirect: "/admin/expenses?tab=categories",
   },
   {
     path: "/admin/vendors",
-    name: "admin-vendors",
-    component: () => import("@/Pages/Admin/Vendors/Index.vue"),
-    meta: { requiresAuth: true, adminOnly: true },
+    redirect: "/admin/expenses?tab=vendors",
   },
   {
     path: "/admin/audit-logs",

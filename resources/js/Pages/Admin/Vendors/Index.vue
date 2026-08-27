@@ -1,12 +1,15 @@
 <template>
-  <MainLayout>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-white">Vendors</h1>
       <button type="button" @click="openCreate" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Add Vendor</button>
     </div>
 
-    <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
+    <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4">
+      <SkeletonLoader type="table" :count="6" class="opacity-40" />
+    </div>
+
+    <div v-else class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-[#1f3348]">
@@ -20,7 +23,7 @@
             <th class="px-4 py-3 text-xs font-medium tracking-wider text-left text-gray-400 uppercase">Actions</th>
           </tr>
         </thead>
-        <tbody v-if="!loading">
+        <tbody>
           <tr v-for="vendor in vendors" :key="vendor.id" class="border-b border-[#1f3348] hover:bg-[#16213A]">
             <td class="px-4 py-3 text-white">{{ vendor.name }}</td>
             <td class="px-4 py-3 text-gray-300">{{ vendor.contact_person || 'N/A' }}</td>
@@ -93,12 +96,11 @@
       </form>
     </div>
   </div>
-</MainLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import MainLayout from '@/Layouts/MainLayout.vue';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
 
 const vendors = ref([]);
