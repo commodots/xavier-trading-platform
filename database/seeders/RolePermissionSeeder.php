@@ -45,16 +45,49 @@ class RolePermissionSeeder extends Seeder
             ]);
         }
 
+        // Expense management permissions
+        $expensePermissions = [
+            'view_expenses',
+            'create_expenses',
+            'edit_expenses',
+            'approve_expenses',
+            'pay_expenses',
+            'cancel_expenses',
+            'manage_expense_categories',
+            'manage_vendors',
+        ];
+
+        foreach ($expensePermissions as $permission) {
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'api'
+            ]);
+        }
+
         // Assign reporting permissions to admin role
         $adminRole = Role::where('name', 'admin')->where('guard_name', 'api')->first();
         if ($adminRole) {
             $adminRole->givePermissionTo($permissions);
+            $adminRole->givePermissionTo($expensePermissions);
         }
 
         // Assign to super-admin
         $superAdmin = Role::where('name', 'super-admin')->where('guard_name', 'api')->first();
         if ($superAdmin) {
             $superAdmin->givePermissionTo($permissions);
+            $superAdmin->givePermissionTo($expensePermissions);
+        }
+
+        // Assign to accounts/finance: View, Create, Edit, Approve, Pay
+        $accounts = Role::where('name', 'accounts')->where('guard_name', 'api')->first();
+        if ($accounts) {
+            $accounts->givePermissionTo([
+                'view_expenses',
+                'create_expenses',
+                'edit_expenses',
+                'approve_expenses',
+                'pay_expenses',
+            ]);
         }
 
         // Assign to compliance

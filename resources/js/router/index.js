@@ -306,6 +306,18 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
+    path: "/admin/expense-categories",
+    name: "admin-expense-categories",
+    component: () => import("@/Pages/Admin/ExpenseCategories/Index.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
+    path: "/admin/vendors",
+    name: "admin-vendors",
+    component: () => import("@/Pages/Admin/Vendors/Index.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
     path: "/admin/audit-logs",
     name: "admin-audit-logs",
     component: () => import("@/Pages/Admin/AuditLogs.vue"),

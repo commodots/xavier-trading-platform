@@ -28,6 +28,14 @@
         </div>
 
         <div>
+          <label class="block text-sm font-medium text-gray-400 mb-2">Department</label>
+          <select v-model="form.department_id" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
+            <option value="">Select Department</option>
+            <option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option>
+          </select>
+        </div>
+
+        <div>
           <label class="block text-sm font-medium text-gray-400 mb-2">Amount *</label>
           <input v-model="form.amount" type="text" inputmode="decimal" @input="formatAmountInput" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
@@ -53,13 +61,6 @@
           <label class="block text-sm font-medium text-gray-400 mb-2">Payment Method *</label>
           <select v-model="form.payment_method" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none capitalize">
             <option v-for="method in paymentMethods" :key="method" :value="method">{{ method }}</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Status *</label>
-          <select v-model="form.status" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none capitalize">
-            <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
           </select>
         </div>
 
@@ -97,11 +98,11 @@ import api from '@/api';
 const form = reactive({
   expense_category_id: '',
   vendor_id: '',
+  department_id: '',
   amount: '',
   currency: 'NGN',
   expense_date: new Date().toISOString().split('T')[0],
   payment_method: 'bank_transfer',
-  status: 'draft',
   reference: '',
   invoice_number: '',
   description: '',
@@ -109,19 +110,21 @@ const form = reactive({
 
 const categories = ref([]);
 const vendors = ref([]);
+const departments = ref([]);
 const loading = ref(true);
 const paymentMethods = ['cash', 'bank_transfer', 'card', 'wallet', 'other'];
-const statuses = ['draft', 'approved', 'paid', 'cancelled'];
 
 onMounted(async () => {
   loading.value = true;
   try {
-    const [catsRes, vendsRes] = await Promise.all([
+    const [catsRes, vendsRes, deptsRes] = await Promise.all([
       api.get('/admin/expense-categories'),
       api.get('/admin/vendors'),
+      api.get('/admin/departments'),
     ]);
     categories.value = catsRes.data;
     vendors.value = vendsRes.data;
+    departments.value = deptsRes.data;
   } catch (e) {
     console.error('Failed to load data:', e);
   } finally {
@@ -153,11 +156,15 @@ const submit = async () => {
     const payload = {
       ...form,
       amount: Number(form.amount.replace(/,/g, '')),
+      department_id: form.department_id || null,
+      vendor_id: form.vendor_id || null,
     };
-    await api.post('/admin/expenses', payload);
-    window.location.href = '/admin/expenses';
+    const response = await api.post('/admin/expenses', payload);
+    // Redirect to the Show page of the newly created expense (status is always draft).
+    window.location.href = `/admin/expenses/${response.data.id}`;
   } catch (e) {
     console.error('Failed to create expense:', e);
+    alert(e.response?.data?.message || 'Failed to create expense.');
   }
 };
 </script>

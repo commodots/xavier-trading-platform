@@ -28,6 +28,14 @@
         </div>
 
         <div>
+          <label class="block text-sm font-medium text-gray-400 mb-2">Department</label>
+          <select v-model="form.department_id" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
+            <option value="">Select Department</option>
+            <option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option>
+          </select>
+        </div>
+
+        <div>
           <label class="block text-sm font-medium text-gray-400 mb-2">Amount *</label>
           <input v-model="form.amount" type="text" inputmode="decimal" @input="formatAmountInput" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
@@ -57,13 +65,6 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-2">Status *</label>
-          <select v-model="form.status" required class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
-            <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
-          </select>
-        </div>
-
-        <div>
           <label class="block text-sm font-medium text-gray-400 mb-2">Reference</label>
           <input v-model="form.reference" type="text" class="w-full bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none" />
         </div>
@@ -89,43 +90,63 @@
 </template>
 
 <script setup>
-import { reactive, onMounted, ref, defineProps } from 'vue';
+import { reactive, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import api from '@/api';
 
-const props = defineProps({
-  expense: Object,
-});
+const route = useRoute();
+const expenseId = route.params.id;
 
+// Paid expenses can never be edited here — the backend rejects it and the
+// Show page hides the Edit button for paid records.
 const form = reactive({
-  expense_category_id: props.expense?.expense_category_id || '',
-  vendor_id: props.expense?.vendor_id || '',
-  amount: props.expense?.amount || '',
-  currency: props.expense?.currency || 'NGN',
-  expense_date: props.expense?.expense_date || '',
-  payment_method: props.expense?.payment_method || 'bank_transfer',
-  status: props.expense?.status || 'draft',
-  reference: props.expense?.reference || '',
-  invoice_number: props.expense?.invoice_number || '',
-  description: props.expense?.description || '',
+  expense_category_id: '',
+  vendor_id: '',
+  department_id: '',
+  amount: '',
+  currency: 'NGN',
+  expense_date: '',
+  payment_method: 'bank_transfer',
+  reference: '',
+  invoice_number: '',
+  description: '',
 });
 
 const categories = ref([]);
 const vendors = ref([]);
+const departments = ref([]);
 const loading = ref(true);
+const saving = ref(false);
 const paymentMethods = ['cash', 'bank_transfer', 'card', 'wallet', 'other'];
-const statuses = ['draft', 'approved', 'paid', 'cancelled'];
+
+const hydrate = (expense) => {
+  form.expense_category_id = expense.expense_category_id || '';
+  form.vendor_id = expense.vendor_id || '';
+  form.department_id = expense.department_id || '';
+  form.amount = String(expense.amount ?? '');
+  form.currency = expense.currency || 'NGN';
+  form.expense_date = expense.expense_date ? String(expense.expense_date).split('T')[0] : '';
+  form.payment_method = expense.payment_method || 'bank_transfer';
+  form.reference = expense.reference || '';
+  form.invoice_number = expense.invoice_number || '';
+  form.description = expense.description || '';
+};
 
 onMounted(async () => {
   loading.value = true;
   try {
-    const [catsRes, vendsRes] = await Promise.all([
+    const [expenseRes, catsRes, vendsRes, deptsRes] = await Promise.all([
+      api.get(`/admin/expenses/${expenseId}`),
       api.get('/admin/expense-categories'),
       api.get('/admin/vendors'),
+      api.get('/admin/departments'),
     ]);
+    hydrate(expenseRes.data || {});
     categories.value = catsRes.data;
     vendors.value = vendsRes.data;
+    departments.value = deptsRes.data;
   } catch (e) {
     console.error('Failed to load data:', e);
   } finally {
@@ -153,15 +174,21 @@ const formatAmountInput = (event) => {
 };
 
 const submit = async () => {
+  saving.value = true;
   try {
     const payload = {
       ...form,
       amount: Number(form.amount.replace(/,/g, '')),
+      department_id: form.department_id || null,
+      vendor_id: form.vendor_id || null,
     };
-    await api.put(`/admin/expenses/${props.expense.id}`, payload);
-    window.location.href = '/admin/expenses';
+    await api.put(`/admin/expenses/${expenseId}`, payload);
+    window.location.href = `/admin/expenses/${expenseId}`;
   } catch (e) {
     console.error('Failed to update expense:', e);
+    alert(e.response?.data?.message || 'Failed to update expense.');
+  } finally {
+    saving.value = false;
   }
 };
 </script>

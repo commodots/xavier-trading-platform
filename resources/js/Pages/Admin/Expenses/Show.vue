@@ -4,7 +4,10 @@
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-white">Expense Details</h1>
       <div class="flex gap-2">
-        <button type="button" :disabled="!resolvedExpense.id" @click="$router.push(`/admin/expenses/${resolvedExpense.id}/edit`)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm disabled:opacity-50">Edit</button>
+        <button v-if="canEdit" type="button" @click="$router.push(`/admin/expenses/${resolvedExpense.id}/edit`)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Edit</button>
+        <button v-if="canApprove" type="button" :disabled="actionBusy" @click="runAction('approve')" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm disabled:opacity-50">Approve</button>
+        <button v-if="canPay" type="button" :disabled="actionBusy" @click="runAction('pay')" class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm disabled:opacity-50">Mark as Paid</button>
+        <button v-if="canCancel" type="button" :disabled="actionBusy" @click="runAction('cancel')" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm disabled:opacity-50">Cancel</button>
         <button type="button" @click="$router.push('/admin/expenses')" class="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm">Back</button>
       </div>
     </div>
@@ -26,6 +29,14 @@
         <div>
           <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Vendor</p>
           <p class="text-white">{{ resolvedExpense.vendor?.name || 'N/A' }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Department</p>
+          <p class="text-white">{{ resolvedExpense.department?.name || 'N/A' }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Requested By</p>
+          <p class="text-white">{{ resolvedExpense.requester?.name || 'N/A' }}</p>
         </div>
         <div>
           <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Amount</p>
@@ -80,6 +91,33 @@ const expenseData = ref({});
 const resolvedExpense = computed(() => props.expense || expenseData.value || {});
 const loading = ref(true);
 
+// Status-driven actions: Draft -> Edit/Approve/Cancel, Approved -> Edit/Pay/Cancel,
+// Paid/Cancelled -> view only.
+const actionBusy = ref(false);
+const currentStatus = computed(() => resolvedExpense.value.status || '');
+const canEdit = computed(() => ['draft', 'approved'].includes(currentStatus.value));
+const canApprove = computed(() => currentStatus.value === 'draft');
+const canPay = computed(() => currentStatus.value === 'approved');
+const canCancel = computed(() => ['draft', 'approved'].includes(currentStatus.value));
+
+const runAction = async (action) => {
+  const id = resolvedExpense.value.id;
+  if (!id) return;
+  if (!confirm(`Confirm ${action} of ${resolvedExpense.value.expense_no || 'this expense'}?`)) return;
+
+  actionBusy.value = true;
+  try {
+    await api.post(`/admin/expenses/${id}/${action}`);
+    const response = await api.get(`/admin/expenses/${id}`);
+    expenseData.value = response.data || {};
+  } catch (e) {
+    console.error(`Failed to ${action} expense:`, e);
+    alert(e.response?.data?.message || `Failed to ${action} expense.`);
+  } finally {
+    actionBusy.value = false;
+  }
+};
+
 const loadExpense = async () => {
   const expenseId = route.params.id;
   if (!expenseId) {
@@ -119,7 +157,7 @@ const formatNumber = (num) => {
 };
 
 const formatDate = (value) => {
-  if (!value) return 'N/A';
+    if (!value) return 'N/A';
   return new Date(value).toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',

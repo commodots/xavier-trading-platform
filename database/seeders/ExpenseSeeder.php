@@ -67,7 +67,7 @@ class ExpenseSeeder extends Seeder
             $user = $users->random();
             $paymentMethod = $paymentMethods[array_rand($paymentMethods)];
 
-            Expense::create([
+            $expense = Expense::create([
                 'expense_category_id' => $category->id,
                 'vendor_id' => $vendor?->id,
                 'department_id' => $department->id,
@@ -81,6 +81,9 @@ class ExpenseSeeder extends Seeder
                 'description' => "Expense for {$expenseData['category']} - {$expenseData['department']}",
                 'status' => $expenseData['status'],
             ]);
+
+            // Assign the ID-derived human-readable expense number (EXP-YYYYMM-000001)
+            Expense::assignExpenseNo($expense);
         }
     }
 }

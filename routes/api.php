@@ -452,14 +452,37 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [ExpenseController::class, 'index']);
             Route::get('/create', [ExpenseController::class, 'create']);
             Route::post('/', [ExpenseController::class, 'store']);
+            // Workflow actions must be declared before the implicit {expense} binding
+            Route::post('/{expense}/approve', [ExpenseController::class, 'approve']);
+            Route::post('/{expense}/pay', [ExpenseController::class, 'markPaid']);
+            Route::post('/{expense}/cancel', [ExpenseController::class, 'cancel']);
             Route::get('/{expense}', [ExpenseController::class, 'show']);
             Route::get('/{expense}/edit', [ExpenseController::class, 'edit']);
             Route::put('/{expense}', [ExpenseController::class, 'update']);
             Route::delete('/{expense}', [ExpenseController::class, 'destroy']);
         });
 
-        // ── Expense Categories & Vendors (API) ──
+        // ── Expense Categories, Vendors & Departments (API) ──
         Route::get('/expense-categories', [ExpenseController::class, 'categories']);
         Route::get('/vendors', [ExpenseController::class, 'vendors']);
+        Route::get('/departments', [ExpenseController::class, 'departments']);
+
+        // ── Expense Category & Vendor Management (API) ──
+        // "/manage" endpoints list ALL records (including inactive) for the
+        // administration pages; the plain index above only lists active ones
+        // for form dropdowns.
+        Route::prefix('expense-categories')->group(function () {
+            Route::get('/manage', [ExpenseController::class, 'indexCategories']);
+            Route::post('/store', [ExpenseController::class, 'storeCategory']);
+            Route::put('/{category}', [ExpenseController::class, 'updateCategory']);
+            Route::post('/{category}/toggle', [ExpenseController::class, 'toggleCategory']);
+        });
+
+        Route::prefix('vendors')->group(function () {
+            Route::get('/manage', [ExpenseController::class, 'indexVendors']);
+            Route::post('/store', [ExpenseController::class, 'storeVendor']);
+            Route::put('/{vendor}', [ExpenseController::class, 'updateVendor']);
+            Route::post('/{vendor}/toggle', [ExpenseController::class, 'toggleVendor']);
+        });
     });
 });

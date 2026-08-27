@@ -56,7 +56,11 @@ class ProfitLossService
 
     public function expenses(array $filters): array
     {
-        $query = Expense::query()->where('status', '!=', 'cancelled');
+        // P&L recognises only approved + paid expenses. Drafts are unapproved
+        // commitments and cancelled expenses are reversed; neither may affect
+        // reported profit. This must stay in sync with ProfitLossReportService
+        // so exported P&L numbers reconcile with the on-screen report.
+        $query = Expense::query()->whereIn('status', ['approved', 'paid']);
         $this->applyDateFilter($query, $filters);
 
         $total = (float) (clone $query)->sum('amount');
@@ -72,7 +76,7 @@ class ProfitLossService
         $totalUsd = (float) ($byCurrency['USD'] ?? 0);
 
         $breakdown = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
-            $q->where('status', '!=', 'cancelled');
+            $q->whereIn('status', ['approved', 'paid']);
             $this->applyDateFilter($q, $filters);
         }])->get()->map(fn($cat) => [
             'category' => $cat->name,
@@ -138,7 +142,7 @@ class ProfitLossService
 
             $income = RevenueRecord::whereBetween('record_date', [$monthStart, $monthEnd])->sum('amount');
             $expenses = Expense::whereBetween('expense_date', [$monthStart, $monthEnd])
-                ->where('status', '!=', 'cancelled')
+                ->whereIn('status', ['approved', 'paid'])
                 ->sum('amount');
 
             $months[] = [

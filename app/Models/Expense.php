@@ -41,18 +41,9 @@ class Expense extends Model
         return $this->belongsTo(Vendor::class);
     }
 
-    public function department()
+    public function department(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Department::class);
-    }
-
-    protected static function booted(): void
-    {
-        static::creating(function (Expense $expense) {
-            if (empty($expense->expense_no)) {
-                $expense->expense_no = static::generate();
-            }
-        });
+        return $this->belongsTo(Department::class);
     }
 
     public function requester(): BelongsTo
@@ -60,10 +51,22 @@ class Expense extends Model
         return $this->belongsTo(User::class, 'requested_by');
     }
 
-    public static function generate(): string
+    
+    public static function generateNumber(int $id): string
     {
-        $next = self::query()->count() + 1;
+        return 'EXP-'.now()->format('Ym').'-'.str_pad($id, 6, '0', STR_PAD_LEFT);
+    }
 
-        return 'EXP-' . date('Ym') . '-' . str_pad($next, 6, '0', STR_PAD_LEFT);
+    /**
+     * Assign the ID-derived expense number if one is not already set.
+     */
+    public static function assignExpenseNo(Expense $expense): Expense
+    {
+        if (empty($expense->expense_no)) {
+            $expense->expense_no = static::generateNumber($expense->id);
+            $expense->save();
+        }
+
+        return $expense->fresh();
     }
 }
