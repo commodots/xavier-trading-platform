@@ -67,6 +67,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
     Route::post('/settings/clear-cache', [PlatformSettingsController::class, 'clearCache'])->name('settings.clear-cache');
     
+    // Departments
+    Route::get('/departments', function () {
+        return view('app');
+    })->name('departments.index');
+
     // Audit logs
     Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
     Route::get('/audit/export', [AuditController::class, 'export'])->name('audit.export');

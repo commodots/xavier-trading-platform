@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\BillingDashboardController;
 use App\Http\Controllers\Admin\ComplianceController;
+use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\FxManagementController;
 use App\Http\Controllers\Admin\FxRateController;
@@ -484,5 +485,11 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{vendor}', [ExpenseController::class, 'updateVendor']);
             Route::post('/{vendor}/toggle', [ExpenseController::class, 'toggleVendor']);
         });
+
+        Route::get('/departments/manage', [DepartmentController::class, 'index']);
+        Route::post('/departments/manage', [DepartmentController::class, 'store']);
+        Route::put('/departments/manage/{department}', [DepartmentController::class, 'update']);
+        Route::delete('/departments/manage/{department}', [DepartmentController::class, 'destroy']);
+        Route::post('/departments/manage/{department}/toggle', [DepartmentController::class, 'toggle']);
     });
 });

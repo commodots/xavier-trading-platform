@@ -80,7 +80,9 @@ try {
   user.value = {};
 }
 
-const isAdmin = computed(() => user.value.role === "super-admin" || "admin");
+const isAdmin = computed(
+  () => user.value.role === "super-admin" || user.value.role === "admin"
+);
 const isStaff = computed(() => !isAdmin.value && hasAnyPermissions());
 
 const sidebarBg = computed(() => {
@@ -111,7 +113,10 @@ const fetchPermissions = async () => {
 
 // Fetch on mount if not admin
 onMounted(() => {
-  if (user.value?.role !== "super-admin" || "admin") {
+  if (
+    user.value?.role !== "super-admin" &&
+    user.value?.role !== "admin"
+  ) {
     fetchPermissions();
   }
 });
@@ -136,6 +141,7 @@ const menu = [
   { label: "Control Panel", to: "/admin/control-panel", icon: MonitorCog, access: () => isAdmin.value || hasAnyPermissions() },
   { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, access: () => isAdmin.value },
   { label: "Reports", to: "/admin/reports", icon: FileSpreadsheet, access: () => isAdmin.value },
+  { label: "Departments", to: "/admin/departments", icon: Users, access: () => isAdmin.value },
   { label: "Orders", to: "/admin/orders", icon: FileText, access: () => isAdmin.value },
 ];
 

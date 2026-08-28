@@ -306,6 +306,12 @@ const routes = [
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
+    path: "/admin/departments",
+    name: "admin-departments",
+    component: () => import("@/Pages/Admin/Departments/Index.vue"),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+  {
     // Categories & vendors now live as tabs inside the Expenses page
     
     path: "/admin/expense-categories",

@@ -3,7 +3,7 @@
   <div class="space-y-6">
     <h1 class="text-2xl font-bold text-white">Expenses</h1>
 
-    <!-- Tabs: Expenses / Categories / Vendors -->
+    <!-- Tabs: Expenses / Categories / Vendors / Departments -->
     <div class="flex gap-1 bg-[#0F1724] border border-[#1f3348] rounded-xl p-1 w-fit">
       <button
         v-for="tab in tabs"
@@ -29,11 +29,13 @@ import MainLayout from '@/Layouts/MainLayout.vue';
 import ListTab from './ListTab.vue';
 import CategoriesTab from '@/Pages/Admin/ExpenseCategories/Index.vue';
 import VendorsTab from '@/Pages/Admin/Vendors/Index.vue';
+import DepartmentsTab from '@/Pages/Admin/Departments/Index.vue';
 
 const tabs = [
   { key: 'expenses', label: 'Expenses' },
   { key: 'categories', label: 'Categories' },
   { key: 'vendors', label: 'Vendors' },
+  { key: 'departments', label: 'Departments' },
 ];
 
 const VALID_TABS = tabs.map((tab) => tab.key);
@@ -42,6 +44,7 @@ const panels = {
   expenses: ListTab,
   categories: CategoriesTab,
   vendors: VendorsTab,
+  departments: DepartmentsTab,
 };
 
 const route = useRoute();
