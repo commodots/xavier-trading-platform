@@ -36,6 +36,20 @@ class LiveTradingService
 
         return (float) $rate;
     }
+
+    /**
+     * FX rate for display-only aggregation (portfolio valuation). Trade
+     * execution must fail loudly without a rate, but the portfolio page
+     * should still render; fall back to 1.0 for the NGN-equivalent math.
+     */
+    private function getFxRateForDisplay(): float
+    {
+        try {
+            return $this->getFxRate();
+        } catch (FxRateUnavailableException) {
+            return 1.0;
+        }
+    }
     public function executeTrade($user, array $data)
     {
         return DB::transaction(function () use ($user, $data) {
@@ -142,12 +156,19 @@ class LiveTradingService
                 }
             }
 
+            // Recompute `balance` from its components (cleared + uncleared + locked).
+            // The buy path debits `cleared` for the trade fee without touching
+            // `balance`, 
+            $wallet->refreshBalance();
+
             $order = Order::create([
                 ...$data,
                 'user_id' => $user->id,
                 'status' => 'filled',
                 'units' => $units,
                 'quantity' => $units,
+                'currency' => $currency,
+                'price' => $data['market_price'],
             ]);
 
             if ($tradeFee > 0 && $data['side'] === 'buy') {
@@ -178,7 +199,7 @@ class LiveTradingService
     {
         $user = User::findOrFail($userId);
 
-        $FX_RATE = $this->getFxRate();
+        $FX_RATE = $this->getFxRateForDisplay();
 
         $portfolioHoldings = Portfolio::where('user_id', $userId)
             ->where('quantity', '>', 0)

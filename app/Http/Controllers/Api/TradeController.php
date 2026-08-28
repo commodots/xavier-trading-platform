@@ -97,7 +97,7 @@ class TradeController extends Controller
         $amount = (float) $request->input('amount');
 
         $settings = SystemSetting::first();
-        $maxTrade = (float) ($settings->max_trade_amount ?? 0);
+        $maxTrade = (float) ($settings?->max_trade_amount ?? 0);
         if ($maxTrade > 0 && $amount > $maxTrade) {
             return response()->json(['success' => false, 'message' => 'Trade exceeds max trade amount.'], 422);
         }

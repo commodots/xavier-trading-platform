@@ -118,7 +118,7 @@ class DemoModeTest extends TestCase
             ->assertJson([
                 'success' => true,
                 'is_demo' => true,
-                'message' => 'Demo account instantly funded!',
+                'message' => "Demo account instantly funded! Successfully deposited ₦".number_format($fundingAmount, 2)." into your NGN wallet.",
             ]);
 
         $newBalance = DemoWallet::where('user_id', $this->user->id)->where('currency', 'NGN')->value('balance');

@@ -44,6 +44,20 @@ class DemoTradingService
         return ($rate && $rate > 0) ? (float) $rate : throw new FxRateUnavailableException();
     }
 
+    /**
+     * FX rate for display-only aggregation (portfolio valuation). A missing
+     * rate must not take down the portfolio endpoint; fall back to 1.0 so
+     * NGN-denominated holdings remain correct and the page still renders.
+     */
+    private function getFxRateOrDefault(): float
+    {
+        try {
+            return $this->getFxRate();
+        } catch (FxRateUnavailableException) {
+            return 1.0;
+        }
+    }
+
     public function executeTrade($user, array $data)
     {
         if ($user->trading_mode !== 'demo') {
@@ -67,9 +81,12 @@ class DemoTradingService
             $type = $data['side'];
             $amount = $data['amount'];
             $price = $data['market_price'];
-            $fxRate = $this->getFxRate();
 
             $isUsdMarket = in_array($market, ['foreign', 'crypto']);
+
+            // FX is only required for USD-denominated markets. NGN trades must
+            // not fail simply because no USD/NGN rate has been configured.
+            $fxRate = $isUsdMarket ? $this->getFxRate() : 1.0;
 
             $currency = $isUsdMarket ? 'USD' : 'NGN';
             $wallet = $this->walletRepo->findByCurrency($user->id, $currency);
@@ -90,7 +107,8 @@ class DemoTradingService
                 throw new \Exception('Amount too low to purchase units.');
             }
 
-            $totalCost = $quantity * $price * ($isUsdMarket ? $fxRate : 1);
+            // Mirror LiveTradingService
+            $totalCost = $quantity * $price;
 
             // Track balance before for the Ledger
             $balanceBefore = (float) $wallet->balance;
@@ -198,7 +216,7 @@ class DemoTradingService
     {
         $portfolios = DemoPortfolio::where('user_id', $userId)->get();
         $wallets = DemoWallet::where('user_id', $userId)->get();
-        $fxRate = $this->getFxRate();
+        $fxRate = $this->getFxRateOrDefault();
 
         $ngxValue = 0;
         $globalValueNgn = 0;

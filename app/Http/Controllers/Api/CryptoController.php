@@ -84,9 +84,19 @@ class CryptoController extends Controller
             
             return response()->json(['success' => true, 'tx_hash' => $result['txId'] ?? null]);
         } catch (\Exception $e) {
-            // Refund if external call fails
+            // Refund if external call fails — restore BOTH the cleared balance and
+            // the total balance (the debit path decremented both), then recompute.
             DB::transaction(function () use ($user, $amount, $transaction) {
-                Wallet::where('user_id', $user->id)->where('currency', 'USD')->increment('usd_cleared', $amount);
+                $wallet = Wallet::where('user_id', $user->id)
+                    ->where('currency', 'USD')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($wallet) {
+                    $wallet->increment('usd_cleared', $amount);
+                    $wallet->refreshBalance();
+                }
+
                 $transaction->update(['status' => 'failed']);
             });
             return response()->json(['success' => false, 'message' => 'Withdrawal failed'], 500);
