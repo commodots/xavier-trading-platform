@@ -4,7 +4,7 @@
       <h1 class="text-xl font-bold text-white">Expense Report</h1>
     </div>
 
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-4">
       <DateFilter @filter-change="onFilterChange" />
       <ExportButton
         reportType="expenses"
@@ -72,6 +72,7 @@
           :sort-by="sortBy"
           :sort-dir="sortDir"
           @sort="handleSort"
+          :filters="tableFilters"
         >
           <template #cell-amount="{ row }">
             <span class="block font-mono text-right">₦{{ formatNumber(Number(row.amount)) }}</span>
@@ -119,8 +120,8 @@ const categories = ref([]);
 const vendors = ref([]);
 const departments = ref([]);
 const filters = reactive({
-  date_from: '',
-  date_to: '',
+  start_date: '',
+  end_date: '',
   category_id: '',
   vendor_id: '',
   department_id: '',
@@ -207,11 +208,56 @@ const tableRows = computed(() => tableData.value);
 };
 
 const onFilterChange = (payload) => {
-  filters.date_from = payload.start_date || '';
-  filters.date_to = payload.end_date || '';
+  filters.start_date = payload.start_date || '';
+  filters.end_date = payload.end_date || '';
   filters.period = payload.period || 'month';
   fetchData(1);
 };
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [
+      { label: 'Draft', value: 'draft' },
+      { label: 'Approved', value: 'approved' },
+      { label: 'Paid', value: 'paid' },
+      { label: 'Cancelled', value: 'cancelled' },
+    ],
+  },
+  {
+    key: 'category',
+    label: 'Category',
+    allLabel: 'All Categories',
+    options: [...new Set(tableData.value.map((row) => row.category).filter((value) => value && value !== 'N/A'))],
+  },
+  {
+    key: 'vendor',
+    label: 'Vendor',
+    allLabel: 'All Vendors',
+    options: [...new Set(tableData.value.map((row) => row.vendor).filter((value) => value && value !== 'N/A'))],
+  },
+  {
+    key: 'department',
+    label: 'Department',
+    allLabel: 'All Departments',
+    options: [...new Set(tableData.value.map((row) => row.department).filter((value) => value && value !== 'N/A'))],
+  },
+  {
+    key: 'payment_method',
+    label: 'Payment',
+    allLabel: 'All Payment Methods',
+    options: [
+      { label: 'Cash', value: 'cash' },
+      { label: 'Bank Transfer', value: 'bank_transfer' },
+      { label: 'Card', value: 'card' },
+      { label: 'Wallet', value: 'wallet' },
+      { label: 'Other', value: 'other' },
+    ],
+  },
+]);
 
 const handleSort = (key) => {
   if (sortBy.value === key) {

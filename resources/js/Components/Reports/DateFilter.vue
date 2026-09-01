@@ -19,13 +19,20 @@
         @change="emitFilter"
         class="bg-[#1C2541] text-white text-xs rounded-lg px-2 py-1.5 border border-[#1f3348] focus:border-[#0047AB] outline-none"
       />
-      <span class="text-gray-500 text-xs">to</span>
+      <span class="text-xs text-gray-500">to</span>
       <input
         v-model="endDate"
         type="date"
         @change="emitFilter"
         class="bg-[#1C2541] text-white text-xs rounded-lg px-2 py-1.5 border border-[#1f3348] focus:border-[#0047AB] outline-none"
       />
+      <button
+        @click="resetFilters"
+        class="px-2 py-1.5 text-xs font-medium rounded-lg transition-colors text-gray-400 hover:text-white bg-[#1f3348]"
+        title="Reset to default"
+      >
+        Reset
+      </button>
     </div>
   </div>
 </template>
@@ -110,5 +117,12 @@ const emitFilter = () => {
     end_date: endDate.value,
     period: selectedPreset.value,
   });
+};
+
+const resetFilters = () => {
+  selectedPreset.value = 'month';
+  startDate.value = '';
+  endDate.value = '';
+  emitFilter();
 };
 </script>

@@ -41,19 +41,10 @@
         <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key; fetchData(1)" :class="activeTab === tab.key ? 'bg-[#0047AB] text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 text-sm font-medium transition rounded-lg">{{ tab.label }}</button>
       </div>
       <DateFilter @filter-change="handleFilterChange" />
-      <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-        <option disabled value="" class="text-white">Status</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="rejected">Rejected</option>
-        <option value="paid">Paid</option>
-      </select>
-      <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-      <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
       <ExportButton
         reportType="wallet-withdrawals"
-        :startDate="filters.from"
-        :endDate="filters.to"
+        :startDate="filters.start_date"
+        :endDate="filters.end_date"
         :extraParams="{ tab: activeTab, status: filters.status }"
       />
     </div>
@@ -61,7 +52,7 @@
     <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
       <SkeletonLoader type="table" :count="8" class="opacity-40" />
     </div>
-    <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" :title="activeTab === 'withdrawals' ? 'Withdrawal activity' : activeTab === 'wallet_ledger' ? 'Wallet ledger' : 'Adjustment history'" :description="activeTab === 'withdrawals' ? 'Withdrawal requests and their review outcome.' : activeTab === 'wallet_ledger' ? 'Wallet movements for the selected range.' : 'Manual balance adjustments and reasons.'">
+    <ReportTable v-else :columns="columns" :data="rows" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" :filters="tableFilters" :title="activeTab === 'withdrawals' ? 'Withdrawal activity' : activeTab === 'wallet_ledger' ? 'Wallet ledger' : 'Adjustment history'" :description="activeTab === 'withdrawals' ? 'Withdrawal requests and their review outcome.' : activeTab === 'wallet_ledger' ? 'Wallet movements for the selected range.' : 'Manual balance adjustments and reasons.'">
       <template #cell-amount="{ row }">
         <span class="block font-mono text-right">{{ getCurrencySymbol(row.currency || 'USD') }}{{ formatNumber(Number(row.amount)) }}</span>
       </template>
@@ -93,7 +84,7 @@ const walletSummary = ref([]);
 const rows = ref([]);
 const loading = ref(false);
 const activeTab = ref('withdrawals');
-const filters = reactive({ from: '', to: '', period: 'month' });
+const filters = reactive({ start_date: '', end_date: '', period: 'month' });
 
 const tabs = [
   { key: 'withdrawals', label: 'Withdrawals' },
@@ -170,11 +161,29 @@ const formatNumber = (num) => {
 };
 
 const handleFilterChange = (payload) => {
-  filters.from = payload.start_date || '';
-  filters.to = payload.end_date || '';
+  filters.start_date = payload.start_date || '';
+  filters.end_date = payload.end_date || '';
   filters.period = payload.period || 'month';
   fetchData(1);
 };
+
+
+const tableFilters = computed(() => {
+  if (activeTab.value !== 'withdrawals') return [];
+  return [
+    {
+      key: 'status',
+      label: 'Status',
+      allLabel: 'All Statuses',
+      options: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Approved', value: 'approved' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Rejected', value: 'rejected' },
+      ],
+    },
+  ];
+});
 
 const fetchData = async (page = 1) => {
   loading.value = true;
@@ -203,16 +212,6 @@ const fetchData = async (page = 1) => {
 const handleSort = (key) => {
   if (sortBy.value === key) { sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'; }
   else { sortBy.value = key; sortDir.value = 'asc'; }
-  fetchData(1);
-};
-
-const resetFilters = () => {
-  filters.from = '';
-  filters.to = '';
-  filters.period = 'month';
-  filters.status = '';
-  sortBy.value = '';
-  sortDir.value = 'desc';
   fetchData(1);
 };
 

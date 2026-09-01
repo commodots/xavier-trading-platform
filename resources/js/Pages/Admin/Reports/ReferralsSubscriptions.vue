@@ -30,7 +30,7 @@
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="8" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="referralColumns" :data="referrals" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="Referral activity" description="Referral conversions and commissions captured in the selected period.">
+      <ReportTable v-else :columns="referralColumns" :data="referrals" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="Referral activity" description="Referral conversions and commissions captured in the selected period." :filters="tableFilters">
         <template #cell-status="{ row }">
           <span :class="row.status === 'paid' ? 'text-green-400' : row.status === 'pending' ? 'text-yellow-400' : 'text-red-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
@@ -48,7 +48,7 @@
       <div v-if="loading" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-5">
         <SkeletonLoader type="table" :count="8" class="opacity-40" />
       </div>
-      <ReportTable v-else :columns="subColumns" :data="subscriptions" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="Subscription activity" description="Plan subscriptions and renewal status for the selected range.">
+      <ReportTable v-else :columns="subColumns" :data="subscriptions" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="Subscription activity" description="Plan subscriptions and renewal status for the selected range." :filters="tableFilters">
         <template #cell-status="{ row }">
           <span :class="row.status === 'active' ? 'text-green-400' : row.status === 'expired' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
@@ -107,6 +107,18 @@ const handleFilterChange = (payload) => {
   filters.period = payload.period || 'month';
   fetchData(1);
 };
+
+const tableFilters = computed(() => {
+  const source = activeTab.value === 'referrals' ? referrals.value : subscriptions.value;
+  return [
+    {
+      key: 'status',
+      label: 'Status',
+      allLabel: 'All Statuses',
+      options: [...new Set(source.map((row) => row.status).filter(Boolean))],
+    },
+  ];
+});
 
 const fetchData = async (page = 1) => {
   loading.value = true;

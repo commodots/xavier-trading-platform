@@ -14,7 +14,7 @@
     </div>
 
     <div v-if="loading" class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div v-for="i in 4" :key="i" class="bg-[#0F1724] border border-[#1f3348] rounded-xl p-4 h-24 animate-pulse"></div>
       </div>
     </div>
@@ -22,7 +22,7 @@
     <template v-else>
       <SummaryCards :cards="summaryCards" />
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ReportChart
           v-if="charts[0]"
           :title="charts[0].title"
@@ -41,16 +41,9 @@
 
       <div class="flex items-center justify-between gap-4 mb-3">
         <h2 class="text-sm font-medium text-white">Subscription Records</h2>
-        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
-          <option value="" disabled selected class="text-gray-500">All Status</option>
-          <option value="active" class="text-white">Active</option>
-          <option value="trial" class="text-white">Trial</option>
-          <option value="expired" class="text-white">Expired</option>
-          <option value="cancelled" class="text-white">Cancelled</option>
-        </select>
       </div>
 
-      <ReportTable :columns="tableColumns" :rows="tableRows" searchable>
+      <ReportTable :columns="tableColumns" :rows="tableRows" :filters="tableFilters">
         <template #cell-status="{ row }">
           <span
             class="px-2 py-0.5 rounded-full text-xs font-medium"
@@ -132,6 +125,21 @@ const tableRows = computed(() => {
     status: row.status || 'N/A',
   }));
 });
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [
+      { label: 'Active', value: 'active' },
+      { label: 'Trial', value: 'trial' },
+      { label: 'Expired', value: 'expired' },
+      { label: 'Cancelled', value: 'cancelled' },
+    ],
+  },
+]);
 
 const fetchData = async () => {
   loading.value = true;

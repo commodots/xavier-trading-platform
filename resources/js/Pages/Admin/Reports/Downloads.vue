@@ -10,6 +10,28 @@
 
       <template v-else>
         <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
+          <div class="flex flex-wrap items-center gap-3 p-3 border-b border-[#1f3348]">
+            <select v-model="formatFilter" class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] focus:border-[#0047AB] outline-none">
+              <option value="">All Formats</option>
+              <option value="pdf">PDF</option>
+              <option value="excel">Excel</option>
+              <option value="csv">CSV</option>
+            </select>
+            <select v-model="statusFilter" class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] focus:border-[#0047AB] outline-none">
+              <option value="">All Statuses</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+            <button
+              v-if="formatFilter || statusFilter"
+              @click="resetFilters"
+              class="px-2 py-2 text-xs font-medium rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-[#1f3348]"
+              title="Reset filters"
+            >
+              ✕ Reset
+            </button>
+          </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -23,12 +45,12 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="history.data.length === 0">
+                <tr v-if="filteredHistory.length === 0">
                   <td colspan="6" class="px-4 py-8 text-center text-gray-500">
-                    <EmptyState message="No reports have been downloaded yet" />
+                    <EmptyState :message="history.data.length === 0 ? 'No reports have been downloaded yet' : 'No reports match your filters'" />
                   </td>
                 </tr>
-                <tr v-for="item in history.data" :key="item.id" class="border-b border-[#1f3348] hover:bg-[#1C2541] transition-colors">
+                <tr v-for="item in filteredHistory" :key="item.id" class="border-b border-[#1f3348] hover:bg-[#1C2541] transition-colors">
                   <td class="px-4 py-3 text-white font-medium">{{ item.name }}</td>
                   <td class="px-4 py-3 text-gray-300">{{ item.user?.name || 'N/A' }}</td>
                   <td class="px-4 py-3">
@@ -70,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import EmptyState from '@/Components/Reports/EmptyState.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import { Download, Trash2, ChevronLeft, ChevronRight } from 'lucide-vue-next';
@@ -78,6 +100,17 @@ import api from '@/api';
 
 const loading = ref(true);
 const history = ref({ data: [], total: 0, per_page: 20, current_page: 1, from: 0, to: 0, prev_page_url: null, next_page_url: null });
+
+const formatFilter = ref('');
+const statusFilter = ref('');
+
+const filteredHistory = computed(() =>
+  history.value.data.filter((item) => {
+    if (formatFilter.value && (item.format || '').toLowerCase() !== formatFilter.value.toLowerCase()) return false;
+    if (statusFilter.value && (item.status || '').toLowerCase() !== statusFilter.value.toLowerCase()) return false;
+    return true;
+  })
+);
 
 const fetchHistory = async (page = 1) => {
   loading.value = true;
@@ -134,6 +167,11 @@ const deleteReport = async (id) => {
 
 const changePage = (page) => {
   fetchHistory(page);
+};
+
+const resetFilters = () => {
+  formatFilter.value = '';
+  statusFilter.value = '';
 };
 
 onMounted(() => fetchHistory());

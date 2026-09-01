@@ -43,6 +43,7 @@
         <ReportTable
           :columns="tableColumns"
           :data="tableRows"
+          :filters="monthFilters"
         >
           <template #cell-revenue="{ row }">
             <span class="font-mono">₦{{ formatNumber(row.revenue) }}</span>
@@ -100,6 +101,15 @@ const tableColumns = [
 ];
 
 const tableRows = computed(() => tableData.value);
+
+const monthFilters = computed(() => [
+  {
+    key: 'month',
+    label: 'Month',
+    allLabel: 'All Months',
+    options: [...new Set(tableData.value.map((row) => row.month).filter(Boolean))],
+  },
+]);
 
 const fetchData = async () => {
   loading.value = true;

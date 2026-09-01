@@ -80,8 +80,16 @@ o<template>
 
         <div class="lg:col-span-2">
           <div class="bg-[#0F1724] border border-[#1f3348] rounded-xl overflow-hidden">
-            <div class="p-6 border-b border-[#1f3348]">
+            <div class="p-6 border-b border-[#1f3348] flex flex-wrap items-center justify-between gap-4">
               <h2 class="text-lg font-medium text-white">Recent Downloads</h2>
+              <div class="flex flex-wrap items-center gap-3">
+                <select v-model="historyFormat" class="bg-[#16213A] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none">
+                  <option value="">All Formats</option>
+                  <option value="pdf">PDF</option>
+                  <option value="excel">Excel</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
             </div>
             
             <div class="overflow-x-auto">
@@ -116,7 +124,7 @@ o<template>
 
                 <!-- DATA RENDER STATE -->
                 <tbody v-else class="divide-y divide-[#1f3348]">
-                  <tr v-for="report in reportHistory" :key="report.id" class="hover:bg-[#16213A] transition">
+                  <tr v-for="report in filteredReportHistory" :key="report.id" class="hover:bg-[#16213A] transition">
                     <td class="px-6 py-4">
                       <div class="font-medium text-white">{{ report.name }}</div>
                       <div class="text-[10px] text-gray-500">{{ report.created_at }}</div>
@@ -133,6 +141,9 @@ o<template>
                   </tr>
                   <tr v-if="reportHistory.length === 0">
                     <td colspan="4" class="px-6 py-10 italic text-center text-gray-500">No reports generated yet.</td>
+                  </tr>
+                  <tr v-else-if="filteredReportHistory.length === 0">
+                    <td colspan="4" class="px-6 py-10 italic text-center text-gray-500">No reports match your filters.</td>
                   </tr>
                 </tbody>
               </table>
@@ -399,7 +410,7 @@ o<template>
 </template>
 
   <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import MainLayout from "@/Layouts/MainLayout.vue";
 import SuccessModal from "@/Components/SuccessModal.vue";
 import ErrorModal from "@/Components/ErrorModal.vue";
@@ -468,7 +479,16 @@ const formatDate = (dateString) => {
     return dateString;
   }
 };
-const reportHistory = ref([]); 
+const reportHistory = ref([]);
+
+const historyFormat = ref('');
+
+const filteredReportHistory = computed(() =>
+  reportHistory.value.filter((report) => {
+    if (historyFormat.value && String(report.format || '').toLowerCase() !== historyFormat.value) return false;
+    return true;
+  })
+); 
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
 const showWarningModal = ref(false);

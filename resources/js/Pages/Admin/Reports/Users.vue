@@ -10,35 +10,9 @@
       <StatCard v-for="s in summary" :key="s.title" v-bind="s" />
     </div>
 
-    <!-- Search & Filters -->
-    <div v-if="!loading" class="flex flex-wrap items-center gap-4">
-      <SearchBar v-model="filters.search" placeholder="Search users..." />
+    <!-- Date range + Export -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
       <DateFilter @filter-change="handleFilterChange" />
-      <select v-model="filters.kyc_status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
-        <option value="" disabled selected class="text-gray-500">KYC status</option>
-        <option value="verified" class="text-white">Verified</option>
-        <option value="pending" class="text-white">Pending</option>
-        <option value="rejected" class="text-white">Rejected</option>
-        <option value="none" class="text-white">None</option>
-      </select>
-      <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
-        <option value="" disabled selected class="text-gray-500">User status</option>
-        <option value="active" class="text-white">Active</option>
-        <option value="suspended" class="text-white">Suspended</option>
-        <option value="inactive" class="text-white">Inactive</option>
-      </select>
-      <select v-model="filters.subscription" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
-        <option value="" disabled selected class="text-white">Subscription</option>
-        <option value="active" class="text-white">Active</option>
-        <option value="inactive" class="text-white">Inactive</option>
-        <option value="trial" class="text-white">Trial</option>
-      </select>
-      <select v-model="filters.country" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-sm outline-none">
-        <option value="" disabled selected class="text-gray-500">Country</option>
-        <option v-for="country in filterOptions.countries" :key="country" :value="country" class="text-white">{{ country }}</option>
-      </select>
-      <button @click="fetchUsers" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-      <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
       <ExportButton
         reportType="users"
         :startDate="filters.from"
@@ -48,10 +22,10 @@
 
     <!-- Table -->
     <SkeletonLoader v-if="loading" type="table" :count="8" class="opacity-40" />
-    <ReportTable v-else :columns="columns" :data="users" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" title="User activity" description="Users matching the current filters and their account status.">
+    <ReportTable v-else :columns="columns" :data="users" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" :filters="tableFilters" title="User activity" description="Users matching the selected filters and their account status.">
       <template #cell-avatar="{ row }">
         <div class="inline-flex items-center justify-center w-8 h-8 rounded-full overflow-hidden border border-[#1f3348]">
-          <img v-if="row.avatar" :src="row.avatar" :alt="row.name" class="w-full h-full object-cover" />
+          <img v-if="row.avatar" :src="row.avatar" :alt="row.name" class="object-cover w-full h-full" />
           <div v-else class="flex items-center justify-center w-full h-full bg-[#0047AB] text-white text-xs font-medium">
             {{ row.name?.charAt(0)?.toUpperCase() || 'U' }}
           </div>
@@ -83,10 +57,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import StatCard from '@/Components/Reports/StatCard.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
-import SearchBar from '@/Components/Reports/SearchBar.vue';
 import DateFilter from '@/Components/Reports/DateFilter.vue';
 import ExportButton from '@/Components/Reports/ExportButton.vue';
 import Pagination from '@/Components/Reports/Pagination.vue';
@@ -117,7 +90,7 @@ const currentPage = ref(1);
 const perPage = ref(20);
 const sortBy = ref('');
 const sortDir = ref('desc');
-const filters = reactive({ search: '', from: '', to: '', period: 'month', kyc_status: '' });
+const filters = reactive({ from: '', to: '', period: 'month', kyc_status: '', status: '', subscription: '', country: '' });
 const pagination = reactive({ current_page: 1, last_page: 1, total: 0, per_page: 20 });
 
 const columns = [
@@ -125,6 +98,7 @@ const columns = [
   { key: 'name', label: 'Name', sortable: true, width: '120px', cellClass: 'px-2 py-2' },
   { key: 'email', label: 'Email', width: '150px', cellClass: 'px-2 py-2' },
   { key: 'phone', label: 'Phone', width: '100px', cellClass: 'px-2 py-2' },
+  { key: 'country', label: 'Country', width: '100px', cellClass: 'px-2 py-2' },
   { key: 'kyc_status', label: 'KYC', width: '70px', cellClass: 'px-2 py-2' },
   { key: 'subscription_status', label: 'Sub', width: '70px', cellClass: 'px-2 py-2' },
   { key: 'status', label: 'Status', width: '80px', cellClass: 'px-2 py-2' },
@@ -140,6 +114,7 @@ const handleSort = (key) => {
 };
 
 const handlePageChange = (page) => {
+  currentPage.value = page;
   pagination.current_page = page;
   fetchUsers();
 };
@@ -157,6 +132,47 @@ const handleFilterChange = (payload) => {
   filters.period = payload.period || 'month';
   fetchUsers();
 };
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'kyc_status',
+    label: 'KYC',
+    allLabel: 'All KYC Statuses',
+    options: [
+      { label: 'Verified', value: 'verified' },
+      { label: 'Pending', value: 'pending' },
+      { label: 'Rejected', value: 'rejected' },
+      { label: 'None', value: 'none' },
+    ],
+  },
+  {
+    key: 'status',
+    label: 'User Status',
+    allLabel: 'All User Statuses',
+    options: [
+      { label: 'Active', value: 'active' },
+      { label: 'Pending', value: 'pending' },
+      { label: 'Suspended', value: 'suspended' },
+    ],
+  },
+  {
+    key: 'subscription_status',
+    label: 'Subscription',
+    allLabel: 'All Subscriptions',
+    options: [
+      { label: 'Active', value: 'active' },
+      { label: 'Trial', value: 'trial' },
+      { label: 'Expired', value: 'expired' },
+    ],
+  },
+  {
+    key: 'country',
+    label: 'Country',
+    allLabel: 'All Countries',
+    options: filterOptions.value.countries,
+  },
+]);
 
 const fetchUsers = async () => {
   loading.value = true;
@@ -179,19 +195,6 @@ const fetchUsers = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-const resetFilters = () => {
-  filters.search = '';
-  filters.from = '';
-  filters.to = '';
-  filters.period = 'month';
-  filters.kyc_status = '';
-  filters.status = '';
-  filters.subscription = '';
-  filters.country = '';
-  pagination.current_page = 1;
-  fetchUsers();
 };
 
 const viewUser = (id) => {

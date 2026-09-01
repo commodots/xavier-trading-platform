@@ -6,39 +6,11 @@
 
     <!-- Filters -->
     <div class="flex flex-wrap items-center justify-between gap-4">
-      <div class="flex flex-wrap items-center gap-4">
-        <DateFilter @filter-change="onFilterChange" />
-
-        <select v-model="filters.source" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-          <option value="" class="text-white">All Sources</option>
-          <option value="subscription" class="text-white">Subscription</option>
-          <option value="platform_fee" class="text-white">Platform Fee</option>
-          <option value="trading_fee" class="text-white">Trading Fee</option>
-          <option value="other" class="text-white">Other Income</option>
-        </select>
-
-        <select v-model="filters.status" class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none">
-          <option value="" class="text-white">All Statuses</option>
-          <option value="paid" class="text-white">Paid</option>
-          <option value="completed" class="text-white">Completed</option>
-          <option value="active" class="text-white">Active</option>
-        </select>
-
-        <input
-          v-model="filters.search"
-          type="text"
-          placeholder="Search reference or user..."
-          class="bg-[#16213A] border border-gray-700 rounded-lg p-2 text-white text-sm outline-none placeholder-gray-500"
-          @keyup.enter="fetchData(1)"
-        />
-        <button @click="fetchData(1)" class="px-4 py-2 bg-[#0047AB] text-white rounded-lg text-sm">Search</button>
-        <button @click="resetFilters" class="px-4 py-2 text-sm text-white bg-gray-700 rounded-lg">Reset</button>
-      </div>
+      <DateFilter @filter-change="onFilterChange" />
       <ExportButton
         reportType="revenue"
-        :startDate="filters.date_from"
-        :endDate="filters.date_to"
-        :extraParams="{ source: filters.source, status: filters.status, search: filters.search }"
+        :startDate="filters.start_date"
+        :endDate="filters.end_date"
       />
     </div>
 
@@ -78,6 +50,7 @@
           :sort-by="sortBy"
           :sort-dir="sortDir"
           @sort="handleSort"
+          :filters="tableFilters"
         >
           <template #cell-date="{ row }">
             {{ formatDate(row.date) }}
@@ -100,7 +73,7 @@
           :last-page="pagination.last_page"
           :per-page="pagination.per_page"
           :total="pagination.total"
-          @page="handlePageChange"
+          @change="handlePageChange"
         />
       </div>
     </template>
@@ -124,12 +97,11 @@ const charts = ref([]);
 const tableData = ref([]);
 const pagination = ref({ current_page: 1, last_page: 1, per_page: 20, total: 0 });
 const filters = reactive({
-  date_from: '',
-  date_to: '',
+  start_date: '',
+  end_date: '',
   period: 'month',
   source: '',
   status: '',
-  search: '',
   page: 1,
   per_page: 20,
 });
@@ -191,11 +163,34 @@ const fetchData = async (page = 1) => {
 };
 
 const onFilterChange = (payload) => {
-  filters.date_from = payload.start_date || '';
-  filters.date_to = payload.end_date || '';
+  filters.start_date = payload.start_date || '';
+  filters.end_date = payload.end_date || '';
   filters.period = payload.period || 'month';
   fetchData(1);
 };
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'source_label',
+    label: 'Source',
+    allLabel: 'All Sources',
+    options: [...new Set(tableData.value.map((row) => row.source_label).filter(Boolean))],
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [
+      { label: 'Pending', value: 'pending' },
+      { label: 'Completed', value: 'completed' },
+      { label: 'Approved', value: 'approved' },
+      { label: 'Paid', value: 'paid' },
+      { label: 'Failed', value: 'failed' },
+      { label: 'Cancelled', value: 'cancelled' },
+    ],
+  },
+]);
 
 const handleSort = (key) => {
   if (sortBy.value === key) {
@@ -209,16 +204,6 @@ const handleSort = (key) => {
 
 const handlePageChange = (page) => {
   fetchData(page);
-};
-
-const resetFilters = () => {
-  filters.date_from = '';
-  filters.date_to = '';
-  filters.period = 'month';
-  filters.source = '';
-  filters.status = '';
-  filters.search = '';
-  fetchData(1);
 };
 
 const formatNumber = (num) => {

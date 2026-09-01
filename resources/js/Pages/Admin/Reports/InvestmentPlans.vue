@@ -40,7 +40,7 @@
       </div>
 
       <h2 class="text-sm font-medium text-white">Investment Plan Performance</h2>
-      <ReportTable :columns="tableColumns" :rows="tableRows" searchable>
+      <ReportTable :columns="tableColumns" :rows="tableRows" :filters="tableFilters">
         <template #cell-status="{ row }">
           <span
             class="px-2 py-0.5 rounded-full text-xs font-medium"
@@ -102,6 +102,15 @@ const tableRows = computed(() => {
     status: row.status || 'N/A',
   }));
 });
+
+const tableFilters = computed(() => [
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [...new Set(tableRows.value.map((row) => row.status).filter((status) => status && status !== 'N/A'))],
+  },
+]);
 
 const fetchData = async () => {
   loading.value = true;

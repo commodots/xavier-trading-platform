@@ -21,7 +21,7 @@
     <template v-else>
       <SummaryCards :cards="summaryCards" />
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ReportChart
           v-if="charts[0]"
           :title="charts[0].title"
@@ -40,16 +40,9 @@
 
       <div class="flex items-center justify-between gap-4 mb-3">
         <h2 class="text-sm font-medium text-white">KYC Records</h2>
-        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="verified">Verified</option>
-          <option value="rejected">Rejected</option>
-        </select>
       </div>
 
-      <ReportTable :columns="tableColumns" :rows="tableRows" searchable>
+      <ReportTable :columns="tableColumns" :rows="tableRows" :filters="tableFilters">
         <template #cell-status="{ row }">
           <span
             class="px-2 py-0.5 rounded-full text-xs font-medium"
@@ -113,6 +106,21 @@ const tableRows = computed(() => {
     status: row.status,
   }));
 });
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [
+      { label: 'Pending', value: 'pending' },
+      { label: 'Approved', value: 'approved' },
+      { label: 'Verified', value: 'verified' },
+      { label: 'Rejected', value: 'rejected' },
+    ],
+  },
+]);
 
 const fetchData = async () => {
   loading.value = true;

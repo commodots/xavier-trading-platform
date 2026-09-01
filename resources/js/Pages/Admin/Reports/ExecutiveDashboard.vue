@@ -117,7 +117,7 @@
 
       <!-- Latest Tables -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ReportTable :columns="userColumns" :data="latestUsers">
+        <ReportTable :columns="userColumns" :data="latestUsers" :filters="userFilters">
           <template #header>
             <h3 class="text-lg font-semibold text-white">Latest Users</h3>
           </template>
@@ -125,7 +125,7 @@
             <span :class="row.status === 'active' ? 'text-green-400' : row.status === 'suspended' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
           </template>
         </ReportTable>
-        <ReportTable :columns="depositColumns" :data="latestDeposits">
+        <ReportTable :columns="depositColumns" :data="latestDeposits" :filters="depositFilters">
           <template #header>
             <h3 class="text-lg font-semibold text-white">Latest Deposits</h3>
           </template>
@@ -138,7 +138,7 @@
         </ReportTable>
       </div>
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ReportTable :columns="withdrawalColumns" :data="latestWithdrawals">
+        <ReportTable :columns="withdrawalColumns" :data="latestWithdrawals" :filters="withdrawalFilters">
           <template #header>
             <h3 class="text-lg font-semibold text-white">Latest Withdrawals</h3>
           </template>
@@ -149,7 +149,7 @@
             <span :class="row.status === 'approved' ? 'text-green-400' : row.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
           </template>
         </ReportTable>
-        <ReportTable :columns="investmentColumns" :data="latestInvestments">
+        <ReportTable :columns="investmentColumns" :data="latestInvestments" :filters="investmentFilters">
           <template #header>
             <h3 class="text-lg font-semibold text-white">Latest Investments</h3>
           </template>
@@ -283,6 +283,19 @@ const latestUsers = computed(() => data.value.latest_users || []);
 const latestDeposits = computed(() => data.value.latest_deposits || []);
 const latestWithdrawals = computed(() => data.value.latest_withdrawals || []);
 const latestInvestments = computed(() => data.value.latest_investments || []);
+
+const statusFilterDef = (rows) => [
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [...new Set(rows.map((row) => row.status).filter(Boolean))],
+  },
+];
+const userFilters = computed(() => statusFilterDef(latestUsers.value));
+const depositFilters = computed(() => statusFilterDef(latestDeposits.value));
+const withdrawalFilters = computed(() => statusFilterDef(latestWithdrawals.value));
+const investmentFilters = computed(() => statusFilterDef(latestInvestments.value));
 
 const userColumns = [
   { key: 'name', label: 'Name' },

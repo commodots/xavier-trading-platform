@@ -21,7 +21,7 @@
     <template v-else>
       <SummaryCards :cards="summaryCards" />
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ReportChart
           v-if="charts[0]"
           :title="charts[0].title"
@@ -40,17 +40,9 @@
 
       <div class="flex items-center justify-between gap-4 mb-3">
         <h2 class="text-sm font-medium text-white">Maturity Schedule</h2>
-        <div class="flex items-center gap-2">
-        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
-          <option value="" disabled selected class="text-gray-500">All Status</option>
-          <option value="filled" class="text-white">Completed</option>
-            <option value="pending">Pending</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
       </div>
 
-      <ReportTable :columns="tableColumns" :rows="tableRows" searchable>
+      <ReportTable :columns="tableColumns" :rows="tableRows" :filters="tableFilters">
         <template #cell-status="{ row }">
           <span
             class="px-2 py-0.5 rounded-full text-xs font-medium"
@@ -114,6 +106,20 @@ const tableRows = computed(() => {
     start_date: row.created_at,
   }));
 });
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'status',
+    label: 'Status',
+    allLabel: 'All Statuses',
+    options: [
+      { label: 'Completed', value: 'filled' },
+      { label: 'Pending', value: 'pending' },
+      { label: 'Cancelled', value: 'cancelled' },
+    ],
+  },
+]);
 
 const fetchData = async () => {
   loading.value = true;

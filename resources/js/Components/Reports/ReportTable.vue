@@ -8,15 +8,40 @@
       <slot name="actions" />
     </div>
 
-    <!-- Search -->
-    <div v-if="searchable" class="p-3 border-b border-[#1f3348]">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Search..."
-        @input="onSearch"
-        class="w-full bg-[#1C2541] text-white text-sm rounded-lg px-3 py-2 border border-[#1f3348] focus:border-[#0047AB] outline-none placeholder-gray-500"
-      />
+    <!-- Search & Dropdown Filters -->
+    <div v-if="searchable || filters.length" class="flex flex-wrap items-center gap-3 p-3 border-b border-[#1f3348]">
+      <div v-if="searchable" class="relative min-w-[200px] flex-1">
+        <svg class="absolute w-4 h-4 text-gray-500 -translate-y-1/2 left-3 top-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          :placeholder="searchPlaceholder"
+          @input="onSearch"
+          class="w-full bg-[#1C2541] text-white text-sm rounded-lg pl-9 pr-3 py-2 border border-[#1f3348] focus:border-[#0047AB] outline-none placeholder-gray-500"
+        />
+      </div>
+      <select
+        v-for="flt in filters"
+        :key="flt.key"
+        :value="flt.server ? (flt.value ?? '') : (activeFilters[flt.key] ?? '')"
+        @change="onFilterSelect(flt, $event)"
+        class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] focus:border-[#0047AB] outline-none"
+      >
+        <option value="">{{ flt.allLabel || `All ${flt.label}` }}</option>
+        <option v-for="opt in normalizeOptions(flt.options)" :key="opt.value" :value="opt.value" class="text-white">
+          {{ opt.label }}
+        </option>
+      </select>
+      <button
+        v-if="hasActiveFiltersOrSearch"
+        @click="resetFiltersAndSearch"
+        class="px-2 py-2 text-xs font-medium rounded-lg transition-colors text-gray-400 hover:text-white bg-[#2f5680]"
+        title="Reset filters"
+      >
+       Reset Filters
+      </button>
     </div>
 
     <!-- Table -->
@@ -134,6 +159,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  searchPlaceholder: {
+    type: String,
+    default: 'Search...',
+  },
+  filters: {
+    type: Array,
+    default: () => [],
+  },
   sortBy: {
     type: String,
     default: '',
@@ -152,12 +185,47 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['sort', 'page-change', 'search']);
+const emit = defineEmits(['sort', 'page-change', 'search', 'filter-change']);
 
 const searchQuery = ref('');
 const sortColumn = ref(props.sortBy || '');
 const sortDirection = ref(props.sortDir || 'asc');
 const slots = useSlots();
+const activeFilters = ref({});
+
+watch(
+  () => props.filters,
+  (defs) => {
+    const next = {};
+    for (const def of defs || []) {
+      next[def.key] = activeFilters.value[def.key] || '';
+    }
+    activeFilters.value = next;
+  },
+  { immediate: true, deep: true }
+);
+
+// Plain-string options get a readable label (underscores become spaces,
+// first letter capitalized) while keeping the raw value for exact matching.
+const prettifyLabel = (value) =>
+  String(value)
+    .replace(/_/g, ' ')
+    .replace(/^./, (ch) => ch.toUpperCase());
+
+const normalizeOptions = (options) =>
+  (options || []).map((opt) =>
+    opt !== null && typeof opt === 'object'
+      ? { label: opt.label, value: opt.value }
+      : { label: prettifyLabel(opt), value: opt }
+  );
+
+const onFilterSelect = (def, event) => {
+  const value = event.target.value;
+  if (!def.server) {
+    activeFilters.value[def.key] = value;
+  }
+  emit('filter-change', { key: def.key, value });
+};
 
 const tableRows = computed(() => {
   return props.data.length ? props.data : props.rows;
@@ -172,6 +240,15 @@ const sortedRows = computed(() => {
       Object.values(row).some((val) =>
         String(val).toLowerCase().includes(q)
       )
+    );
+  }
+
+  for (const def of props.filters) {
+    if (def.server) continue;
+    const selected = activeFilters.value[def.key];
+    if (selected === '' || selected === undefined || selected === null) continue;
+    data = data.filter(
+      (row) => String(row[def.key] ?? '').toLowerCase() === String(selected).toLowerCase()
     );
   }
 
@@ -192,15 +269,43 @@ const paginatedRows = computed(() => {
   if (!props.pagination) return sortedRows.value;
   
   const { current_page, per_page } = props.pagination;
-  const start = (current_page - 1) * per_page;
+  // Clamp the displayed page so filtering/sorting never leaves an empty view
+  const maxPage = Math.max(1, Math.ceil(sortedRows.value.length / per_page));
+  const page = Math.min(current_page, maxPage);
+  const start = (page - 1) * per_page;
   const end = start + per_page;
   
   return sortedRows.value.slice(start, end);
 });
 
+const hasClientFilters = computed(() => {
+  if (searchQuery.value) return true;
+  return props.filters.some((def) => {
+    if (def.server) return false;
+    const selected = activeFilters.value[def.key];
+    return selected !== '' && selected !== undefined && selected !== null;
+  });
+});
+
+const hasActiveFiltersOrSearch = computed(() => {
+  return hasClientFilters.value;
+});
+
 const computedPagination = computed(() => {
   if (!props.pagination) {
     return null;
+  }
+
+  // While client-side search/filters are active, reflect the filtered view
+
+  if (hasClientFilters.value) {
+    const perPage = props.pagination.per_page;
+    const total = sortedRows.value.length;
+    const lastPage = Math.max(1, Math.ceil(total / perPage));
+    const page = Math.min(props.pagination.current_page, lastPage);
+    const from = total === 0 ? 0 : (page - 1) * perPage + 1;
+    const to = Math.min(page * perPage, total);
+    return { ...props.pagination, current_page: page, last_page: lastPage, total, from, to };
   }
 
   const from = (props.pagination.current_page - 1) * props.pagination.per_page + 1;
@@ -247,6 +352,15 @@ const changePage = (page) => {
 
 const onSearch = () => {
   emit('search', searchQuery.value);
+};
+
+const resetFiltersAndSearch = () => {
+  
+  searchQuery.value = '';
+  activeFilters.value = {};
+  sortColumn.value = '';
+  sortDirection.value = 'asc';
+ 
 };
 
 const formatCurrency = (value) => {

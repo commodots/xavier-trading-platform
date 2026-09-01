@@ -43,14 +43,9 @@
 
       <div class="flex items-center justify-between gap-4 mb-3">
         <h2 class="text-sm font-medium text-white">Login History</h2>
-        <select v-model="filters.status" @change="fetchData" class="bg-[#1C2541] text-white text-xs rounded-lg px-3 py-2 border border-[#1f3348] outline-none">
-          <option value="">All</option>
-          <option value="success">Successful</option>
-          <option value="failed">Failed</option>
-        </select>
       </div>
 
-      <ReportTable :columns="tableColumns" :rows="tableRows" searchable>
+      <ReportTable :columns="tableColumns" :rows="tableRows" :filters="tableFilters">
         <template #cell-status="{ row }">
           <span
             class="px-2 py-0.5 rounded-full text-xs font-medium"
@@ -112,6 +107,19 @@ const tableRows = computed(() => {
     status: row.successful ? 'success' : 'failed',
   }));
 });
+
+
+const tableFilters = computed(() => [
+  {
+    key: 'status',
+    label: 'Result',
+    allLabel: 'All Results',
+    options: [
+      { label: 'Successful', value: 'success' },
+      { label: 'Failed', value: 'failed' },
+    ],
+  },
+]);
 
 const fetchData = async () => {
   loading.value = true;
