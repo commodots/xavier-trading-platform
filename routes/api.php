@@ -63,12 +63,15 @@ use App\Http\Controllers\SubscriptionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
-
+//FixedIncome
+use App\Http\Controllers\Api\Admin\FixedIncomeProductController;
+use App\Http\Controllers\Api\FixedIncomeController;
 /*
 |--------------------------------------------------------------------------
 | Public Routes
 |--------------------------------------------------------------------------
 */
+
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::post('/onboard', [OnboardingController::class, 'onboard']);
@@ -120,7 +123,7 @@ Route::prefix('dummy')->group(function () {
 */
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user/sessions', [SecurityController::class, 'getActiveSessions']);
     Route::post('/user/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
@@ -135,7 +138,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (Exception $e) {
-            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
@@ -305,6 +308,29 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/initiate', [PaystackController::class, 'initiate']);
         Route::get('/verify/{reference}', [PaystackController::class, 'verify']);
     });
+
+    Route::middleware('auth:sanctum')->prefix('fixed-income')->group(function () {
+
+    Route::get('/products', [
+        FixedIncomeController::class,
+        'index'
+    ]);
+
+    Route::get('/products/{fixedIncomeProduct}', [
+        FixedIncomeController::class,
+        'show'
+    ]);
+
+    Route::post('/products/{fixedIncomeProduct}/calculate', [
+        FixedIncomeController::class,
+        'calculate'
+    ]);
+
+    Route::post('/products/{fixedIncomeProduct}/validate', [
+        FixedIncomeController::class,
+        'validateInvestment'
+    ]);
+});
 
     /* System Administrative Panel Layer */
     Route::middleware('admin')->prefix('admin')->group(function () {
@@ -491,5 +517,49 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/departments/manage/{department}', [DepartmentController::class, 'update']);
         Route::delete('/departments/manage/{department}', [DepartmentController::class, 'destroy']);
         Route::post('/departments/manage/{department}/toggle', [DepartmentController::class, 'toggle']);
+    });
+
+    // ── Fixed Income Product Management ──
+    Route::prefix('fixed-income')->group(function () {
+
+        Route::get('/products', [
+            FixedIncomeProductController::class,
+            'index'
+        ]);
+
+        Route::post('/products', [
+            FixedIncomeProductController::class,
+            'store'
+        ]);
+
+        Route::get('/products/{fixedIncomeProduct}', [
+            FixedIncomeProductController::class,
+            'show'
+        ]);
+
+        Route::put('/products/{fixedIncomeProduct}', [
+            FixedIncomeProductController::class,
+            'update'
+        ]);
+
+        Route::delete('/products/{fixedIncomeProduct}', [
+            FixedIncomeProductController::class,
+            'destroy'
+        ]);
+
+        Route::post('/products/{fixedIncomeProduct}/activate', [
+            FixedIncomeProductController::class,
+            'activate'
+        ]);
+
+        Route::post('/products/{fixedIncomeProduct}/suspend', [
+            FixedIncomeProductController::class,
+            'suspend'
+        ]);
+
+        Route::post('/products/{fixedIncomeProduct}/close', [
+            FixedIncomeProductController::class,
+            'close'
+        ]);
     });
 });
