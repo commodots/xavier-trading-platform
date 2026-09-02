@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
+use App\Models\Demo\DemoWallet;
+use App\Notifications\VerifyEmailNotification;
+use App\Services\KycService;
 use Illuminate\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -15,10 +18,11 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmailContract
 {
-    use HasApiTokens, HasFactory, Notifiable, MustVerifyEmail;
+    use HasApiTokens, HasFactory, MustVerifyEmail, Notifiable;
     use HasRoles;
 
     protected $_trialSubscription;
+
     protected $_currentTier;
 
     protected $fillable = [
@@ -87,7 +91,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // hasMany — named wallets() to match Laravel convention
     public function wallets()
     {
-        return $this->hasMany(\App\Models\Wallet::class);
+        return $this->hasMany(Wallet::class);
     }
 
     /** @deprecated Use wallets() */
@@ -101,7 +105,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function demoWallet()
     {
-        return $this->hasMany(\App\Models\Demo\DemoWallet::class);
+        return $this->hasMany(DemoWallet::class);
     }
 
     //  Relationship: One User has one KYC Record
@@ -116,17 +120,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function getKycVerifiedAttribute(): bool
     {
-        return $this->kyc()->whereIn('status', \App\Services\KycService::VERIFIED_STATUSES)->exists();
+        return $this->kyc()->whereIn('status', KycService::VERIFIED_STATUSES)->exists();
     }
 
     public function orders()
     {
-        return $this->hasMany(\App\Models\Order::class);
+        return $this->hasMany(Order::class);
     }
 
     public function transactions()
     {
-        return $this->hasMany(\App\Models\Transaction::class);
+        return $this->hasMany(Transaction::class);
     }
 
     public function setFirstNameAttribute($value)
@@ -151,17 +155,19 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return new Attribute(
             get: function ($value) {
-                if (!$value) return null;
-                
+                if (! $value) {
+                    return null;
+                }
+
                 // Decrypt the raw database string payload
                 $decrypted = Crypt::decryptString($value);
-                
+
                 // If it's our packed JSON string, decode it and return just the secret string
                 $data = json_decode($decrypted, true);
                 if (is_array($data) && isset($data['secret'])) {
                     return $data['secret'];
                 }
-                
+
                 return $decrypted;
             },
             set: fn ($value) => $value === null ? null : Crypt::encryptString($value),
@@ -199,10 +205,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $this->hasOne(NotificationPreference::class);
     }
+
     public function notifications()
     {
-      
-        return $this->morphMany(\App\Models\Notification::class, 'notifiable')->latest();
+
+        return $this->morphMany(Notification::class, 'notifiable')->latest();
     }
 
     public function holdings()
@@ -215,16 +222,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(ActivityLog::class);
     }
 
-    public function billingRecords() 
-    { 
-        return $this->hasMany(BillingRecord::class); 
+    public function billingRecords()
+    {
+        return $this->hasMany(BillingRecord::class);
     }
-    public function fees() 
-    { 
-        return $this->hasMany(Fee::class); 
+
+    public function fees()
+    {
+        return $this->hasMany(Fee::class);
     }
+
     public function watchlists()
-    { 
+    {
         return $this->hasMany(Watchlist::class);
     }
 
@@ -281,7 +290,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $query->whereHas('subscriptions', function ($q) {
             $q->where('status', 'trial')
-              ->where('expires_at', '>', now());
+                ->where('expires_at', '>', now());
         });
     }
 
@@ -292,7 +301,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $query->whereHas('subscriptions', function ($q) {
             $q->where('status', 'active')
-              ->where('expires_at', '>', now());
+                ->where('expires_at', '>', now());
         });
     }
 
@@ -301,8 +310,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function isStaff(): bool
     {
-        return $this->hasAnyRole(['super-admin','admin', 'accounts', 'manager', 'compliance', 'support'])
-            || in_array($this->role, ['super-admin','admin', 'accounts', 'manager', 'compliance', 'support'], true);
+        return $this->hasAnyRole(['super-admin', 'admin', 'accounts', 'manager', 'compliance', 'support'])
+            || in_array($this->role, ['super-admin', 'admin', 'accounts', 'manager', 'compliance', 'support'], true);
     }
 
     public function isAdmin(): bool
@@ -379,7 +388,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function sendEmailVerificationNotification(): void
     {
-        $this->notify(new \App\Notifications\VerifyEmailNotification);
+        $this->notify(new VerifyEmailNotification);
     }
 
     public function getTrialDaysLeftAttribute()
@@ -391,7 +400,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         }
 
         // If not on an active trial, return the default from settings
-        $settings = \App\Models\SystemSetting::first();
+        $settings = SystemSetting::first();
+
         return (int) ($settings?->trial_days ?? 7);
     }
 
@@ -402,7 +412,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public function getCurrentTierAttribute(): ?string
     {
-        if (!isset($this->_currentTier)) {
+        if (! isset($this->_currentTier)) {
             $activeSubs = $this->subscriptions()
                 ->where('expires_at', '>', now())
                 ->whereIn('status', ['active', 'trial'])
@@ -441,7 +451,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function cryptoAddresses()
     {
-        return $this->hasMany(\App\Models\CryptoAddress::class);
+        return $this->hasMany(CryptoAddress::class);
     }
 
     /**
@@ -462,9 +472,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->getCurrentTierAttribute() === 'premium';
     }
 
-    public function getVerificationLevelAttribute(): string
+    public function getVerificationLevelAttribute(): int
     {
-        return $this->kyc?->level ?? 'none';
+        return max(
+            (int) ($this->attributes['verification_level'] ?? 0),
+            (int) ($this->kyc?->tier ?? 0),
+        );
     }
 
     public function getKycTierAttribute(): int

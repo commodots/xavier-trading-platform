@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\CryptoAddress;
 use App\Models\FxRate;
+use App\Models\Symbol;
 use App\Models\SystemSetting;
 use App\Models\TransactionCharge;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -17,6 +20,7 @@ class WalletFunctionsTest extends TestCase
      * A basic feature test example.
      */
     use RefreshDatabase;
+
     protected User $user;
 
     protected function setUp(): void
@@ -80,7 +84,7 @@ class WalletFunctionsTest extends TestCase
 
     public function test_paystack_webhook_post_bypasses_csrf_and_fails_signature(): void
     {
-        
+
         $response = $this->postJson('/api/paystack/webhook', ['event' => 'charge.success', 'data' => []]);
 
         // Without CSRF token, this should not be 419 (CSRF mismatch) but propagate to signature check.
@@ -130,7 +134,7 @@ class WalletFunctionsTest extends TestCase
 
         // Assert: Check USD balance increased
         $usdWallet->refresh();
-        $this->assertGreaterThan(0, $usdWallet->usd_uncleared);
+        $this->assertGreaterThan(0, $usdWallet->usd_cleared);
     }
 
     public function test_crypto_market_uses_live_api(): void
@@ -164,8 +168,6 @@ class WalletFunctionsTest extends TestCase
 
         Wallet::create(['user_id' => $this->user->id, 'currency' => 'USD', 'usd_cleared' => 1000, 'usd_uncleared' => 0]);
 
-       
-
         $openRes = $this->actingAs($this->user)->postJson('/api/trade/open', ['amount' => 100, 'pair' => 'BTC/USDT', 'type' => 'buy']);
         $openRes->assertStatus(200)->assertJson(['success' => true]);
 
@@ -183,7 +185,7 @@ class WalletFunctionsTest extends TestCase
     {
         $user = User::factory()->create();
         $wallet = Wallet::create(['user_id' => $user->id, 'currency' => 'USD', 'usd_cleared' => 0, 'usd_uncleared' => 0, 'balance' => 0, 'locked' => 0]);
-        $address = \App\Models\CryptoAddress::create(['user_id' => $user->id, 'blockchain' => 'TRON', 'address' => 'TGW1']);
+        $address = CryptoAddress::create(['user_id' => $user->id, 'blockchain' => 'TRON', 'address' => 'TGW1']);
 
         $payload = ['address' => 'TGW1', 'amount' => 10, 'txId' => 'X123'];
 
@@ -202,10 +204,10 @@ class WalletFunctionsTest extends TestCase
     {
         SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
         SystemSetting::create([
-            'crypto_spread' => 0, 
-            'crypto_fee' => 0, 
+            'crypto_spread' => 0,
+            'crypto_fee' => 0,
             'max_trade_amount' => 10000,
-            'base_currency' => 'USD'
+            'base_currency' => 'USD',
         ]);
 
         FxRate::create(['from_currency' => 'USD', 'to_currency' => 'NGN', 'base_rate' => 1500, 'effective_rate' => 1500]);
@@ -239,7 +241,7 @@ class WalletFunctionsTest extends TestCase
         $this->assertEquals(900, $wallet->usd_cleared);
 
         // Clear cache for the next API call
-        \Illuminate\Support\Facades\Cache::forget('crypto_prices');
+        Cache::forget('crypto_prices');
 
         $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
         $closeRes->assertStatus(200);
@@ -253,17 +255,17 @@ class WalletFunctionsTest extends TestCase
 
         // Verify wallet balance after close (should have original $100 + $10 profit = $110)
         $wallet->refresh();
-        $this->assertEqualsWithDelta(1010, $wallet->usd_cleared, 0.01);
+        $this->assertEqualsWithDelta(1010, $wallet->balance, 0.01);
     }
 
     public function test_crypto_trade_loss_scenario(): void
     {
         SystemSetting::create(['crypto_spread' => 0, 'crypto_fee' => 0, 'max_trade_amount' => 10000]);
         SystemSetting::create([
-            'crypto_spread' => 0, 
-            'crypto_fee' => 0, 
+            'crypto_spread' => 0,
+            'crypto_fee' => 0,
             'max_trade_amount' => 10000,
-            'base_currency' => 'USD'
+            'base_currency' => 'USD',
         ]);
 
         FxRate::create(['from_currency' => 'USD', 'to_currency' => 'NGN', 'base_rate' => 1500, 'effective_rate' => 1500]);
@@ -293,9 +295,9 @@ class WalletFunctionsTest extends TestCase
         $this->assertEquals(900, $wallet->usd_cleared);
 
         // Clear cache for the next API call
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
         // Set symbol price for fallback
-        \App\Models\Symbol::updateOrCreate(['symbol' => 'BTC'], ['last_price' => 110]);
+        Symbol::updateOrCreate(['symbol' => 'BTC'], ['last_price' => 110]);
 
         $closeRes = $this->actingAs($user)->postJson("/api/trade/close/{$tradeId}");
         $closeRes->assertStatus(200);
@@ -306,6 +308,6 @@ class WalletFunctionsTest extends TestCase
 
         // Verify wallet balance after close (should have $100 - $10 loss = $90)
         $wallet->refresh();
-        $this->assertEqualsWithDelta(990, $wallet->usd_cleared, 0.01);
+        $this->assertEqualsWithDelta(990, $wallet->balance, 0.01);
     }
 }

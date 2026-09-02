@@ -2,25 +2,22 @@
 
 namespace Tests\Feature;
 
-use App\Models\ReportHistory;
+use App\Models\User;
 use App\Services\Reports\ReportExportService;
 use App\Services\Reports\UserReportService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Tests\TestCase;
 
 class ReportsExportEndToEndTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_export_route_uses_export_service_and_logs_history()
     {
-        // Do not run DB migrations for this test; avoid hitting database.
         $this->withoutMiddleware();
-
-        // Mock the ReportHistory static create to avoid DB writes
-        Mockery::mock('alias:App\\Models\\ReportHistory')
-            ->shouldReceive('create')
-            ->once()
-            ->andReturn(new ReportHistory);
+        $this->actingAs(User::factory()->create());
 
         // Mock the export service to return a simple response
         $exportMock = Mockery::mock(ReportExportService::class);

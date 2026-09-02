@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\KycProfile;
+use App\Models\KycSetting;
 use App\Models\User;
 use App\Services\KycService;
 use Illuminate\Http\Request;
@@ -94,7 +95,7 @@ class QoreidWebhookController extends Controller
             $qoreidData = $request->all();
             $mappedData = KycService::extractQoreidData($qoreidData);
 
-            $tier1Setting = \App\Models\KycSetting::where('tier', 1)->first();
+            $tier1Setting = KycSetting::where('tier', 1)->first();
             $dailyLimit = $tier1Setting?->daily_limit ?? 500000;
 
             // Explicit array fallback protection blocks for update fields
@@ -110,8 +111,6 @@ class QoreidWebhookController extends Controller
                     'nin' => $mappedData['nin'] ?? null,
                     'id_type' => $mappedData['id_type'] ?? null,
                     'id_number' => $mappedData['id_number'] ?? null,
-                    'first_name' => $mappedData['first_name'] ?? null,
-                    'last_name' => $mappedData['last_name'] ?? null,
                     'meta' => $mappedData['meta'] ?? [],
                 ]
             );

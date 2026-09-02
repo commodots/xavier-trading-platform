@@ -2,25 +2,29 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\MarketUpdated;
 use App\Http\Controllers\Controller;
+use App\Models\Demo\DemoOrder;
+use App\Models\Demo\DemoTrade;
+use App\Models\Demo\DemoTransaction;
+use App\Models\Demo\DemoWallet;
+use App\Models\Ledger;
 use App\Models\NewTransaction;
 use App\Models\Order;
 use App\Models\Symbol;
 use App\Models\SystemSetting;
 use App\Models\Trade;
 use App\Models\Wallet;
+use App\Notifications\TradeExecutedNotification;
 use App\Providers\AlpacaProvider;
 use App\Services\MarketService;
-use App\Models\Ledger;
-use App\Notifications\TradeExecutedNotification;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Http\JsonResponse;
-
 
 class TradeController extends Controller
 {
@@ -30,10 +34,10 @@ class TradeController extends Controller
 
         return (object) [
             'isDemo' => $isDemo,
-            'wallet' => $isDemo ? \App\Models\Demo\DemoWallet::class : Wallet::class,
-            'transaction' => $isDemo ? \App\Models\Demo\DemoTransaction::class : NewTransaction::class,
-            'order' => $isDemo ? \App\Models\Demo\DemoOrder::class : Order::class,
-            'trade' => $isDemo ? \App\Models\Demo\DemoTrade::class : Trade::class,
+            'wallet' => $isDemo ? DemoWallet::class : Wallet::class,
+            'transaction' => $isDemo ? DemoTransaction::class : NewTransaction::class,
+            'order' => $isDemo ? DemoOrder::class : Order::class,
+            'trade' => $isDemo ? DemoTrade::class : Trade::class,
         ];
     }
 
@@ -77,7 +81,7 @@ class TradeController extends Controller
                 }
             }
 
-            broadcast(new \App\Events\MarketUpdated($trades))->toOthers();
+            broadcast(new MarketUpdated($trades))->toOthers();
 
             return response()->json(['status' => 'success'], 200);
         } catch (\Exception $e) {
@@ -177,8 +181,8 @@ class TradeController extends Controller
 
             $wallet->decrement('usd_cleared', $amount);
             $wallet->increment('locked', $amount); // Standardize: Move to locked instead of removing
-            //Use a dedicated method on the model to ensure consistency
-            $wallet->refreshBalance(); 
+            // Use a dedicated method on the model to ensure consistency
+            $wallet->refreshBalance();
 
             $models->transaction::create([
                 'user_id' => $user->id,
@@ -248,7 +252,7 @@ class TradeController extends Controller
         $quantity = (float) $trade->quantity;
         $buyPrice = (float) $trade->entry_price;
         $sellPrice = (float) $currentPrice;
-        
+
         $buyValue = (float) $trade->amount;    // Use stored amount to ensure locked balance returns to zero exactly
         $sellValue = $quantity * $sellPrice;   // Total proceeds from selling
 
@@ -518,7 +522,7 @@ class TradeController extends Controller
                 'data' => $positions->values(),
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Trade positions error: '.$e->getMessage(), ['exception' => $e]);
+            Log::error('Trade positions error: '.$e->getMessage(), ['exception' => $e]);
 
             return response()->json([
                 'success' => false,
@@ -558,7 +562,7 @@ class TradeController extends Controller
         if ($finalResults->count() < 20) {
             // Narrow the fallback query to avoid loading the entire symbols table
             $fallback = Symbol::select(['symbol', 'name', 'exchange', 'type', 'last_price', 'volume', 'change'])
-                ->where('symbol', 'like', '%' . substr($query, 0, 3) . '%')
+                ->where('symbol', 'like', strtolower(substr($query, 0, 1)).'%')
                 ->limit(100)
                 ->get()
                 ->filter(fn ($symbol) => $this->matchesSymbolSearch($symbol, $query));
@@ -588,7 +592,7 @@ class TradeController extends Controller
             'type' => 'required|in:market,limit,stop,bracket',
         ]);
 
-        if ($request->type === 'limit' && (!$request->limit_price || $request->limit_price <= 0)) {
+        if ($request->type === 'limit' && (! $request->limit_price || $request->limit_price <= 0)) {
             return response()->json(['message' => 'Limit price required for limit orders'], 422);
         }
 
@@ -657,7 +661,7 @@ class TradeController extends Controller
                     $netPosition = $existingBuyOrders - $existingSellOrders;
 
                     if ($netPosition < (float) $request->qty) {
-                        throw new \Exception('Insufficient position to sell. Available quantity: ' . max(0, $netPosition));
+                        throw new \Exception('Insufficient position to sell. Available quantity: '.max(0, $netPosition));
                     }
                 }
 
@@ -830,15 +834,15 @@ class TradeController extends Controller
         return response()->json(['status' => 'tracking', 'symbols' => $symbols]);
     }
 
-   /**
+    /**
      * Fetch market insights (gainers, losers, most active) for a specific market type.
      */
     public function insights(string $market): JsonResponse
     {
         try {
             $normalizedMarket = strtoupper(trim($market));
-            
-            // Cache the results for 2 minutes to prevent heavy DB strain 
+
+            // Cache the results for 2 minutes to prevent heavy DB strain
             // from rapid dashboard tab switching or concurrent users.
             $data = Cache::remember("market_insights_{$normalizedMarket}", 120, function () use ($normalizedMarket) {
                 $baseQuery = Symbol::query();
@@ -847,35 +851,35 @@ class TradeController extends Controller
                 if ($normalizedMarket === 'NGX' || $normalizedMarket === 'LOCAL') {
                     $baseQuery->where(function ($q) {
                         $q->where('exchange', 'NGX')
-                          ->orWhere('exchange', 'local')
-                          ->orWhere('type', 'local')
-                          ->orWhere('symbol', 'like', '%.NG%');
+                            ->orWhere('exchange', 'local')
+                            ->orWhere('type', 'local')
+                            ->orWhere('symbol', 'like', '%.NG%');
                     });
                 } elseif ($normalizedMarket === 'CRYPTO') {
                     $baseQuery->where(function ($q) {
                         $q->where('type', 'crypto')
-                          ->orWhere('symbol', 'like', '%/USDT%');
+                            ->orWhere('symbol', 'like', '%/USDT%');
                     });
                 } else {
                     // Default to Global Equities (NASDAQ/NYSE/etc)
                     $baseQuery->where(function ($q) {
                         $q->whereNotIn('exchange', ['NGX', 'local'])
-                          ->whereNotIn('type', ['crypto', 'local'])
-                          ->orWhereNull('type');
+                            ->whereNotIn('type', ['crypto', 'local'])
+                            ->orWhereNull('type');
                     })->where('symbol', 'not like', '%/USDT%');
                 }
 
-                $mapData = fn($s) => [
+                $mapData = fn ($s) => [
                     'symbol' => $s->symbol,
-                    'name'   => $s->name,
-                    'price'  => (float) $s->last_price,
+                    'name' => $s->name,
+                    'price' => (float) $s->last_price,
                     'change' => (float) ($s->change ?? 0),
                 ];
 
                 return [
-                    'gainers'      => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
-                    'losers'       => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
-                    'most_traded'  => (clone $baseQuery)->orderByDesc('volume')->limit(5)->get()->map($mapData),
+                    'gainers' => (clone $baseQuery)->where('change', '>', 0)->orderByDesc('change')->limit(5)->get()->map($mapData),
+                    'losers' => (clone $baseQuery)->where('change', '<', 0)->orderBy('change')->limit(5)->get()->map($mapData),
+                    'most_traded' => (clone $baseQuery)->orderByDesc('volume')->limit(5)->get()->map($mapData),
                     'least_traded' => (clone $baseQuery)->orderBy('volume')->limit(5)->get()->map($mapData),
                 ];
             });
@@ -883,14 +887,14 @@ class TradeController extends Controller
             return response()->json(['success' => true, 'data' => $data], 200);
 
         } catch (\Throwable $e) {
-            Log::error('Market insights retrieval failed: ' . $e->getMessage(), [
-                'market'    => $market,
-                'exception' => $e
+            Log::error('Market insights retrieval failed: '.$e->getMessage(), [
+                'market' => $market,
+                'exception' => $e,
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Unable to load market insights at this time.'
+                'message' => 'Unable to load market insights at this time.',
             ], 500);
         }
     }

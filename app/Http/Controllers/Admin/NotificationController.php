@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\NotificationPreference;
 use App\Models\Notification;
+use App\Models\NotificationPreference;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -21,22 +19,20 @@ class NotificationController extends Controller
 
         $paginator->getCollection()->transform(function ($notification) {
             // Decode the data JSON string to array
-            $data = is_string($notification->data) 
-                ? json_decode($notification->data, true) 
+            $data = is_string($notification->data)
+                ? json_decode($notification->data, true)
                 : $notification->data;
-            
+
             // If data is still not an array, use empty array
-            if (!is_array($data)) {
+            if (! is_array($data)) {
                 $data = [];
             }
 
-            
             $type = $data['type'] ?? 'info';
             if ($type === 'info' && str_contains($notification->type, 'AdminBroadcast')) {
                 $type = 'broadcast';
             }
 
-            
             if (str_contains($notification->type, 'AdminBroadcast') && empty($data)) {
                 return [
                     'id' => $notification->id,
@@ -44,7 +40,8 @@ class NotificationController extends Controller
                     'message' => $notification->message ?? '',
                     'type' => 'broadcast',
                     'action' => $notification->action ?? 'View Details',
-                    'action_url' => $notification->action_url ?? null,
+                    'action_url' => $notification->action_url ?? url('/dashboard/notifications'),
+                    'icon' => $notification->icon ?? '📢',
                     'read' => $notification->read_at !== null,
                     'time' => $notification->created_at->diffForHumans(),
                 ];
@@ -52,12 +49,16 @@ class NotificationController extends Controller
 
             return [
                 'id' => $notification->id,
-                
+
                 'title' => $data['title'] ?? $data['subject'] ?? $notification->title ?? 'Notification',
                 'message' => $data['message'] ?? $data['body'] ?? $data['content'] ?? $notification->message ?? '',
                 'type' => $type,
                 'action' => $data['action'] ?? $notification->action ?? null,
-                'action_url' => $data['action_url'] ?? $notification->action_url ?? null,
+                'action_url' => isset($data['action_url'])
+                    ? str_replace('/notifications', '/dashboard/notifications', $data['action_url'])
+                    : $notification->action_url ?? null,
+                'icon' => $data['icon'] ?? null,
+                'metadata' => $data['metadata'] ?? null,
                 'read' => $notification->read_at !== null,
                 'time' => $notification->created_at->diffForHumans(),
             ];

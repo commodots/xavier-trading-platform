@@ -5,8 +5,12 @@ namespace Tests\Unit;
 use App\Models\Order;
 use App\Services\Reports\InvestmentReportService;
 use Mockery;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tests\TestCase;
 
+#[RunTestsInSeparateProcesses]
+#[PreserveGlobalState(false)]
 class InvestmentReportServiceTest extends TestCase
 {
     protected function tearDown(): void

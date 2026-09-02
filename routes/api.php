@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\SettlementDashboardController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AdvisoryController;
 use App\Http\Controllers\AlpacaWebhookController;
+use App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController;
+use App\Http\Controllers\Api\Admin\FixedIncomeProductController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminServiceController;
 use App\Http\Controllers\Api\AuthController;
@@ -29,6 +31,7 @@ use App\Http\Controllers\Api\DojahWebhookController;
 use App\Http\Controllers\Api\DummyCscsController;
 use App\Http\Controllers\Api\DummyNgxController;
 use App\Http\Controllers\Api\FincraWebhookController;
+use App\Http\Controllers\Api\FixedIncomeController;
 use App\Http\Controllers\Api\FxConversionController;
 use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\MarketController;
@@ -40,10 +43,11 @@ use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\QoreidWebhookController;
+// Admin Controllers
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\Security\AuditLogController;
 use App\Http\Controllers\Api\Security\TwoFactorController;
-// Admin Controllers
 use App\Http\Controllers\Api\Security\UserDeviceController;
 use App\Http\Controllers\Api\Security\WithdrawalController;
 use App\Http\Controllers\Api\TradeController;
@@ -53,19 +57,17 @@ use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Auth\NewPasswordController;
+// Dummy/Testing
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\DemoController;
-// Dummy/Testing
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
-//FixedIncome
-use App\Http\Controllers\Api\Admin\FixedIncomeProductController;
-use App\Http\Controllers\Api\FixedIncomeController;
+
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -90,6 +92,7 @@ Route::post('/crypto/webhook', [CryptoWebhookController::class, 'handle'])->midd
 Route::post('/alpaca/webhook', [AlpacaWebhookController::class, 'handle'])->middleware('throttle:30,1');
 Route::post('/fincra/webhook', [FincraWebhookController::class, 'handle'])->middleware('throttle:30,1');
 Route::post('/webhooks/dojah', [DojahWebhookController::class, 'handle'])->middleware('throttle:30,1');
+Route::post('/qoreid/webhook', [QoreidWebhookController::class, 'handle'])->middleware('throttle:30,1');
 Route::post('/market/update', [TradeController::class, 'updateMarket'])->middleware('throttle:60,1');
 
 Route::get('/stocks/search', [TradeController::class, 'searchSymbols']);
@@ -123,7 +126,7 @@ Route::prefix('dummy')->group(function () {
 */
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user/sessions', [SecurityController::class, 'getActiveSessions']);
     Route::post('/user/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
@@ -138,7 +141,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (Exception $e) {
-            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
@@ -172,6 +175,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /* Global Ledger & Structural Portfolios (Read Only) */
     Route::get('/wallet/balances', [WalletController::class, 'balances']);
+    Route::get('/wallet/preview', [WalletController::class, 'preview']);
     Route::get('/transactions', [NewTransactionController::class, 'index']);
     Route::get('/transactions/{id}', [NewTransactionController::class, 'show']);
     Route::get('/portfolio', [PortfolioController::class, 'index']);
@@ -311,26 +315,30 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('auth:sanctum')->prefix('fixed-income')->group(function () {
 
-    Route::get('/products', [
-        FixedIncomeController::class,
-        'index'
-    ]);
+        Route::get('/products', [
+            FixedIncomeController::class,
+            'index',
+        ]);
 
-    Route::get('/products/{fixedIncomeProduct}', [
-        FixedIncomeController::class,
-        'show'
-    ]);
+        Route::get('/products/{fixedIncomeProduct}', [
+            FixedIncomeController::class,
+            'show',
+        ]);
 
-    Route::post('/products/{fixedIncomeProduct}/calculate', [
-        FixedIncomeController::class,
-        'calculate'
-    ]);
+        Route::post('/products/{fixedIncomeProduct}/calculate', [
+            FixedIncomeController::class,
+            'calculate',
+        ]);
 
-    Route::post('/products/{fixedIncomeProduct}/validate', [
-        FixedIncomeController::class,
-        'validateInvestment'
-    ]);
-});
+        Route::post('/products/{fixedIncomeProduct}/validate', [
+            FixedIncomeController::class,
+            'validateInvestment',
+        ]);
+        Route::post('/products/{fixedIncomeProduct}/invest', [
+            FixedIncomeController::class,
+            'invest',
+        ]);
+    });
 
     /* System Administrative Panel Layer */
     Route::middleware('admin')->prefix('admin')->group(function () {
@@ -524,42 +532,64 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/products', [
             FixedIncomeProductController::class,
-            'index'
+            'index',
         ]);
 
         Route::post('/products', [
             FixedIncomeProductController::class,
-            'store'
+            'store',
         ]);
 
         Route::get('/products/{fixedIncomeProduct}', [
             FixedIncomeProductController::class,
-            'show'
+            'show',
         ]);
 
         Route::put('/products/{fixedIncomeProduct}', [
             FixedIncomeProductController::class,
-            'update'
+            'update',
         ]);
 
         Route::delete('/products/{fixedIncomeProduct}', [
             FixedIncomeProductController::class,
-            'destroy'
+            'destroy',
         ]);
 
         Route::post('/products/{fixedIncomeProduct}/activate', [
             FixedIncomeProductController::class,
-            'activate'
+            'activate',
         ]);
 
         Route::post('/products/{fixedIncomeProduct}/suspend', [
             FixedIncomeProductController::class,
-            'suspend'
+            'suspend',
         ]);
 
         Route::post('/products/{fixedIncomeProduct}/close', [
             FixedIncomeProductController::class,
-            'close'
+            'close',
+        ]);
+    });
+    Route::prefix('fixed-income/investments')->group(function () {
+
+        Route::get('/', [
+            FixedIncomeInvestmentController::class,
+            'index',
+        ]);
+
+        Route::get('/{fixedIncomeInvestment}', [
+            FixedIncomeInvestmentController::class,
+            'show',
+        ]);
+
+        Route::post('/{fixedIncomeInvestment}/activate', [
+            FixedIncomeInvestmentController::class,
+            'activate',
+        ]);
+
+        Route::post('/{fixedIncomeInvestment}/reject', [
+            FixedIncomeInvestmentController::class,
+            'reject',
         ]);
     });
 });

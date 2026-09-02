@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\BillingRecord;
+use App\Models\User;
+use App\Notifications\BillingAlertNotification;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class SubscriptionService
 {
@@ -20,6 +20,7 @@ class SubscriptionService
             // Skip if inactive for more than 60 days
             if ($user->last_active_at && $user->last_active_at->diffInDays(now()) > 60) {
                 $user->update(['subscription_status' => 'inactive']);
+
                 return;
             }
 
@@ -31,12 +32,12 @@ class SubscriptionService
 
                 BillingRecord::create([
                     'user_id' => $user->id,
-                    'amount'  => $this->fee,
-                    'type'    => 'subscription_fee',
-                    'status'  => 'paid',
+                    'amount' => $this->fee,
+                    'type' => 'subscription_fee',
+                    'status' => 'paid',
                 ]);
 
-                $user->notify(new \App\Notifications\BillingAlertNotification('charged', $this->fee));
+                $user->notify(new BillingAlertNotification((float) $this->fee, 'Fee charged successfully.'));
             } else {
                 $currentBalance = $wallet ? (float) $wallet->ngn_cleared : 0.0;
                 $shortfall = $this->fee - $currentBalance;
@@ -49,19 +50,19 @@ class SubscriptionService
 
                 BillingRecord::create([
                     'user_id' => $user->id,
-                    'amount'  => $this->fee,
-                    'type'    => 'subscription_fee',
-                    'status'  => 'pending',
+                    'amount' => $this->fee,
+                    'type' => 'subscription_fee',
+                    'status' => 'pending',
                 ]);
 
-                $user->notify(new \App\Notifications\BillingAlertNotification('debt', $shortfall));
+                $user->notify(new BillingAlertNotification((float) $shortfall, 'Insufficient wallet balance.'));
             }
 
             $user->refresh();
             $user->update([
                 'subscription_status' => $user->wallet_debt > 5000 ? 'suspended' : 'active',
                 'last_fee_charged_at' => now(),
-                'next_fee_due_at'     => now()->addDays(90),
+                'next_fee_due_at' => now()->addDays(90),
             ]);
         });
     }
@@ -71,7 +72,9 @@ class SubscriptionService
      */
     public function reconcileDebt(User $user, float $topupAmount): float
     {
-        if ($user->wallet_debt <= 0) return $topupAmount;
+        if ($user->wallet_debt <= 0) {
+            return $topupAmount;
+        }
 
         $paymentToDebt = min($user->wallet_debt, $topupAmount);
 
@@ -86,7 +89,7 @@ class SubscriptionService
             'user_id' => $user->id,
             'amount' => $paymentToDebt,
             'type' => 'adjustment',
-            'status' => 'paid'
+            'status' => 'paid',
         ]);
 
         return $topupAmount - $paymentToDebt;

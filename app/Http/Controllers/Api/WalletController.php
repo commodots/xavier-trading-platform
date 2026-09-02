@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
 use App\Models\Demo\DemoLedger;
 use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoWallet;
+use App\Models\FxPair;
 use App\Models\FxRate;
+use App\Models\FxSetting;
 use App\Models\Ledger;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
@@ -17,12 +18,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WalletController extends Controller
 {
-    public function __construct(private WithdrawalService $withdrawalService)
-    {
-    }
+    public function __construct(private WithdrawalService $withdrawalService) {}
 
     // THE DYNAMIC MODEL RESOLVER
     private function resolveModels(?Request $request = null)
@@ -42,7 +42,7 @@ class WalletController extends Controller
     }
 
     /**
-     * Display the wallet page 
+     * Display the wallet page
      */
     public function index(Request $request)
     {
@@ -109,7 +109,7 @@ class WalletController extends Controller
                 'amount' => $request->amount,
                 'currency' => $currency,
                 'wallet_before' => $walletBefore,
-                'mode' => $models->mode
+                'mode' => $models->mode,
             ]);
 
             $wallet->increment($clearedCol, $request->amount);
@@ -139,7 +139,7 @@ class WalletController extends Controller
             Log::info('Wallet Deposit Finished', [
                 'user_id' => $user->id,
                 'wallet_after_cleared' => $wallet->{$clearedCol},
-                'wallet_after_total' => $wallet->balance
+                'wallet_after_total' => $wallet->balance,
             ]);
 
             return response()->json([
@@ -207,7 +207,7 @@ class WalletController extends Controller
                     'amount_in' => $amount,
                     'expected_out' => $convertedAmount,
                     'rate' => $rate->effective_rate,
-                    'mode' => $models->mode
+                    'mode' => $models->mode,
                 ]);
 
                 $sourceWallet->decrement($clearedCol, $amount);
@@ -223,7 +223,7 @@ class WalletController extends Controller
                 $destWallet->increment($destCol, $convertedAmount);
                 $destWallet->refreshBalance();
 
-                $txReference = 'FX-'.\Illuminate\Support\Str::uuid();
+                $txReference = 'FX-'.Str::uuid();
 
                 $models->ledger->create([
                     'user_id' => $user->id,
@@ -260,7 +260,7 @@ class WalletController extends Controller
                     'from_amount' => $amount,
                     'to_amount' => $convertedAmount,
                     'source_wallet_after' => $sourceWallet->fresh()->balance,
-                    'dest_wallet_after' => $destWallet->fresh()->balance
+                    'dest_wallet_after' => $destWallet->fresh()->balance,
                 ]);
 
                 return response()->json([
@@ -326,11 +326,11 @@ class WalletController extends Controller
     {
         $request->validate([
             'amount' => 'required|numeric|min:0',
-            'from'   => 'sometimes|in:NGN,USD',
+            'from' => 'sometimes|in:NGN,USD',
         ]);
 
         $amount = (float) $request->query('amount', 0);
-        $from   = strtoupper($request->query('from', 'NGN'));
+        $from = strtoupper($request->query('from', 'NGN'));
 
         $fxRate = FxRate::where('from_currency', 'NGN')
             ->where('to_currency', 'USD')
@@ -340,7 +340,7 @@ class WalletController extends Controller
             return response()->json(['error' => 'FX rate not available'], 400);
         }
 
-        $rate = $fxRate->effective_rate;
+        $rate = (float) $fxRate->effective_rate;
 
         if ($rate <= 0) {
             return response()->json(['error' => 'FX rate is invalid'], 400);
@@ -360,7 +360,7 @@ class WalletController extends Controller
             'converted' => round($preview, 2),
             'to_currency' => $label,
             'rate' => $rate,
-        ]);
+        ], 200, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     public function getRates(Request $request)
@@ -368,7 +368,7 @@ class WalletController extends Controller
         // Legacy FxRate rates
         $legacyRates = FxRate::orderBy('created_at', 'desc')
             ->get()
-            ->unique(fn($rate) => $rate->from_currency . $rate->to_currency)
+            ->unique(fn ($rate) => $rate->from_currency.$rate->to_currency)
             ->map(function ($rate) {
                 return [
                     'from_currency' => $rate->from_currency,
@@ -380,7 +380,7 @@ class WalletController extends Controller
             ->values();
 
         // New FX Pairs from the FX system
-        $fxPairs = \App\Models\FxPair::where('active', true)->get()->map(function ($pair) {
+        $fxPairs = FxPair::where('active', true)->get()->map(function ($pair) {
             return [
                 'base_currency' => $pair->base_currency,
                 'quote_currency' => $pair->quote_currency,
@@ -391,7 +391,7 @@ class WalletController extends Controller
 
         // Get current provider
         $provider = 'manual';
-        $setting = \App\Models\FxSetting::first();
+        $setting = FxSetting::first();
         if ($setting) {
             $provider = $setting->provider;
         }

@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class NewDeviceLoginNotification extends Notification
 {
-    public function __construct(private UserDevice $device)
-    {
-    }
+    public function __construct(private UserDevice $device) {}
 
     public function via($notifiable): array
     {
@@ -42,7 +40,7 @@ class NewDeviceLoginNotification extends Notification
 
         return [
             'message' => $textMessage,
-            'category' => 'security',
+            'type' => 'security',
             'title' => 'New Device Login',
             'message_text' => $textMessage,
             'action' => 'Review Sessions',

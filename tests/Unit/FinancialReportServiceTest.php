@@ -4,8 +4,12 @@ namespace Tests\Unit;
 
 use App\Services\Reports\FinancialReportService;
 use Mockery;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tests\TestCase;
 
+#[RunTestsInSeparateProcesses]
+#[PreserveGlobalState(false)]
 class FinancialReportServiceTest extends TestCase
 {
     public function test_get_statistics_for_deposits_and_revenue()
@@ -52,17 +56,21 @@ class FinancialReportServiceTest extends TestCase
         Mockery::mock('alias:App\\Models\\NewTransaction')
             ->shouldReceive('query')->andReturnSelf()
             ->shouldReceive('where')->with('type', 'deposit')->andReturnSelf()
+            ->shouldReceive('where')->with('currency', Mockery::any())->andReturnSelf()
             ->shouldReceive('where')->with('type', 'commission')->andReturnSelf()
             ->shouldReceive('sum')->with('amount')->andReturn(2500);
 
         Mockery::mock('alias:App\\Models\\WithdrawalRequest')
             ->shouldReceive('query')->andReturnSelf()
             ->shouldReceive('where')->with('status', 'pending')->andReturnSelf()
+            ->shouldReceive('where')->with('currency', Mockery::any())->andReturnSelf()
             ->shouldReceive('sum')->with('amount')->andReturn(800);
 
         Mockery::mock('alias:App\\Models\\Wallet')
-            ->shouldReceive('query')->andReturnSelf()
-            ->shouldReceive('sum')->with('balance')->andReturn(12000);
+            ->shouldReceive('where')->with('currency', 'NGN')->andReturnSelf()
+            ->shouldReceive('sum')->with('ngn_cleared')->andReturn(12000)
+            ->shouldReceive('where')->with('currency', 'USD')->andReturnSelf()
+            ->shouldReceive('sum')->with('usd_cleared')->andReturn(0);
 
         Mockery::mock('alias:App\\Models\\Fee')
             ->shouldReceive('query')->andReturnSelf()
@@ -77,7 +85,7 @@ class FinancialReportServiceTest extends TestCase
         $summary = $svc->summary();
 
         $this->assertEquals(2500, $summary[0]['value']);
-        $this->assertEquals(800, $summary[2]['value']);
-        $this->assertEquals(12000, $summary[3]['value']);
+        $this->assertEquals(800, $summary[4]['value']);
+        $this->assertEquals(12000, $summary[6]['value']);
     }
 }

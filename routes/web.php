@@ -1,17 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Api\WalletController;
-use App\Http\Controllers\Admin\SettlementDashboardController;
-use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\AuditController;
+use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\SecurityController;
+use App\Http\Controllers\Admin\SettlementDashboardController;
+use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::get('/', function () {
@@ -25,6 +26,9 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
     Route::post('register', [RegisteredUserController::class, 'store']);
+
+    Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
 });
 
 // Health check
@@ -39,6 +43,13 @@ Route::get('/health', function () {
 
 // Protected routes
 Route::middleware('auth')->group(function () {
+    Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
+        ->name('password.confirm');
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store'])
+        ->name('password.confirm.store');
+    Route::put('password', [PasswordController::class, 'update'])
+        ->name('password.update');
+
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 
@@ -66,7 +77,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [PlatformSettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
     Route::post('/settings/clear-cache', [PlatformSettingsController::class, 'clearCache'])->name('settings.clear-cache');
-    
+
     // Departments
     Route::get('/departments', function () {
         return view('app');
@@ -75,7 +86,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Audit logs
     Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
     Route::get('/audit/export', [AuditController::class, 'export'])->name('audit.export');
-    
+
     // Security
     Route::get('/security/login-history', [SecurityController::class, 'loginHistory'])->name('security.login-history');
     Route::get('/security/active-sessions', [SecurityController::class, 'activeSessions'])->name('security.active-sessions');
@@ -83,7 +94,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/security/sessions/user/{userId}', [SecurityController::class, 'logoutAllSessions'])->name('security.logout-all-sessions');
 });
 
-// Catch-all route for Vue Router 
+// Catch-all route for Vue Router
 Route::get('/{any}', function () {
     return view('app');
 })->where('any', '.*');

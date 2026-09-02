@@ -26,7 +26,7 @@ class ReportsControllerTest extends TestCase
     public function test_export_users_as_admin_returns_file()
     {
         // Ensure role exists for the HasRoles trait
-        Role::create(['name' => 'super-admin']);
+        Role::create(['name' => 'super-admin', 'guard_name' => 'api']);
         $admin = User::factory()->create();
         // Give admin role
         $admin->assignRole('super-admin');
@@ -44,7 +44,7 @@ class ReportsControllerTest extends TestCase
 
     public function test_export_financial_wallet_transactions_tab_as_admin_returns_file()
     {
-        Role::create(['name' => 'super-admin']);
+        Role::create(['name' => 'super-admin', 'guard_name' => 'api']);
         $admin = User::factory()->create();
         $admin->assignRole('super-admin');
 
@@ -58,13 +58,13 @@ class ReportsControllerTest extends TestCase
 
         $res->assertStatus(200);
         $res->assertHeader('content-disposition', 'attachment; filename="wallet_transactions.csv"');
-        $content = $res->getContent();
-        $this->assertStringContainsString('User,Reference,Type,Amount,Currency,Status,Date', $content);
+        $content = $res->streamedContent();
+        $this->assertStringContainsString('Date,Reference,User,Type,Amount,Currency,Status', $content);
     }
 
     public function test_export_users_includes_all_users_in_export()
     {
-        Role::create(['name' => 'super-admin']);
+        Role::create(['name' => 'super-admin', 'guard_name' => 'api']);
         $admin = User::factory()->create();
         $admin->assignRole('super-admin');
 
@@ -78,10 +78,10 @@ class ReportsControllerTest extends TestCase
         ]);
 
         $res->assertStatus(200);
-        $res->assertHeader('content-disposition', 'attachment; filename="users-report.csv"');
+        $res->assertHeader('content-disposition', 'attachment; filename="users.csv"');
 
-        $content = $res->getContent();
-        $this->assertStringContainsString('Name,Email,Phone,Country,KYC Status,Status,Joined,Last Login', $content);
+        $content = $res->streamedContent();
+        $this->assertStringContainsString('Name,Email,Phone,Country,"KYC Status",Status,Joined,"Last Login"', $content);
         $this->assertGreaterThanOrEqual(61, substr_count($content, "\n"));
     }
 }

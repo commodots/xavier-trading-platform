@@ -128,7 +128,22 @@ class Wallet extends Model
         $this->decrement($clearedCol, $amount, []);
         $this->increment('locked', $amount, []);
 
-        return $this->fresh();
+        $this->refresh();
+
+        return $this->refreshBalance();
+    }
+
+    public function releaseReservation(float $amount): self
+    {
+        if ((float) $this->locked < $amount) {
+            throw new \Exception('Insufficient locked funds.');
+        }
+
+        $clearedCol = $this->getClearedColumn();
+        $this->{$clearedCol} = (float) $this->{$clearedCol} + $amount;
+        $this->locked = (float) $this->locked - $amount;
+
+        return $this->refreshBalance();
     }
 
     public function finalizeReservation(float $filledAmount): self

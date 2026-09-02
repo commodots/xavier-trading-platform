@@ -64,4 +64,11 @@ class FixedIncomeInvestment extends Model
             'fixed_income_product_id'
         );
     }
+
+    public function transactions()
+    {
+        return $this->hasMany(
+            FixedIncomeTransaction::class
+        );
+    }
 }

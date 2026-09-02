@@ -6,17 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoWallet;
-use App\Models\LinkedAccount;
 use App\Models\NewTransaction;
 use App\Models\TransactionCharge;
 use App\Models\TransactionType;
 use App\Models\Wallet;
-use App\Notifications\WithdrawalOtpNotification;
 use App\Services\Audit\AuditService;
-use App\Services\WithdrawalProtectionService;
 use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -29,8 +25,8 @@ class NewTransactionController extends Controller
 
         return (object) [
             'isDemo' => $isDemo,
-            'wallet' => $isDemo ? \App\Models\Demo\DemoWallet::class : Wallet::class,
-            'transaction' => $isDemo ? \App\Models\Demo\DemoTransaction::class : NewTransaction::class,
+            'wallet' => $isDemo ? DemoWallet::class : Wallet::class,
+            'transaction' => $isDemo ? DemoTransaction::class : NewTransaction::class,
         ];
     }
 
@@ -101,7 +97,7 @@ class NewTransactionController extends Controller
             Log::info('Transaction created with ID '.$transaction->id);
 
             $wallet->increment($clearedCol, $netAmount);
-            
+
             // Do not manually calculate balance in controllers
             $wallet->refreshBalance();
 
@@ -110,10 +106,8 @@ class NewTransactionController extends Controller
             // Log audit trail for deposit
             AuditService::log(
                 'deposit_approved',
-                'transaction',
-                $transaction->id,
-                null,
-                $transaction->toArray()
+                $transaction,
+                'Deposit approved and wallet funded.'
             );
 
             try {
@@ -146,7 +140,7 @@ class NewTransactionController extends Controller
     {
         return response()->json([
             'message' => 'Withdrawals have moved to the Unified Security Flow. Please use POST /security/withdrawals.',
-            'target_url' => url('/api/security/withdrawals')
+            'target_url' => url('/api/security/withdrawals'),
         ], 301);
     }
 

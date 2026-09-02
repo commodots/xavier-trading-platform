@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FixedIncomeProduct;
+use App\Services\FixedIncomeInvestmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class FixedIncomeController extends Controller
 {
@@ -128,26 +130,19 @@ class FixedIncomeController extends Controller
                 'amount' => $amount,
                 'currency' => $fixedIncomeProduct->currency,
 
-                'interest_rate' =>
-                    $fixedIncomeProduct->interest_rate,
+                'interest_rate' => $fixedIncomeProduct->interest_rate,
 
-                'rate_type' =>
-                    $fixedIncomeProduct->rate_type,
+                'rate_type' => $fixedIncomeProduct->rate_type,
 
-                'expected_interest' =>
-                    round($interest, 2),
+                'expected_interest' => round($interest, 2),
 
-                'expected_maturity_amount' =>
-                    round($maturityAmount, 2),
+                'expected_maturity_amount' => round($maturityAmount, 2),
 
-                'maturity_date' =>
-                    $maturityDate?->format('Y-m-d'),
+                'maturity_date' => $maturityDate?->format('Y-m-d'),
 
-                'tenor_days' =>
-                    $fixedIncomeProduct->tenor_days,
+                'tenor_days' => $fixedIncomeProduct->tenor_days,
 
-                'interest_frequency' =>
-                    $fixedIncomeProduct->interest_frequency,
+                'interest_frequency' => $fixedIncomeProduct->interest_frequency,
             ],
         ]);
     }
@@ -187,9 +182,7 @@ class FixedIncomeController extends Controller
             ], 422);
         }
 
-        /*
-         * Check subscription window.
-         */
+        /** Check subscription window.*/
         $today = now()->startOfDay();
 
         if (
@@ -217,8 +210,7 @@ class FixedIncomeController extends Controller
             ], 422);
         }
 
-        /*
-         * Basic user/account check.
+        /** Basic user/account check.
          *
          * We will connect the full KYC eligibility system
          * in the security/production sprint after confirming
@@ -238,10 +230,8 @@ class FixedIncomeController extends Controller
                 'product_id' => $fixedIncomeProduct->id,
                 'amount' => $amount,
                 'currency' => $fixedIncomeProduct->currency,
-                'execution_mode' =>
-                    $fixedIncomeProduct->execution_mode,
-                'provider' =>
-                    $fixedIncomeProduct->provider,
+                'execution_mode' => $fixedIncomeProduct->execution_mode,
+                'provider' => $fixedIncomeProduct->provider,
             ],
         ]);
     }
@@ -267,8 +257,7 @@ class FixedIncomeController extends Controller
 
         $days = $product->tenor_days;
 
-        /*
-         * If no tenor is specified, we cannot safely
+        /** If no tenor is specified, we cannot safely
          * calculate a time-based return.
          */
         if (! $days) {
@@ -291,5 +280,56 @@ class FixedIncomeController extends Controller
         return now()->addDays(
             $product->tenor_days
         );
+    }
+
+    public function invest(
+        Request $request,
+        FixedIncomeProduct $fixedIncomeProduct,
+        FixedIncomeInvestmentService $investmentService
+    ): JsonResponse {
+
+        $validated = $request->validate([
+            'amount' => [
+                'required',
+                'numeric',
+                'gt:0',
+            ],
+            'funding_method' => [
+                'required',
+                'in:wallet',
+            ],
+        ]);
+
+        try {
+
+            $investment =
+                $investmentService->createFromWallet(
+                    auth()->user(),
+                    $fixedIncomeProduct,
+                    (float) $validated['amount']
+                );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Fixed Income investment submitted successfully.',
+                'data' => $investment,
+            ], 201);
+        } catch (\Throwable $e) {
+
+            Log::error(
+                'Fixed Income investment failed',
+                [
+                    'user_id' => auth()->id(),
+                    'product_id' => $fixedIncomeProduct->id,
+                    'amount' => $validated['amount'],
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

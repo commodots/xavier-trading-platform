@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\BillingService;
-use App\Models\BillingRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,12 +14,20 @@ class BillingServiceTest extends TestCase
 
     private function makeUser(array $attrs = []): User
     {
-        return User::factory()->create(array_merge([
+        $user = User::factory()->create(array_merge([
             'subscription_status' => 'active',
-            'wallet_balance'      => 0,
-            'wallet_debt'         => 0,
-            'next_fee_due_at'     => now(),
+            'wallet_balance' => 0,
+            'wallet_debt' => 0,
+            'next_fee_due_at' => now(),
         ], $attrs));
+
+        Wallet::factory()->create([
+            'user_id' => $user->id,
+            'ngn_cleared' => (float) $user->wallet_balance,
+            'balance' => (float) $user->wallet_balance,
+        ]);
+
+        return $user;
     }
 
     public function test_fee_deducted_when_balance_sufficient(): void
@@ -30,13 +37,13 @@ class BillingServiceTest extends TestCase
         app(BillingService::class)->chargePlatformFee($user);
 
         $user->refresh();
-        $this->assertEquals(4000, $user->wallet_balance);
+        $this->assertEquals(4000, $user->wallets()->first()->balance);
         $this->assertEquals(0, $user->wallet_debt);
         $this->assertEquals('active', $user->subscription_status);
         $this->assertDatabaseHas('billing_records', [
             'user_id' => $user->id,
-            'status'  => 'paid',
-            'amount'  => 1000,
+            'status' => 'paid',
+            'amount' => 1000,
         ]);
     }
 
@@ -47,11 +54,11 @@ class BillingServiceTest extends TestCase
         app(BillingService::class)->chargePlatformFee($user);
 
         $user->refresh();
-        $this->assertEquals(0, $user->wallet_balance);
+        $this->assertEquals(0, $user->wallets()->first()->balance);
         $this->assertEquals(600, $user->wallet_debt);
         $this->assertDatabaseHas('billing_records', [
             'user_id' => $user->id,
-            'status'  => 'pending',
+            'status' => 'pending',
         ]);
     }
 
@@ -65,7 +72,7 @@ class BillingServiceTest extends TestCase
         $this->assertEquals('suspended', $user->subscription_status);
         // Suspension notification queued to database channel
         $this->assertDatabaseHas('notifications', [
-            'notifiable_id'   => $user->id,
+            'notifiable_id' => $user->id,
             'notifiable_type' => User::class,
         ]);
     }
@@ -73,8 +80,8 @@ class BillingServiceTest extends TestCase
     public function test_clear_debt_restores_active_status(): void
     {
         $user = $this->makeUser([
-            'wallet_balance'      => 0,
-            'wallet_debt'         => 2000,
+            'wallet_balance' => 0,
+            'wallet_debt' => 2000,
             'subscription_status' => 'suspended',
         ]);
 
