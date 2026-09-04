@@ -2,6 +2,8 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use App\Jobs\ScanFixedIncomeMaturities;
+use App\Jobs\ReconcileFixedIncomeProviders;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -42,3 +44,7 @@ Schedule::call(function () {
             }
         });
 })->dailyAt('00:00');
+Schedule::job(
+    new ScanFixedIncomeMaturities(),
+    new ReconcileFixedIncomeProviders(),
+)->hourly();

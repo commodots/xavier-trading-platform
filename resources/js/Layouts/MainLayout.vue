@@ -86,6 +86,61 @@
 
             <SidebarLink v-if="isAdmin" to="/admin/crypto-settings" :icon="Bitcoin">Crypto Settings</SidebarLink>
 
+            <div
+    v-if="isAdmin"
+    class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold"
+>
+    Fixed Income
+</div>
+
+<SidebarLink
+    v-if="isAdmin"
+    to="/admin/fixed-income"
+    :icon="TrendingUp"
+>
+    Dashboard
+</SidebarLink>
+
+<SidebarLink
+    v-if="isAdmin"
+    to="/admin/fixed-income/products"
+    :icon="FileText"
+>
+    Products
+</SidebarLink>
+
+<SidebarLink
+    v-if="isAdmin"
+    to="/admin/fixed-income/investments"
+    :icon="ListOrdered"
+>
+    Investments
+</SidebarLink>
+
+<SidebarLink
+    v-if="isAdmin"
+    to="/admin/fixed-income/maturities"
+    :icon="Calendar"
+>
+    Maturities
+</SidebarLink>
+
+<SidebarLink
+    v-if="isAdmin"
+    to="/admin/fixed-income/reconciliation"
+    :icon="RefreshCw"
+>
+    Reconciliation
+</SidebarLink>
+
+<SidebarLink
+    v-if="isAdmin"
+    to="/admin/fixed-income/reports"
+    :icon="FileSpreadsheet"
+>
+    Reports
+</SidebarLink>
+
 
             <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations
@@ -171,7 +226,7 @@ import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
   ListOrdered, Settings, MonitorCog, FileSpreadsheet, SquareChartGantt, FileText, MessageCircleQuestionMark, TrendingUp, Bell, DollarSign, Gem, Newspaper, ChartNoAxesCombined, Store,
-  CreditCard, ArrowLeftRight, History, Download, Receipt
+  CreditCard, ArrowLeftRight, History, Download, Receipt, RefreshCw, Calendar
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";

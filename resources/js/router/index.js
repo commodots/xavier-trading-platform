@@ -470,7 +470,61 @@ const routes = [
     component: ComplianceDashboard,
     meta: { requiresAuth: true, adminOnly: true },
   },
-  
+
+  //FIXED INCOME//
+  {
+    path: '/admin/fixed-income',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Dashboard.vue')
+},
+
+{
+    path: '/admin/fixed-income/products',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Products/Index.vue')
+},
+
+{
+    path: '/admin/fixed-income/products/create',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Products/Create.vue')
+},
+
+{
+    path: '/admin/fixed-income/products/:id',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Products/Show.vue')
+},
+
+{
+    path: '/admin/fixed-income/products/:id/edit',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Products/Edit.vue')
+},
+
+{
+    path: '/admin/fixed-income/investments',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Investments/Index.vue')
+},
+
+{
+    path: '/admin/fixed-income/investments/:id',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Investments/Show.vue')
+},
+
+{
+    path: '/admin/fixed-income/reconciliation',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Reconciliation.vue')
+},
+
+{
+    path: '/admin/fixed-income/reports',
+    component: () =>
+        import('@/Pages/Admin/FixedIncome/Reports.vue')
+}, 
 ];
 
 /* --------------------------------------------------

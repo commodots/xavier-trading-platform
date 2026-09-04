@@ -64,6 +64,7 @@ use App\Http\Controllers\DemoController;
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\Api\Admin\FixedIncomeDashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -126,7 +127,7 @@ Route::prefix('dummy')->group(function () {
 */
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/user', fn (Request $request) => $request->user());
+    Route::get('/user', fn(Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user/sessions', [SecurityController::class, 'getActiveSessions']);
     Route::post('/user/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
@@ -141,7 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (Exception $e) {
-            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
@@ -337,6 +338,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/products/{fixedIncomeProduct}/invest', [
             FixedIncomeController::class,
             'invest',
+        ]);
+        Route::get('/investments', [
+            FixedIncomeInvestmentController::class,
+            'index'
+        ]);
+
+        Route::get('/investments/{fixedIncomeInvestment}', [
+            FixedIncomeInvestmentController::class,
+            'show'
         ]);
     });
 
@@ -569,6 +579,11 @@ Route::middleware('auth:sanctum')->group(function () {
             FixedIncomeProductController::class,
             'close',
         ]);
+
+        Route::get('/dashboard', [
+            FixedIncomeDashboardController::class,
+            'index'
+        ]);
     });
     Route::prefix('fixed-income/investments')->group(function () {
 
@@ -603,6 +618,51 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{fixedIncomeInvestment}/reinvest', [
             FixedIncomeInvestmentController::class,
             'reinvest',
+        ]
+        )->middleware([
+    'auth:sanctum',
+    'verified',
+    'kyc:1',
+    'throttle:5,1',
+]);
+    });
+    Route::prefix('investments')->group(function () {
+
+        Route::get('/', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
+            'index'
+        ]);
+
+        Route::get('/{fixedIncomeInvestment}', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
+            'show'
+        ]);
+
+        Route::post('/{fixedIncomeInvestment}/activate', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
+            'activate'
+        ]);
+
+        Route::post('/{fixedIncomeInvestment}/reject', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
+            'reject'
+        ]);
+
+        Route::post('/{fixedIncomeInvestment}/cancel', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
+            'cancel'
+        ]);
+
+        Route::post('/{fixedIncomeInvestment}/mature', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
+            'mature'
+        ]);
+    });
+    Route::prefix('fixed-income/reports')->group(function () {
+
+        Route::get('/investments', [
+            \App\Http\Controllers\Api\Admin\FixedIncomeReportController::class,
+            'investments'
         ]);
     });
 });

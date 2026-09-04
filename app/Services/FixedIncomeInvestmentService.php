@@ -18,7 +18,8 @@ class FixedIncomeInvestmentService
     public function createFromWallet(
         $user,
         FixedIncomeProduct $product,
-        float $amount
+        float $amount,
+        ?string $idempotencyKey = null
     ): FixedIncomeInvestment {
 
         $investment = DB::transaction(function () use (
@@ -165,7 +166,28 @@ class FixedIncomeInvestmentService
             SubmitFixedIncomeInvestment::dispatch($investment->id)->afterCommit();
         }
 
-        return $investment;
+        
+
+        if ($idempotencyKey) {
+    $existing = FixedIncomeInvestment::query()
+        ->where(
+            'idempotency_key',
+            $idempotencyKey
+        )
+        ->where(
+            'user_id',
+            $user->id
+        )
+        ->lockForUpdate()
+        ->first();
+
+    if ($existing) {
+        return $existing;
+    }
+
+    
+}
+return $investment;
     }
 
     private function validateProduct(
