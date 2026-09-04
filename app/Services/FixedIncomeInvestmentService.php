@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Jobs\SubmitFixedIncomeInvestment;
 use App\Models\FixedIncomeInvestment;
 use App\Models\FixedIncomeProduct;
-use App\Models\FixedIncomeTransaction;
 use App\Models\Ledger;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
+use App\Services\FixedIncome\FixedIncomeReturnCalculator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -57,20 +57,27 @@ class FixedIncomeInvestmentService
             }
 
             /** Calculate expected return.*/
-            $interest = $this->calculateInterest(
+            $calculation = app(
+                FixedIncomeReturnCalculator::class
+            )->calculate(
                 $product,
-                $amount
+                $amount,
+                now(),
+                $product->tenor_days
+                    ? now()->copy()->addDays($product->tenor_days)
+                    : null
             );
 
-            $maturityAmount = $amount + $interest;
+            $interest = $calculation['interest'];
+            $maturityAmount = $calculation['maturity_amount'];
 
             $investmentDate = now();
 
             $maturityDate = $product->tenor_days
-              ? $investmentDate->copy()->addDays(
-                  $product->tenor_days
-              )
-              : null;
+                ? $investmentDate->copy()->addDays(
+                    $product->tenor_days
+                )
+                : null;
 
             $reference = $this->generateReference();
 
@@ -78,9 +85,7 @@ class FixedIncomeInvestmentService
             $wallet->reserve($amount);
 
             /* * Determine initial execution status. */
-            $status = $product->execution_mode === 'automated'
-              ? 'pending_execution'
-              : 'pending_execution';
+            $status = 'pending_execution';
 
             /** Create the actual Fixed Income investment.*/
             $investment = FixedIncomeInvestment::create([
@@ -89,17 +94,20 @@ class FixedIncomeInvestmentService
                 'reference' => $reference,
 
                 'principal_amount' => $amount,
+                'reserved_amount' => $amount,
                 'currency' => $product->currency,
 
                 'interest_rate' => $product->interest_rate,
                 'rate_type' => $product->rate_type,
 
-                'expected_interest' => $interest,
-                'expected_maturity_amount' => $maturityAmount,
+                'expected_interest' => round($interest, 2),
+                'expected_maturity_amount' => round($maturityAmount, 2),
 
                 'status' => $status,
 
                 'investment_date' => $investmentDate,
+                'funded_at' => $investmentDate,
+                'last_status_at' => $investmentDate,
 
                 'maturity_date' => $maturityDate,
 
@@ -148,31 +156,6 @@ class FixedIncomeInvestmentService
                     'product_id' => $product->id,
                 ],
                 'is_platform' => false,
-            ]);
-
-            /* * Investment-specific transaction history. */
-            FixedIncomeTransaction::create([
-                'fixed_income_investment_id' => $investment->id,
-
-                'user_id' => $user->id,
-
-                'type' => 'investment_funded',
-
-                'amount' => $amount,
-
-                'currency' => $product->currency,
-
-                'status' => 'completed',
-
-                'reference' => $reference,
-
-                'transaction_id' => $transaction->id,
-
-                'ledger_id' => $ledger->id,
-
-                'metadata' => [
-                    'funding_method' => 'wallet',
-                ],
             ]);
 
             return $investment->fresh();
@@ -234,18 +217,18 @@ class FixedIncomeInvestmentService
         }
 
         return $amount
-          * ($product->interest_rate / 100)
-          * ($product->tenor_days / 365);
+            * ($product->interest_rate / 100)
+            * ($product->tenor_days / 365);
     }
 
     private function generateReference(): string
     {
         do {
             $reference =
-              'FI-'.
-              now()->format('Ym').
-              '-'.
-              strtoupper(Str::random(8));
+                'FI-'.
+                now()->format('Ym').
+                '-'.
+                strtoupper(Str::random(8));
         } while (
             FixedIncomeInvestment::where(
                 'reference',

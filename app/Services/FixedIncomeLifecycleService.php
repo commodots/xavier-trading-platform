@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FixedIncomeInvestment;
 use App\Models\FixedIncomeTransaction;
 use App\Models\Wallet;
+use App\Services\FixedIncome\FixedIncomeMaturityService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -41,6 +42,7 @@ class FixedIncomeLifecycleService
             $investment->update([
                 'status' => 'active',
                 'execution_date' => now(),
+                'last_status_at' => now(),
                 'provider_reference' => $providerReference,
             ]);
 
@@ -66,6 +68,14 @@ class FixedIncomeLifecycleService
 
             return $investment->fresh();
         });
+    }
+
+    public function mature(
+        FixedIncomeInvestment $investment
+    ): FixedIncomeInvestment {
+        return app(
+            FixedIncomeMaturityService::class
+        )->mature($investment);
     }
 
     public function reject(
@@ -99,10 +109,18 @@ class FixedIncomeLifecycleService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $wallet->releaseReservation($investment->principal_amount);
+            $amount = (float) $investment->reserved_amount;
+
+            if ($amount <= 0) {
+                $amount = (float) $investment->principal_amount;
+            }
+
+            $wallet->releaseReservation($amount);
 
             $investment->update([
                 'status' => 'rejected',
+                'reserved_amount' => 0,
+                'last_status_at' => now(),
                 'metadata' => array_merge(
                     $investment->metadata ?? [],
                     [

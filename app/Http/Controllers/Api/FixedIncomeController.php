@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FixedIncomeProduct;
+use App\Services\FixedIncome\FixedIncomeReturnCalculator;
 use App\Services\FixedIncomeInvestmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -109,40 +110,29 @@ class FixedIncomeController extends Controller
             ], 422);
         }
 
-        $interest = $this->calculateInterest(
+        $startDate = now();
+        $endDate = $fixedIncomeProduct->tenor_days
+            ? $startDate->copy()->addDays($fixedIncomeProduct->tenor_days)
+            : null;
+
+        $result = app(FixedIncomeReturnCalculator::class)->calculate(
             $fixedIncomeProduct,
-            $amount
-        );
-
-        $maturityAmount = $amount + $interest;
-
-        $maturityDate = $this->calculateMaturityDate(
-            $fixedIncomeProduct
+            $amount,
+            $startDate,
+            $endDate
         );
 
         return response()->json([
             'success' => true,
-
             'data' => [
-                'product_id' => $fixedIncomeProduct->id,
-                'product' => $fixedIncomeProduct->name,
-
                 'amount' => $amount,
                 'currency' => $fixedIncomeProduct->currency,
-
                 'interest_rate' => $fixedIncomeProduct->interest_rate,
-
-                'rate_type' => $fixedIncomeProduct->rate_type,
-
-                'expected_interest' => round($interest, 2),
-
-                'expected_maturity_amount' => round($maturityAmount, 2),
-
-                'maturity_date' => $maturityDate?->format('Y-m-d'),
-
-                'tenor_days' => $fixedIncomeProduct->tenor_days,
-
-                'interest_frequency' => $fixedIncomeProduct->interest_frequency,
+                'days' => $result['days'],
+                'expected_interest' => $result['interest'],
+                'expected_maturity_amount' => $result['maturity_amount'],
+                'calculation_method' => $fixedIncomeProduct->calculation_method,
+                'day_count_basis' => $fixedIncomeProduct->day_count_basis,
             ],
         ]);
     }

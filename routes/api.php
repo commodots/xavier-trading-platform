@@ -591,5 +591,18 @@ Route::middleware('auth:sanctum')->group(function () {
             FixedIncomeInvestmentController::class,
             'reject',
         ]);
+
+        Route::post(
+            '/{fixedIncomeInvestment}/mature',
+            [
+                FixedIncomeInvestmentController::class,
+                'mature',
+            ]
+        );
+
+        Route::post('/{fixedIncomeInvestment}/reinvest', [
+            FixedIncomeInvestmentController::class,
+            'reinvest',
+        ]);
     });
 });

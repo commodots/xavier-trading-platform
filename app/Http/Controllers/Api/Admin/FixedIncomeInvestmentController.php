@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\FixedIncomeInvestment;
+use App\Services\FixedIncome\FixedIncomeMaturityService;
+use App\Services\FixedIncome\FixedIncomeReinvestmentService;
 use App\Services\FixedIncomeLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -117,5 +119,46 @@ class FixedIncomeInvestmentController extends Controller
             'message' => 'Investment rejected and funds returned.',
             'data' => $investment,
         ]);
+    }
+
+    public function mature(
+        FixedIncomeInvestment $fixedIncomeInvestment
+    ): JsonResponse {
+        try {
+            $investment = app(
+                FixedIncomeMaturityService::class
+            )->mature($fixedIncomeInvestment);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Fixed Income investment matured successfully.',
+                'data' => $investment,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function reinvest(
+        FixedIncomeInvestment $fixedIncomeInvestment,
+        FixedIncomeReinvestmentService $reinvestment
+    ): JsonResponse {
+        try {
+            $investment = $reinvestment->reinvest($fixedIncomeInvestment);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Investment reinvested successfully.',
+                'data' => $investment,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

@@ -12,8 +12,7 @@ class ApiFixedIncomeProvider implements FixedIncomeProviderInterface
         FixedIncomeInvestment $investment
     ): array {
 
-        /*
-         * Do NOT call an external API yet.
+        /** Do NOT call an external API yet.
          *
          * This class becomes the adapter for the selected
          * provider after the actual provider API has been

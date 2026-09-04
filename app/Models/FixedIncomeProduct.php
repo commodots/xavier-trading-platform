@@ -36,6 +36,10 @@ class FixedIncomeProduct extends Model
         'execution_mode',
         'provider',
         'allow_reinvestment',
+        'calculation_method',
+        'day_count_basis',
+        'capitalise_interest',
+        'maturity_payout',
         'metadata',
     ];
 
@@ -54,6 +58,8 @@ class FixedIncomeProduct extends Model
         'open_ended' => 'boolean',
         'early_withdrawal_allowed' => 'boolean',
         'allow_reinvestment' => 'boolean',
+
+        'capitalise_interest' => 'boolean',
 
         'metadata' => 'array',
     ];

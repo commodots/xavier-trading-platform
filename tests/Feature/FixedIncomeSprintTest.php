@@ -5,8 +5,14 @@ namespace Tests\Feature;
 use App\Jobs\SubmitFixedIncomeInvestment;
 use App\Models\FixedIncomeInvestment;
 use App\Models\FixedIncomeProduct;
+use App\Models\FixedIncomeTransaction;
+use App\Models\Ledger;
+use App\Models\NewTransaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\FixedIncome\FixedIncomeMaturityService;
+use App\Services\FixedIncome\FixedIncomeReinvestmentService;
+use App\Services\FixedIncome\FixedIncomeReturnCalculator;
 use App\Services\FixedIncomeInvestmentService;
 use App\Services\FixedIncomeLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,6 +28,11 @@ class FixedIncomeSprintTest extends TestCase
         $this->assertTrue(
             collect(app('router')->getRoutes()->getRoutes())
                 ->contains(fn ($route) => $route->uri() === 'api/fixed-income/products/{fixedIncomeProduct}/invest')
+        );
+
+        $this->assertTrue(
+            collect(app('router')->getRoutes()->getRoutes())
+                ->contains(fn ($route) => $route->uri() === 'api/fixed-income/investments/{fixedIncomeInvestment}/reinvest')
         );
     }
 
@@ -118,5 +129,113 @@ class FixedIncomeSprintTest extends TestCase
             'type' => 'investment_rejected',
         ]);
 
+    }
+
+    public function test_authoritative_calculator_and_maturity_are_idempotent(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 500000,
+            'balance' => 500000,
+        ]);
+        $product = FixedIncomeProduct::create([
+            'name' => 'Maturity Bond',
+            'code' => 'GB-MATURITY',
+            'currency' => 'NGN',
+            'status' => 'active',
+            'minimum_amount' => 100000,
+            'interest_rate' => 15.5,
+            'tenor_days' => 181,
+            'calculation_method' => 'simple_interest',
+            'day_count_basis' => 'actual_365',
+            'execution_mode' => 'manual',
+        ]);
+
+        $calculation = app(FixedIncomeReturnCalculator::class)->calculate(
+            $product,
+            500000,
+            now(),
+            now()->addDays(181)
+        );
+
+        $this->assertSame(181, $calculation['days']);
+        $this->assertSame(38431.51, $calculation['interest']);
+        $this->assertSame(538431.51, $calculation['maturity_amount']);
+
+        $investment = app(FixedIncomeInvestmentService::class)
+            ->createFromWallet($user, $product, 500000);
+
+        app(FixedIncomeLifecycleService::class)->activate($investment);
+        $investment->update([
+            'execution_date' => now()->subDay(),
+            'maturity_date' => now(),
+        ]);
+
+        $maturityService = app(FixedIncomeMaturityService::class);
+        $matured = $maturityService->mature($investment);
+        $wallet->refresh();
+
+        $this->assertSame('redeemed', $matured->status);
+        $this->assertNotNull($matured->actual_interest);
+        $this->assertNotNull($matured->actual_maturity_amount);
+        $this->assertNotNull($matured->redeemed_at);
+        $this->assertSame(500212.33, (float) $wallet->ngn_cleared);
+        $this->assertSame(0.0, (float) $wallet->locked);
+
+        $maturityService->mature($investment);
+
+        $this->assertSame(1, FixedIncomeTransaction::query()
+            ->where('fixed_income_investment_id', $investment->id)
+            ->where('type', 'investment_redeemed')
+            ->count());
+        $this->assertSame(1, NewTransaction::query()
+            ->where('type', 'fixed_income_redemption')
+            ->where('user_id', $user->id)
+            ->count());
+        $this->assertSame(1, Ledger::query()
+            ->where('type', 'FIXED_INCOME_REDEMPTION')
+            ->where('user_id', $user->id)
+            ->count());
+    }
+
+    public function test_reinvestment_preserves_history_and_creates_a_new_reserved_investment(): void
+    {
+        $user = User::factory()->create();
+        Wallet::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 1100000,
+            'balance' => 1100000,
+        ]);
+        $product = FixedIncomeProduct::create([
+            'name' => 'Reinvestment Bond',
+            'code' => 'GB-REINVEST',
+            'currency' => 'NGN',
+            'status' => 'active',
+            'minimum_amount' => 100000,
+            'interest_rate' => 10,
+            'tenor_days' => 30,
+            'allow_reinvestment' => true,
+            'execution_mode' => 'manual',
+        ]);
+        $investment = app(FixedIncomeInvestmentService::class)
+            ->createFromWallet($user, $product, 500000);
+        $investment->update([
+            'status' => 'redeemed',
+            'actual_maturity_amount' => 510000,
+            'reinvestment_enabled' => true,
+        ]);
+
+        $newInvestment = app(FixedIncomeReinvestmentService::class)
+            ->reinvest($investment);
+
+        $this->assertSame('redeemed', $investment->refresh()->status);
+        $this->assertNotSame($investment->reference, $newInvestment->reference);
+        $this->assertSame(510000.0, (float) $newInvestment->principal_amount);
+        $this->assertSame(510000.0, (float) $newInvestment->reserved_amount);
+        $this->assertSame($newInvestment->id, $investment->refresh()->metadata['reinvested_into']);
+        $this->assertSame($investment->id, $newInvestment->metadata['reinvestment_from']);
     }
 }

@@ -133,10 +133,23 @@ class Wallet extends Model
         return $this->refreshBalance();
     }
 
+    /**
+     * Release a previously reserved amount.
+     *
+     * Moves funds from locked back to the currency-specific
+     * cleared balance.
+     */
     public function releaseReservation(float $amount): self
     {
+        if ($amount < 0) {
+            throw new \InvalidArgumentException(
+                'Reservation release amount cannot be negative.'
+            );
+        }
         if ((float) $this->locked < $amount) {
-            throw new \Exception('Insufficient locked funds.');
+            throw new \RuntimeException(
+                'Insufficient locked balance to release reservation.'
+            );
         }
 
         $clearedCol = $this->getClearedColumn();

@@ -32,6 +32,9 @@ class FixedIncomeInvestment extends Model
         'provider',
         'provider_reference',
         'reinvestment_enabled',
+        'reserved_amount',
+        'funded_at',
+        'last_status_at',
         'metadata',
     ];
 
@@ -49,6 +52,10 @@ class FixedIncomeInvestment extends Model
         'redeemed_at' => 'datetime',
 
         'reinvestment_enabled' => 'boolean',
+
+        'reserved_amount' => 'float',
+        'funded_at' => 'datetime',
+        'last_status_at' => 'datetime',
         'metadata' => 'array',
     ];
 
@@ -68,7 +75,8 @@ class FixedIncomeInvestment extends Model
     public function transactions()
     {
         return $this->hasMany(
-            FixedIncomeTransaction::class
+            FixedIncomeTransaction::class,
+            'fixed_income_investment_id'
         );
     }
 }
