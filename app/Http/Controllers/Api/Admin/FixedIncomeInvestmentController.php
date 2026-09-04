@@ -27,37 +27,37 @@ class FixedIncomeInvestmentController extends Controller
         }
 
         if ($request->filled('currency')) {
-        $query->where(
-            'currency',
-            $request->string('currency')
-        );
-    }
-    if ($request->filled('execution_mode')) {
-        $query->where(
-            'execution_mode',
-            $request->string('execution_mode')
-        );
-    }
-    if ($request->filled('provider')) {
-        $query->where(
-            'provider',
-            $request->string('provider')
-        );
-    }
-    if ($request->filled('date_from')) {
-        $query->whereDate(
-            'investment_date',
-            '>=',
-            $request->date('date_from')
-        );
-    }
-    if ($request->filled('date_to')) {
-        $query->whereDate(
-            'investment_date',
-            '<=',
-            $request->date('date_to')
-        );
-    }
+            $query->where(
+                'currency',
+                $request->string('currency')
+            );
+        }
+        if ($request->filled('execution_mode')) {
+            $query->where(
+                'execution_mode',
+                $request->string('execution_mode')
+            );
+        }
+        if ($request->filled('provider')) {
+            $query->where(
+                'provider',
+                $request->string('provider')
+            );
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate(
+                'investment_date',
+                '>=',
+                $request->date('date_from')
+            );
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate(
+                'investment_date',
+                '<=',
+                $request->date('date_to')
+            );
+        }
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -150,6 +150,19 @@ class FixedIncomeInvestmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Investment rejected and funds returned.',
+            'data' => $investment,
+        ]);
+    }
+
+    public function cancel(
+        FixedIncomeInvestment $fixedIncomeInvestment,
+        FixedIncomeLifecycleService $lifecycle
+    ): JsonResponse {
+        $investment = $lifecycle->cancel($fixedIncomeInvestment);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Investment cancelled and funds returned.',
             'data' => $investment,
         ]);
     }

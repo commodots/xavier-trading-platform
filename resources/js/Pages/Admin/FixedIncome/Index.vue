@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import api from '@/api'
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import api from '@/api';
+import MainLayout from "@/Layouts/MainLayout.vue";
 
 const router = useRouter()
 
@@ -31,6 +32,7 @@ onMounted(loadProducts)
 </script>
 
 <template>
+  <MainLayout>
     <div class="space-y-6">
 
         <div>
@@ -108,4 +110,5 @@ onMounted(loadProducts)
         </div>
 
     </div>
+  </MainLayout>
 </template>

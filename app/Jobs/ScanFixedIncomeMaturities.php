@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\FixedIncomeInvestment;
+use App\Services\FixedIncome\FixedIncomeStateManager;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -10,7 +11,7 @@ class ScanFixedIncomeMaturities implements ShouldQueue
 {
     use Queueable;
 
-    public function handle(): void
+    public function handle(FixedIncomeStateManager $stateManager): void
     {
         FixedIncomeInvestment::query()
             ->whereIn('status', [
@@ -30,10 +31,7 @@ class ScanFixedIncomeMaturities implements ShouldQueue
                     if (
                         $investment->status === 'active'
                     ) {
-                        $investment->update([
-                            'status' => 'maturing',
-                            'last_status_at' => now(),
-                        ]);
+                        $stateManager->transition($investment, 'maturing');
                     }
 
                     if (

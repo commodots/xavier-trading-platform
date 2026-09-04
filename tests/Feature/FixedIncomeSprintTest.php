@@ -91,6 +91,39 @@ class FixedIncomeSprintTest extends TestCase
         Bus::assertDispatched(SubmitFixedIncomeInvestment::class);
     }
 
+    public function test_duplicate_idempotency_key_returns_existing_investment_without_reserving_again(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 500000,
+            'balance' => 500000,
+        ]);
+        $product = FixedIncomeProduct::create([
+            'name' => 'Idempotent Bond',
+            'code' => 'GB-IDEMPOTENT',
+            'currency' => 'NGN',
+            'status' => 'active',
+            'minimum_amount' => 100000,
+            'interest_rate' => 10,
+            'tenor_days' => 30,
+            'execution_mode' => 'manual',
+        ]);
+
+        $service = app(FixedIncomeInvestmentService::class);
+        $first = $service->createFromWallet($user, $product, 200000, 'request-123');
+        $second = $service->createFromWallet($user, $product, 200000, 'request-123');
+        $wallet->refresh();
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(1, FixedIncomeInvestment::query()
+            ->where('idempotency_key', 'request-123')
+            ->count());
+        $this->assertSame(300000.0, (float) $wallet->ngn_cleared);
+        $this->assertSame(200000.0, (float) $wallet->locked);
+    }
+
     public function test_rejecting_pending_investment_releases_reserved_funds(): void
     {
         $user = User::factory()->create();

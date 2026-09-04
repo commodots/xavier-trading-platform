@@ -19,7 +19,6 @@ import Portfolio from "@/Pages/Portfolio.vue";
 import NgxMarket from "@/Pages/Market/NgxMarket.vue";
 import GlobalMarket from "@/Pages/Market/GlobalStocks.vue";
 import CryptoMarket from "@/Pages/Market/CryptoMarket.vue";
-import FixedIncomeMarket from "@/Pages/Market/FixedIncomeMarket.vue";
 import FxMarket from "@/Pages/Market/FxMarket.vue";
 import Profile from "@/Pages/Profile/Index.vue";
 import Settings from "@/Pages/Settings.vue";
@@ -142,7 +141,43 @@ const routes = [
   {
     path: "/fixed-income",
     name: "fixed-income",
-    component: FixedIncomeMarket,
+    component: () => import("@/Pages/FixedIncome/Index.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income/:id",
+    name: "fixed-income-product",
+    component: () => import("@/Pages/FixedIncome/Show.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income/:id/invest",
+    name: "fixed-income-invest",
+    component: () => import("@/Pages/FixedIncome/Invest.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income/:id/review",
+    name: "fixed-income-review",
+    component: () => import("@/Pages/FixedIncome/Review.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income/success/:id",
+    name: "fixed-income-success",
+    component: () => import("@/Pages/FixedIncome/Success.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income/investments",
+    name: "fixed-income-investments",
+    component: () => import("@/Pages/FixedIncome/Investments.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/fixed-income/investments/:id",
+    name: "fixed-income-investment-show",
+    component: () => import("@/Pages/FixedIncome/InvestmentShow.vue"),
     meta: { requiresAuth: true },
   },
   {
@@ -491,15 +526,14 @@ const routes = [
 },
 
 {
-    path: '/admin/fixed-income/products/:id',
-    component: () =>
-        import('@/Pages/Admin/FixedIncome/Products/Show.vue')
-},
-
-{
     path: '/admin/fixed-income/products/:id/edit',
     component: () =>
         import('@/Pages/Admin/FixedIncome/Products/Edit.vue')
+},
+
+{
+  path: '/admin/fixed-income/products/:id',
+  component: () => import('@/Pages/Admin/FixedIncome/Products/Show.vue')
 },
 
 {

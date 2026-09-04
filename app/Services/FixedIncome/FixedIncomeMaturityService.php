@@ -79,7 +79,7 @@ class FixedIncomeMaturityService
                 2
             );
 
-            /** 
+            /**
              * Locate and lock the user's wallet.
              */
             $wallet = Wallet::query()
@@ -94,7 +94,7 @@ class FixedIncomeMaturityService
                 );
             }
 
-            /** 
+            /**
              * The principal is already locked.
              *
              * Release:
@@ -111,7 +111,7 @@ class FixedIncomeMaturityService
                 );
             }
 
-            /** 
+            /**
              * Interest is new money.
              *
              * Add only the interest to cleared balance.
@@ -130,7 +130,7 @@ class FixedIncomeMaturityService
                 .'-'
                 .strtoupper(Str::random(8));
 
-            /** 
+            /**
              * Existing Xavier financial transaction.
              */
             $transaction = NewTransaction::create([
@@ -151,7 +151,7 @@ class FixedIncomeMaturityService
                 ],
             ]);
 
-            /** 
+            /**
              * Existing Xavier ledger.
              */
             $ledger = Ledger::create([
@@ -170,7 +170,7 @@ class FixedIncomeMaturityService
                 'is_platform' => false,
             ]);
 
-            /** 
+            /**
              * Fixed Income-specific transaction history.
              */
             FixedIncomeTransaction::create([
@@ -199,17 +199,26 @@ class FixedIncomeMaturityService
                 ],
             ]);
 
+            if ($investment->status === 'active') {
+                app(FixedIncomeStateManager::class)->transition($investment, 'maturing');
+            }
+
+            if ($investment->status === 'maturing') {
+                app(FixedIncomeStateManager::class)->transition($investment, 'matured');
+            }
+
+            app(FixedIncomeStateManager::class)->transition($investment, 'redeemed');
+
             $investment->update([
                 'actual_interest' => $interest,
                 'actual_maturity_amount' => $maturityAmount,
 
-                'status' => 'redeemed',
-
                 'redeemed_at' => now(),
-                'last_status_at' => now(),
 
                 'reserved_amount' => 0,
             ]);
+
+            app(FixedIncomeNotificationService::class)->send($investment, 'redeemed');
 
             return $investment->fresh();
         });

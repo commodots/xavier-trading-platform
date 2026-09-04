@@ -1,6 +1,10 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import api from '@/api'
+import { ref, onMounted } from 'vue';
+import api from '@/api';
+import { useRouter } from 'vue-router';
+import MainLayout from "@/Layouts/MainLayout.vue";
+
+const router = useRouter()
 
 const investments = ref([])
 const loading = ref(false)
@@ -34,6 +38,7 @@ onMounted(loadInvestments)
 </script>
 
 <template>
+  <MainLayout>
   <div class="space-y-6">
 
     <div>
@@ -103,7 +108,7 @@ onMounted(loadInvestments)
         </thead>
 
         <tbody>
-          <tr v-for="investment in investments" :key="investment.id" class="border-t border-[#1F2A44] text-gray-200">
+          <tr v-for="investment in investments" :key="investment.id" class="cursor-pointer border-t border-[#1F2A44] text-gray-200 hover:bg-[#16213A]" @click="router.push(`/admin/fixed-income/investments/${investment.id}`)">
             <td class="p-4">
               {{ investment.reference }}
             </td>
@@ -139,4 +144,5 @@ onMounted(loadInvestments)
     </div>
 
   </div>
+</MainLayout>
 </template>

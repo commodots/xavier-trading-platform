@@ -1,6 +1,6 @@
 <template>
   <aside :class="[
-    'h-screen text-gray-300 border-r border-[#1F2A44] flex flex-col transition-all duration-300 z-40',
+    'text-gray-300 border-r border-[#1F2A44] flex flex-col transition-all duration-300 z-40 h-screen',
     collapsed ? 'w-20' : 'w-64',
     sidebarBg
   ]">

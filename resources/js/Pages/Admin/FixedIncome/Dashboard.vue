@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import api from '@/api'
+import { ref, onMounted } from 'vue';
+import api from '@/api';
+import MainLayout from "@/Layouts/MainLayout.vue";
 
 const loading = ref(true)
 const dashboard = ref({})
@@ -24,6 +25,7 @@ onMounted(loadDashboard)
 </script>
 
 <template>
+  <MainLayout>
     <div class="space-y-6">
 
         <div>
@@ -64,4 +66,5 @@ onMounted(loadDashboard)
         </div>
 
     </div>
+  </MainLayout>
 </template>

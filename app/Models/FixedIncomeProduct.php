@@ -33,6 +33,7 @@ class FixedIncomeProduct extends Model
         'subscription_fee',
         'subscription_fee_type',
         'maximum_capacity',
+        'maximum_user_capacity',
         'execution_mode',
         'provider',
         'allow_reinvestment',
@@ -53,6 +54,7 @@ class FixedIncomeProduct extends Model
         'early_withdrawal_penalty' => 'float',
         'subscription_fee' => 'float',
         'maximum_capacity' => 'float',
+        'maximum_user_capacity' => 'float',
 
         'maximum_open_ended' => 'boolean',
         'open_ended' => 'boolean',

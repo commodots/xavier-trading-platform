@@ -3,7 +3,10 @@
 namespace App\Jobs;
 
 use App\Models\FixedIncomeInvestment;
+use App\Services\FixedIncome\FixedIncomeNotificationService;
 use App\Services\FixedIncome\FixedIncomeProviderManager;
+use App\Services\FixedIncome\FixedIncomeStateManager;
+use App\Services\FixedIncome\ProviderLogService;
 use App\Services\FixedIncomeLifecycleService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,7 +21,10 @@ class SubmitFixedIncomeInvestment implements ShouldQueue
     ) {}
 
     public function handle(
-        FixedIncomeProviderManager $providerManager
+        FixedIncomeProviderManager $providerManager,
+        ProviderLogService $logger,
+        FixedIncomeStateManager $stateManager,
+        FixedIncomeNotificationService $notifications
     ): void {
 
         $investment =
@@ -43,6 +49,12 @@ class SubmitFixedIncomeInvestment implements ShouldQueue
                 $providerManager->submit(
                     $investment
                 );
+
+            $logger->log($investment, 'submit', [
+                'status' => $result['status'] ?? 'submitted',
+                'provider_reference' => $result['provider_reference'] ?? null,
+                'response_payload' => $result,
+            ]);
 
             if (
                 ! empty(
@@ -88,9 +100,14 @@ class SubmitFixedIncomeInvestment implements ShouldQueue
                 ]
             );
 
-            $investment->update([
+            $stateManager->transition($investment, 'failed');
+            $notifications->send($investment, 'failed');
+            $logger->log($investment, 'submit', [
                 'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
 
+            $investment->update([
                 'metadata' => array_merge(
                     $investment->metadata ?? [],
                     [

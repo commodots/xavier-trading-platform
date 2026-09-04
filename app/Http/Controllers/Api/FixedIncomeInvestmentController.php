@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FixedIncomeInvestment;
+use App\Services\FixedIncome\FixedIncomeReinvestmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,6 +39,25 @@ class FixedIncomeInvestmentController extends Controller
                 'product',
                 'transactions',
             ]),
+        ]);
+    }
+
+    public function reinvest(
+        Request $request,
+        FixedIncomeInvestment $fixedIncomeInvestment,
+        FixedIncomeReinvestmentService $reinvestment
+    ): JsonResponse {
+        abort_unless(
+            $fixedIncomeInvestment->user_id === $request->user()->id,
+            403
+        );
+
+        $investment = $reinvestment->reinvest($fixedIncomeInvestment);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Investment reinvested successfully.',
+            'data' => $investment,
         ]);
     }
 }

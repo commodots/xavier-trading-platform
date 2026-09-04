@@ -19,8 +19,10 @@ use App\Http\Controllers\Admin\SettlementDashboardController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AdvisoryController;
 use App\Http\Controllers\AlpacaWebhookController;
+use App\Http\Controllers\Api\Admin\FixedIncomeDashboardController;
 use App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController;
 use App\Http\Controllers\Api\Admin\FixedIncomeProductController;
+use App\Http\Controllers\Api\Admin\FixedIncomeReportController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminServiceController;
 use App\Http\Controllers\Api\AuthController;
@@ -32,6 +34,7 @@ use App\Http\Controllers\Api\DummyCscsController;
 use App\Http\Controllers\Api\DummyNgxController;
 use App\Http\Controllers\Api\FincraWebhookController;
 use App\Http\Controllers\Api\FixedIncomeController;
+use App\Http\Controllers\Api\FixedIncomeInvestmentController as UserFixedIncomeInvestmentController;
 use App\Http\Controllers\Api\FxConversionController;
 use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\MarketController;
@@ -42,9 +45,9 @@ use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PaystackController;
 use App\Http\Controllers\Api\PaystackWebhookController;
 use App\Http\Controllers\Api\PortfolioController;
+// Admin Controllers
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\QoreidWebhookController;
-// Admin Controllers
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\Security\AuditLogController;
 use App\Http\Controllers\Api\Security\TwoFactorController;
@@ -55,16 +58,15 @@ use App\Http\Controllers\Api\TransactionTypeController;
 use App\Http\Controllers\Api\User\LinkedAccountController;
 use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\WalletController;
+// Dummy/Testing
 use App\Http\Controllers\Api\WatchlistController;
 use App\Http\Controllers\Auth\NewPasswordController;
-// Dummy/Testing
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\ModelPortfolioController;
 use App\Http\Controllers\PredictionController;
 use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\Api\Admin\FixedIncomeDashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -127,7 +129,7 @@ Route::prefix('dummy')->group(function () {
 */
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/user', fn(Request $request) => $request->user());
+    Route::get('/user', fn (Request $request) => $request->user());
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user/sessions', [SecurityController::class, 'getActiveSessions']);
     Route::post('/user/sessions/logout-others', [SecurityController::class, 'logoutOtherDevices']);
@@ -142,7 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             return response()->json(['success' => true, 'message' => 'Verification link sent! Please check your email.']);
         } catch (Exception $e) {
-            Log::error('Verification Email Error: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Verification Email Error: '.$e->getMessage(), ['exception' => $e]);
 
             return response()->json(['success' => false, 'message' => 'Failed to send link. Please retry verification.'], 500);
         }
@@ -338,15 +340,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/products/{fixedIncomeProduct}/invest', [
             FixedIncomeController::class,
             'invest',
+        ])->middleware([
+            'verified',
+            'kyc:1',
+            'throttle:10,1',
         ]);
         Route::get('/investments', [
-            FixedIncomeInvestmentController::class,
-            'index'
+            UserFixedIncomeInvestmentController::class,
+            'index',
         ]);
 
         Route::get('/investments/{fixedIncomeInvestment}', [
-            FixedIncomeInvestmentController::class,
-            'show'
+            UserFixedIncomeInvestmentController::class,
+            'show',
+        ]);
+
+        Route::post('/investments/{fixedIncomeInvestment}/reinvest', [
+            UserFixedIncomeInvestmentController::class,
+            'reinvest',
+        ])->middleware([
+            'verified',
+            'kyc:1',
+            'throttle:5,1',
         ]);
     });
 
@@ -538,131 +553,127 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ── Fixed Income Product Management ──
-    Route::prefix('fixed-income')->group(function () {
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::prefix('fixed-income')->group(function () {
 
-        Route::get('/products', [
-            FixedIncomeProductController::class,
-            'index',
-        ]);
+            Route::get('/products', [
+                FixedIncomeProductController::class,
+                'index',
+            ]);
 
-        Route::post('/products', [
-            FixedIncomeProductController::class,
-            'store',
-        ]);
+            Route::post('/products', [
+                FixedIncomeProductController::class,
+                'store',
+            ]);
 
-        Route::get('/products/{fixedIncomeProduct}', [
-            FixedIncomeProductController::class,
-            'show',
-        ]);
+            Route::get('/products/{fixedIncomeProduct}', [
+                FixedIncomeProductController::class,
+                'show',
+            ]);
 
-        Route::put('/products/{fixedIncomeProduct}', [
-            FixedIncomeProductController::class,
-            'update',
-        ]);
+            Route::put('/products/{fixedIncomeProduct}', [
+                FixedIncomeProductController::class,
+                'update',
+            ]);
 
-        Route::delete('/products/{fixedIncomeProduct}', [
-            FixedIncomeProductController::class,
-            'destroy',
-        ]);
+            Route::delete('/products/{fixedIncomeProduct}', [
+                FixedIncomeProductController::class,
+                'destroy',
+            ]);
 
-        Route::post('/products/{fixedIncomeProduct}/activate', [
-            FixedIncomeProductController::class,
-            'activate',
-        ]);
+            Route::post('/products/{fixedIncomeProduct}/activate', [
+                FixedIncomeProductController::class,
+                'activate',
+            ]);
 
-        Route::post('/products/{fixedIncomeProduct}/suspend', [
-            FixedIncomeProductController::class,
-            'suspend',
-        ]);
+            Route::post('/products/{fixedIncomeProduct}/suspend', [
+                FixedIncomeProductController::class,
+                'suspend',
+            ]);
 
-        Route::post('/products/{fixedIncomeProduct}/close', [
-            FixedIncomeProductController::class,
-            'close',
-        ]);
+            Route::post('/products/{fixedIncomeProduct}/close', [
+                FixedIncomeProductController::class,
+                'close',
+            ]);
 
-        Route::get('/dashboard', [
-            FixedIncomeDashboardController::class,
-            'index'
-        ]);
-    });
-    Route::prefix('fixed-income/investments')->group(function () {
+            Route::get('/dashboard', [
+                FixedIncomeDashboardController::class,
+                'index',
+            ]);
+        });
+        Route::prefix('fixed-income/investments')->group(function () {
 
-        Route::get('/', [
-            FixedIncomeInvestmentController::class,
-            'index',
-        ]);
+            Route::get('/', [
+                FixedIncomeInvestmentController::class,
+                'index',
+            ]);
 
-        Route::get('/{fixedIncomeInvestment}', [
-            FixedIncomeInvestmentController::class,
-            'show',
-        ]);
+            Route::get('/{fixedIncomeInvestment}', [
+                FixedIncomeInvestmentController::class,
+                'show',
+            ]);
 
-        Route::post('/{fixedIncomeInvestment}/activate', [
-            FixedIncomeInvestmentController::class,
-            'activate',
-        ]);
+            Route::post('/{fixedIncomeInvestment}/activate', [
+                FixedIncomeInvestmentController::class,
+                'activate',
+            ]);
 
-        Route::post('/{fixedIncomeInvestment}/reject', [
-            FixedIncomeInvestmentController::class,
-            'reject',
-        ]);
+            Route::post('/{fixedIncomeInvestment}/reject', [
+                FixedIncomeInvestmentController::class,
+                'reject',
+            ]);
 
-        Route::post(
-            '/{fixedIncomeInvestment}/mature',
-            [
+            Route::post(
+                '/{fixedIncomeInvestment}/mature',
+                [
+                    FixedIncomeInvestmentController::class,
+                    'mature',
+                ]
+            );
+
+            Route::post('/{fixedIncomeInvestment}/cancel', [
+                FixedIncomeInvestmentController::class,
+                'cancel',
+            ]);
+        });
+        Route::prefix('investments')->group(function () {
+
+            Route::get('/', [
+                FixedIncomeInvestmentController::class,
+                'index',
+            ]);
+
+            Route::get('/{fixedIncomeInvestment}', [
+                FixedIncomeInvestmentController::class,
+                'show',
+            ]);
+
+            Route::post('/{fixedIncomeInvestment}/activate', [
+                FixedIncomeInvestmentController::class,
+                'activate',
+            ]);
+
+            Route::post('/{fixedIncomeInvestment}/reject', [
+                FixedIncomeInvestmentController::class,
+                'reject',
+            ]);
+
+            Route::post('/{fixedIncomeInvestment}/cancel', [
+                FixedIncomeInvestmentController::class,
+                'cancel',
+            ]);
+
+            Route::post('/{fixedIncomeInvestment}/mature', [
                 FixedIncomeInvestmentController::class,
                 'mature',
-            ]
-        );
+            ]);
+        });
+        Route::prefix('fixed-income/reports')->group(function () {
 
-        Route::post('/{fixedIncomeInvestment}/reinvest', [
-            FixedIncomeInvestmentController::class,
-            'reinvest',
-        ]
-        )->middleware([
-    'auth:sanctum',
-    'verified',
-    'kyc:1',
-    'throttle:5,1',
-]);
-    });
-    Route::prefix('investments')->group(function () {
-
-        Route::get('/', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
-            'index'
-        ]);
-
-        Route::get('/{fixedIncomeInvestment}', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
-            'show'
-        ]);
-
-        Route::post('/{fixedIncomeInvestment}/activate', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
-            'activate'
-        ]);
-
-        Route::post('/{fixedIncomeInvestment}/reject', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
-            'reject'
-        ]);
-
-        Route::post('/{fixedIncomeInvestment}/cancel', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
-            'cancel'
-        ]);
-
-        Route::post('/{fixedIncomeInvestment}/mature', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeInvestmentController::class,
-            'mature'
-        ]);
-    });
-    Route::prefix('fixed-income/reports')->group(function () {
-
-        Route::get('/investments', [
-            \App\Http\Controllers\Api\Admin\FixedIncomeReportController::class,
-            'investments'
-        ]);
+            Route::get('/investments', [
+                FixedIncomeReportController::class,
+                'investments',
+            ]);
+        });
     });
 });

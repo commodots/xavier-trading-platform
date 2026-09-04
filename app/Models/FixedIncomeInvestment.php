@@ -14,6 +14,7 @@ class FixedIncomeInvestment extends Model
         'user_id',
         'fixed_income_product_id',
         'reference',
+        'idempotency_key',
         'principal_amount',
         'currency',
         'interest_rate',

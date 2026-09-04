@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('fixed_income_products', function (Blueprint $table) {
             $table->decimal(
-        'maximum_user_capacity',
-        30,
-        8
-    )->nullable()->after('maximum_capacity');
+                'maximum_user_capacity',
+                30,
+                8
+            )->nullable()->after('maximum_capacity');
         });
     }
 
@@ -26,7 +26,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('fixed_income_products', function (Blueprint $table) {
-            //
+            $table->dropColumn('maximum_user_capacity');
         });
     }
 };

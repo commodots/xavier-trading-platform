@@ -8,6 +8,7 @@ use App\Models\FixedIncomeProduct;
 use App\Models\Ledger;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
+use App\Services\FixedIncome\FixedIncomeCapacityService;
 use App\Services\FixedIncome\FixedIncomeReturnCalculator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,16 +26,67 @@ class FixedIncomeInvestmentService
         $investment = DB::transaction(function () use (
             $user,
             $product,
-            $amount
+            $amount,
+            $idempotencyKey
         ) {
 
-            /** Re-check everything inside the transaction.* Never rely only on frontend validation.*/
+            if (
+                method_exists($user, 'isSuspended') &&
+                $user->isSuspended()
+            ) {
+                throw new RuntimeException(
+                    'This account is currently suspended.'
+                );
+            }
+
+            $product = FixedIncomeProduct::query()
+                ->lockForUpdate()
+                ->findOrFail($product->id);
+
+            if ($idempotencyKey) {
+                $existing = FixedIncomeInvestment::query()
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                if ($existing) {
+                    return $existing;
+                }
+            }
+
+            /** Re-check everything inside the transaction. */
             $this->validateProduct($product);
 
             if (! $product->acceptsAmount($amount)) {
                 throw new RuntimeException(
                     'Investment amount is outside the allowed limits.'
                 );
+            }
+
+            app(FixedIncomeCapacityService::class)->ensureAvailable(
+                $product,
+                $amount
+            );
+
+            if ($product->maximum_user_capacity !== null) {
+                $userExposure = FixedIncomeInvestment::query()
+                    ->where('user_id', $user->id)
+                    ->where('fixed_income_product_id', $product->id)
+                    ->whereNotIn('status', [
+                        'rejected',
+                        'cancelled',
+                        'redeemed',
+                    ])
+                    ->sum('principal_amount');
+
+                if (
+                    ((float) $userExposure + $amount) >
+                    (float) $product->maximum_user_capacity
+                ) {
+                    throw new RuntimeException(
+                        'This investment would exceed your maximum allocation for this product.'
+                    );
+                }
             }
 
             /** Locate the user's wallet in the product currency.*/
@@ -93,6 +145,7 @@ class FixedIncomeInvestmentService
                 'user_id' => $user->id,
                 'fixed_income_product_id' => $product->id,
                 'reference' => $reference,
+                'idempotency_key' => $idempotencyKey,
 
                 'principal_amount' => $amount,
                 'reserved_amount' => $amount,
@@ -166,28 +219,7 @@ class FixedIncomeInvestmentService
             SubmitFixedIncomeInvestment::dispatch($investment->id)->afterCommit();
         }
 
-        
-
-        if ($idempotencyKey) {
-    $existing = FixedIncomeInvestment::query()
-        ->where(
-            'idempotency_key',
-            $idempotencyKey
-        )
-        ->where(
-            'user_id',
-            $user->id
-        )
-        ->lockForUpdate()
-        ->first();
-
-    if ($existing) {
-        return $existing;
-    }
-
-    
-}
-return $investment;
+        return $investment;
     }
 
     private function validateProduct(

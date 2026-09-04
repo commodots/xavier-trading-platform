@@ -288,6 +288,11 @@ class FixedIncomeController extends Controller
                 'required',
                 'in:wallet',
             ],
+            'idempotency_key' => [
+                'required',
+                'string',
+                'max:100',
+            ],
         ]);
 
         try {
@@ -296,7 +301,8 @@ class FixedIncomeController extends Controller
                 $investmentService->createFromWallet(
                     auth()->user(),
                     $fixedIncomeProduct,
-                    (float) $validated['amount']
+                    (float) $validated['amount'],
+                    $validated['idempotency_key']
                 );
 
             return response()->json([

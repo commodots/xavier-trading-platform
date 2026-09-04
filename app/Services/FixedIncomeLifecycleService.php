@@ -6,6 +6,8 @@ use App\Models\FixedIncomeInvestment;
 use App\Models\FixedIncomeTransaction;
 use App\Models\Wallet;
 use App\Services\FixedIncome\FixedIncomeMaturityService;
+use App\Services\FixedIncome\FixedIncomeNotificationService;
+use App\Services\FixedIncome\FixedIncomeStateManager;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -39,10 +41,13 @@ class FixedIncomeLifecycleService
                 );
             }
 
+            app(FixedIncomeStateManager::class)->transition(
+                $investment,
+                'active'
+            );
+
             $investment->update([
-                'status' => 'active',
                 'execution_date' => now(),
-                'last_status_at' => now(),
                 'provider_reference' => $providerReference,
             ]);
 
@@ -65,6 +70,8 @@ class FixedIncomeLifecycleService
                     'provider_reference' => $providerReference,
                 ],
             ]);
+
+            app(FixedIncomeNotificationService::class)->send($investment, 'activated');
 
             return $investment->fresh();
         });
@@ -117,10 +124,13 @@ class FixedIncomeLifecycleService
 
             $wallet->releaseReservation($amount);
 
+            app(FixedIncomeStateManager::class)->transition(
+                $investment,
+                'rejected'
+            );
+
             $investment->update([
-                'status' => 'rejected',
                 'reserved_amount' => 0,
-                'last_status_at' => now(),
                 'metadata' => array_merge(
                     $investment->metadata ?? [],
                     [
@@ -147,6 +157,49 @@ class FixedIncomeLifecycleService
                 'metadata' => [
                     'reason' => $reason,
                 ],
+            ]);
+
+            app(FixedIncomeNotificationService::class)->send($investment, 'rejected');
+
+            return $investment->fresh();
+        });
+    }
+
+    public function cancel(
+        FixedIncomeInvestment $investment
+    ): FixedIncomeInvestment {
+        return DB::transaction(function () use ($investment): FixedIncomeInvestment {
+            $investment = FixedIncomeInvestment::query()
+                ->lockForUpdate()
+                ->findOrFail($investment->id);
+
+            $wallet = Wallet::query()
+                ->where('user_id', $investment->user_id)
+                ->where('currency', $investment->currency)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $amount = (float) ($investment->reserved_amount ?: $investment->principal_amount);
+
+            if ($amount > 0) {
+                $wallet->releaseReservation($amount);
+            }
+
+            app(FixedIncomeStateManager::class)->transition(
+                $investment,
+                'cancelled'
+            );
+
+            $investment->update(['reserved_amount' => 0]);
+
+            FixedIncomeTransaction::create([
+                'fixed_income_investment_id' => $investment->id,
+                'user_id' => $investment->user_id,
+                'type' => 'investment_cancelled',
+                'amount' => $investment->principal_amount,
+                'currency' => $investment->currency,
+                'status' => 'completed',
+                'reference' => 'FI-CANCEL-'.$investment->id,
             ]);
 
             return $investment->fresh();
