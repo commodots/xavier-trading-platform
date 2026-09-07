@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue';
 import api from '@/api';
 import { useRouter } from 'vue-router';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomeDate, fixedIncomeLabel } from '@/lib/fixedIncomeFormatters'
 
 const router = useRouter()
 
@@ -92,7 +94,8 @@ onMounted(loadInvestments)
 
     </div>
 
-    <div class="overflow-x-auto rounded-xl border border-[#1F2A44]">
+    <SkeletonLoader v-if="loading" type="table" :count="6" class="opacity-40" />
+    <div v-else class="overflow-x-auto rounded-xl border border-[#1F2A44]">
       <table class="min-w-full text-sm">
 
         <thead class="bg-[#111827] text-gray-400">
@@ -122,20 +125,19 @@ onMounted(loadInvestments)
             </td>
 
             <td class="p-4">
-              {{ investment.principal_amount }}
-              {{ investment.currency }}
+              {{ fixedIncomeCurrency(investment.principal_amount, investment.currency) }}
             </td>
 
             <td class="p-4">
-              {{ investment.expected_interest }}
+              {{ fixedIncomeCurrency(investment.expected_interest, investment.currency) }}
             </td>
 
             <td class="p-4">
-              {{ investment.status }}
+              {{ fixedIncomeLabel(investment.status) }}
             </td>
 
             <td class="p-4">
-              {{ investment.maturity_date || '—' }}
+              {{ fixedIncomeDate(investment.maturity_date) }}
             </td>
           </tr>
         </tbody>

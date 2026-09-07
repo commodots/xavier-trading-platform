@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import api from '@/api';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomePercent } from '@/lib/fixedIncomeFormatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,17 +51,18 @@ const submitInvestment = async () => {
   <MainLayout>
     <div class="mx-auto max-w-2xl space-y-6">
       <h1 class="text-3xl font-semibold text-white">Review investment</h1>
+      <SkeletonLoader v-if="!product && !error" type="card" :count="1" class="opacity-40" />
       <section class="space-y-4 rounded-xl border border-[#1f3348] bg-[#0F1724] p-6">
         <div v-for="item in [
           ['Product', product?.name],
-          ['Amount', calculation?.amount],
+          ['Amount', fixedIncomeCurrency(calculation?.amount, product?.currency)],
           ['Currency', product?.currency],
-          ['Interest rate', `${product?.interest_rate}%`],
-          ['Estimated interest', calculation?.expected_interest],
-          ['Estimated maturity', calculation?.expected_maturity_amount],
+          ['Interest rate', fixedIncomePercent(product?.interest_rate)],
+          ['Estimated interest', fixedIncomeCurrency(calculation?.expected_interest, product?.currency)],
+          ['Estimated maturity', fixedIncomeCurrency(calculation?.expected_maturity_amount, product?.currency)],
           ['Tenor', product?.tenor_days ? `${product.tenor_days} days` : 'Open ended'],
           ['Funding method', 'Wallet'],
-          ['Fees', product?.subscription_fee || 0]
+          ['Fees', fixedIncomeCurrency(product?.subscription_fee || 0, product?.currency)]
         ]" :key="item[0]" class="flex justify-between gap-4 border-b border-[#1f3348] pb-3 text-sm">
           <span class="text-gray-500">
             {{ item[0] }}

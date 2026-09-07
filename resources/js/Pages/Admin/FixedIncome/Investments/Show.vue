@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomeDate, fixedIncomeLabel, fixedIncomePercent } from '@/lib/fixedIncomeFormatters'
 
 const route = useRoute();
 const router = useRouter();
@@ -39,20 +41,21 @@ const action = async (name) => {
   <div class="space-y-6"><button class="text-cyan-400"
       @click="router.push('/admin/fixed-income/investments')">Back</button>
     <p v-if="error" class="text-red-400">{{ error }}</p>
+    <SkeletonLoader v-if="!investment && !error" type="card" :count="2" class="opacity-40" />
     <section v-if="investment" class="rounded-xl border border-[#1f3348] bg-[#0F1724] p-6">
       <div class="flex justify-between">
         <div>
           <p class="text-xs text-cyan-400">{{ investment.reference }}</p>
           <h1 class="mt-2 text-3xl font-semibold text-white">{{ investment.product?.name }}</h1>
           <p class="mt-1 text-gray-400">{{ investment.user?.name }}</p>
-        </div><span class="capitalize text-cyan-400">{{ investment.status?.replace('_', ' ') }}</span>
+        </div><span class="text-cyan-400">{{ fixedIncomeLabel(investment.status) }}</span>
       </div>
       <div class="mt-8 grid gap-4 sm:grid-cols-3">
         <div
           v-for="key in ['principal_amount', 'expected_interest', 'expected_maturity_amount', 'actual_interest', 'maturity_date', 'provider_reference']"
           :key="key">
           <p class="text-sm text-gray-500">{{ key.replaceAll('_', ' ') }}</p>
-          <p class="mt-1 text-white">{{ investment[key] || '-' }}</p>
+          <p class="mt-1 text-white">{{ key === 'maturity_date' ? fixedIncomeDate(investment[key]) : key === 'provider_reference' ? (investment[key] || '-') : fixedIncomeCurrency(investment[key], investment.currency) }}</p>
         </div>
       </div>
       <div v-if="['pending_execution', 'failed'].includes(investment.status)" class="mt-8 flex gap-3">

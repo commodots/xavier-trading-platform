@@ -32,6 +32,18 @@ class FixedIncomeInvestmentController extends Controller
                 $request->string('currency')
             );
         }
+        if ($request->filled('product_id')) {
+            $query->where(
+                'fixed_income_product_id',
+                $request->integer('product_id')
+            );
+        }
+        if ($request->filled('user_id')) {
+            $query->where(
+                'user_id',
+                $request->integer('user_id')
+            );
+        }
         if ($request->filled('execution_mode')) {
             $query->where(
                 'execution_mode',

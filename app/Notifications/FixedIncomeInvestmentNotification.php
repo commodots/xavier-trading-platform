@@ -22,27 +22,25 @@ class FixedIncomeInvestmentNotification extends Notification
 
     public function toArray($notifiable): array
     {
+        $eventLabel = ucfirst($this->event);
+
         return [
+            'title' => "Fixed Income investment {$eventLabel}",
+            'message' => "Investment {$this->investment->reference} was {$this->event}.",
             'type' => 'fixed_income',
             'event' => $this->event,
 
-            'investment_id' =>
-                $this->investment->id,
+            'investment_id' => $this->investment->id,
 
-            'reference' =>
-                $this->investment->reference,
+            'reference' => $this->investment->reference,
 
-            'product' =>
-                $this->investment->product?->name,
+            'product' => $this->investment->product?->name,
 
-            'amount' =>
-                $this->investment->principal_amount,
+            'amount' => $this->investment->principal_amount,
 
-            'currency' =>
-                $this->investment->currency,
+            'currency' => $this->investment->currency,
 
-            'status' =>
-                $this->investment->status,
+            'status' => $this->investment->status,
         ];
     }
 }

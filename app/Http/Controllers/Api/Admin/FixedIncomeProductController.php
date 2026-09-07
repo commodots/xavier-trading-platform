@@ -126,6 +126,10 @@ class FixedIncomeProductController extends Controller
                 'rate_type',
                 'interest_frequency',
                 'tenor_days',
+                'calculation_method',
+                'day_count_basis',
+                'capitalise_interest',
+                'maturity_payout',
                 'start_date',
                 'end_date',
                 'open_ended',
@@ -138,8 +142,7 @@ class FixedIncomeProductController extends Controller
                 ) {
                     return response()->json([
                         'success' => false,
-                        'message' =>
-                            "The {$field} cannot be changed because investments already exist for this product.",
+                        'message' => "The {$field} cannot be changed because investments already exist for this product.",
                     ], 422);
                 }
             }
@@ -170,8 +173,7 @@ class FixedIncomeProductController extends Controller
         if ($fixedIncomeProduct->investments()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' =>
-                    'This product cannot be deleted because investments exist for it. Suspend or close it instead.',
+                'message' => 'This product cannot be deleted because investments exist for it. Suspend or close it instead.',
             ], 422);
         }
 
@@ -405,6 +407,12 @@ class FixedIncomeProductController extends Controller
                 'min:0',
             ],
 
+            'maximum_user_capacity' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
             'execution_mode' => [
                 'required',
                 Rule::in([
@@ -421,6 +429,35 @@ class FixedIncomeProductController extends Controller
 
             'allow_reinvestment' => [
                 'boolean',
+            ],
+
+            'calculation_method' => [
+                'required',
+                Rule::in([
+                    'simple_interest',
+                    'compound_interest',
+                ]),
+            ],
+
+            'day_count_basis' => [
+                'required',
+                Rule::in([
+                    'actual_365',
+                    'actual_360',
+                    'actual_366',
+                ]),
+            ],
+
+            'capitalise_interest' => [
+                'boolean',
+            ],
+
+            'maturity_payout' => [
+                'required',
+                Rule::in([
+                    'wallet',
+                    'rollover',
+                ]),
             ],
 
             'metadata' => [

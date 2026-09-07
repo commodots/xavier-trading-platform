@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomeNumber } from '@/lib/fixedIncomeFormatters'
 
 const loading = ref(true)
 const dashboard = ref({})
@@ -38,7 +40,8 @@ onMounted(loadDashboard)
             </p>
         </div>
 
-        <div
+        <SkeletonLoader v-if="loading" type="card" :count="8" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 opacity-40" />
+        <div v-else
             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
         >
             <div
@@ -60,7 +63,7 @@ onMounted(loadDashboard)
                 </div>
 
                 <div class="text-2xl font-semibold text-white mt-2">
-                    {{ card[1] ?? 0 }}
+                    {{ typeof card[1] === 'number' && card[0].includes('Invested') ? fixedIncomeCurrency(card[1], 'NGN') : typeof card[1] === 'number' && card[0].includes('Interest') ? fixedIncomeCurrency(card[1], 'NGN') : fixedIncomeNumber(card[1], 0) }}
                 </div>
             </div>
         </div>

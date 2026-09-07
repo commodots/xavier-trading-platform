@@ -2,6 +2,8 @@
 import { onMounted, ref } from 'vue';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeLabel } from '@/lib/fixedIncomeFormatters'
 
 const investments = ref([]);
 const loading = ref(true);
@@ -43,7 +45,7 @@ onMounted(
       </p>
     </div>
     <p v-if="error" class="text-red-400">{{ error }}</p>
-    <p v-if="loading" class="text-gray-400">Loading queue...</p>
+    <SkeletonLoader v-if="loading" type="table" :count="6" class="opacity-40" />
     <div v-else class="overflow-x-auto rounded-xl border border-[#1f3348] bg-[#0F1724]">
       <table class="min-w-full text-left text-sm">
         <thead class="text-gray-500">
@@ -58,7 +60,7 @@ onMounted(
           <tr v-for="item in investments" :key="item.id" class="border-t border-[#1f3348] text-white">
             <td class="p-4">{{ item.reference }}</td>
             <td class="p-4">{{ item.provider || '-' }}</td>
-            <td class="p-4 capitalize">{{ item.status }}</td>
+            <td class="p-4">{{ fixedIncomeLabel(item.status) }}</td>
             <td class="p-4">{{ item.provider_reference || '-' }}</td>
           </tr>
         </tbody>

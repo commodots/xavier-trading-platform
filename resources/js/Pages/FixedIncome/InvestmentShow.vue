@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import api from '@/api';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomeDateTime, fixedIncomeLabel, fixedIncomePercent } from '@/lib/fixedIncomeFormatters'
 
 const route = useRoute();
 const router = useRouter();
@@ -47,28 +49,28 @@ const reinvest = async () => {
         Back to investments
       </button>
       <p v-if="loading" class="text-gray-400">Loading investment...</p>
+      <SkeletonLoader v-if="loading" type="card" :count="2" class="opacity-40" />
       <p v-if="error" class="text-red-400">{{ error }}</p>
       <section v-if="investment" class="rounded-xl border border-[#1f3348] bg-[#0F1724] p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p class="text-xs uppercase tracking-widest text-cyan-400">{{ investment.reference }}</p>
             <h1 class="mt-2 text-3xl font-semibold text-white">{{ investment.product?.name }}</h1>
-          </div><span class="rounded-full bg-cyan-400/10 px-3 py-1 text-sm capitalize text-cyan-400">{{
-            investment.status?.replace('_', ' ') }}</span>
+          </div><span class="rounded-full bg-cyan-400/10 px-3 py-1 text-sm text-cyan-400">{{ fixedIncomeLabel(investment.status) }}</span>
         </div>
         <div class="mt-8 grid gap-5 sm:grid-cols-2">
           <div v-for="item in [
-            ['Principal', investment.principal_amount],
-            ['Rate', `${investment.interest_rate}%`],
-            ['Expected interest', investment.expected_interest],
-            ['Expected maturity', investment.expected_maturity_amount],
-            ['Actual interest', investment.actual_interest || '-'],
-            ['Actual maturity', investment.actual_maturity_amount || '-'],
-            ['Investment date', investment.investment_date],
-            ['Execution date', investment.execution_date || '-'],
-            ['Maturity date', investment.maturity_date || '-'],
-            ['Redeemed date', investment.redeemed_at || '-'],
-            ['Funding method', investment.funding_method],
+            ['Principal', fixedIncomeCurrency(investment.principal_amount, investment.currency)],
+            ['Rate', fixedIncomePercent(investment.interest_rate)],
+            ['Expected interest', fixedIncomeCurrency(investment.expected_interest, investment.currency)],
+            ['Expected maturity', fixedIncomeCurrency(investment.expected_maturity_amount, investment.currency)],
+            ['Actual interest', investment.actual_interest == null ? '-' : fixedIncomeCurrency(investment.actual_interest, investment.currency)],
+            ['Actual maturity', investment.actual_maturity_amount == null ? '-' : fixedIncomeCurrency(investment.actual_maturity_amount, investment.currency)],
+            ['Investment date', fixedIncomeDateTime(investment.investment_date)],
+            ['Execution date', fixedIncomeDateTime(investment.execution_date)],
+            ['Maturity date', fixedIncomeDateTime(investment.maturity_date)],
+            ['Redeemed date', fixedIncomeDateTime(investment.redeemed_at)],
+            ['Funding method', fixedIncomeLabel(investment.funding_method)],
             ['Provider', investment.provider || '-'],
             ['Provider reference', investment.provider_reference || '-']
           ]" :key="item[0]">
@@ -85,7 +87,7 @@ const reinvest = async () => {
               {{ transaction.type }}
             </span>
             <span class="text-white">
-              {{ transaction.amount }} {{ transaction.currency }}
+              {{ fixedIncomeCurrency(transaction.amount, transaction.currency) }}
             </span>
           </div>
         </div>

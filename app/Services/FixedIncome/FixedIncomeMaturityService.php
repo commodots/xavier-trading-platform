@@ -38,6 +38,18 @@ class FixedIncomeMaturityService
                 );
             }
 
+            if (
+                $investment->status !== 'matured'
+                && (
+                    ! $investment->maturity_date
+                    || $investment->maturity_date->isFuture()
+                )
+            ) {
+                throw new RuntimeException(
+                    'Investment cannot be matured before its maturity date.'
+                );
+            }
+
             /**
              * If already matured, do not create another payout.
              */

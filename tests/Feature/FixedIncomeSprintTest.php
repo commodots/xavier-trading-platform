@@ -17,6 +17,7 @@ use App\Services\FixedIncomeInvestmentService;
 use App\Services\FixedIncomeLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use RuntimeException;
 use Tests\TestCase;
 
 class FixedIncomeSprintTest extends TestCase
@@ -231,6 +232,37 @@ class FixedIncomeSprintTest extends TestCase
             ->where('type', 'FIXED_INCOME_REDEMPTION')
             ->where('user_id', $user->id)
             ->count());
+    }
+
+    public function test_maturity_cannot_be_processed_before_due_date(): void
+    {
+        $user = User::factory()->create();
+        Wallet::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 500000,
+            'balance' => 500000,
+        ]);
+        $product = FixedIncomeProduct::create([
+            'name' => 'Future Maturity Bond',
+            'code' => 'GB-FUTURE-MATURITY',
+            'currency' => 'NGN',
+            'status' => 'active',
+            'minimum_amount' => 100000,
+            'interest_rate' => 10,
+            'tenor_days' => 30,
+            'execution_mode' => 'manual',
+        ]);
+        $investment = app(FixedIncomeInvestmentService::class)
+            ->createFromWallet($user, $product, 200000);
+        app(FixedIncomeLifecycleService::class)->activate($investment);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Investment cannot be matured before its maturity date.'
+        );
+
+        app(FixedIncomeMaturityService::class)->mature($investment);
     }
 
     public function test_reinvestment_preserves_history_and_creates_a_new_reserved_investment(): void

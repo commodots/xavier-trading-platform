@@ -2,6 +2,8 @@
 import { onMounted, ref } from 'vue';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomeLabel } from '@/lib/fixedIncomeFormatters'
 
 const rows = ref([]);
 const loading = ref(true);
@@ -30,7 +32,7 @@ onMounted(
       <h1 class="mt-2 text-3xl font-semibold text-white">Fixed Income report</h1>
     </div>
     <p v-if="error" class="text-red-400">{{ error }}</p>
-    <p v-if="loading" class="text-gray-400">Loading report...</p>
+    <SkeletonLoader v-if="loading" type="table" :count="8" class="opacity-40" />
     <div v-else class="overflow-x-auto rounded-xl border border-[#1f3348] bg-[#0F1724]">
       <table class="min-w-full text-left text-sm">
         <thead class="text-gray-500">
@@ -48,9 +50,9 @@ onMounted(
             <td class="p-4">{{ row.reference }}</td>
             <td class="p-4">{{ row.investor || '-' }}</td>
             <td class="p-4">{{ row.product || '-' }}</td>
-            <td class="p-4">{{ row.principal }} {{ row.currency }}</td>
-            <td class="p-4">{{ row.expected_interest }}</td>
-            <td class="p-4 capitalize">{{ row.status?.replace('_', ' ') }}</td>
+            <td class="p-4">{{ fixedIncomeCurrency(row.principal, row.currency) }}</td>
+            <td class="p-4">{{ fixedIncomeCurrency(row.expected_interest, row.currency) }}</td>
+            <td class="p-4">{{ fixedIncomeLabel(row.status) }}</td>
           </tr>
         </tbody>
       </table>

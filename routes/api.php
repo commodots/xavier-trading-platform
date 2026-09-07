@@ -636,38 +636,6 @@ Route::middleware('auth:sanctum')->group(function () {
                 'cancel',
             ]);
         });
-        Route::prefix('investments')->group(function () {
-
-            Route::get('/', [
-                FixedIncomeInvestmentController::class,
-                'index',
-            ]);
-
-            Route::get('/{fixedIncomeInvestment}', [
-                FixedIncomeInvestmentController::class,
-                'show',
-            ]);
-
-            Route::post('/{fixedIncomeInvestment}/activate', [
-                FixedIncomeInvestmentController::class,
-                'activate',
-            ]);
-
-            Route::post('/{fixedIncomeInvestment}/reject', [
-                FixedIncomeInvestmentController::class,
-                'reject',
-            ]);
-
-            Route::post('/{fixedIncomeInvestment}/cancel', [
-                FixedIncomeInvestmentController::class,
-                'cancel',
-            ]);
-
-            Route::post('/{fixedIncomeInvestment}/mature', [
-                FixedIncomeInvestmentController::class,
-                'mature',
-            ]);
-        });
         Route::prefix('fixed-income/reports')->group(function () {
 
             Route::get('/investments', [

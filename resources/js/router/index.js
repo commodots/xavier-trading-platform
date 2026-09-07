@@ -16,7 +16,7 @@ import Dashboard from "@/Pages/Dashboard.vue";
 import Wallet from "@/Pages/Wallet.vue";
 import Transactions from "@/Pages/Transactions.vue";
 import Portfolio from "@/Pages/Portfolio.vue";
-import NgxMarket from "@/Pages/Market/NgxMarket.vue";
+import NgxMarket from "@/Pages/Market/NGXMarket.vue";
 import GlobalMarket from "@/Pages/Market/GlobalStocks.vue";
 import CryptoMarket from "@/Pages/Market/CryptoMarket.vue";
 import FxMarket from "@/Pages/Market/FxMarket.vue";
@@ -552,6 +552,12 @@ const routes = [
     path: '/admin/fixed-income/reconciliation',
     component: () =>
         import('@/Pages/Admin/FixedIncome/Reconciliation.vue')
+},
+
+{
+  path: '/admin/fixed-income/maturities',
+  component: () =>
+    import('@/Pages/Admin/FixedIncome/Maturities.vue')
 },
 
 {

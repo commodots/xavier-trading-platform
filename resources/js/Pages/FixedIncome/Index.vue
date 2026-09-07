@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '@/Layouts/MainLayout.vue'
 import api from '@/api'
+import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import { fixedIncomeCurrency, fixedIncomeLabel, fixedIncomePercent } from '@/lib/fixedIncomeFormatters'
 
 const router = useRouter()
 const products = ref([])
@@ -34,21 +36,21 @@ onMounted(async () => {
           @click="router.push('/fixed-income/investments')">My investments</button>
       </div>
       <p v-if="error" class="text-red-400">{{ error }}</p>
-      <div v-if="loading" class="text-gray-400">Loading products...</div>
+      <SkeletonLoader v-if="loading" type="card" :count="6" class="grid gap-5 md:grid-cols-2 xl:grid-cols-3" />
       <div v-else class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <article v-for="product in products" :key="product.id"
           class="rounded-xl border border-[#1f3348] bg-[#0F1724] p-5">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h2 class="text-lg font-semibold text-white">{{ product.name }}</h2>
-              <p class="mt-1 text-sm text-gray-400">{{ product.issuer || product.type }}</p>
+              <p class="mt-1 text-sm text-gray-400">{{ product.issuer || fixedIncomeLabel(product.type) }}</p>
             </div>
             <span class="text-sm text-cyan-400">{{ product.currency }}</span>
           </div>
           <div class="mt-6 grid grid-cols-2 gap-4 text-sm">
             <div>
               <p class="text-gray-500">Rate</p>
-              <p class="mt-1 text-xl font-semibold text-white">{{ product.interest_rate }}%</p>
+              <p class="mt-1 text-xl font-semibold text-white">{{ fixedIncomePercent(product.interest_rate) }}</p>
             </div>
             <div>
               <p class="text-gray-500">Tenor</p>
@@ -56,11 +58,11 @@ onMounted(async () => {
             </div>
             <div>
               <p class="text-gray-500">Minimum</p>
-              <p class="mt-1 text-white">{{ product.minimum_amount }}</p>
+              <p class="mt-1 text-white">{{ fixedIncomeCurrency(product.minimum_amount, product.currency) }}</p>
             </div>
             <div>
               <p class="text-gray-500">Frequency</p>
-              <p class="mt-1 text-white">{{ product.interest_frequency }}</p>
+              <p class="mt-1 text-white">{{ fixedIncomeLabel(product.interest_frequency) }}</p>
             </div>
           </div>
           <button class="mt-6 w-full rounded-lg bg-cyan-400 px-4 py-3 font-semibold text-[#0F1724]"
