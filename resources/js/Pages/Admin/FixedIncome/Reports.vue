@@ -28,7 +28,6 @@ onMounted(
   <MainLayout>
   <div class="space-y-6">
     <div>
-      <p class="text-xs uppercase tracking-widest text-cyan-400">Reporting</p>
       <h1 class="mt-2 text-3xl font-semibold text-white">Fixed Income report</h1>
     </div>
     <p v-if="error" class="text-red-400">{{ error }}</p>

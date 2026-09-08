@@ -14,6 +14,7 @@ use App\Services\Stocks\Mock\MockPolygonService;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use App\Models\Notification as CustomNotification;
+use App\Services\CSL\CslClient;
 use Illuminate\Notifications\DatabaseNotification;
 
 class AppServiceProvider extends ServiceProvider
@@ -43,9 +44,13 @@ class AppServiceProvider extends ServiceProvider
         }
 
         if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
-        $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
-        $this->app->register(TelescopeServiceProvider::class);
-    }
+            $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
+            $this->app->register(TelescopeServiceProvider::class);
+        }
+
+        $this->app->singleton(CslClient::class, function () {
+        return new CslClient();
+    });
     }
 
     /**
@@ -60,22 +65,21 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\User::observe(\App\Observers\UserObserver::class);
 
         $this->app->bind(DatabaseNotification::class, function () {
-        return new CustomNotification();
-        
-    });
-
-        Gate::guessPolicyNamesUsing(function (string $modelClass) {
-            return 'App\\Policies\\'.class_basename($modelClass).'Policy';
+            return new CustomNotification();
         });
 
-         Gate::define('viewPulse', function (User $user) {
-        return $user->isAdmin();
-    });
+        Gate::guessPolicyNamesUsing(function (string $modelClass) {
+            return 'App\\Policies\\' . class_basename($modelClass) . 'Policy';
+        });
 
-     Pulse::user(fn ($user) => [
-        'name' => $user->name,
-        'extra' => $user->email,
-        'avatar' => $user->avatar,
-    ]);
+        Gate::define('viewPulse', function (User $user) {
+            return $user->isAdmin();
+        });
+
+        Pulse::user(fn($user) => [
+            'name' => $user->name,
+            'extra' => $user->email,
+            'avatar' => $user->avatar,
+        ]);
     }
 }

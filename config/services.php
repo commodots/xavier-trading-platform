@@ -101,4 +101,31 @@ return [
         'business_id' => env('FINCRA_BUSINESS_ID'),
         'webhook_key' => env('FINCRA_WEBHOOK_KEY'),
     ],
+
+    'csl' => [
+
+        'mode' => env('CSL_MODE', 'test'),
+
+        'client_id' => env('CSL_CLIENT_ID'),
+
+        'client_secret' => env('CSL_CLIENT_SECRET'),
+
+        'st_base_url' => env(
+            'CSL_ST_BASE_URL',
+            'https://csltapiv3.fcmb.com/symplustest/cslapi/v5/cor/st'
+        ),
+
+        'xt_base_url' => env(
+            'CSL_XT_BASE_URL',
+            'https://csltapiv3.fcmb.com/symplustest/cslapi/v5/cor/sxt'
+        ),
+        'oauth_url' => env(
+            'CSL_OAUTH_URL',
+            'https://csltapiv3.fcmb.com/symplustest/cslapi/oauth/token'
+        ),
+
+        'timeout' => (int) env('CSL_TIMEOUT', 30),
+
+        'connect_timeout' => (int) env('CSL_CONNECT_TIMEOUT', 10),
+    ],
 ];

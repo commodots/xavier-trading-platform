@@ -28,7 +28,6 @@ onMounted(async () => {
   <MainLayout>
     <div class="space-y-6">
       <div>
-        <p class="text-xs uppercase tracking-widest text-cyan-400">Operations</p>
         <h1 class="mt-2 text-3xl font-semibold text-white">Maturity queue</h1>
         <p class="mt-1 text-gray-400">Investments approaching their maturity date.</p>
       </div>

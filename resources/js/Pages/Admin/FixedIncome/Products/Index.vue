@@ -68,7 +68,6 @@ onMounted(load)
   <div class="space-y-6">
     <div class="flex items-end justify-between">
       <div>
-        <p class="text-xs uppercase tracking-widest text-cyan-400">Administration</p>
         <h1 class="mt-2 text-3xl font-semibold text-white">Fixed Income products</h1>
       </div>
       <button :disabled="activeAction" class="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-[#0F1724] disabled:cursor-not-allowed disabled:opacity-50"
