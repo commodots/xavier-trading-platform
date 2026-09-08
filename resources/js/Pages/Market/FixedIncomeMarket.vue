@@ -61,10 +61,10 @@
 
         <button 
           @click="handleBuySellClick"
-          :disabled="!canTrade.value"
+          :disabled="!canTrade"
           class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
         >
-          {{ !canTrade.value ? 'Verification Required' : 'Buy / Sell' }}
+          {{ !canTrade ? 'Verification Required' : 'Buy / Sell' }}
         </button>
       </div>
 
@@ -135,12 +135,62 @@
         </div>
       </div>
 
-      <div v-else-if="activeView === 'market'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
-        Market listing overview coming soon.
+      <div v-else-if="activeView === 'market'" class="space-y-4">
+        <p v-if="marketError" class="text-red-400">{{ marketError }}</p>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="instrument in filteredInstruments" :key="instrument.symbol"
+            class="rounded-xl border border-[#1f3348] bg-[#0F1724] p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-wider text-cyan-400">{{ instrument.symbol }}</p>
+                <h2 class="mt-1 text-lg font-semibold text-white">{{ instrument.name }}</h2>
+                <p class="mt-1 text-sm text-gray-400">{{ instrument.issuer || 'Fixed Income product' }}</p>
+              </div>
+              <span class="text-sm text-gray-400">{{ instrument.currency }}</span>
+            </div>
+            <div class="mt-5 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-gray-500">Yield</p>
+                <p class="mt-1 text-xl font-semibold text-white">{{ instrument.yield.toFixed(2) }}%</p>
+              </div>
+              <div>
+                <p class="text-gray-500">Minimum</p>
+                <p class="mt-1 text-white">{{ fixedIncomeCurrency(instrument.price, instrument.currency) }}</p>
+              </div>
+            </div>
+            <button class="mt-5 w-full rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-semibold text-cyan-400 hover:bg-cyan-400 hover:text-[#0F1724]"
+              @click="openTrade(instrument)">
+              View trading options
+            </button>
+          </article>
+        </div>
+        <p v-if="!filteredInstruments.length" class="rounded-xl border border-dashed border-[#1f3348] p-10 text-center text-gray-500">
+          No active products match your search.
+        </p>
       </div>
 
-      <div v-else-if="activeView === 'history'" class="py-20 text-center text-gray-500 italic border border-dashed border-[#1f3348] rounded-xl">
-        Your fixed income transaction history will appear here.
+      <div v-else-if="activeView === 'history'" class="overflow-x-auto rounded-xl border border-[#1f3348] bg-[#0F1724]">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-[#1f3348] bg-[#0B121D] text-gray-400">
+            <tr>
+              <th class="p-4">Reference</th>
+              <th class="p-4">Product</th>
+              <th class="p-4 text-right">Principal</th>
+              <th class="p-4 text-right">Expected interest</th>
+              <th class="p-4">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#1f3348]">
+            <tr v-for="investment in investments" :key="investment.id" class="text-gray-200">
+              <td class="p-4 text-cyan-400">{{ investment.reference }}</td>
+              <td class="p-4">{{ investment.product?.name || '-' }}</td>
+              <td class="p-4 text-right">{{ investment.principal_amount?.toLocaleString() }}</td>
+              <td class="p-4 text-right">{{ investment.expected_interest?.toLocaleString() }}</td>
+              <td class="p-4">{{ investment.status }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="!investments.length" class="p-10 text-center text-gray-500">No Fixed Income investments yet.</p>
       </div>
 
       <!-- Modal Overlays Injection Portals -->
@@ -160,7 +210,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useRoute } from 'vue-router';
 import MainLayout from "@/Layouts/MainLayout.vue";
 import apexchart from "vue3-apexcharts";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
@@ -169,6 +220,9 @@ import TradeModal from "@/Components/TradeModal.vue";
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import SkeletonLoader from "@/Components/SkeletonLoader.vue"
 import api from "@/api";
+import { fixedIncomeCurrency } from '@/lib/fixedIncomeFormatters'
+
+const route = useRoute();
 
 // Core Identity / Session Access Management Configuration 
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -176,7 +230,7 @@ const isDemo = ref(user.value.trading_mode === 'demo');
 const showPrompt = ref(false);
 
 // Interface Structural Switch Panels
-const activeView = ref('holdings');
+const activeView = ref(route.query.view || 'holdings');
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
 const showTradeModal = ref(false);
@@ -185,21 +239,25 @@ const search = ref("");
 
 // Quantitative Streams Containers
 const isGraphLoading = ref(false);
+const loading = ref(false);
 const walletBalances = ref({ cleared_balance_ngn: 0 });
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
+const investments = ref([]);
+
+const canTrade = computed(() => {
+  if (isDemo.value) return true;
+  return Number(user.value?.verification_level || 0) >= 2;
+});
 
 const assetCategories = [
   { id: 'FIXED_INCOME', name: 'Fixed Income', description: 'Bonds, Treasury Bills, Funds, Commercial Papers' }
 ];
 
-const instruments = ref([
-  { symbol: "FG132026S1", name: "FGN Bond Jan 2026", yield: 12.5, change: 0.2, volume: 50000, price: 1000, spark: [12.3, 12.4, 12.5, 12.5, 12.5] },
-  { symbol: "ABB2026S0", name: "Access Bank July 2026", yield: 10.8, change: -0.1, volume: 200000, price: 1000, spark: [11.0, 10.9, 10.8, 10.8, 10.8] },
-  { symbol: "FGNSB_2027", name: "FGN Savings Bond 2027", yield: 8.5, change: 0.3, volume: 150000, price: 1000, spark: [8.2, 8.3, 8.4, 8.5, 8.5] },
-  { symbol: "CP_MTN_I", name: "MTN Commercial Paper", yield: 9.2, change: 0.1, volume: 75000, price: 1000, spark: [9.1, 9.1, 9.2, 9.2, 9.2] },
-]);
+const instruments = ref([]);
+const isMarketLoading = ref(true);
+const marketError = ref('');
 
 const sparkOptions = {
   chart: { 
@@ -225,7 +283,7 @@ const isUserVerified = computed(() => {
 });
 
 const tradeTickers = computed(() => ({
-  FIXED_INCOME: instruments.value.map(i => ({ ...i, currency: 'NGN' }))
+  FIXED_INCOME: instruments.value.map(i => ({ ...i, currency: i.currency || 'NGN' }))
 }));
 
 const filteredInstruments = computed(() => {
@@ -244,6 +302,33 @@ const fetchWalletBalances = async () => {
     walletBalances.value = response.data.data;
   } catch (error) {
     console.error('Failed to fetch wallet balances', error);
+  }
+};
+
+const fetchInstruments = async () => {
+  isMarketLoading.value = true;
+  loading.value = true;
+  marketError.value = '';
+
+  try {
+    const response = await api.get('/fixed-income/products');
+    instruments.value = (response.data.data || []).map((product) => ({
+      symbol: product.code,
+      name: product.name,
+      issuer: product.issuer,
+      yield: Number(product.interest_rate || 0),
+      change: 0,
+      volume: Number(product.maximum_capacity || 0),
+      price: Number(product.minimum_amount || 0),
+      spark: [Number(product.interest_rate || 0)],
+      productId: product.id,
+      currency: product.currency,
+    }));
+  } catch (error) {
+    marketError.value = error.response?.data?.message || 'Unable to load fixed income products.';
+  } finally {
+    isMarketLoading.value = false;
+    loading.value = false;
   }
 };
 
@@ -266,15 +351,13 @@ const fetchPortfolioPerformance = async (range = '1W') => {
   }
 };
 
-const updateMarketPrices = () => {
-  instruments.value.forEach(inst => {
-    const rawDelta = (Math.random() - 0.5) * 0.1;
-    inst.yield = Number((inst.yield + rawDelta).toFixed(4));
-    inst.change = Number(rawDelta.toFixed(2));
-    
-    inst.spark.push(inst.yield);
-    if (inst.spark.length > 10) inst.spark.shift();
-  });
+const fetchInvestmentHistory = async () => {
+  try {
+    const response = await api.get('/fixed-income/investments');
+    investments.value = response.data.data?.data || [];
+  } catch (error) {
+    console.error('Fixed income history payload gathering failed:', error);
+  }
 };
 
 // Interactive Layout Emission Controls
@@ -307,22 +390,16 @@ const openTrade = (instrument) => {
     return;
   }
   
-  selectedTradeInstrument.value = { ...instrument, currency: 'NGN' }; 
+  selectedTradeInstrument.value = { ...instrument, currency: instrument.currency || 'NGN' }; 
   showTradeModal.value = true; 
 };
 
-// Polling Architecture Lifecycle Loops
-let trackingPoll = null;
-
 onMounted(() => {
   Promise.allSettled([
+    fetchInstruments(),
     fetchPortfolioPerformance(),
-    fetchWalletBalances()
+    fetchWalletBalances(),
+    fetchInvestmentHistory()
   ]);
-  trackingPoll = setInterval(updateMarketPrices, 5000);
-});
-
-onUnmounted(() => {
-  if (trackingPoll) clearInterval(trackingPoll);
 });
 </script>

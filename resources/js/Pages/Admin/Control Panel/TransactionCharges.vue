@@ -6,7 +6,8 @@
 
 
 
-    <table class="w-full text-sm text-left">
+    <SkeletonLoader v-if="loadingData" type="table" :count="6" class="opacity-40" />
+    <table v-else class="w-full text-sm text-left">
       <thead class="bg-[#151a27] text-gray-400 uppercase">
         <tr>
           <th class="px-4 py-3">Type</th>
@@ -76,6 +77,7 @@
 import { ref, onMounted } from 'vue';
 import api from '@/api';
 import { useRouter } from 'vue-router';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 const router = useRouter();
 
 const charges = ref([]);
@@ -83,13 +85,17 @@ const showModal = ref(false);
 const loading = ref(false); 
 
 const form = ref({ id: null, transaction_type: '', charge_type: 'flat', value: 0, active: true });
+const loadingData = ref(true);
 
 const fetchCharges = async () => {
+  loadingData.value = true;
   try {
     const res = await api.get('/admin/transaction-charges');
     charges.value = res.data;
   } catch (e) {
     console.error("Fetch failed", e);
+  } finally {
+    loadingData.value = false;
   }
 };
 

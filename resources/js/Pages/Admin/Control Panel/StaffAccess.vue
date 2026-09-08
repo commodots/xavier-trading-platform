@@ -2,7 +2,7 @@
   <div class="p-4">
     <h3 class="text-lg font-semibold mb-4 text-white">Staff Access</h3>
     
-    <div v-if="loading" class="text-sm text-gray-400">Loading...</div>
+    <SkeletonLoader v-if="loading" type="list" :count="5" class="max-w-3xl opacity-40" />
     
     <div v-else>
       <div class="mb-6">
@@ -80,6 +80,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '@/api';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 const roles = ref([]);
 const loading = ref(true);

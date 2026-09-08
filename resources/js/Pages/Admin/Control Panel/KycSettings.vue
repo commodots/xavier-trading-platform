@@ -10,7 +10,8 @@
       </button>
     </div>
 
-    <div class="bg-[#111827] rounded-xl p-6 border border-[#1F2A44] max-w-3xl">
+    <SkeletonLoader v-if="loading" type="card" :count="3" class="max-w-3xl opacity-40" />
+    <div v-else class="bg-[#111827] rounded-xl p-6 border border-[#1F2A44] max-w-3xl">
       <h2 class="text-gray-400 mb-4 text-sm uppercase tracking-wider">Global Tier Rules</h2>
 
       <div v-for="s in settings" :key="s.tier" class="mb-6 p-4 bg-[#1C2541] rounded-lg border border-[#1F2A44]">
@@ -103,8 +104,10 @@
 <script setup>
 import { ref, onMounted, reactive } from "vue";
 import api from "@/api";
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 const settings = ref([]);
+const loading = ref(true);
 const saving = ref(false);
 const savingTier = ref(null);
 const docTypes = ['bvn','nin','tin','intl_passport','national_id','drivers_license','proof_of_address'];
@@ -125,6 +128,7 @@ const modal = reactive({
 onMounted(() => fetchSettings());
 
 const fetchSettings = async () => {
+  loading.value = true;
   try {
     let res = await api.get("/admin/kyc-settings");
     settings.value = res.data.data.map(s => ({
@@ -133,8 +137,10 @@ const fetchSettings = async () => {
     }));
   } catch (e) {
     console.error("Failed to load settings");
+  } finally {
+    loading.value = false;
   }
-};
+  };
 
 const showModal = (title, message, type = 'success') => {
   modal.type = 'status';

@@ -7,7 +7,8 @@
       </button>
     </div>
 
-    <table class="w-full text-sm text-left">
+    <SkeletonLoader v-if="loading" type="table" :count="6" class="opacity-40" />
+    <table v-else class="w-full text-sm text-left">
       <thead class="bg-[#151a27] text-gray-400 uppercase tracking-wider">
         <tr>
           <th class="px-4 py-3">Name</th>
@@ -71,18 +72,23 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/api';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 const transactionTypes = ref([]);
+const loading = ref(true);
 const showModal = ref(false);
 const form = ref({ name: '', category: 'funding', active: true });
 
 
 const fetchTypes = async () => {
+  loading.value = true;
   try {
     const res = await api.get('/admin/transaction-types');
     transactionTypes.value = res.data;
   } catch (error) {
     console.error("Error fetching types:", error);
+  } finally {
+    loading.value = false;
   }
 };
 

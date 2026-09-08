@@ -24,7 +24,8 @@
       </div>
     </div>
 
-    <form @submit.prevent="saveSettings" class="space-y-6">
+    <SkeletonLoader v-if="loadingData" type="card" :count="2" class="opacity-40" />
+    <form v-else @submit.prevent="saveSettings" class="space-y-6">
       <div class="p-6 bg-[#252A3D] rounded-xl border border-[#343B54]">
         <label class="block mb-3 text-sm font-bold tracking-wider text-gray-300 uppercase">
           Trial Period Duration
@@ -67,8 +68,10 @@
 import { ref, onMounted } from 'vue';
 import api from '@/api';
 import ErrorModal from '@/Components/ErrorModal.vue';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 const loading = ref(false);
+const loadingData = ref(true);
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
@@ -80,6 +83,7 @@ const form = ref({
 });
 
 const fetchSettings = async () => {
+  loadingData.value = true;
     try {
         const response = await api.get('/admin/settings');
         if (response.data.success) {
@@ -87,6 +91,8 @@ const fetchSettings = async () => {
         }
     } catch (error) {
         console.error("Failed to load settings", error);
+    } finally {
+      loadingData.value = false;
     }
 };
 

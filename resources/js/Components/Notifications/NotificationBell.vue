@@ -1,7 +1,13 @@
 <template>
   <div class="relative inline-block">
     <!-- Bell Trigger Button -->
-    <button @click="toggleDropdown" class="p-2 text-gray-600 hover:text-gray-900 focus:outline-none relative transition duration-150 ease-in-out">
+    <button
+      type="button"
+      aria-label="Notifications"
+      :aria-expanded="open"
+      class="relative p-2 text-gray-600 transition duration-150 ease-in-out hover:text-gray-900 focus:outline-none"
+      @click="toggleDropdown"
+    >
       <span class="text-xl">🔔</span>
       <!-- Unread count badge -->
       <span 
@@ -13,7 +19,7 @@
     </button>
 
     <!-- Dropdown Overlay Closes Panel on Outside Click -->
-    <div v-if="open" @click="open = false" class="fixed inset-0 z-40 bg-transparent"></div>
+    <div v-if="open" class="fixed inset-0 z-40 bg-transparent" @click="open = false"></div>
 
     <!-- Dropdown Panel -->
     <transition
@@ -37,11 +43,14 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import NotificationDropdown from './NotificationDropdown.vue'
 import api from '@/api'
 
+const router = useRouter()
 const open = ref(false)
 const notifications = ref([])
+const unreadTotal = ref(0)
 const pollingInterval = ref(null)
 const POLLING_DELAY = 30000 // 30 seconds
 
@@ -53,15 +62,12 @@ const fetchNotifications = async () => {
   try {
     const res = await api.get('/user/notifications')
 
-    if (res.data?.notifications) {
-      notifications.value = Array.isArray(res.data.notifications)
-        ? res.data.notifications
-        : []
-    } else if (Array.isArray(res.data)) {
-      notifications.value = res.data
-    } else {
-      notifications.value = []
-    }
+    notifications.value = Array.isArray(res.data?.notifications)
+      ? res.data.notifications
+      : Array.isArray(res.data) ? res.data : []
+    unreadTotal.value = Number.isFinite(Number(res.data?.unread_count))
+      ? Number(res.data.unread_count)
+      : notifications.value.filter(notification => !notification.read).length
   } catch (error) {
     console.error('Failed to load notifications:', error)
     notifications.value = []
@@ -73,7 +79,7 @@ const startPolling = () => {
   stopPolling()
   
   pollingInterval.value = setInterval(() => {
-    fetchNotifications()
+    if (!open.value) fetchNotifications()
   }, POLLING_DELAY)
 }
 
@@ -91,8 +97,7 @@ watch(open, (value) => {
 })
 
 const unreadCount = computed(() => {
-  if (!Array.isArray(notifications.value)) return 0
-  return notifications.value.filter(n => !n.read).length
+  return unreadTotal.value
 })
 
 const markAsRead = async (id) => {
@@ -102,9 +107,11 @@ const markAsRead = async (id) => {
 
     try {
       await api.post(`/user/notifications/${id}/read`)
+      unreadTotal.value = Math.max(0, unreadTotal.value - 1)
     } catch (error) {
       console.error('Failed to sync read status to backend:', error)
       notif.read = false
+      unreadTotal.value += 1
     }
   }
 }
@@ -112,7 +119,7 @@ const markAsRead = async (id) => {
 const handleViewNotification = (notification) => {
   open.value = false
   
-  router.push({ path: '/notifications', query: { notification: notification.id } })
+  router.push({ name: 'notifications', query: { notification: notification.id } })
 }
 
 onMounted(() => {

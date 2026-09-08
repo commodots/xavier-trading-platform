@@ -9,19 +9,19 @@
 
       <h2 class="flex items-center mb-4 text-xl font-semibold text-white">
         <span v-if="isDemo" class="mr-2 px-2 py-0.5 bg-yellow-500 text-black text-[10px] font-black rounded uppercase">DEMO</span>
-        Trade NGX Stocks
+        Trade {{ categoryLabel }}
       </h2>
 
       <div class="space-y-3">
         <!-- Stock Selector Dropdown -->
         <div class="space-y-1">
-          <label class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Select NGX Ticker</label>
+          <label class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Select {{ categoryLabel }} Product</label>
           <div class="relative">
             <select v-model="selectedSymbol" @change="handleTickerChange"
               class="w-full px-3 py-2.5 bg-[#0F1724] border border-gray-700 rounded-lg text-white text-sm outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer font-bold">
-              <option :value="null" disabled>Choose a stock...</option>
-              <option v-for="ticker in ngxTickers" :key="ticker.symbol" :value="ticker.symbol">
-                {{ ticker.symbol }} - {{ ticker.name }} (₦{{ ticker.price?.toLocaleString() }})
+              <option :value="null" disabled>Select{{ categoryLabel.toLowerCase() }}...</option>
+              <option v-for="ticker in categoryTickers" :key="ticker.symbol" :value="ticker.symbol">
+                {{ ticker.symbol }} - {{ ticker.name }} ({{ ticker.currency || 'NGN' }} {{ ticker.price?.toLocaleString() }})
               </option>
             </select>
             <div class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 pointer-events-none">
@@ -149,7 +149,11 @@ import api from '@/api';
 const props = defineProps({
   show: Boolean,
   tickers: Object, 
-  initialTicker: Object
+  initialTicker: Object,
+  initialCategory: {
+    type: String,
+    default: 'NGX'
+  }
 });
 
 const emit = defineEmits(['close', 'trade-success']);
@@ -175,14 +179,21 @@ const isDemo = ref(false);
 const watchlist = ref([]);
 const inputMode = ref('amount'); 
 
-const ngxTickers = computed(() => {
-  return props.tickers?.NGX || [];
+const categoryLabel = computed(() => {
+  if (props.initialCategory === 'FIXED_INCOME') return 'Fixed Income';
+  if (props.initialCategory === 'CRYPTO') return 'Crypto';
+  if (props.initialCategory === 'GLOBAL') return 'Global Stocks';
+  return 'NGX Stocks';
+});
+
+const categoryTickers = computed(() => {
+  return props.tickers?.[props.initialCategory] || [];
 });
 
 
 const selectedTicker = computed(() => {
   if (!selectedSymbol.value) return null;
-  return ngxTickers.value.find(t => t.symbol === selectedSymbol.value) || null;
+  return categoryTickers.value.find(t => t.symbol === selectedSymbol.value) || null;
 });
 
 watch(() => selectedTicker.value?.price, (newPrice, oldPrice) => {

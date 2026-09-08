@@ -141,7 +141,7 @@ const routes = [
   {
     path: "/fixed-income",
     name: "fixed-income",
-    component: () => import("@/Pages/FixedIncome/Index.vue"),
+    component: () => import("@/Pages/Market/FixedIncomeMarket.vue"),
     meta: { requiresAuth: true },
   },
   {

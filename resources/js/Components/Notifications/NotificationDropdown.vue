@@ -11,11 +11,11 @@
       <div class="mt-3 flex flex-wrap gap-2">
         <button
           v-for="tab in tabs"
-          :key="tab"
-          @click="activeTab = tab"
-          :class="['px-3 py-1.5 rounded-full text-xs font-medium transition', activeTab === tab ? 'bg-blue-600 text-white' : 'bg-[#0F1724] text-gray-300 hover:bg-[#1f2a44]']"
+          :key="tab.key"
+          @click="activeTab = tab.key"
+          :class="['px-3 py-1.5 rounded-full text-xs font-medium transition', activeTab === tab.key ? 'bg-blue-600 text-white' : 'bg-[#0F1724] text-gray-300 hover:bg-[#1f2a44]']"
         >
-          {{ tab }}
+          {{ tab.label }}
         </button>
       </div>
     </div>
@@ -46,7 +46,6 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import NotificationItem from './NotificationItem.vue'
 
 const props = defineProps({
@@ -57,14 +56,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['markRead', 'viewNotification'])
-const router = useRouter()
 
 const handleView = (notification) => {
   emit('viewNotification', notification)
 }
 
-const tabs = ['All', 'Unread', 'Important']
-const activeTab = ref('All')
+const tabs = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'important', label: 'Important' },
+  { key: 'billing', label: 'Billing' },
+  { key: 'account', label: 'Account' },
+  { key: 'updates', label: 'Updates' },
+]
+const activeTab = ref('all')
 
 const safeNotifications = computed(() => {
   if (!props.notifications || !Array.isArray(props.notifications)) return []
@@ -72,12 +77,24 @@ const safeNotifications = computed(() => {
 })
 
 const filteredNotifications = computed(() => {
-  if (activeTab.value === 'Unread') {
+  if (activeTab.value === 'unread') {
     return safeNotifications.value.filter(item => !item.read)
   }
 
-  if (activeTab.value === 'Important') {
+  if (activeTab.value === 'important') {
     return safeNotifications.value.filter(item => ['account', 'warning', 'error', 'billing'].includes(item.type))
+  }
+
+  if (activeTab.value === 'billing') {
+    return safeNotifications.value.filter(item => item.type === 'billing')
+  }
+
+  if (activeTab.value === 'account') {
+    return safeNotifications.value.filter(item => ['account', 'security', 'suspension'].includes(item.type))
+  }
+
+  if (activeTab.value === 'updates') {
+    return safeNotifications.value.filter(item => ['info', 'news', 'broadcast'].includes(item.type))
   }
 
   return safeNotifications.value

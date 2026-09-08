@@ -21,12 +21,12 @@
 
       <div v-else-if="Array.isArray(sortedNotifications) && sortedNotifications.length > 0" class="flex flex-wrap gap-2 mb-6">
         <button 
-          v-for="f in filters" 
-          :key="f"
-          @click="activeFilter = f"
-          :class="['px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide border transition duration-150', activeFilter === f ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-[#16213A] text-gray-300 border-[#1f3348] hover:bg-[#1f3348]']"
+          v-for="filter in filters" 
+          :key="filter.key"
+          @click="activeFilter = filter.key"
+          :class="['px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide border transition duration-150', activeFilter === filter.key ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-[#16213A] text-gray-300 border-[#1f3348] hover:bg-[#1f3348]']"
         >
-          {{ f }}
+          {{ filter.label }}
         </button>
       </div>
 
@@ -36,8 +36,8 @@
       </div>
 
       <div v-if="filteredNotifications.length === 0 && !loading && notifications.length > 0" class="flex flex-col items-center justify-center py-16 bg-[#0F1724] border border-[#1f3348] rounded-2xl text-center">
-        <h3 class="text-lg font-medium text-white">No {{ activeFilter }} messages available</h3>
-        <p class="text-gray-400 max-w-xs mx-auto mt-2">There are no {{ activeFilter.toLowerCase() }} notifications at this time.</p>
+        <h3 class="text-lg font-medium text-white">No {{ activeFilterLabel.toLowerCase() }} messages available</h3>
+        <p class="text-gray-400 max-w-xs mx-auto mt-2">There are no {{ activeFilterLabel.toLowerCase() }} notifications at this time.</p>
       </div>
 
       <div v-if="filteredNotifications.length > 0" class="bg-[#0F1724] border border-[#1f3348] rounded-xl divide-y divide-[#1f3348] shadow-sm overflow-hidden">
@@ -94,16 +94,25 @@ import { ref, computed, onMounted } from 'vue';
 import NotificationItem from './NotificationItem.vue';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
-import { useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 
-const router = useRouter();
+const route = useRoute();
 const loading = ref(false);
 const loadingMore = ref(false);
 const notifications = ref([]);
 const currentPage = ref(1);
 const hasMorePages = ref(true);
-const filters = ['All', 'Unread', 'Billing', 'Account', 'Warning', 'News', 'Suspension']
-const activeFilter = ref('All')
+const filters = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'important', label: 'Important' },
+  { key: 'billing', label: 'Billing' },
+  { key: 'account', label: 'Account & Security' },
+  { key: 'warning', label: 'Warnings' },
+  { key: 'updates', label: 'Updates' },
+  { key: 'success', label: 'Success' },
+]
+const activeFilter = ref('all')
 const selectedNotification = ref(null);
 
 const fetchNotifications = async (page = 1, append = false) => {
@@ -178,15 +187,18 @@ const sortedNotifications = computed(() => {
 const filteredNotifications = computed(() => {
   const base = sortedNotifications.value
   switch (activeFilter.value) {
-    case 'Unread': return base.filter(n => n && !n.read)
-    case 'Billing': return base.filter(n => n && n.type === 'billing')
-    case 'Account': return base.filter(n => n && n.type === 'account')
-    case 'Warning': return base.filter(n => n && n.type === 'warning')
-    case 'News': return base.filter(n => n && n.type === 'news')
-    case 'Suspension': return base.filter(n => n && n.type === 'suspension')
+    case 'unread': return base.filter(n => n && !n.read)
+    case 'important': return base.filter(n => n && ['account', 'billing', 'warning', 'error'].includes(n.type))
+    case 'billing': return base.filter(n => n && n.type === 'billing')
+    case 'account': return base.filter(n => n && ['account', 'security', 'suspension'].includes(n.type))
+    case 'warning': return base.filter(n => n && ['warning', 'error'].includes(n.type))
+    case 'updates': return base.filter(n => n && ['info', 'news', 'broadcast'].includes(n.type))
+    case 'success': return base.filter(n => n && n.type === 'success')
     default: return base
   }
 })
+
+const activeFilterLabel = computed(() => filters.find(filter => filter.key === activeFilter.value)?.label || 'All')
 
 const markOneAsRead = async (id) => {
   const notif = notifications.value.find(n => n.id === id)
@@ -216,18 +228,16 @@ const openDetails = (notification) => {
   selectedNotification.value = notification;
 }
 
-onMounted(() => {
-  fetchNotifications()
-  
-  const notificationId = router.currentRoute.value.query.notification
+onMounted(async () => {
+  await fetchNotifications()
+
+  const notificationId = route.query.notification
   if (notificationId) {
- 
-    setTimeout(() => {
-      const notif = notifications.value.find(n => n.id === notificationId)
-      if (notif) {
-        openDetails(notif)
-      }
-    }, 500)
+    const notification = notifications.value.find(item => String(item.id) === String(notificationId))
+    if (notification) {
+      openDetails(notification)
+      await markOneAsRead(notification.id)
+    }
   }
 })
 </script>

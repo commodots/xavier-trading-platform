@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '@/api';
+import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 /* ================= STATE ================= */
 const services = ref([])
@@ -231,10 +232,7 @@ onMounted(fetchServices)
       </button>
     </div>
 
-    <div v-if="loading" class="text-center py-8">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
-      <p class="text-gray-400 mt-2">Loading services...</p>
-    </div>
+    <SkeletonLoader v-if="loading" type="table" :count="6" class="opacity-40" />
 
     <div v-else-if="error" class="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
       <p class="text-red-400">{{ error }}</p>
