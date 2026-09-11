@@ -104,7 +104,7 @@ return [
 
     'csl' => [
 
-        'mode' => env('CSL_MODE', 'test'),
+        'mode' => env('CSL_MODE', 'mock'),
 
         'client_id' => env('CSL_CLIENT_ID'),
 
@@ -112,7 +112,7 @@ return [
 
         'st_base_url' => env(
             'CSL_ST_BASE_URL',
-            'https://csltapiv3.fcmb.com/symplustest/cslapi/v5/cor/st'
+            'https://csltapiv3.fcmb.com/symplustest/cslapi/v5/cor/sst'
         ),
 
         'xt_base_url' => env(
@@ -128,4 +128,13 @@ return [
 
         'connect_timeout' => (int) env('CSL_CONNECT_TIMEOUT', 10),
     ],
+    'stock_broker' => env(
+        'STOCK_BROKER',
+        'mock'
+    ),
+
+    'market_data_provider' => env(
+        'MARKET_DATA_PROVIDER',
+        'mock'
+    ),
 ];

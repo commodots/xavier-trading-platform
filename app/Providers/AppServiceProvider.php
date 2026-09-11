@@ -3,19 +3,22 @@
 namespace App\Providers;
 
 use App\Models\KycProfile;
-use App\Observers\KycProfileObserver;
+use App\Models\Notification as CustomNotification;
 use App\Models\User;
-use Illuminate\Support\Facades\Gate;
-use Laravel\Pulse\Facades\Pulse;
+use App\Observers\KycProfileObserver;
+use App\Observers\UserObserver;
+use App\Services\CSL\CslClient;
+use App\Services\CSL\CslMarketDataProvider;
+use App\Services\CSL\CslStockBroker;
 use App\Services\Stocks\Contracts\MarketDataProvider;
 use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Mock\MockDriveWealthService;
 use App\Services\Stocks\Mock\MockPolygonService;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
-use App\Models\Notification as CustomNotification;
-use App\Services\CSL\CslClient;
-use Illuminate\Notifications\DatabaseNotification;
+use Laravel\Pulse\Facades\Pulse;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,24 +27,59 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        if ($this->app->environment('local', 'testing')) {
-            $this->app->bind(StockBroker::class, function () {
-                return new MockDriveWealthService;
-            });
+        /*
+    |--------------------------------------------------------------------------
+    | Stock Broker
+    |--------------------------------------------------------------------------
+    */
 
-            $this->app->bind(MarketDataProvider::class, function () {
-                return new MockPolygonService;
-            });
-        } else {
-            // Production services should be configured in another provider or via Environment-specific bindings.
-            $this->app->bind(StockBroker::class, function () {
-                throw new \RuntimeException('StockBroker not configured for production');
-            });
+        $this->app->bind(
+            StockBroker::class,
+            function ($app) {
 
-            $this->app->bind(MarketDataProvider::class, function () {
-                throw new \RuntimeException('MarketDataProvider not configured for production');
-            });
-        }
+                $driver = config(
+                    'services.stock_broker',
+                    env('STOCK_BROKER', 'mock')
+                );
+
+                if ($driver === 'csl') {
+                    return $app->make(
+                        CslStockBroker::class
+                    );
+                }
+
+                return $app->make(
+                    MockDriveWealthService::class
+                );
+            }
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Market Data Provider
+        |--------------------------------------------------------------------------
+        */
+
+        $this->app->bind(
+            MarketDataProvider::class,
+            function ($app) {
+
+                $driver = config(
+                    'services.market_data_provider',
+                    env('MARKET_DATA_PROVIDER', 'mock')
+                );
+
+                if ($driver === 'csl') {
+                    return $app->make(
+                        CslMarketDataProvider::class
+                    );
+                }
+
+                return $app->make(
+                    MockPolygonService::class
+                );
+            }
+        );
 
         if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
@@ -49,8 +87,8 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->app->singleton(CslClient::class, function () {
-        return new CslClient();
-    });
+            return new CslClient;
+        });
     }
 
     /**
@@ -62,21 +100,21 @@ class AppServiceProvider extends ServiceProvider
 
         KycProfile::observe(KycProfileObserver::class);
 
-        \App\Models\User::observe(\App\Observers\UserObserver::class);
+        User::observe(UserObserver::class);
 
         $this->app->bind(DatabaseNotification::class, function () {
-            return new CustomNotification();
+            return new CustomNotification;
         });
 
         Gate::guessPolicyNamesUsing(function (string $modelClass) {
-            return 'App\\Policies\\' . class_basename($modelClass) . 'Policy';
+            return 'App\\Policies\\'.class_basename($modelClass).'Policy';
         });
 
         Gate::define('viewPulse', function (User $user) {
             return $user->isAdmin();
         });
 
-        Pulse::user(fn($user) => [
+        Pulse::user(fn ($user) => [
             'name' => $user->name,
             'extra' => $user->email,
             'avatar' => $user->avatar,
