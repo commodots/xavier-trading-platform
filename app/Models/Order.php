@@ -28,6 +28,21 @@ class Order extends Model
         'take_profit',
         'stop_loss',
         'position_type',
+        'provider',
+        'provider_order_id',
+        'provider_market_account_id',
+        'time_in_force',
+        'expiry_date',
+        'provider_request',
+        'provider_response',
+        'provider_submitted_at',
+    ];
+
+    protected $casts = [
+        'provider_request' => 'array',
+        'provider_response' => 'array',
+        'provider_submitted_at' => 'datetime',
+        'expiry_date' => 'date',
     ];
 
     public function user()

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class Trade extends Model
 {
@@ -11,6 +11,11 @@ class Trade extends Model
         'order_id', 'counterparty_order_id', 'price', 'quantity', 'fee', 'settlement_status', 'settlement_date', 'reference',
         'user_id', 'pair', 'type', 'amount', 'entry_price', 'exit_price', 'profit_loss', 'status',
         'is_settled',
+        'provider',
+        'provider_trade_id',
+        'provider_order_id',
+        'provider_response',
+        'provider_executed_at',
     ];
 
     protected $casts = [
@@ -22,7 +27,9 @@ class Trade extends Model
         'exit_price' => 'decimal:8',
         'profit_loss' => 'decimal:8',
         'settlement_date' => 'datetime',
-        'is_settled' => 'boolean'
+        'is_settled' => 'boolean',
+        'provider_response' => 'array',
+        'provider_executed_at' => 'datetime',
     ];
 
     public function scopeUnsettled(Builder $query): void

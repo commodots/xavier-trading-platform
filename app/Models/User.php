@@ -484,4 +484,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $this->kyc?->tier ?? 0;
     }
+
+    public function providerAccounts()
+    {
+        return $this->hasMany(
+            ProviderAccount::class
+        );
+    }
 }

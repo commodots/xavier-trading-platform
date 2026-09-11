@@ -13,8 +13,10 @@ use App\Models\NewTransaction;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\Wallet;
+use App\Services\CSL\CslOrderService;
 use App\Services\Demo\DemoTradingService;
 use App\Services\LiveTradingService;
+use App\Services\Trading\TradingExecutionService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,6 +62,11 @@ class OmsController extends Controller
             'market_price' => 'required|numeric',
             'amount' => 'required|numeric|min:1',
             'side' => 'required|in:buy,sell',
+            'quantity' => 'nullable|numeric|min:1',
+            'type' => 'nullable|in:market,limit',
+            'limit_price' => 'nullable|numeric|min:0',
+            'time_in_force' => 'nullable|in:DAY,GTD',
+            'expiry_date' => 'nullable|date',
         ]);
 
         // RBAC: Check user can trade
@@ -76,19 +83,45 @@ class OmsController extends Controller
         // Rate-limiting already applied via middleware
         $data['market'] = strtoupper($data['market']);
 
-        $service = ($user->trading_mode === 'demo')
-            ? app(DemoTradingService::class)
-            : app(LiveTradingService::class);
+        $data['quantity'] = (float) ($data['quantity']
+            ?? floor($data['amount'] / $data['market_price']));
 
-        try {
-            $order = $service->executeTrade($user, $data);
-
-            return response()->json(['success' => true, 'data' => $order]);
-        } catch (\Exception $e) {
-            Log::error('Trade Failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-            return response()->json(['success' => false, 'message' => 'Unable to place order at this time. Please try again later.'], 500);
+        if ($data['quantity'] < 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The order amount must purchase at least one unit.',
+            ], 422);
         }
+
+        if ($user->trading_mode === 'demo') {
+
+            $service = app(DemoTradingService::class);
+
+            $order = $service->executeTrade(
+                $user,
+                $data
+            );
+
+        } else {
+
+            $provider = config('services.stock_broker');
+
+            if ($provider === 'csl' && $data['market'] === 'NGX') {
+
+                $order = app(TradingExecutionService::class)
+                    ->submit($user, $data);
+
+            } else {
+
+                $order = app(LiveTradingService::class)
+                    ->executeTrade($user, $data);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $order,
+        ], 201);
     }
 
     public function listOrders(Request $request)
@@ -112,12 +145,28 @@ class OmsController extends Controller
         $orderClass = $models->order;
         $order = $orderClass::find($id);
 
-        if (!$order) {
+        if (! $order) {
             return response()->json(['success' => false, 'message' => 'Order not found'], 404);
         }
 
         // RBAC: User can only cancel their own orders
         $this->authorize('cancel', $order);
+
+        if ($order instanceof Order && $order->provider === 'csl') {
+            try {
+                app(CslOrderService::class)->cancel($order);
+            } catch (\Throwable $exception) {
+                Log::warning('CSL order cancellation was not confirmed.', [
+                    'order_id' => $order->id,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSL did not confirm cancellation. No local funds were released.',
+                ], 422);
+            }
+        }
 
         $walletClass = $models->wallet;
         $portfolioClass = $models->portfolio;
@@ -168,7 +217,7 @@ class OmsController extends Controller
                     $holding->increment('cleared_quantity', $remainingUnits);
                 }
                 if ($refundCashAmount > 0 && $wallet) {
-                    
+
                     $toDeduct = min($wallet->{$unclearedCol}, $refundCashAmount);
                     $wallet->decrement($unclearedCol, $toDeduct);
                     $wallet->decrement('balance', $toDeduct);

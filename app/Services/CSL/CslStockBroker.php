@@ -12,118 +12,92 @@ class CslStockBroker implements StockBroker
         protected CslTradeXClient $xt
     ) {}
 
-    /**
-     * Place a buy order through CSL-XT.
-     */
     public function buy(array $data): array
     {
-        $payload = $this->buildOrderPayload($data);
-
-        $response = $this->xt->buyOrder(
-            $payload
-        );
-
-        return $this->normalizeOrderResponse(
-            $response,
-            'buy'
+        return $this->submit(
+            'buy',
+            $data
         );
     }
 
-    /**
-     * Place a sell order through CSL-XT.
-     */
     public function sell(array $data): array
     {
-        $payload = $this->buildOrderPayload($data);
-
-        $response = $this->xt->sellOrder(
-            $payload
-        );
-
-        return $this->normalizeOrderResponse(
-            $response,
-            'sell'
+        return $this->submit(
+            'sell',
+            $data
         );
     }
 
-    /**
-     * Get a user's portfolio.
-     *
-     * At this stage the caller must provide the CSL
-     * market account ID.
-     */
-    public function portfolio(int $userId): array
-    {
-        throw new RuntimeException(
-            'CSL portfolio lookup requires a mapped CSL market account. '
-            .'User ID: '.$userId
-        );
-    }
-
-    /**
-     * Get trade history.
-     *
-     * At this stage the caller must provide the CSL
-     * market account ID and date range.
-     */
-    public function history(int $userId): array
-    {
-        throw new RuntimeException(
-            'CSL trade history requires a mapped CSL market account. '
-            .'User ID: '.$userId
-        );
-    }
-
-    /**
-     * Convert Xavier order data to CSL-XT format.
-     */
-    protected function buildOrderPayload(
+    protected function submit(
+        string $side,
         array $data
     ): array {
 
-        $marketId = $data['market_id']
-            ?? config('services.csl.market_id');
+        $payload = [
+            'market_id' => $data['market_id'],
 
-        $marketAccountId = $data['market_account_id']
-            ?? null;
+            'market_account_id' => $data['market_account_id'],
 
-        $symbol = $data['symbol']
-            ?? $data['symbol_code']
-            ?? null;
+            'symbol_code' => $data['symbol'],
 
-        $quantity = $data['quantity']
-            ?? $data['units']
-            ?? null;
+            'order_quantity' => (int) $data['quantity'],
 
-        $type = strtolower(
-            $data['type'] ?? 'market'
-        );
+            'order_type' => $this->mapOrderType(
+                $data['type'] ?? 'market'
+            ),
 
-        if (! $marketId) {
-            throw new RuntimeException(
-                'CSL market_id is required.'
-            );
+            'time_in_force' => strtoupper(
+                $data['time_in_force']
+                ?? 'DAY'
+            ),
+        ];
+
+        if ($payload['order_type'] === 'L') {
+
+            $payload['limit_price'] =
+                $data['limit_price']
+                ?? $data['price']
+                ?? null;
+
+            if ($payload['limit_price'] === null) {
+                throw new RuntimeException(
+                    'Limit price is required.'
+                );
+            }
         }
 
-        if (! $marketAccountId) {
-            throw new RuntimeException(
-                'CSL market_account_id is required.'
-            );
+        if ($payload['time_in_force'] === 'GTD') {
+
+            if (empty($data['expiry_date'])) {
+                throw new RuntimeException(
+                    'expiry_date is required for GTD.'
+                );
+            }
+
+            $payload['expiry_date'] =
+                $data['expiry_date'];
         }
 
-        if (! $symbol) {
-            throw new RuntimeException(
-                'CSL symbol_code is required.'
-            );
-        }
+        $response = $side === 'buy'
+            ? $this->xt->buyOrder($payload)
+            : $this->xt->sellOrder($payload);
 
-        if (! $quantity || $quantity <= 0) {
-            throw new RuntimeException(
-                'Order quantity must be greater than zero.'
-            );
-        }
+        return [
+            'provider' => 'csl',
+            'side' => $side,
+            'status' => $this->extractStatus($response),
+            'provider_order_id' => $this->extractOrderId($response),
+            'remarks' => $this->extractRemarks($response),
+            'request' => $payload,
+            'response' => $response,
+        ];
+    }
 
-        $orderType = match ($type) {
+    protected function mapOrderType(
+        string $type
+    ): string {
+
+        return match (strtolower($type)) {
             'market', 'm' => 'M',
             'limit', 'l' => 'L',
 
@@ -131,71 +105,64 @@ class CslStockBroker implements StockBroker
                 "Unsupported order type: {$type}"
             ),
         };
-
-        $payload = [
-            'market_id' => (string) $marketId,
-            'market_account_id' => (string) $marketAccountId,
-            'symbol_code' => (string) $symbol,
-            'order_quantity' => (int) $quantity,
-            'order_type' => $orderType,
-            'time_in_force' => strtoupper(
-                $data['time_in_force'] ?? 'DAY'
-            ),
-        ];
-
-        if ($orderType === 'L') {
-
-            $limitPrice = $data['limit_price']
-                ?? $data['price']
-                ?? null;
-
-            if ($limitPrice === null) {
-                throw new RuntimeException(
-                    'Limit price is required for a limit order.'
-                );
-            }
-
-            $payload['limit_price'] = (int) $limitPrice;
-        }
-
-        if ($payload['time_in_force'] === 'GTD') {
-
-            if (empty($data['expiry_date'])) {
-                throw new RuntimeException(
-                    'expiry_date is required when time_in_force is GTD.'
-                );
-            }
-
-            $payload['expiry_date'] = $data['expiry_date'];
-        }
-
-        return $payload;
     }
 
-    protected function normalizeOrderResponse(
-        array $response,
-        string $side
+    protected function extractStatus(
+        array $response
+    ): string {
+
+        $row = $response['result'][0]
+            ?? [];
+
+        $code = strtoupper(
+            (string) (
+                $row['code'] ?? ''
+            )
+        );
+
+        return match ($code) {
+            'A' => 'accepted',
+            'P' => 'pending',
+            default => 'rejected',
+        };
+    }
+
+    protected function extractOrderId(
+        array $response
+    ): ?string {
+
+        $row = $response['result'][0]
+            ?? [];
+
+        return $row['order_identifier']
+            ?? $row['order_id']
+            ?? null;
+    }
+
+    protected function extractRemarks(
+        array $response
+    ): ?string {
+
+        $row = $response['result'][0]
+            ?? [];
+
+        return $row['remarks']
+            ?? null;
+    }
+
+    public function portfolio(
+        int $userId
     ): array {
+        throw new RuntimeException(
+            'Use CslAccountService to resolve CSL account first.'
+        );
+    }
 
-        $result = $response['result'] ?? [];
-
-        $first = $result[0] ?? [];
-
-        return [
-            'provider' => 'csl',
-            'provider_api' => 'xt',
-            'side' => $side,
-
-            'status' => $response['status']
-                ?? 'failed',
-
-            'provider_code' => $first['code']
-                ?? null,
-
-            'remarks' => $first['remarks']
-                ?? null,
-
-            'raw' => $response,
-        ];
+    public function history(
+        int $userId
+    ): array {
+        throw new RuntimeException(
+            'Use CslAccountService to resolve CSL account first.'
+        );
     }
 }

@@ -51,7 +51,7 @@ class CslStockBrokerTest extends TestCase
         );
 
         $this->assertSame(
-            'success',
+            'accepted',
             $result['status']
         );
     }

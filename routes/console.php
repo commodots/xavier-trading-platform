@@ -54,3 +54,14 @@ Schedule::job(
 Schedule::job(
     new ReconcileFixedIncomeProviders,
 )->hourly();
+Schedule::command(
+    'csl:sync-instruments'
+)->dailyAt('06:00');
+
+Schedule::command(
+    'csl:reconcile-orders'
+)->everyFiveMinutes();
+
+Schedule::command(
+    'csl:sync-portfolios'
+)->everyTenMinutes();
