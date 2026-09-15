@@ -30,147 +30,56 @@
 
           <div v-if="currentView === 'user'">
 
-      <!-- OVERVIEW -->
+      <!-- OVERVIEW (always expanded) -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
-		  <SidebarLink to="/dashboard" :icon="Home">Dashboard</SidebarLink>
-		  <SidebarLink to="/portfolio" :icon="PieChart">Portfolio</SidebarLink>
+		  <SidebarLink to="/dashboard" :icon="Home" :active-path="activePath">Dashboard</SidebarLink>
+		  <SidebarLink to="/portfolio" :icon="PieChart" :active-path="activePath">Portfolio</SidebarLink>
 
-		  <!-- PRIMARY ACTIONS -->
-		  
-		  <!-- MARKET DATA -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Holdings</div>
-		  <SidebarLink to="/ngx" :icon="BarChart2">NGX</SidebarLink>
-		  <SidebarLink to="/global-stocks" :icon="Globe">Global Stocks</SidebarLink>
-		  <SidebarLink to="/crypto" :icon="Bitcoin">Crypto</SidebarLink>
-		  <SidebarLink to="/fixed-income" :icon="TrendingUp">Fixed Income</SidebarLink>
-		  
+		  <!-- HOLDINGS (collapsible — one option shown, hover to expand) -->
+		  <SidebarHoverSection title="Holdings" group-key="user-holdings" :items="holdingsItems" :active-path="activePath"
+        header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
 
-      <!--MARKET-->
-<div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
-		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined">FX Market</SidebarLink>
+      <!-- MARKET (single item — stays expanded) -->
+      <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
+		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined" :active-path="activePath">FX Market</SidebarLink>
 
+		  <!-- ACCOUNT (collapsible — one option shown, hover to expand) -->
+		  <SidebarHoverSection title="Account" group-key="user-account" :items="accountItems" :active-path="activePath"
+        header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
 
-		  <!-- ACCOUNT -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Account</div>
-		  <SidebarLink to="/wallet" :icon="Wallet">Fund Account</SidebarLink>
-		  <SidebarLink to="/transactions" :icon="ListOrdered">Transactions</SidebarLink>
-		  <SidebarLink to="/reports" :icon="FileSpreadsheet">Reports</SidebarLink>
-		  <SidebarLink to="/profile" :icon="Settings">User Settings</SidebarLink>
-		  <SidebarLink to="/support" :icon="MessageCircleQuestionMark">Help & Support</SidebarLink>
-      <SidebarLink to="/notifications" :icon="Bell">Notifications</SidebarLink>
-      
-<!--WATCHLIST-->
+      <!-- WATCHLIST (single item — stays expanded) -->
       <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Watchlist</div>
-		  <SidebarLink to="/watchlist" :icon="Star">Watchlist</SidebarLink>
+		  <SidebarLink to="/watchlist" :icon="Star" :active-path="activePath">Watchlist</SidebarLink>
 
-		  <!-- INSIGHTS -->
+		  <!-- INSIGHTS (single item — stays expanded) -->
 		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
-		  <SidebarLink to="/advisory" :icon="Gem">Advisory</SidebarLink>		  
+		  <SidebarLink to="/advisory" :icon="Gem" :active-path="activePath">Advisory</SidebarLink>
 
 		</div>
 
           <div v-if="currentView === 'staff'">
-            <div class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Admin
-              Management</div>
-            <SidebarLink to="/admin" :icon="PieChart">Dashboard</SidebarLink>
-            <SidebarLink v-if="isAdmin" to="/admin/activity-log" :icon="SquareChartGantt">Activity Log</SidebarLink>
-            <SidebarLink v-if="isAdmin" to="/admin/audit-logs" :icon="ShieldCheck">Audit Logs</SidebarLink>
-            <SidebarLink to="/admin/reports" :icon="FileSpreadsheet">Generate Reports</SidebarLink>
+            <SidebarHoverSection title="Admin Management" group-key="staff-admin-management" :items="adminManagementItems" :active-path="activePath"
+              header-class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarLink v-if="isAdmin || can('manage_system_settings')" to="/admin/notifications" :icon="Bell">
-              Notifications</SidebarLink>
+            <SidebarHoverSection title="Fixed Income" group-key="staff-fixed-income" :items="fixedIncomeItems" :active-path="activePath"
+              header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarLink v-if="isAdmin" to="/admin/fx-management" :icon="DollarSign">FX Management</SidebarLink>
+            <SidebarHoverSection title="Operations" group-key="staff-operations" :items="operationsItems" :active-path="activePath"
+              header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarLink v-if="isAdmin" to="/admin/advisory-dashboard" :icon="Newspaper">Advisory Content</SidebarLink>
-
-            <SidebarLink v-if="isAdmin" to="/admin/crypto-settings" :icon="Bitcoin">Crypto Settings</SidebarLink>
-
-            <div
-    v-if="isAdmin"
-    class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold"
->
-    Fixed Income
-</div>
-
-<SidebarLink
-    v-if="isAdmin"
-    to="/admin/fixed-income"
-    :icon="TrendingUp"
->
-    Dashboard
-</SidebarLink>
-
-<SidebarLink
-    v-if="isAdmin"
-    to="/admin/fixed-income/products"
-    :icon="FileText"
->
-    Products
-</SidebarLink>
-
-<SidebarLink
-    v-if="isAdmin"
-    to="/admin/fixed-income/investments"
-    :icon="ListOrdered"
->
-    Investments
-</SidebarLink>
-
-<SidebarLink
-    v-if="isAdmin"
-    to="/admin/fixed-income/maturities"
-    :icon="Calendar"
->
-    Maturities
-</SidebarLink>
-
-<SidebarLink
-    v-if="isAdmin"
-    to="/admin/fixed-income/reconciliation"
-    :icon="RefreshCw"
->
-    Reconciliation
-</SidebarLink>
-
-<SidebarLink
-    v-if="isAdmin"
-    to="/admin/fixed-income/reports"
-    :icon="FileSpreadsheet"
->
-    Reports
-</SidebarLink>
-
-
-            <div v-if="isAdmin || can('manage_transaction_charges') || can('manage_kyc_settings')"
-              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Operations
-            </div>
-            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/users" :icon="Users">User Management
-            </SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/transactions"
-              :icon="ListOrdered">Transactions</SidebarLink>
-            <SidebarLink v-if="isAdmin || can('manage_transaction_charges')" to="/admin/orders" :icon="FileText">Orders
-            </SidebarLink>
-            <SidebarLink v-if="isAdmin" to="/admin/orderbook" :icon="BarChart2">Order Book</SidebarLink>
-
-
-            <div v-if="isAdmin"
-              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Finance
-            </div>
-            <SidebarLink v-if="isAdmin" to="/admin/billing" :icon="CreditCard">Billing Dashboard</SidebarLink>
-            <SidebarLink v-if="isAdmin" to="/admin/settlements" :icon="ArrowLeftRight">Settlements Dashboard</SidebarLink>
-            <SidebarLink v-if="isAdmin" to="/admin/expenses" :icon="Receipt">Expenses</SidebarLink>
+            <SidebarHoverSection title="Finance" group-key="staff-finance" :items="financeItems" :active-path="activePath"
+              header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
             <div v-if="isAdmin || can('manage_kyc_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance
             </div>
-            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/compliance" :icon="ShieldAlert">Compliance Dashboard
+            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/compliance" :icon="ShieldAlert" :active-path="activePath">Compliance Dashboard
             </SidebarLink>
 
             <div v-if="isAdmin || can('manage_system_settings')"
               class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">System
               Settings</div>
-            <SidebarLink to="/admin/control-panel" :icon="MonitorCog">Control Panel</SidebarLink>
+            <SidebarLink to="/admin/control-panel" :icon="MonitorCog" :active-path="activePath">Control Panel</SidebarLink>
           </div>
 
           <hr class="border-[#1F2A44] my-4">
@@ -230,6 +139,7 @@ import {
 } from "lucide-vue-next";
 
 import SidebarLink from "@/Components/SidebarLink.vue";
+import SidebarHoverSection from "@/Components/SidebarHoverSection.vue";
 import DemoToggle from "@/Components/DemoToggle.vue";
 import NotificationBell from "@/Components/Notifications/NotificationBell.vue";
 import { Star } from "lucide-vue-next";
@@ -285,6 +195,96 @@ const can = (capability) => {
 
   return !!userPermissions.value[capability];
 };
+
+// --------------------------------------------------------------
+// Collapsible sidebar sections
+// (multi-item groups collapse to their active option and expand on hover;
+//  access functions mirror the previous v-if guards on each link)
+// --------------------------------------------------------------
+const holdingsItems = [
+  { label: "NGX", to: "/ngx", icon: BarChart2 },
+  { label: "Global Stocks", to: "/global-stocks", icon: Globe },
+  { label: "Crypto", to: "/crypto", icon: Bitcoin },
+  { label: "Fixed Income", to: "/fixed-income", icon: TrendingUp },
+];
+
+const accountItems = [
+  { label: "Fund Account", to: "/wallet", icon: Wallet },
+  { label: "Transactions", to: "/transactions", icon: ListOrdered },
+  { label: "Reports", to: "/reports", icon: FileSpreadsheet },
+  { label: "User Settings", to: "/profile", icon: Settings },
+  { label: "Help & Support", to: "/support", icon: MessageCircleQuestionMark },
+  { label: "Notifications", to: "/notifications", icon: Bell },
+];
+
+const adminManagementItems = computed(() => [
+  { label: "Dashboard", to: "/admin", icon: PieChart },
+  { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, access: () => isAdmin.value },
+  { label: "Audit Logs", to: "/admin/audit-logs", icon: ShieldCheck, access: () => isAdmin.value },
+  { label: "Generate Reports", to: "/admin/reports", icon: FileSpreadsheet },
+  { label: "Notifications", to: "/admin/notifications", icon: Bell, access: () => isAdmin.value || can("manage_system_settings") },
+  { label: "FX Management", to: "/admin/fx-management", icon: DollarSign, access: () => isAdmin.value },
+  { label: "Advisory Content", to: "/admin/advisory-dashboard", icon: Newspaper, access: () => isAdmin.value },
+  { label: "Crypto Settings", to: "/admin/crypto-settings", icon: Bitcoin, access: () => isAdmin.value },
+]);
+
+const fixedIncomeItems = computed(() => [
+  { label: "Dashboard", to: "/admin/fixed-income", icon: TrendingUp, access: () => isAdmin.value },
+  { label: "Products", to: "/admin/fixed-income/products", icon: FileText, access: () => isAdmin.value },
+  { label: "Investments", to: "/admin/fixed-income/investments", icon: ListOrdered, access: () => isAdmin.value },
+  { label: "Maturities", to: "/admin/fixed-income/maturities", icon: Calendar, access: () => isAdmin.value },
+  { label: "Reconciliation", to: "/admin/fixed-income/reconciliation", icon: RefreshCw, access: () => isAdmin.value },
+  { label: "Reports", to: "/admin/fixed-income/reports", icon: FileSpreadsheet, access: () => isAdmin.value },
+]);
+
+const operationsItems = computed(() => [
+  { label: "User Management", to: "/admin/users", icon: Users, access: () => isAdmin.value || can("manage_kyc_settings") },
+  { label: "Transactions", to: "/admin/transactions", icon: ListOrdered, access: () => isAdmin.value || can("manage_transaction_charges") },
+  { label: "Orders", to: "/admin/orders", icon: FileText, access: () => isAdmin.value || can("manage_transaction_charges") },
+  { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, access: () => isAdmin.value },
+]);
+
+const financeItems = computed(() => [
+  { label: "Billing Dashboard", to: "/admin/billing", icon: CreditCard, access: () => isAdmin.value },
+  { label: "Settlements Dashboard", to: "/admin/settlements", icon: ArrowLeftRight, access: () => isAdmin.value },
+  { label: "Expenses", to: "/admin/expenses", icon: Receipt, access: () => isAdmin.value },
+]);
+
+// --------------------------------------------------------------
+// Active sidebar entry
+// Resolves the single sidebar option that represents the current page so only
+// one option is highlighted at a time (deepest route prefix wins).
+// --------------------------------------------------------------
+const sidebarItems = computed(() => {
+  if (currentView.value === "user") {
+    return [
+      { to: "/dashboard" },
+      { to: "/portfolio" },
+      ...holdingsItems,
+      { to: "/fx-market" },
+      ...accountItems,
+      { to: "/watchlist" },
+      { to: "/advisory" },
+    ];
+  }
+  return [
+    ...adminManagementItems.value,
+    ...fixedIncomeItems.value,
+    ...operationsItems.value,
+    ...financeItems.value,
+    { to: "/admin/compliance" },
+    { to: "/admin/control-panel" },
+  ];
+});
+
+const activePath = computed(() => {
+  const path = route.path;
+  const matches = sidebarItems.value
+    .filter((item) => !item.access || item.access())
+    .filter((item) => path === item.to || path.startsWith(`${item.to}/`))
+    .sort((a, b) => b.to.length - a.to.length);
+  return matches.length > 0 ? matches[0].to : null;
+});
 
 const fetchPermissions = async () => {
   if (isAdmin.value) return;
