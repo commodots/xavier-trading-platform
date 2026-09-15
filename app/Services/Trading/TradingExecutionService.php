@@ -48,6 +48,8 @@ class TradingExecutionService
                 );
             }
 
+            $clientReference = 'XAV-'.now()->format('YmdHis').'-'.str()->uuid();
+
             $reservation = $this->reserveLocalState($user, $data);
 
             $providerResult =
@@ -58,6 +60,7 @@ class TradingExecutionService
                         'market_id' => $account->market_id,
 
                         'market_account_id' => $account->market_account_id,
+                        'xavier_client_reference' => $clientReference,
                     ])
                     : $this->broker->sell([
                         ...$data,
@@ -65,6 +68,7 @@ class TradingExecutionService
                         'market_id' => $account->market_id,
 
                         'market_account_id' => $account->market_account_id,
+                        'xavier_client_reference' => $clientReference,
                     ]);
 
             $providerStatus = $providerResult['status'] ?? 'pending';
@@ -119,6 +123,8 @@ class TradingExecutionService
                         'provider_order_id'
                     ] ?? null,
 
+                'provider_client_reference' => $clientReference,
+
                 'provider_market_account_id' => $account->market_account_id,
 
                 'time_in_force' => $data['time_in_force']
@@ -127,13 +133,17 @@ class TradingExecutionService
                 'expiry_date' => $data['expiry_date']
                     ?? null,
 
-                'provider_request' => $providerResult['request']
-                    ?? null,
+                'provider_request' => [
+                    ...($providerResult['request'] ?? []),
+                    'xavier_client_reference' => $clientReference,
+                ],
 
                 'provider_response' => $providerResult['response']
                     ?? null,
 
                 'provider_submitted_at' => now(),
+
+                'reconciliation_status' => 'pending',
 
                 'source' => 'csl',
             ]);

@@ -155,6 +155,18 @@ class OmsController extends Controller
         if ($order instanceof Order && $order->provider === 'csl') {
             try {
                 app(CslOrderService::class)->cancel($order);
+
+                $order = $order->fresh();
+                $confirmed = $order?->provider_cancellation_status === 'confirmed'
+                    && $order->status === 'canceled';
+
+                return response()->json([
+                    'success' => $confirmed,
+                    'message' => $confirmed
+                        ? 'Order canceled and reconciled.'
+                        : 'Cancellation requested. CSL has not confirmed cancellation yet.',
+                    'data' => $order,
+                ], $confirmed ? 200 : 202);
             } catch (\Throwable $exception) {
                 Log::warning('CSL order cancellation was not confirmed.', [
                     'order_id' => $order->id,

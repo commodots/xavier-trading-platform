@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\CSL;
 
 use App\Services\CSL\CslStockBroker;
 use Illuminate\Support\Facades\Http;

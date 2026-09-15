@@ -1,0 +1,13 @@
+{
+  "status": "accepted",
+  "provider_order_id": "CSL-SELL-1",
+  "response": {
+    "status": "accepted"
+  },
+  "request": {
+    "market_id": "NGX1",
+    "symbol": "TEST",
+    "side": "sell",
+    "quantity": 5
+  }
+}

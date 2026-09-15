@@ -1,0 +1,10 @@
+{
+  "status": "accepted",
+  "provider_order_id": "CSL-ORDER-1",
+  "response": {
+    "status": "accepted"
+  },
+  "request": {
+    "market_id": "NGX1"
+  }
+}

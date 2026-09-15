@@ -1,0 +1,15 @@
+{
+  "data": {
+    "provider": "csl",
+    "provider_symbol_id": "CSL-TEST-001",
+    "symbol": "TEST",
+    "name": "Test Company",
+    "type": "equity",
+    "exchange": "NGX",
+    "last_price": 99.5,
+    "market_id": "NGX1",
+    "product_id": "NGX-TEST",
+    "isin": "NGXTEST0001",
+    "provider_symbol_type": "stock"
+  }
+}

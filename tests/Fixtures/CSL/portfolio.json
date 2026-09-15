@@ -1,0 +1,14 @@
+{
+  "data": {
+    "user_id": 1,
+    "symbol": "TEST",
+    "name": "Test Company",
+    "category": "local",
+    "currency": "NGN",
+    "quantity": 25,
+    "cleared_quantity": 20,
+    "uncleared_quantity": 5,
+    "avg_price": 92.5,
+    "market_price": 98.0
+  }
+}

@@ -8,7 +8,8 @@ use RuntimeException;
 class CslOrderService
 {
     public function __construct(
-        protected CslTradeXClient $xt
+        protected CslTradeXClient $xt,
+        protected CslOrderReconciliationService $reconciliation
     ) {}
 
     public function cancel(
@@ -30,6 +31,11 @@ class CslOrderService
             );
         }
 
+        $order->update([
+            'provider_cancellation_status' => 'requested',
+            'provider_cancel_requested_at' => now(),
+        ]);
+
         $response = $this->xt->cancelOrder(
             $order->provider_request['market_id']
                 ?? 'NGX1',
@@ -41,8 +47,17 @@ class CslOrderService
         $status = strtolower((string) ($result['code'] ?? $result['status'] ?? ''));
 
         if ($status !== '' && ! in_array($status, ['a', 'p', 'accepted', 'pending', 'success'], true)) {
+            $order->update([
+                'provider_cancellation_status' => 'rejected',
+            ]);
             throw new RuntimeException('CSL rejected the order cancellation request.');
         }
+
+        $order->update([
+            'provider_cancellation_status' => 'unknown',
+        ]);
+
+        $this->reconciliation->reconcile($order->provider_market_account_id);
 
         return $response;
     }

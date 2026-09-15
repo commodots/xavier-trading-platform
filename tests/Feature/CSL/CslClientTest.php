@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Feature\CSL;
 
 use App\Services\CSL\CslStockClient;
 use App\Services\CSL\CslTradeXClient;

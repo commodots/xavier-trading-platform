@@ -9,11 +9,15 @@ class ActivityLog extends Model
     protected $fillable = [
         'user_id',
         'activity',
+        'ip_address',
+        'user_agent',
+        'details',
         'description',
         'properties',
     ];
 
     protected $casts = [
+        'details' => 'array',
         'properties' => 'array',
     ];
 
@@ -30,6 +34,7 @@ class ActivityLog extends Model
         return static::create([
             'user_id' => $userId,
             'activity' => $activity,
+            'ip_address' => request()->ip(),
             'properties' => $properties,
         ]);
     }

@@ -1,0 +1,14 @@
+{
+  "result": [
+    {
+      "order_id": "CSL-OPEN-1",
+      "symbol_code": "TEST",
+      "order_side": "buy",
+      "order_quantity": 10,
+      "filled_quantity": 0,
+      "order_status": "open",
+      "limit_price": 100,
+      "time_placed": "2026-09-15T09:30:00Z"
+    }
+  ]
+}

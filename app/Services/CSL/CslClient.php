@@ -137,6 +137,28 @@ class CslClient
         );
     }
 
+    public function orderRequest(
+        string $method,
+        string $endpoint,
+        array $data = []
+    ): Response {
+        $url = rtrim(config('services.csl.xt_base_url'), '/')
+            .'/'.ltrim($endpoint, '/');
+
+        $request = $this->httpWithoutRetry()
+            ->withToken($this->getAccessToken());
+
+        return match (strtoupper($method)) {
+            'POST' => $request->post($url, $data),
+            'PUT' => $request->put($url, $data),
+            'PATCH' => $request->patch($url, $data),
+            'DELETE' => $request->delete($url, $data),
+            default => throw new RuntimeException(
+                "Unsupported CSL order HTTP method: {$method}"
+            ),
+        };
+    }
+
     protected function http(): PendingRequest
     {
         return Http::acceptJson()
@@ -145,6 +167,13 @@ class CslClient
                 config('services.csl.connect_timeout', 10)
             )
             ->retry(2, 500, throw: false);
+    }
+
+    protected function httpWithoutRetry(): PendingRequest
+    {
+        return Http::acceptJson()
+            ->timeout(config('services.csl.timeout', 30))
+            ->connectTimeout(config('services.csl.connect_timeout', 10));
     }
 
     /**

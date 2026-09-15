@@ -36,6 +36,11 @@ class Order extends Model
         'provider_request',
         'provider_response',
         'provider_submitted_at',
+        'provider_client_reference',
+        'last_reconciled_at',
+        'reconciliation_status',
+        'provider_cancellation_status',
+        'provider_cancel_requested_at',
     ];
 
     protected $casts = [
@@ -43,6 +48,8 @@ class Order extends Model
         'provider_response' => 'array',
         'provider_submitted_at' => 'datetime',
         'expiry_date' => 'date',
+        'last_reconciled_at' => 'datetime',
+        'provider_cancel_requested_at' => 'datetime',
     ];
 
     public function user()

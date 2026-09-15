@@ -298,7 +298,7 @@ class CslTradeXClient
         array $payload
     ): array {
         return $this->client->json(
-            $this->client->xt(
+            $this->client->orderRequest(
                 'POST',
                 $endpoint,
                 $payload

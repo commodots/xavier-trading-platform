@@ -58,8 +58,9 @@ class CslAccountService
                         'cash_funding_account_id' => $row['cash_funding_account_id']
                             ?? null,
 
-                        'status' => $row['trading_status']
-                            ?? 'active',
+                        'status' => $this->mapStatus(
+                            $row['trading_status'] ?? null
+                        ),
 
                         'metadata' => $row,
                     ]
@@ -70,6 +71,15 @@ class CslAccountService
 
             return $saved;
         });
+    }
+
+    protected function mapStatus(?string $status): string
+    {
+        return match (strtolower(trim((string) $status))) {
+            'active', 'open', 'enabled', 'trading', '1', 'true' => 'active',
+            'blocked', 'suspended', 'disabled', 'closed', 'inactive', '0', 'false' => 'inactive',
+            default => 'pending',
+        };
     }
 
     protected function extractRows(array $response): array

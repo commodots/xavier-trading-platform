@@ -1,0 +1,10 @@
+{
+  "GetCRSTMarketAccounts": [
+    {
+      "market_account_id": "ACC-1",
+      "customer_id": "CUS-1",
+      "trading_status": "SUSPENDED",
+      "status": "SUSPENDED"
+    }
+  ]
+}

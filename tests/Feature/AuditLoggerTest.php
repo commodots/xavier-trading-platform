@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
-use App\Models\AuditLog;
-use App\Models\ActivityLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -19,14 +19,14 @@ class AuditLoggerTest extends TestCase
         $user = User::factory()->create();
 
         AuditLogger::log('withdrawal_created', [
-            'user_id'   => $user->id,
-            'amount'    => 5000,
-            'currency'  => 'NGN',
+            'user_id' => $user->id,
+            'amount' => 5000,
+            'currency' => 'NGN',
         ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $user->id,
-            'action'  => 'withdrawal_created',
+            'action' => 'withdrawal_created',
         ]);
     }
 
@@ -35,10 +35,10 @@ class AuditLoggerTest extends TestCase
         $user = User::factory()->create();
 
         AuditLogger::log('trade_executed', [
-            'user_id'   => $user->id,
-            'symbol'    => 'AAPL',
-            'quantity'  => 10,
-            'ip'        => '127.0.0.1',
+            'user_id' => $user->id,
+            'symbol' => 'AAPL',
+            'quantity' => 10,
+            'ip' => '127.0.0.1',
         ]);
 
         $record = AuditLog::where('user_id', $user->id)->where('action', 'trade_executed')->first();
@@ -58,7 +58,7 @@ class AuditLoggerTest extends TestCase
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => null,
-            'action'  => 'system_event',
+            'action' => 'system_event',
         ]);
     }
 
@@ -82,10 +82,14 @@ class AuditLoggerTest extends TestCase
 
         ActivityLog::log($user->id, 'Login', ['note' => 'test']);
 
+        $record = ActivityLog::where('user_id', $user->id)->where('activity', 'Login')->first();
+
         $this->assertDatabaseHas('activity_logs', [
-            'user_id'  => $user->id,
+            'user_id' => $user->id,
             'activity' => 'Login',
         ]);
+        $this->assertSame(['note' => 'test'], $record?->properties);
+        $this->assertNotNull($record?->ip_address);
     }
 
     public function test_activity_log_accepts_null_user_id(): void
@@ -94,7 +98,7 @@ class AuditLoggerTest extends TestCase
         ActivityLog::log(null, 'Failed Login', ['email' => 'x@x.com']);
 
         $this->assertDatabaseHas('activity_logs', [
-            'user_id'  => null,
+            'user_id' => null,
             'activity' => 'Failed Login',
         ]);
     }

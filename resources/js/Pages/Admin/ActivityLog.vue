@@ -110,9 +110,9 @@
                 </span>
               </td>
               <td class="max-w-xs px-4 py-4 text-xs text-gray-300 truncate">
-                {{ formatDetails(log.details || log.description) || '---' }}
+                {{ formatDetails(log.details || log.description || log.properties) || '---' }}
               </td>
-              <td class="px-4 py-4 font-mono text-xs">{{ log.ip_address }}</td>
+              <td class="px-4 py-4 font-mono text-xs">{{ log.ip_address || log.properties?.ip || '---' }}</td>
               <td class="px-4 py-4 text-xs text-right text-gray-500">
                 {{ formatDate(log.created_at) }}
               </td>
@@ -178,14 +178,14 @@
             </div>
             <div>
               <p class="text-[10px] text-gray-500 uppercase font-bold">IP Address</p>
-              <p class="font-mono text-sm text-white">{{ selectedLog.ip_address }}</p>
+              <p class="font-mono text-sm text-white">{{ selectedLog.ip_address || selectedLog.properties?.ip || '---' }}</p>
             </div>
           </div>
 
           <div>
             <p class="text-[10px] text-gray-500 uppercase font-bold mb-1">Description</p>
             <div class="p-3 text-xs leading-relaxed text-gray-300 border border-gray-800 rounded-lg bg-black/30">
-              {{ formatDetails(selectedLog.details || selectedLog.description) || 'No additional details provided for this activity.' }}
+              {{ formatDetails(selectedLog.details || selectedLog.description || selectedLog.properties) || 'No additional details provided for this activity.' }}
             </div>
           </div>
 

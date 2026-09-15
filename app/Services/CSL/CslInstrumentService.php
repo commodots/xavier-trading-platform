@@ -3,6 +3,7 @@
 namespace App\Services\CSL;
 
 use App\Models\Symbol;
+use Illuminate\Support\Facades\DB;
 
 class CslInstrumentService
 {
@@ -18,79 +19,100 @@ class CslInstrumentService
 
         $count = 0;
 
-        foreach ($rows as $row) {
+        DB::transaction(function () use ($rows, &$count) {
+            foreach ($rows as $row) {
+                $providerSymbolId = trim((string) (
+                    $row['symbol_id']
+                    ?? $row['symbol_identifier']
+                    ?? ''
+                ));
 
-            $symbol = $row['symbol']
-                ?? $row['symbol_code']
-                ?? null;
+                $symbol = strtoupper(trim((string) (
+                    $row['symbol_code']
+                    ?? $row['symbol']
+                    ?? $row['ticker']
+                    ?? $providerSymbolId
+                )));
 
-            if (! $symbol) {
-                continue;
+                if ($providerSymbolId === '' || $symbol === '') {
+                    continue;
+                }
+
+                Symbol::updateOrCreate(
+                    [
+                        'provider' => 'csl',
+                        'provider_symbol_id' => $providerSymbolId,
+                    ],
+                    [
+                        'symbol' => $symbol,
+
+                        'name' => $row['symbol_description']
+                            ?? $row['description']
+                            ?? $symbol,
+
+                        'type' => $row['symbol_type']
+                            ?? 'equity',
+
+                        'exchange' => $row['market_description']
+                            ?? $row['market']
+                            ?? 'NGX',
+
+                        'last_price' => $this->number(
+                            $row['current_price']
+                                ?? $row['opening_price']
+                                ?? null
+                        ),
+
+                        'market_id' => isset($row['market_id'])
+                            ? (string) $row['market_id']
+                            : null,
+
+                        'product_id' => isset($row['product_id'])
+                            ? (string) $row['product_id']
+                            : null,
+
+                        'isin' => $row['isin_identifier']
+                            ?? null,
+
+                        'provider_symbol_type' => $row['symbol_type']
+                            ?? null,
+
+                        'provider_metadata' => $row,
+                    ]
+                );
+
+                $count++;
             }
-
-            Symbol::updateOrCreate(
-                [
-                    'provider' => 'csl',
-                    'provider_symbol_id' => $row['symbol_id'] ?? $symbol,
-                ],
-                [
-                    'symbol' => strtoupper($symbol),
-
-                    'name' => $row['symbol_description']
-                        ?? $row['description']
-                        ?? $symbol,
-
-                    'type' => $row['symbol_type']
-                        ?? 'equity',
-
-                    'exchange' => $row['market']
-                        ?? 'NGX',
-
-                    'last_price' => $row['current_price']
-                        ?? null,
-
-                    'provider' => 'csl',
-
-                    'provider_symbol_id' => $row['symbol_id'] ?? $symbol,
-
-                    'market_id' => $row['market_id']
-                        ?? $row['market']
-                        ?? null,
-
-                    'product_id' => $row['product_id']
-                        ?? null,
-
-                    'isin' => $row['isin_identifier']
-                        ?? null,
-
-                    'provider_symbol_type' => $row['symbol_type']
-                        ?? null,
-
-                    'provider_metadata' => $row,
-                ]
-            );
-
-            $count++;
-        }
+        });
 
         return $count;
     }
 
+    protected function number($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return is_numeric($value)
+            ? (float) $value
+            : null;
+    }
+
     protected function extractRows(array $response): array
     {
-        foreach ([
-            'GetCRSTInstruments',
-            'instruments',
-            'result',
-            'data',
-        ] as $key) {
+        if (
+            isset($response['result'][0]['GetCRSTInstruments'])
+            && is_array($response['result'][0]['GetCRSTInstruments'])
+        ) {
+            return $response['result'][0]['GetCRSTInstruments'];
+        }
 
-            if (
-                isset($response[$key])
-                && is_array($response[$key])
-            ) {
-                return $response[$key];
-            }
+        if (
+            isset($response['GetCRSTInstruments'])
+            && is_array($response['GetCRSTInstruments'])
+        ) {
+            return $response['GetCRSTInstruments'];
         }
 
         return [];

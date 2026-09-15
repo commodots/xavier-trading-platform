@@ -1,0 +1,14 @@
+{
+  "result": [
+    {
+      "order_id": "CSL-2",
+      "symbol_code": "TEST",
+      "order_side": "buy",
+      "order_quantity": 10,
+      "filled_quantity": 6,
+      "order_status": "partial",
+      "average_fill_price": 98,
+      "trade_id": "TRADE-2"
+    }
+  ]
+}
