@@ -36,7 +36,7 @@ class WithdrawalLimit extends Model
         }
 
         // Reset daily limits if it hasn't been reset today
-        if (!$this->last_reset_at || !$this->last_reset_at->isToday()) {
+        if (! $this->last_reset_at || ! $this->last_reset_at->isToday()) {
             $this->reset();
         }
 

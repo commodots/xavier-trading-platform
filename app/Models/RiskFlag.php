@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class RiskFlag extends Model
 {
@@ -22,8 +22,11 @@ class RiskFlag extends Model
 
     // Risk flag type constants
     const TYPE_MULTIPLE_KYC_FAILURES = 'MULTIPLE_KYC_FAILURES';
+
     const TYPE_MULTIPLE_DEVICES = 'MULTIPLE_DEVICES';
+
     const TYPE_SUSPICIOUS_WITHDRAWAL = 'SUSPICIOUS_WITHDRAWAL';
+
     const TYPE_HIGH_DEBT = 'HIGH_DEBT';
 
     public function user()

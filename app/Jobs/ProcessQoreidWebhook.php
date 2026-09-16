@@ -40,18 +40,21 @@ class ProcessQoreidWebhook implements ShouldQueue
 
         $user = User::find($reference);
 
-        if (!$user) {
+        if (! $user) {
             Log::error('ProcessQoreidWebhook: User not found', ['reference' => $reference]);
+
             return;
         }
 
         if ($status === 'VERIFIED' || $status === 'SUCCESS') {
             $this->processVerified($user);
+
             return;
         }
 
         if ($status === 'FAILED' || $status === 'REJECTED') {
             $this->processRejected($user);
+
             return;
         }
 

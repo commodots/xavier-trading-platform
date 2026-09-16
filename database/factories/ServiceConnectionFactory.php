@@ -7,11 +7,12 @@ use App\Models\ServiceConnection;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ServiceConnection>
+ * @extends Factory<ServiceConnection>
  */
 class ServiceConnectionFactory extends Factory
 {
     protected $model = ServiceConnection::class;
+
     /**
      * Define the model's default state.
      *
@@ -21,7 +22,7 @@ class ServiceConnectionFactory extends Factory
     {
         return [
             'service_id' => Service::factory(),
-            
+
             'mode' => $this->faker->randomElement(['live', 'testing', 'dummy']),
             'base_url' => $this->faker->url(),
             'headers' => json_encode(['X-Request-ID' => $this->faker->uuid()]),

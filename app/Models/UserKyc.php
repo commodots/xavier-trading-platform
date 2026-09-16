@@ -8,19 +8,20 @@ use Illuminate\Database\Eloquent\Model;
 class UserKyc extends Model
 {
     use HasFactory;
-	protected $table = 'user_kycs'; // ✅ Add this line
-	
+
+    protected $table = 'user_kycs'; // ✅ Add this line
+
     protected $fillable = [
         'user_id',
-		'provider',
+        'provider',
         'id_type',
         'id_value',
         'bvn',
         'nin',
-		'data',
+        'data',
         'status',
-		'photo_path',
-		'document_path',
+        'photo_path',
+        'document_path',
         'meta',
     ];
 

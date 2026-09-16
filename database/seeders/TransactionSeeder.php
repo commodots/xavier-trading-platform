@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 class TransactionSeeder extends Seeder
@@ -26,7 +26,7 @@ class TransactionSeeder extends Seeder
                     'asset' => $asset,
                     'amount' => rand(2000, 200000),
                     'status' => ['completed', 'pending'][rand(0, 1)],
-                    'reference' => 'TXN-' . Str::ulid(),
+                    'reference' => 'TXN-'.Str::ulid(),
                 ]);
             }
         }

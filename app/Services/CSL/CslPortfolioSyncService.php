@@ -13,9 +13,16 @@ class CslPortfolioSyncService
         protected CslStockClient $st
     ) {}
 
-    public function sync(ProviderAccount $account): int
-    {
+    public function sync(
+        ProviderAccount $account
+    ): int {
         return DB::transaction(function () use ($account): int {
+
+            if (! $account->market_account_id) {
+                throw new \RuntimeException(
+                    'CSL market account ID is missing.'
+                );
+            }
 
             $response = $this->st->stockPortfolio(
                 $account->market_account_id
@@ -23,33 +30,41 @@ class CslPortfolioSyncService
 
             $rows = $this->extractRows($response);
 
+            /*
+             * Never zero the local portfolio if CSL returned an empty
+             * response. Empty can indicate an API/data problem.
+             */
+            if ($rows === []) {
+                return 0;
+            }
+
             $symbols = [];
             $count = 0;
 
             foreach ($rows as $row) {
 
-                $providerSymbol = trim((string) (
+                $providerSymbolId = trim((string) (
                     $row['symbol_identifier']
                     ?? $row['symbol_id']
                     ?? ''
                 ));
 
-                if ($providerSymbol === '') {
+                if ($providerSymbolId === '') {
                     continue;
                 }
 
-                /**
-                 * Prefer the Xavier symbol already mapped to CSL.
-                 */
                 $symbolModel = Symbol::query()
                     ->where('provider', 'csl')
-                    ->where('provider_symbol_id', $providerSymbol)
+                    ->where(
+                        'provider_symbol_id',
+                        $providerSymbolId
+                    )
                     ->first();
 
                 $symbol = strtoupper(
                     $symbolModel?->symbol
                     ?? $row['symbol_code']
-                    ?? $providerSymbol
+                    ?? $providerSymbolId
                 );
 
                 $symbols[] = $symbol;
@@ -88,9 +103,10 @@ class CslPortfolioSyncService
 
                         'quantity' => $quantity,
 
-                        /**
-                         * Do not invent cleared quantities from CSL
-                         * unless CSL explicitly supplies them.
+                        /*
+                         * Initial provider snapshot.
+                         * Reconciliation remains responsible for
+                         * pending/uncleared Xavier transactions.
                          */
                         'cleared_quantity' => $quantity,
 
@@ -105,12 +121,11 @@ class CslPortfolioSyncService
                 $count++;
             }
 
-            /**
-             * Only zero Xavier CSL/local holdings after a successful
-             * CSL response. Never clear the portfolio because of an
-             * empty/failed response.
+            /*
+             * Only remove stale local holdings after a successful,
+             * non-empty provider snapshot.
              */
-            if ($rows !== []) {
+            if ($symbols !== []) {
                 Portfolio::query()
                     ->where('user_id', $account->user_id)
                     ->where('category', 'local')

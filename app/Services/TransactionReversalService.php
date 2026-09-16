@@ -17,7 +17,7 @@ class TransactionReversalService
 
         return DB::transaction(function () use ($transaction, $reason) {
             $oldValues = $transaction->toArray();
-            
+
             $transaction->update([
                 'status' => 'reversed',
                 'meta' => array_merge($transaction->meta ?? [], [

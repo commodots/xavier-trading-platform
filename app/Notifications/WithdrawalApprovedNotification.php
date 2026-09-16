@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class WithdrawalApprovedNotification extends Notification
 {
-    public function __construct(private WithdrawalRequest $withdrawal)
-    {
-    }
+    public function __construct(private WithdrawalRequest $withdrawal) {}
 
     public function via($notifiable): array
     {
@@ -29,7 +27,7 @@ class WithdrawalApprovedNotification extends Notification
             ->subject('Withdrawal Approved')
             ->greeting("Hello {$notifiable->first_name},")
             ->line("Great news! Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been approved.")
-            ->line("Funds should arrive in your account shortly.")
+            ->line('Funds should arrive in your account shortly.')
             ->action('View Transaction', url('/dashboard/wallet'))
             ->line('Thank you for using Xavier.');
     }
@@ -41,7 +39,7 @@ class WithdrawalApprovedNotification extends Notification
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
-            
+
             'type' => 'withdrawal',
             'title' => 'Withdrawal Approved',
             'action' => 'View Withdrawal',

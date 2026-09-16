@@ -32,7 +32,7 @@ class FeeChargedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('Platform Fee Charged Successfully')
             ->greeting("Hello {$notifiable->first_name},")
-            ->line("Your quarterly platform access fee of ₦" . number_format($this->amount, 2) . " has been successfully charged from your wallet.")
+            ->line('Your quarterly platform access fee of ₦'.number_format($this->amount, 2).' has been successfully charged from your wallet.')
             ->line("Your next billing date is: {$this->nextDueAt}.")
             ->line('Thank you for using Xavier.');
     }
@@ -40,9 +40,9 @@ class FeeChargedNotification extends Notification implements ShouldQueue
     public function toArray($notifiable): array
     {
         return [
-            'title'   => 'Platform Fee Charged',
-            'message' => "₦" . number_format($this->amount, 2) . " platform access fee charged. Next due: {$this->nextDueAt}.",
-            'type'    => 'billing',
+            'title' => 'Platform Fee Charged',
+            'message' => '₦'.number_format($this->amount, 2)." platform access fee charged. Next due: {$this->nextDueAt}.",
+            'type' => 'billing',
         ];
     }
 }

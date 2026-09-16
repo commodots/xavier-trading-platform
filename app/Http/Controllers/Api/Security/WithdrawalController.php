@@ -16,8 +16,7 @@ class WithdrawalController extends Controller
 {
     public function __construct(
         private WithdrawalService $withdrawalService,
-    ) {
-    }
+    ) {}
 
     /**
      * List withdrawals for the authenticated user
@@ -56,14 +55,14 @@ class WithdrawalController extends Controller
         $currentKycLevel = (int) ($user->verification_level ?? 0);
         if ($currentKycLevel < 3) {
             return response()->json([
-                'message'            => 'KYC Level 3 verification required to withdraw. Please upgrade your KYC status.',
+                'message' => 'KYC Level 3 verification required to withdraw. Please upgrade your KYC status.',
                 'verification_level' => $currentKycLevel,
-                'required_level'     => 3,
+                'required_level' => 3,
             ], 403);
         }
 
         $cachedOtp = Cache::get('withdrawal_otp_'.$user->id);
-        if (!$cachedOtp || !hash_equals((string) $request->otp, (string) $cachedOtp)) {
+        if (! $cachedOtp || ! hash_equals((string) $request->otp, (string) $cachedOtp)) {
             throw ValidationException::withMessages([
                 'otp' => 'Invalid or expired verification code.',
             ]);
@@ -73,9 +72,9 @@ class WithdrawalController extends Controller
         $currentKycLevel = (int) ($user->verification_level ?? 0);
         if ($currentKycLevel < 3) {
             return response()->json([
-                'message'            => 'KYC Level 3 verification required to withdraw. Please upgrade your KYC status.',
+                'message' => 'KYC Level 3 verification required to withdraw. Please upgrade your KYC status.',
                 'verification_level' => $currentKycLevel,
-                'required_level'     => 3,
+                'required_level' => 3,
             ], 403);
         }
 
@@ -125,7 +124,7 @@ class WithdrawalController extends Controller
             AuditService::logSecurityEvent(
                 $user,
                 'withdrawal_failed',
-                'Withdrawal initiation failed: ' . $e->getMessage()
+                'Withdrawal initiation failed: '.$e->getMessage()
             );
 
             return response()->json(['message' => $e->getMessage()], 422);
@@ -137,7 +136,7 @@ class WithdrawalController extends Controller
      */
     public function show(Request $request, WithdrawalRequest $withdrawal): JsonResponse
     {
-        if ($withdrawal->user_id !== $request->user()->id && !$request->user()->isAdmin()) {
+        if ($withdrawal->user_id !== $request->user()->id && ! $request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -149,7 +148,7 @@ class WithdrawalController extends Controller
      */
     public function approve(Request $request, WithdrawalRequest $withdrawal): JsonResponse
     {
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -178,7 +177,7 @@ class WithdrawalController extends Controller
     {
         $request->validate(['reason' => 'required|string|min:10']);
 
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -216,9 +215,9 @@ class WithdrawalController extends Controller
         $currentKycLevel = (int) ($user->verification_level ?? 0);
         if ($currentKycLevel < 3) {
             return response()->json([
-                'message'            => 'KYC Level 3 verification required to request a withdrawal OTP.',
+                'message' => 'KYC Level 3 verification required to request a withdrawal OTP.',
                 'verification_level' => $currentKycLevel,
-                'required_level'     => 3,
+                'required_level' => 3,
             ], 403);
         }
 
@@ -230,8 +229,9 @@ class WithdrawalController extends Controller
             AuditService::logSecurityEvent(
                 $user,
                 'send_withdrawal_otp_failed',
-                'Failed to send withdrawal OTP: ' . $e->getMessage()
+                'Failed to send withdrawal OTP: '.$e->getMessage()
             );
+
             return response()->json(['message' => 'Failed to send verification code. Please try again.'], 500);
         }
     }

@@ -7,6 +7,7 @@ use App\Models\Demo\DemoTransaction;
 use App\Models\Demo\DemoWallet;
 use App\Models\FxRate;
 use App\Models\NewTransaction;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Payments\Paystack\PaystackService;
 use Illuminate\Http\Request;
@@ -45,9 +46,9 @@ class PaystackController extends Controller
         $reference = 'xavier_'.uniqid();
         $models = $this->resolveModels($user);
         $targetCurrency = $request->input('currency', 'NGN');
-        
+
         // The service handles conversion to kobo, so we pass the base amount.
-        $paystackAmount = $request->amount; 
+        $paystackAmount = $request->amount;
 
         $metadata = [
             'user_id' => $user->id,
@@ -65,17 +66,17 @@ class PaystackController extends Controller
             $paystackAmount = round($request->amount * $fxRate->effective_rate, 2);
             $metadata['usd_amount'] = $request->amount;
             $metadata['fx_rate'] = $fxRate->effective_rate;
-                $metadata['ngn_amount'] = $paystackAmount;
+            $metadata['ngn_amount'] = $paystackAmount;
         }
 
         // If in Demo mode, bypass Paystack and fund the demo wallet instantly
         if ($models->isDemo) {
             return DB::transaction(function () use ($user, $request, $reference, $models, $targetCurrency) {
                 $initData = [
-                    'balance' => 0, 
-                    'status' => 'active', 
-                    'ngn_cleared' => 0, 
-                    'usd_cleared' => 0
+                    'balance' => 0,
+                    'status' => 'active',
+                    'ngn_cleared' => 0,
+                    'usd_cleared' => 0,
                 ];
 
                 $wallet = $models->wallet->firstOrCreate(
@@ -103,19 +104,20 @@ class PaystackController extends Controller
                     'net_amount' => $request->amount,
                     'currency' => $targetCurrency,
                     'meta' => [
-                        'reference' => $reference, 
-                        'gateway' => 'demo_instant', 
+                        'reference' => $reference,
+                        'gateway' => 'demo_instant',
                         'mode' => 'demo',
                         'old_balance' => $oldBalance,
-                        'new_balance' => $newBalance
+                        'new_balance' => $newBalance,
                     ],
                 ]);
 
                 $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
+
                 return response()->json([
                     'success' => true,
                     'is_demo' => true,
-                    'message' => "Demo account instantly funded! Successfully deposited {$currencySymbol}" . number_format($request->amount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.",
+                    'message' => "Demo account instantly funded! Successfully deposited {$currencySymbol}".number_format($request->amount, 2).' into your '.strtoupper($targetCurrency).' wallet.',
                     'data' => ['reference' => $reference, 'authorization_url' => null],
                 ]);
             });
@@ -138,8 +140,8 @@ class PaystackController extends Controller
                     'data' => $result,
                     'fx_details' => ($targetCurrency === 'USD') ? [
                         'rate' => $fxRate->effective_rate,
-                        'ngn_total' => $paystackAmount / 100
-                    ] : null
+                        'ngn_total' => $paystackAmount / 100,
+                    ] : null,
                 ]);
             } else {
                 return response()->json([
@@ -175,9 +177,9 @@ class PaystackController extends Controller
                 return $this->processSuccessfulPayment($result, $reference);
             }
 
-                return response()->json(['success' => false, 'message' => 'Verification failed.', 'data' => null], 400);
+            return response()->json(['success' => false, 'message' => 'Verification failed.', 'data' => null], 400);
         } catch (\Throwable $e) {
-                return response()->json(['success' => false, 'message' => 'Server error.', 'data' => null], 500);
+            return response()->json(['success' => false, 'message' => 'Server error.', 'data' => null], 500);
         }
     }
 
@@ -246,17 +248,17 @@ class PaystackController extends Controller
 
                 // Redirect back to wallet with success info
                 $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
-                $msg = "Successfully deposited {$currencySymbol}" . number_format($creditedAmount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.";
+                $msg = "Successfully deposited {$currencySymbol}".number_format($creditedAmount, 2).' into your '.strtoupper($targetCurrency).' wallet.';
                 if ($appliedRate) {
-                    $msg .= " (Rate: 1 USD = ₦" . number_format($appliedRate, 2) . ")";
+                    $msg .= ' (Rate: 1 USD = ₦'.number_format($appliedRate, 2).')';
                 }
 
-                $query = 'payment_success=' . $creditedAmount . '&reference=' . $reference . '&currency=' . $targetCurrency . '&message=' . urlencode($msg);
+                $query = 'payment_success='.$creditedAmount.'&reference='.$reference.'&currency='.$targetCurrency.'&message='.urlencode($msg);
                 if ($appliedRate) {
-                    $query .= '&fx_rate=' . $appliedRate;
+                    $query .= '&fx_rate='.$appliedRate;
                 }
                 if ($targetCurrency === 'USD') {
-                    $query .= '&ngn_paid=' . $amount;
+                    $query .= '&ngn_paid='.$amount;
                 }
 
                 return redirect('/wallet?'.$query);
@@ -336,7 +338,7 @@ class PaystackController extends Controller
                     return response()->json(['error' => 'Invalid metadata'], 400);
                 }
 
-                $user = \App\Models\User::find($userId);
+                $user = User::find($userId);
 
                 if (! $user) {
                     Log::error('[Paystack:webhook] User not found', [
@@ -357,6 +359,7 @@ class PaystackController extends Controller
                             'reference' => $reference,
                             'existing_transaction_id' => $existingTransaction->id,
                         ]);
+
                         return;
                     }
 
@@ -513,13 +516,13 @@ class PaystackController extends Controller
             $wallet = Wallet::firstOrCreate(
                 ['user_id' => $userId, 'currency' => $targetCurrency],
                 [
-                    'balance' => 0, 
-                    'status' => 'active', 
-                    'ngn_cleared' => 0, 
-                    'ngn_uncleared' => 0, 
-                    'usd_cleared' => 0, 
-                    'usd_uncleared' => 0, 
-                    'locked' => 0
+                    'balance' => 0,
+                    'status' => 'active',
+                    'ngn_cleared' => 0,
+                    'ngn_uncleared' => 0,
+                    'usd_cleared' => 0,
+                    'usd_uncleared' => 0,
+                    'locked' => 0,
                 ]
             );
 
@@ -554,15 +557,15 @@ class PaystackController extends Controller
             ]);
 
             $currencySymbol = ($targetCurrency === 'USD') ? '$' : '₦';
-            $successMessage = "Successfully deposited {$currencySymbol}" . number_format($convertedAmount, 2) . " into your " . strtoupper($targetCurrency) . " wallet.";
+            $successMessage = "Successfully deposited {$currencySymbol}".number_format($convertedAmount, 2).' into your '.strtoupper($targetCurrency).' wallet.';
             if ($appliedRate) {
-                $successMessage .= " (Conversion Rate: 1 USD = ₦" . number_format($appliedRate, 2) . ")";
+                $successMessage .= ' (Conversion Rate: 1 USD = ₦'.number_format($appliedRate, 2).')';
             }
 
             return response()->json([
                 'success' => true,
                 'balance' => $wallet->balance,
-                'message' => $successMessage
+                'message' => $successMessage,
             ]);
         });
     }

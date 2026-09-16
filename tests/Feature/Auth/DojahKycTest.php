@@ -122,7 +122,7 @@ class DojahKycTest extends TestCase
         // Refresh both user and kyc profile to get latest data
         $user->refresh();
         $kycProfile->refresh();
-        
+
         // The verification_level accessor reads from kyc.tier
         $this->assertEquals(2, $kycProfile->tier);
     }
@@ -148,7 +148,7 @@ class DojahKycTest extends TestCase
             'tier' => 2,
             'status' => 'pending',
         ]);
-        
+
         $res = $this->actingAs($user)->postJson('/api/kyc/selfie', ['image' => base64_encode('fakeimagebytes')]);
 
         $res->assertOk()->assertJsonFragment(['verification_level' => 3]);
@@ -273,7 +273,7 @@ class DojahKycTest extends TestCase
         $user->google2fa_enabled = true;
         $user->google2fa_secret = encrypt('JBSWY3DPEHPK3PXP');
         $user->save();
-        
+
         // Create KYC profile with tier 2 (below required level 3)
         $user->kyc()->create([
             'tier' => 2,
@@ -301,7 +301,7 @@ class DojahKycTest extends TestCase
             'tier' => 3,
             'status' => 'pending',
         ]);
-        
+
         // Ensure 2FA is disabled
         $user->google2fa_enabled = false;
         $user->google2fa_secret = null;

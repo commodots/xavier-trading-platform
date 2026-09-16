@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\StockPrediction;
-use Illuminate\Http\Request;
 
 class PredictionController extends Controller
 {
@@ -21,8 +20,8 @@ class PredictionController extends Controller
                 return [
                     'symbol' => $pick->symbol,
                     // Convert 0.85 to 85 for the frontend UI
-                    'confidence' => round($pick->confidence_score * 100), 
-                    'predicted_price' => $pick->predicted_price
+                    'confidence' => round($pick->confidence_score * 100),
+                    'predicted_price' => $pick->predicted_price,
                 ];
             });
 

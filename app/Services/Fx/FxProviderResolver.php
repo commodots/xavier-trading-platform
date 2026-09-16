@@ -3,6 +3,8 @@
 namespace App\Services\Fx;
 
 use App\Models\FxSetting;
+use App\Services\Fx\Providers\FincraProvider;
+use App\Services\Fx\Providers\ManualProvider;
 
 class FxProviderResolver
 {
@@ -10,15 +12,15 @@ class FxProviderResolver
     {
         $setting = FxSetting::first();
 
-        if (!$setting || !$setting->enabled) {
-            return app(\App\Services\Fx\Providers\ManualProvider::class);
+        if (! $setting || ! $setting->enabled) {
+            return app(ManualProvider::class);
         }
 
         $provider = $setting->provider;
 
         return match ($provider) {
-            'fincra' => app(\App\Services\Fx\Providers\FincraProvider::class),
-            default => app(\App\Services\Fx\Providers\ManualProvider::class),
+            'fincra' => app(FincraProvider::class),
+            default => app(ManualProvider::class),
         };
     }
 }

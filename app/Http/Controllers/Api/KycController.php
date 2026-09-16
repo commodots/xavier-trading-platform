@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
 use App\Jobs\ProcessKycVerification;
-use App\Models\KycProfile;
 use App\Models\ActivityLog;
+use App\Models\KycProfile;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class KycController extends Controller
 {
@@ -20,7 +19,7 @@ class KycController extends Controller
         $request->validate([
             'id_type' => 'required|in:bvn,nin,tin,passport,dl,id_card',
             'id_number' => 'required|string',
-            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', 
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'profile_image' => 'nullable|file|mimes:jpg,jpeg,png|max:5120', // Matches Vue form key name
             'proof_of_address' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
@@ -32,8 +31,8 @@ class KycController extends Controller
             'user_id' => $user->id,
             'id_type' => $request->id_type,
             'id_number' => $request->id_number,
-            'status' => 'pending', 
-            'verified_at' => null // Clear any stale verification dates
+            'status' => 'pending',
+            'verified_at' => null, // Clear any stale verification dates
         ];
 
         // Handle standard registration selfie stream or formal file documents
@@ -71,7 +70,7 @@ class KycController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Identity profile locked. Verification sequence started.',
-            'data' => $kyc
+            'data' => $kyc,
         ]);
     }
 
@@ -82,12 +81,12 @@ class KycController extends Controller
     {
         $user = Auth::user();
         $kyc = KycProfile::where('user_id', $user->id)->firstOrFail();
-        
+
         $data = $kyc->toArray();
-        
+
         // Dynamically mask digits via standard string manipulation
-        if (!empty($kyc->id_number)) {
-            $data['id_number_display'] = '*******' . substr($kyc->id_number, -4);
+        if (! empty($kyc->id_number)) {
+            $data['id_number_display'] = '*******'.substr($kyc->id_number, -4);
         }
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -97,6 +96,7 @@ class KycController extends Controller
     {
         $level = $request->input('level', null);
         ActivityLog::log(Auth::id(), 'KYC Submission', ['level' => $level]);
+
         return $this->update($request);
     }
 }

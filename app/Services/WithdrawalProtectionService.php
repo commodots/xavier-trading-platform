@@ -18,7 +18,7 @@ class WithdrawalProtectionService
         }
 
         if ($user->wallet_debt > 0) {
-            return ['allowed' => false, 'message' => "You have an outstanding debt of ₦" . number_format($user->wallet_debt, 2) . ". Please clear it before withdrawing."];
+            return ['allowed' => false, 'message' => 'You have an outstanding debt of ₦'.number_format($user->wallet_debt, 2).'. Please clear it before withdrawing.'];
         }
 
         // Daily limit check
@@ -27,10 +27,11 @@ class WithdrawalProtectionService
             'daily_limit_usd' => 2500,
         ]);
 
-        if (!$limit->canWithdraw($currency, $amount)) {
+        if (! $limit->canWithdraw($currency, $amount)) {
             $limitCol = $currency === 'NGN' ? 'daily_limit_ngn' : 'daily_limit_usd';
             $limitAmt = $currency === 'NGN' ? '₦' : '$';
-            return ['allowed' => false, 'message' => "Daily withdrawal limit of {$limitAmt}" . number_format($limit->{$limitCol}, 2) . " exceeded."];
+
+            return ['allowed' => false, 'message' => "Daily withdrawal limit of {$limitAmt}".number_format($limit->{$limitCol}, 2).' exceeded.'];
         }
 
         $wallet = Wallet::where('user_id', $user->id)->where('currency', $currency)->first();

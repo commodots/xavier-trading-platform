@@ -12,15 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('portfolios', function (Blueprint $table) {
-		$table->id();
-		$table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
 
-		$table->string('symbol');
-		$table->integer('quantity')->default(0);
-		$table->decimal('avg_price', 15, 2)->default(0);
+            $table->string('symbol');
+            $table->integer('quantity')->default(0);
+            $table->decimal('avg_price', 15, 2)->default(0);
 
-		$table->timestamps();
-	});
+            $table->timestamps();
+        });
 
     }
 

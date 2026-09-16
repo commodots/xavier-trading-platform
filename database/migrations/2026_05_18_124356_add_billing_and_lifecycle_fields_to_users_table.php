@@ -29,13 +29,13 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn([
-                'subscription_status', 
-                'trial_ends_at', 
-                'last_active_at', 
-                'wallet_balance', 
-                'wallet_debt', 
-                'last_fee_charged_at', 
-                'next_fee_due_at'
+                'subscription_status',
+                'trial_ends_at',
+                'last_active_at',
+                'wallet_balance',
+                'wallet_debt',
+                'last_fee_charged_at',
+                'next_fee_due_at',
             ]);
         });
     }

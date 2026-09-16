@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\FxSetting;
+use App\Models\FxConversion;
 use App\Models\FxPair;
+use App\Models\FxSetting;
 use App\Services\Fx\Providers\FincraProvider;
 use Illuminate\Http\Request;
 
@@ -47,7 +48,7 @@ class FxManagementController extends Controller
 
         $setting = FxSetting::first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json(['success' => false, 'message' => 'FX settings not found.'], 404);
         }
 
@@ -57,7 +58,7 @@ class FxManagementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'FX provider switched to ' . $request->provider,
+            'message' => 'FX provider switched to '.$request->provider,
             'data' => $setting->fresh(),
         ]);
     }
@@ -102,7 +103,7 @@ class FxManagementController extends Controller
 
         $setting = FxSetting::first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json(['success' => false, 'message' => 'FX settings not found.'], 404);
         }
 
@@ -112,7 +113,7 @@ class FxManagementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Auto convert for stocks ' . ($request->auto_convert_stocks ? 'enabled' : 'disabled'),
+            'message' => 'Auto convert for stocks '.($request->auto_convert_stocks ? 'enabled' : 'disabled'),
             'data' => $setting->fresh(),
         ]);
     }
@@ -120,8 +121,8 @@ class FxManagementController extends Controller
     public function conversions(Request $request)
     {
         $limit = $request->get('limit', 50);
-        
-        $conversions = \App\Models\FxConversion::with('user')
+
+        $conversions = FxConversion::with('user')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get();

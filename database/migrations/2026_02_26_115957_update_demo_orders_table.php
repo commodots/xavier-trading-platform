@@ -2,14 +2,14 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        //Rename existing columns to match live table
+        // Rename existing columns to match live table
         Schema::table('demo_orders', function (Blueprint $table) {
             $table->renameColumn('market_type', 'market');
             $table->renameColumn('type', 'side');
@@ -53,7 +53,7 @@ return new class extends Migration
         // Wipe existing fake orders
         DB::table('demo_orders')->truncate();
 
-        //Update status (THE FIX )
+        // Update status (THE FIX )
         if (DB::getDriverName() === 'sqlite') {
             Schema::table('demo_orders', function (Blueprint $table) {
                 $table->string('status')->default('open')->change();
@@ -82,7 +82,7 @@ return new class extends Migration
                 'service_mode',
                 'matched_at',
                 'settled_at',
-                'adapter'
+                'adapter',
             ]);
 
             // Revert modifications

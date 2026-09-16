@@ -35,7 +35,7 @@ class ManualProvider implements FxProviderInterface
         return array_merge($quote, [
             'status' => 'completed',
             'converted_amount' => $quote['receive_amount'],
-            'reference' => 'MANUAL-' . strtoupper(uniqid()),
+            'reference' => 'MANUAL-'.strtoupper(uniqid()),
         ]);
     }
 }

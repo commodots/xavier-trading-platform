@@ -19,7 +19,7 @@ class TestCslConnection extends Command
         try {
             $token = $csl->getAccessToken();
 
-            if (!$token) {
+            if (! $token) {
                 $this->error('CSL did not return an access token.');
 
                 return self::FAILURE;
@@ -29,8 +29,8 @@ class TestCslConnection extends Command
 
             $this->line(
                 'Access token received: '
-                . substr($token, 0, 10)
-                . '********'
+                .substr($token, 0, 10)
+                .'********'
             );
 
             return self::SUCCESS;
@@ -38,7 +38,7 @@ class TestCslConnection extends Command
         } catch (Throwable $e) {
 
             $this->error(
-                'CSL connection failed: ' . $e->getMessage()
+                'CSL connection failed: '.$e->getMessage()
             );
 
             return self::FAILURE;

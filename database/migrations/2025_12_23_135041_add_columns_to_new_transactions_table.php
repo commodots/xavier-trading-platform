@@ -12,10 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('new_transactions_table', function (Blueprint $table) {
-            $table->decimal('charge',15,2)->default(0)->after('currency');
-            
-            
-            $table->decimal('net_amount',15,2)->after('charge');
+            $table->decimal('charge', 15, 2)->default(0)->after('currency');
+
+            $table->decimal('net_amount', 15, 2)->after('charge');
         });
     }
 

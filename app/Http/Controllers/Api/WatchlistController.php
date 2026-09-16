@@ -29,7 +29,6 @@ class WatchlistController extends Controller
             'added_price' => 'required|numeric',
         ]);
 
-        
         $normalized_market = $this->normalizeMarket($validated['market']);
         $validated['market'] = $normalized_market;
 

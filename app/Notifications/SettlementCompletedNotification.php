@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class SettlementCompletedNotification extends Notification
 {
-    public function __construct(private Trade $trade)
-    {
-    }
+    public function __construct(private Trade $trade) {}
 
     public function via($notifiable): array
     {
@@ -29,7 +27,7 @@ class SettlementCompletedNotification extends Notification
             ->subject('Trade Settlement Completed')
             ->greeting("Hello {$notifiable->first_name},")
             ->line("The settlement for your trade on {$this->trade->pair} has been completed successfully.")
-            ->line("Amount: {$this->trade->currency} " . number_format($this->trade->total_amount, 2))
+            ->line("Amount: {$this->trade->currency} ".number_format($this->trade->total_amount, 2))
             ->action('View Portfolio', url('/dashboard/portfolio'))
             ->line('Thank you for trading with Xavier.');
     }
@@ -41,7 +39,7 @@ class SettlementCompletedNotification extends Notification
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
-            
+
             'type' => 'settlement',
             'title' => 'Settlement Completed',
             'action' => 'View Trade',

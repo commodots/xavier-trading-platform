@@ -30,14 +30,14 @@ class UpdatePortfolioPerformance implements ShouldQueue
 
             foreach ($portfolio->stocks as $stock) {
                 $allocatedMoney = ($portfolio->starting_value * $stock->allocation_percentage) / 100;
-                
+
                 // Ask the live market for the price today
                 $currentPrice = $priceService->getCurrentPrice($stock->symbol, 'local');
 
-                // NOTE: Since the DB doesn't store the exact price the stock was on Day 1, 
-                // we are adding a slight randomized market fluctuation (-2% to +3%) 
+                // NOTE: Since the DB doesn't store the exact price the stock was on Day 1,
+                // we are adding a slight randomized market fluctuation (-2% to +3%)
                 // so the frontend charts actually show movement over time.
-                $marketFluctuation = rand(-20, 30) / 1000; 
+                $marketFluctuation = rand(-20, 30) / 1000;
                 $simulatedValue = $allocatedMoney + ($allocatedMoney * $marketFluctuation);
 
                 $currentValue += $simulatedValue;
@@ -50,7 +50,7 @@ class UpdatePortfolioPerformance implements ShouldQueue
             PortfolioPerformanceLog::create([
                 'model_portfolio_id' => $portfolio->id,
                 'value' => $currentValue,
-                'return_percentage' => $returnPercentage
+                'return_percentage' => $returnPercentage,
             ]);
         }
 

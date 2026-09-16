@@ -12,7 +12,7 @@ class UserSubscription extends Model
         'starts_at',
         'expires_at',
         'paystack_subscription_code',
-        'status'
+        'status',
     ];
 
     protected $casts = [
@@ -29,6 +29,7 @@ class UserSubscription extends Model
     {
         return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
     }
+
     public function isVip(): bool
     {
         return $this->plan->tier === 'vip';

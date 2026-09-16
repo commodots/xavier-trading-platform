@@ -69,20 +69,16 @@ class DatabaseNotification extends Model
 
     /**
      * Mark the notification as read.
-     *
-     * @return void
      */
     public function markAsRead(): void
     {
-        if (!$this->read_at) {
+        if (! $this->read_at) {
             $this->forceFill(['read_at' => $this->freshTimestamp()])->save();
         }
     }
 
     /**
      * Mark the notification as unread.
-     *
-     * @return void
      */
     public function markAsUnread(): void
     {
@@ -93,8 +89,6 @@ class DatabaseNotification extends Model
 
     /**
      * Determine if a notification is read.
-     *
-     * @return bool
      */
     public function read(): bool
     {
@@ -103,8 +97,6 @@ class DatabaseNotification extends Model
 
     /**
      * Determine if a notification is unread.
-     *
-     * @return bool
      */
     public function unread(): bool
     {

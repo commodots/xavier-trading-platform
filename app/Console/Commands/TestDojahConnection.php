@@ -2,8 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use Dojah\Client;
 use Exception;
+use Illuminate\Console\Command;
 
 class TestDojahConnection extends Command
 {
@@ -16,23 +17,22 @@ class TestDojahConnection extends Command
     {
         $this->info('Connecting to Dojah...');
 
-        
-        $dojah = new \Dojah\Client(
+        $dojah = new Client(
             Authorization: config('services.dojah.secret_key'),
             AppId: config('services.dojah.app_id'),
             host: 'https://sandbox.dojah.io'
         );
 
-        $profile_id = "WC7117469"; 
+        $profile_id = 'WC7117469';
 
         try {
             $result = $dojah->aML->getScreeningInfo(profile_id: $profile_id);
-            
+
             $this->info('Success!');
             dump($result);
-            
+
         } catch (Exception $e) {
-            $this->error('Exception when calling AMLApi->getScreeningInfo: ' . $e->getMessage());
+            $this->error('Exception when calling AMLApi->getScreeningInfo: '.$e->getMessage());
         }
     }
 }

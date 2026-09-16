@@ -3,24 +3,24 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\User;
-use App\Models\Wallet;
-use App\Models\Transaction;
-use App\Models\UserKyc;
-use App\Models\NewTransaction;
-use App\Models\AuditLog;
-use App\Models\UserDevice;
-use App\Models\PlatformEarning;
-use App\Models\TransactionCharge;
-use App\Models\Order;
 use App\Models\ActivityLog;
+use App\Models\AuditLog;
+use App\Models\FxRate;
 use App\Models\KycProfile;
 use App\Models\KycSetting;
-use App\Models\StaffPermission;
 use App\Models\Ledger;
-use App\Models\FxRate;
+use App\Models\NewTransaction;
+use App\Models\Order;
+use App\Models\PlatformEarning;
+use App\Models\StaffPermission;
+use App\Models\TransactionCharge;
+use App\Models\User;
+use App\Models\UserDevice;
+use App\Models\Wallet;
+use App\Services\StaffPermissionService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 
 class AdminController extends Controller
 {
@@ -43,28 +43,27 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'stats' => [
-                'users_count'        => User::count(),
-                'pending_kyc'        => KycProfile::where('status', 'pending')->count(),
+                'users_count' => User::count(),
+                'pending_kyc' => KycProfile::where('status', 'pending')->count(),
                 'total_transactions' => NewTransaction::count(),
-                'pending_orders'     => Order::where('status', 'pending')->count(),
+                'pending_orders' => Order::where('status', 'pending')->count(),
                 'wallets' => [
                     'ngn' => (float) $ngnTotal,
                     'usd' => (float) $usdTotal,
-                ]
+                ],
             ],
             'chart' => [
                 'users' => [
                     'labels' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    'data' => [5, 10, 15, 25, 40, 70, 100]
+                    'data' => [5, 10, 15, 25, 40, 70, 100],
                 ],
                 'transactions' => [
                     'labels' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    'data' => [10000, 20000, 15000, 50000, 35000, 45000, 60000]
-                ]
-            ]
+                    'data' => [10000, 20000, 15000, 50000, 35000, 45000, 60000],
+                ],
+            ],
         ]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -108,11 +107,9 @@ class AdminController extends Controller
                 'per_page' => $users->perPage(),
                 'current_page' => $users->currentPage(),
                 'last_page' => $users->lastPage(),
-            ]
+            ],
         ]);
     }
-
-
 
     /*
     |--------------------------------------------------------------------------
@@ -124,10 +121,10 @@ class AdminController extends Controller
         $user = User::with(['kyc', 'roles'])->findOrFail($id);
 
         $walletNGN = Wallet::where('user_id', $id)->where('currency', 'NGN')
-    ->selectRaw('(ngn_cleared + ngn_uncleared) as total')->value('total') ?? 0;
- 
-$walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
-    ->selectRaw('(usd_cleared + usd_uncleared) as total')->value('total') ?? 0;
+            ->selectRaw('(ngn_cleared + ngn_uncleared) as total')->value('total') ?? 0;
+
+        $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
+             ->selectRaw('(usd_cleared + usd_uncleared) as total')->value('total') ?? 0;
 
         $transactions = NewTransaction::where('user_id', $id)
             ->latest()
@@ -141,28 +138,27 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         return response()->json([
             'success' => true,
             'user' => [
-                'id'                  => $user->id,
-                'first_name'          => $user->first_name,
-                'last_name'           => $user->last_name,
-                'email'               => $user->email,
-                'phone'               => $user->phone,
-                'role'                => $user->role,
-                'roles'               => $user->getRoleNames(),
-                'status'              => $user->status,
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'roles' => $user->getRoleNames(),
+                'status' => $user->status,
                 'subscription_status' => $user->subscription_status,
-                'wallet_debt'         => (float) $user->wallet_debt,
-                'created_at'          => $user->created_at,
-                'kyc'                 => $user->kyc,
+                'wallet_debt' => (float) $user->wallet_debt,
+                'created_at' => $user->created_at,
+                'kyc' => $user->kyc,
             ],
             'wallet' => [
                 'ngn' => $walletNGN,
                 'usd' => $walletUSD,
             ],
             'transactions' => $transactions,
-            'devices'      => $devices,
+            'devices' => $devices,
         ]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -172,9 +168,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     public function toggleStatus($id)
     {
         $user = User::findOrFail($id);
-        
+
         $admin = auth()->user();
-        if (!$admin->isAdmin() && !\App\Services\StaffPermissionService::roleHasCapability($admin, 'manage_system_settings')) {
+        if (! $admin->isAdmin() && ! StaffPermissionService::roleHasCapability($admin, 'manage_system_settings')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
@@ -183,12 +179,11 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         $user->status = $user->status === 'active' ? 'disabled' : 'active';
         $user->save();
 
-
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Toggle Status',
-                'details'    => "Changed status for {$user->email} from [{$oldStatus}] to [{$user->status}]",
+                'user_id' => auth()->id(),
+                'activity' => 'Toggle Status',
+                'details' => "Changed status for {$user->email} from [{$oldStatus}] to [{$user->status}]",
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
@@ -197,10 +192,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json([
             'success' => true,
-            'status' => $user->status
+            'status' => $user->status,
         ]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -212,7 +206,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         $validated = $request->validate([
             'roles' => 'sometimes|array',
             'roles.*' => 'string|exists:roles,name',
-            'role' => 'sometimes|string|exists:roles,name'
+            'role' => 'sometimes|string|exists:roles,name',
         ]);
         $user = User::findOrFail($id);
         $admin = auth()->user();
@@ -222,19 +216,17 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         if (empty($newRoles)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please provide `role` or `roles` to update.'
+                'message' => 'Please provide `role` or `roles` to update.',
             ], 422);
         }
 
-        if (!in_array('user', $newRoles)) {
+        if (! in_array('user', $newRoles)) {
             $newRoles[] = 'user';
         }
 
         $oldRoles = $user->getRoleNames()->implode(', ');
 
-
         $user->syncRoles($newRoles);
-
 
         $user->role = in_array('admin', $newRoles) ? 'admin' : ($newRoles[0] ?? $user->role);
         $user->save();
@@ -242,8 +234,8 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         $roleString = implode(', ', $newRoles);
 
         ActivityLog::create([
-            'user_id'    => $admin->id,
-            'activity'   => 'Role Update',
+            'user_id' => $admin->id,
+            'activity' => 'Role Update',
             'details' => "Updated roles for {$user->email}. Changed from [{$oldRoles}] to [{$roleString}]",
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
@@ -253,10 +245,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             'success' => true,
             'message' => 'Role(s) updated successfully',
             'roles' => $user->getRoleNames(),
-            'role' => in_array('admin', $newRoles) ? 'admin' : $newRoles[0]
+            'role' => in_array('admin', $newRoles) ? 'admin' : $newRoles[0],
         ]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -300,7 +291,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json([
             'success' => true,
-            'data' => $orders
+            'data' => $orders,
         ]);
     }
 
@@ -313,7 +304,6 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     {
         $query = NewTransaction::with('user');
 
-
         if ($request->filled('q')) {
             $query->where(function ($q) use ($request) {
                 $q->where('id', 'like', "%{$request->q}%")
@@ -323,11 +313,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             });
         }
 
-
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
-
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -338,10 +326,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         return response()->json([
             'success' => true,
             'data' => $txns,
-            'total_fees_earned' => PlatformEarning::sum('amount')
+            'total_fees_earned' => PlatformEarning::sum('amount'),
         ]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -354,10 +341,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json([
             'success' => true,
-            'data' => $kycs
+            'data' => $kycs,
         ]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -370,14 +356,13 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             'status' => 'required|in:pending,verified,rejected',
             'tier' => 'sometimes|integer|min:0|max:3',
             'rejection_reason' => 'required_if:status,rejected',
-            'daily_limit' => 'required|numeric|min:0'
+            'daily_limit' => 'required|numeric|min:0',
         ]);
 
         $kyc = KycProfile::where('user_id', $id)->firstOrFail();
 
-
         $targetTier = $request->input('tier');
-        if ($request->status === 'verified' && !$targetTier) {
+        if ($request->status === 'verified' && ! $targetTier) {
             $targetTier = $this->computeTierFromDocuments($kyc);
         }
 
@@ -385,13 +370,13 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             'status' => $request->status,
             'tier' => $targetTier ?? 0,
             'daily_limit' => $request->daily_limit,
-            'level' => match ((int)($targetTier ?? 0)) {
+            'level' => match ((int) ($targetTier ?? 0)) {
                 1 => 'basic',
                 2 => 'mid',
                 3 => 'full',
                 default => 'none'
             },
-            'rejection_reason' => $request->status === 'rejected' ? $request->rejection_reason : null
+            'rejection_reason' => $request->status === 'rejected' ? $request->rejection_reason : null,
         ]);
 
         $user = $kyc->user;
@@ -399,9 +384,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         $user->save();
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'KYC Review',
-                'details'    => "Reviewed KYC for {$kyc->user->email}. Upgraded {$kyc->user->email} to Tier {$request->tier} with limit {$request->daily_limit}",
+                'user_id' => auth()->id(),
+                'activity' => 'KYC Review',
+                'details' => "Reviewed KYC for {$kyc->user->email}. Upgraded {$kyc->user->email} to Tier {$request->tier} with limit {$request->daily_limit}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
@@ -411,7 +396,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         return response()->json([
             'success' => true,
             'message' => 'KYC status updated',
-            'kyc' => $kyc
+            'kyc' => $kyc,
         ]);
     }
 
@@ -423,7 +408,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         $settings = \DB::table('kyc_settings')->orderByDesc('tier')->get();
         foreach ($settings as $s) {
             $req = json_decode($s->required_documents ?? '[]', true) ?: [];
-            if (empty($req)) continue;
+            if (empty($req)) {
+                continue;
+            }
 
             $hasAll = true;
             foreach ($req as $doc) {
@@ -446,7 +433,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             }
 
             if ($hasAll) {
-                return (int)$s->tier;
+                return (int) $s->tier;
             }
         }
 
@@ -456,19 +443,20 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     public function getKycSettings()
     {
         $settings = KycSetting::orderBy('tier')->get();
+
         return response()->json(['success' => true, 'data' => $settings]);
     }
 
     public function getStaffPermissions()
     {
         // List all roles except 'admin' and 'user' and current permission mappings
-        $roles = \Spatie\Permission\Models\Role::whereNotIn('name', ['admin', 'user'])->pluck('name');
+        $roles = Role::whereNotIn('name', ['admin', 'user'])->pluck('name');
         $mappings = [];
         foreach ($roles as $r) {
             $sp = StaffPermission::forRole($r);
             $mappings[] = [
                 'role' => $r,
-                'permissions' => $sp ? $sp->permissions : []
+                'permissions' => $sp ? $sp->permissions : [],
             ];
         }
 
@@ -479,30 +467,30 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     {
         $request->validate([
             'role' => 'required|string',
-            'permissions' => 'required|array'
+            'permissions' => 'required|array',
         ]);
 
         // ensure only admin can change permissions
         $user = auth()->user();
         $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
 
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             return response()->json(['success' => false, 'message' => 'Forbidden: Only admins can manage staff access.'], 403);
         }
 
         StaffPermission::updateOrCreate([
-            'role' => $request->role
+            'role' => $request->role,
         ], [
-            'permissions' => $request->permissions
+            'permissions' => $request->permissions,
         ]);
 
         try {
             ActivityLog::create([
                 'user_id' => auth()->id(),
                 'activity' => 'Staff Permission Update',
-                'details' => 'Updated staff role permissions for ' . $request->role,
+                'details' => 'Updated staff role permissions for '.$request->role,
                 'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent()
+                'user_agent' => $request->userAgent(),
             ]);
         } catch (\Throwable $e) {
         }
@@ -517,45 +505,45 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     {
         $kyc = KycProfile::with('user')->where('user_id', $id)->firstOrFail();
 
-
         // Provide friendly fields expected by the frontend if they exist
         return response()->json([
             ...$kyc->toArray(),
-            'id_card' => $kyc->id_card_front ? asset('storage/' . $kyc->id_card_front) : asset('storage/' . $kyc->id_card),
-            'selfie'  => $kyc->selfie ? asset('storage/' . $kyc->selfie) : null,
+            'id_card' => $kyc->id_card_front ? asset('storage/'.$kyc->id_card_front) : asset('storage/'.$kyc->id_card),
+            'selfie' => $kyc->selfie ? asset('storage/'.$kyc->selfie) : null,
         ]);
     }
+
     public function updateKycSettings(Request $request)
     {
         $user = auth()->user();
 
         $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
 
-        if (!$isAdmin && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_kyc_settings')) {
+        if (! $isAdmin && ! StaffPermissionService::roleHasCapability($user, 'manage_kyc_settings')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $request->validate([
             'settings' => 'required|array',
             'settings.*.tier' => 'required|integer',
             'settings.*.daily_limit' => 'required|numeric',
-            'settings.*.required_documents' => 'sometimes|array'
+            'settings.*.required_documents' => 'sometimes|array',
         ]);
 
         foreach ($request->settings as $set) {
             KycSetting::updateOrCreate(
                 ['tier' => $set['tier']],
                 [
-                    'tier_name' => $set['tier_name'] ?? 'Tier ' . $set['tier'],
+                    'tier_name' => $set['tier_name'] ?? 'Tier '.$set['tier'],
                     'daily_limit' => $set['daily_limit'],
-                    'required_documents' => $set['required_documents'] ?? []
+                    'required_documents' => $set['required_documents'] ?? [],
                 ]
             );
         }
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Update KYC Settings',
-                'details'    => 'Admin updated global tier limits and document requirements.',
+                'user_id' => auth()->id(),
+                'activity' => 'Update KYC Settings',
+                'details' => 'Admin updated global tier limits and document requirements.',
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
@@ -565,19 +553,18 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         return response()->json(['success' => true, 'message' => 'Tier limits updated']);
     }
 
-
     public function destroyKycSetting($tier)
     {
         $user = auth()->user();
         $isAdmin = (isset($user->role) && strtolower($user->role) === 'admin') || $user->hasRole('admin');
 
-        if (!$isAdmin && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_kyc_settings')) {
+        if (! $isAdmin && ! StaffPermissionService::roleHasCapability($user, 'manage_kyc_settings')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
         $setting = KycSetting::where('tier', $tier)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json(['success' => false, 'message' => 'Tier not found'], 404);
         }
 
@@ -585,9 +572,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Delete KYC Tier',
-                'details'    => "Admin deleted KYC Tier {$tier}.",
+                'user_id' => auth()->id(),
+                'activity' => 'Delete KYC Tier',
+                'details' => "Admin deleted KYC Tier {$tier}.",
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
@@ -610,7 +597,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             'total_transactions' => NewTransaction::count(),
             'pending_kyc' => KycProfile::where('status', 'pending')->count(),
             'latest_transactions' => NewTransaction::latest()->take(5)->get(),
-            'user_growth' => [100, 150, 200, 260, 340, 500, 650]
+            'user_growth' => [100, 150, 200, 260, 340, 500, 650],
         ]);
     }
 
@@ -639,6 +626,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json($order);
     }
+
     public function getEarnings()
     {
         $baseRate = FxRate::latest()->value('base_rate') ?? 1500;
@@ -661,7 +649,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
             'by_type' => [
                 ['type' => 'FX Markup', 'total_earnings' => $monthFxNgn],
                 ['type' => 'Legacy Earnings', 'total_earnings' => $monthLegacy],
-                ['type' => 'Transaction Fees', 'total_earnings' => $monthTxnFees]
+                ['type' => 'Transaction Fees', 'total_earnings' => $monthTxnFees],
             ],
         ]);
     }
@@ -693,31 +681,34 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         $totalNgValue = $query->sum('amount_ngn');
 
-        $start = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date) : now()->subDays(14);
-        $end = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date) : now();
+        $start = $request->filled('start_date') ? Carbon::parse($request->start_date) : now()->subDays(14);
+        $end = $request->filled('end_date') ? Carbon::parse($request->end_date) : now();
 
-        $series = PlatformEarning::selectRaw("DATE(created_at) as day, SUM(amount_ngn) as total")
+        $series = PlatformEarning::selectRaw('DATE(created_at) as day, SUM(amount_ngn) as total')
             ->whereDate('created_at', '>=', $start)
             ->whereDate('created_at', '<=', $end)
             ->groupBy('day')
             ->orderBy('day')
             ->get();
 
-
         return response()->json([
             'success' => true,
             'data' => $earnings,
             'timeseries' => $series,
-            'total_ngn' => number_format($totalNgValue, 2)
+            'total_ngn' => number_format($totalNgValue, 2),
         ]);
     }
+
     public function exportTransactions(Request $request)
     {
         $query = NewTransaction::with('user');
 
-
-        if ($request->filled('type')) $query->where('type', $request->type);
-        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
         $transactions = $query->latest()->get();
 
@@ -733,7 +724,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
                     $tx->amount,
                     $tx->charge,
                     $tx->status,
-                    $tx->created_at
+                    $tx->created_at,
                 ]);
             }
             fclose($file);
@@ -742,22 +733,23 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         // Log export action
         try {
             ActivityLog::log(auth()->id(), 'Export Transactions', [
-                'filters' => $request->only(['type', 'status'])
+                'filters' => $request->only(['type', 'status']),
             ]);
         } catch (\Throwable $e) {
             // ignore logging errors
         }
 
         return response()->stream($callback, 200, [
-            "Content-type" => "text/csv",
-            "Content-Disposition" => "attachment; filename=transactions.csv",
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename=transactions.csv',
         ]);
     }
+
     public function getCharges()
     {
         $user = auth()->user();
 
-        if (! $user->isAdmin() && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
@@ -768,13 +760,13 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
     {
         $user = auth()->user();
 
-        if (! $user->isAdmin() && !\App\Services\StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_transaction_charges')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $request->validate([
             'charge_type' => 'required|in:flat,percentage',
             'value' => 'required|numeric',
-            'active' => 'required|boolean'
+            'active' => 'required|boolean',
         ]);
 
         $charge = TransactionCharge::findOrFail($id);
@@ -785,9 +777,9 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Charge Update',
-                'details'    => "Updated {$charge->transaction_type} fee. Changed from {$oldVal} to {$newVal}. Active: " . ($charge->active ? 'Yes' : 'No'),
+                'user_id' => auth()->id(),
+                'activity' => 'Charge Update',
+                'details' => "Updated {$charge->transaction_type} fee. Changed from {$oldVal} to {$newVal}. Active: ".($charge->active ? 'Yes' : 'No'),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
@@ -796,6 +788,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json(['success' => true, 'message' => 'Charge updated']);
     }
+
     public function getAuditLogs(Request $request)
     {
         $query = AuditLog::with('user:id,name,email');
@@ -853,13 +846,13 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         return response()->json([
             'success' => true,
-            'data' => $logs
+            'data' => $logs,
         ]);
     }
+
     public function exportActivityLogs(Request $request)
     {
         $query = ActivityLog::with('user:id,name,email');
-
 
         if ($request->filled('type')) {
             $query->where('activity', $request->type);
@@ -873,13 +866,13 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
 
         $logs = $query->latest()->get();
 
-        $csvFileName = 'activity_logs_' . now()->format('Y_m_d_His') . '.csv';
+        $csvFileName = 'activity_logs_'.now()->format('Y_m_d_His').'.csv';
         $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$csvFileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            'Content-type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=$csvFileName",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $columns = ['User', 'Email', 'Activity', 'IP Address', 'Date'];
@@ -887,7 +880,7 @@ $walletUSD = Wallet::where('user_id', $id)->where('currency', 'USD')
         // Log export of activity logs
         try {
             ActivityLog::log(auth()->id(), 'Export Activity Logs', [
-                'filters' => $request->only(['type', 'start_date', 'end_date'])
+                'filters' => $request->only(['type', 'start_date', 'end_date']),
             ]);
         } catch (\Throwable $e) {
             // ignore

@@ -14,13 +14,21 @@ class ReportGeneratedNotification extends Notification implements ShouldQueue
     use Queueable;
 
     protected User $user;
+
     protected ?string $fileName;
+
     protected ?string $fileContent;
+
     protected ?string $mimeType;
+
     protected string $from;
+
     protected string $to;
+
     protected string $reportType;
+
     protected ?string $message;
+
     protected ?User $admin;
 
     public function __construct(
@@ -60,10 +68,10 @@ class ReportGeneratedNotification extends Notification implements ShouldQueue
             ->greeting("Hello {$this->user->name},")
             ->line("A new {$reportLabel} has been generated for you by {$adminName}.")
             ->line("**Period:** {$this->from} to {$this->to}")
-            ->line("**Format:** " . strtoupper(pathinfo($this->fileName, PATHINFO_EXTENSION)));
+            ->line('**Format:** '.strtoupper(pathinfo($this->fileName, PATHINFO_EXTENSION)));
 
         if ($this->message) {
-            $mail->line("**Message from Admin:**");
+            $mail->line('**Message from Admin:**');
             $mail->line($this->message);
         }
 
@@ -72,22 +80,22 @@ class ReportGeneratedNotification extends Notification implements ShouldQueue
             try {
                 $storagePath = "reports/{$this->user->id}/{$this->fileName}";
                 $directory = dirname(storage_path("app/{$storagePath}"));
-                if (!is_dir($directory)) {
+                if (! is_dir($directory)) {
                     mkdir($directory, 0755, true);
                 }
                 file_put_contents(storage_path("app/{$storagePath}"), $this->fileContent);
-                
+
                 $mail->attach(storage_path("app/{$storagePath}"), [
                     'as' => $this->fileName,
                     'mime' => $this->mimeType,
                 ]);
             } catch (\Exception $e) {
-                Log::error('Failed to attach report to email: ' . $e->getMessage());
+                Log::error('Failed to attach report to email: '.$e->getMessage());
             }
         }
 
         return $mail
-            ->line("Please review the attached document or log in to your Xavier dashboard to view it.")
+            ->line('Please review the attached document or log in to your Xavier dashboard to view it.')
             ->action('View Dashboard', url('/'))
             ->line('Thank you for using Xavier Trading Platform!');
     }

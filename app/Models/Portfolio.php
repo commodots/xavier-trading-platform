@@ -19,7 +19,7 @@ class Portfolio extends Model
         'uncleared_quantity',
         'avg_price',
         'market_price',
-        'currency'
+        'currency',
     ];
 
     protected $casts = [

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\KycProfile;
+use App\Models\User;
 use App\Services\KycService;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -57,33 +57,32 @@ class VerifyEmailController extends Controller
                 $kyc = KycProfile::firstOrCreate(
                     ['user_id' => $user->id],
                     [
-                        'status' => 'verified', 
+                        'status' => 'verified',
                         'tier' => 0,
-                        'level' => 'email_verified'
+                        'level' => 'email_verified',
                     ]
                 );
 
-                
-                if (!KycService::isVerified($kyc->status)) {
+                if (! KycService::isVerified($kyc->status)) {
                     $kyc->status = 'verified';
                 }
 
                 $calculatedTier = KycService::determineTier($kyc);
-                
+
                 $kyc->tier = $calculatedTier;
                 $kyc->level = 'email_verified';
                 $kyc->save();
 
                 Log::info('KYC profile auto-upgraded on email verification', [
                     'user_id' => $user->id,
-                    'assigned_tier' => $calculatedTier
+                    'assigned_tier' => $calculatedTier,
                 ]);
 
             } catch (\Exception $e) {
-                
+
                 Log::error('Failed to auto-escalate KYC tier on email verification', [
                     'user_id' => $user->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Xavier Platform - Onboarding API Test Script
  * ---------------------------------------------
@@ -6,23 +7,22 @@
  * Make sure Laravel is running (php artisan serve)
  * and the /api/onboard route is available.
  */
-
 $apiUrl = 'http://127.0.0.1:8000/api/onboard'; // Local API URL
 date_default_timezone_set('Africa/Lagos');
 
 // === Generate unique email for each test ===
-$uniqueEmail = 'aisha' . rand(1000, 9999) . '@example.test';
+$uniqueEmail = 'aisha'.rand(1000, 9999).'@example.test';
 
 // === Payload (switch between BVN or vNIN) ===
 $payload = [
-    "first_name" => "Aisha",
-    "last_name" => "Ogunleye",
-    "email" => $uniqueEmail,
-    "phone" => "+2348089001122",
-    "dob" => "1994-07-15",
-    "id_type" => "vnin",            // 'bvn' or 'vnin'
-    "id_value" => "12345678901",    // sample fake NIN for test
-    "password" => "SecurePass2025!"
+    'first_name' => 'Aisha',
+    'last_name' => 'Ogunleye',
+    'email' => $uniqueEmail,
+    'phone' => '+2348089001122',
+    'dob' => '1994-07-15',
+    'id_type' => 'vnin',            // 'bvn' or 'vnin'
+    'id_value' => '12345678901',    // sample fake NIN for test
+    'password' => 'SecurePass2025!',
 ];
 
 // === Encode as JSON ===
@@ -38,7 +38,7 @@ curl_setopt_array($ch, [
         'Accept: application/json',
     ],
     CURLOPT_POSTFIELDS => $dataJson,
-    CURLOPT_TIMEOUT => 60
+    CURLOPT_TIMEOUT => 60,
 ]);
 
 // === Execute request ===
@@ -55,7 +55,7 @@ echo "-------------------------------------\n";
 echo " POST $apiUrl\n";
 echo "-------------------------------------\n";
 echo "HTTP Status: $httpCode\n";
-echo "Timestamp: " . date('Y-m-d H:i:s') . "\n";
+echo 'Timestamp: '.date('Y-m-d H:i:s')."\n";
 echo "-------------------------------------\n";
 echo "Request Payload:\n";
 print_r($payload);
@@ -71,7 +71,7 @@ print_r($result);
 echo "-------------------------------------\n";
 
 // === Interpretation ===
-if ($httpCode >= 200 && $httpCode < 300 && !empty($result['success'])) {
+if ($httpCode >= 200 && $httpCode < 300 && ! empty($result['success'])) {
     echo "✅ SUCCESS: Verification passed and user onboarded.\n";
 } elseif ($httpCode === 422) {
     echo "⚠️ VALIDATION ERROR: Missing or invalid fields.\n";

@@ -41,8 +41,8 @@ class AuditController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('action', 'like', "%{$search}%")
-                  ->orWhere('entity_type', 'like', "%{$search}%")
-                  ->orWhere('ip_address', 'like', "%{$search}%");
+                    ->orWhere('entity_type', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%");
             });
         }
 
@@ -50,7 +50,7 @@ class AuditController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $audits
+            'data' => $audits,
         ]);
     }
 
@@ -64,7 +64,7 @@ class AuditController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Export initiated',
-            'count' => $audits->count()
+            'count' => $audits->count(),
         ]);
     }
 }

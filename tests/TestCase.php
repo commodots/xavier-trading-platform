@@ -27,7 +27,8 @@ abstract class TestCase extends BaseTestCase
             // Create a real personal access token and use it for API requests.
             // This also preserves default session-based auth for web tests.
             $token = $user->createToken('test-device')->plainTextToken;
-            return $this->withHeader('Authorization', 'Bearer ' . $token);
+
+            return $this->withHeader('Authorization', 'Bearer '.$token);
         }
 
         return parent::actingAs($user, $driver);

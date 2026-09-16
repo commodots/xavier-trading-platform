@@ -9,17 +9,15 @@ class SubscriptionPlan extends Model
 {
     use HasFactory;
 
-   
     protected $fillable = [
         'name',
         'price',
         'duration_days',
         'features',
         'paystack_plan_code',
-        'tier'
+        'tier',
     ];
 
-    
     public function subscriptions()
     {
         return $this->hasMany(UserSubscription::class);

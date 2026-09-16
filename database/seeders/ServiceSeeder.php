@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Service;
+use Illuminate\Database\Seeder;
 
 class ServiceSeeder extends Seeder
 {
@@ -23,7 +23,7 @@ class ServiceSeeder extends Seeder
                 ['type' => $service['type']],
                 [
                     'name' => $service['name'],
-                    'is_active' => $service['is_active'] ?? false
+                    'is_active' => $service['is_active'] ?? false,
                 ]
             );
         }

@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class WithdrawalInitiated extends Notification
 {
-    public function __construct(private WithdrawalRequest $withdrawal)
-    {
-    }
+    public function __construct(private WithdrawalRequest $withdrawal) {}
 
     public function via($notifiable): array
     {
@@ -29,7 +27,7 @@ class WithdrawalInitiated extends Notification
             ->subject('Withdrawal Request Received')
             ->greeting("Hello {$notifiable->first_name},")
             ->line("Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been received.")
-            ->line("Status: Pending Approval")
+            ->line('Status: Pending Approval')
             ->action('View Withdrawal Details', url("/dashboard/security/withdrawals/{$this->withdrawal->id}"))
             ->line('If you did not authorize this request, please contact support immediately.');
     }
@@ -41,7 +39,7 @@ class WithdrawalInitiated extends Notification
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
-            
+
             'type' => 'withdrawal',
             'title' => 'Withdrawal Request Initiated',
             'action' => 'View Details',

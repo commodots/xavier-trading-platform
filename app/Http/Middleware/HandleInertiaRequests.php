@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Resources\UserWithRelationsResource;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -33,7 +34,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user()
-                    ? new \App\Http\Resources\UserWithRelationsResource($request->user()->loadMissing('wallet', 'kyc'))
+                    ? new UserWithRelationsResource($request->user()->loadMissing('wallet', 'kyc'))
                     : null,
             ],
         ];

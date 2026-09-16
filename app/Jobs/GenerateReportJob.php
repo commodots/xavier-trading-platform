@@ -2,7 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\ReportGeneratedNotification;
 use App\Services\Reports\ReportExportService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,6 +18,7 @@ class GenerateReportJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $timeout = 120;
 
     /**
@@ -38,7 +41,7 @@ class GenerateReportJob implements ShouldQueue
         $headers = $this->getReportHeaders();
 
         // Generate the report file
-        $filename = "{$this->reportType}_" . now()->format('Y-m-d_H-i-s');
+        $filename = "{$this->reportType}_".now()->format('Y-m-d_H-i-s');
         $path = "reports/{$this->user->id}/{$filename}.{$this->format}";
 
         if ($this->format === 'csv') {
@@ -50,7 +53,7 @@ class GenerateReportJob implements ShouldQueue
         }
 
         // Notify user that report is ready
-        $this->user->notify(new \App\Notifications\ReportGeneratedNotification($path, $this->reportType));
+        $this->user->notify(new ReportGeneratedNotification($path, $this->reportType));
     }
 
     /**
@@ -60,11 +63,11 @@ class GenerateReportJob implements ShouldQueue
     {
         // This is a simplified version - in production, use appropriate report service
         return match ($this->reportType) {
-            'transactions' => \App\Models\Transaction::where('user_id', $this->user->id)
-                ->when($this->filters['date_from'] ?? null, fn($q, $d) => $q->whereDate('created_at', '>=', $d))
-                ->when($this->filters['date_to'] ?? null, fn($q, $d) => $q->whereDate('created_at', '<=', $d))
+            'transactions' => Transaction::where('user_id', $this->user->id)
+                ->when($this->filters['date_from'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
+                ->when($this->filters['date_to'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '<=', $d))
                 ->get()
-                ->map(fn($t) => [
+                ->map(fn ($t) => [
                     'Date' => $t->created_at->format('Y-m-d'),
                     'Type' => $t->type,
                     'Amount' => $t->amount,

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->decimal('value', 15, 4);
             $table->dropColumn([
                 'percentage',
-                'flat_fee'
+                'flat_fee',
             ]);
         });
     }

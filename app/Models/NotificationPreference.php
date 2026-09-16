@@ -12,9 +12,8 @@ class NotificationPreference extends Model
         'sms',
         'push',
         'monthly_statements',
-        'newsletters'
+        'newsletters',
     ];
-
 
     protected $casts = [
         'email' => 'boolean',

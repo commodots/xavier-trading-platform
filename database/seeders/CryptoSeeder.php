@@ -13,7 +13,7 @@ class CryptoSeeder extends Seeder
         // Create crypto addresses for existing users
         User::all()->each(function ($user) {
             if (! $user->cryptoAddresses()->where('blockchain', 'TRON')->exists()) {
-                // For demo, create fake address 
+                // For demo, create fake address
                 CryptoAddress::create([
                     'user_id' => $user->id,
                     'blockchain' => 'TRON',

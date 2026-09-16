@@ -15,7 +15,7 @@ class KycProviderFactory
     {
         return match (config('kyc.provider', 'dojah')) {
             default => app(DojahProvider::class),
-            'qoreid'=> app(QoreIdProvider::class),
+            'qoreid' => app(QoreIdProvider::class),
         };
     }
 }

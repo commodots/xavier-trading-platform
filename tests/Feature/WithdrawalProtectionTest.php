@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\LinkedAccount;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\WithdrawalProtectionService;
@@ -24,19 +25,19 @@ class WithdrawalProtectionTest extends TestCase
     {
         return User::factory()->create(array_merge([
             'subscription_status' => 'active',
-            'wallet_debt'         => 0,
+            'wallet_debt' => 0,
         ], $attrs));
     }
 
     private function makeWallet(User $user, float $cleared = 10000): Wallet
     {
         return Wallet::create([
-            'user_id'       => $user->id,
-            'currency'      => 'NGN',
-            'ngn_cleared'   => $cleared,
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => $cleared,
             'ngn_uncleared' => 0,
-            'balance'       => $cleared,
-            'locked'        => 0,
+            'balance' => $cleared,
+            'locked' => 0,
         ]);
     }
 
@@ -97,12 +98,12 @@ class WithdrawalProtectionTest extends TestCase
     {
         $user = $this->makeUser(['subscription_status' => 'suspended']);
         $this->makeWallet($user, 10000);
-        
+
         // Verify user is actually suspended in the database
         $this->assertEquals('suspended', $user->fresh()->subscription_status);
-        
+
         // Create a linked bank account for the withdrawal
-        $account = \App\Models\LinkedAccount::create([
+        $account = LinkedAccount::create([
             'user_id' => $user->id,
             'type' => 'bank',
             'provider' => 'GTBank',
@@ -112,10 +113,10 @@ class WithdrawalProtectionTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)->postJson('/api/security/withdrawals', [
-            'amount'            => 1000,
-            'currency'          => 'NGN',
+            'amount' => 1000,
+            'currency' => 'NGN',
             'linked_account_id' => $account->id,
-            'withdrawal_otp'    => '123456',
+            'withdrawal_otp' => '123456',
         ]);
 
         // Suspended users are blocked by middleware with 403, not by controller validation

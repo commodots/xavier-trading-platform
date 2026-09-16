@@ -46,7 +46,7 @@ class UserDeviceController extends Controller
             ->where('device_type', $request->device_type)
             ->first();
 
-        if (!$device) {
+        if (! $device) {
             $device = UserDeviceSession::create([
                 'user_id' => $user->id,
                 'device_name' => $request->device_name,
@@ -102,7 +102,7 @@ class UserDeviceController extends Controller
      */
     public function revoke(Request $request, UserDeviceSession $device): JsonResponse
     {
-        if ($device->user_id !== $request->user()->id && !$request->user()->isAdmin()) {
+        if ($device->user_id !== $request->user()->id && ! $request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 

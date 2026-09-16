@@ -102,8 +102,7 @@ class DepartmentController extends Controller
     ) {
         if ($department->expenses()->exists()) {
             return response()->json([
-                'message' =>
-                    'This department has expenses and cannot be deleted. Deactivate it instead.'
+                'message' => 'This department has expenses and cannot be deleted. Deactivate it instead.',
             ], 422);
         }
 
@@ -118,7 +117,7 @@ class DepartmentController extends Controller
         Department $department
     ) {
         $department->update([
-            'is_active' => !$department->is_active,
+            'is_active' => ! $department->is_active,
         ]);
 
         return response()->json([

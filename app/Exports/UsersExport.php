@@ -2,14 +2,15 @@
 
 namespace App\Exports;
 
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class UsersExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     protected $data;
 
@@ -20,9 +21,10 @@ class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyl
 
     public function collection()
     {
-        if ($this->data instanceof \Illuminate\Support\Collection) {
+        if ($this->data instanceof Collection) {
             return $this->data;
         }
+
         return collect($this->data);
     }
 

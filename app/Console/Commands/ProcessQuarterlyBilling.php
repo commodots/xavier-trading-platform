@@ -2,13 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Models\NewTransaction;
+use App\Models\UserSubscription;
+use App\Models\Wallet;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\User;
-use App\Models\UserSubscription;
-use App\Models\Wallet;
-use App\Models\NewTransaction;
 
 class ProcessQuarterlyBilling extends Command
 {
@@ -42,6 +41,7 @@ class ProcessQuarterlyBilling extends Command
 
         if ($subscriptions->isEmpty()) {
             $this->info('No quarterly subscriptions due for renewal at this time.');
+
             return Command::SUCCESS;
         }
 
@@ -51,8 +51,9 @@ class ProcessQuarterlyBilling extends Command
         foreach ($subscriptions as $subscription) {
             $user = $subscription->user;
 
-            if (!$user) {
+            if (! $user) {
                 $subscription->update(['status' => 'cancelled', 'cancellation_reason' => 'Orphaned profile']);
+
                 continue;
             }
 
@@ -67,13 +68,13 @@ class ProcessQuarterlyBilling extends Command
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$wallet || $wallet->usd_cleared < $billingAmount) {
-                        throw new \Exception("Insufficient cleared USD funds (Available: " . ($wallet->usd_cleared ?? 0) . ")");
+                    if (! $wallet || $wallet->usd_cleared < $billingAmount) {
+                        throw new \Exception('Insufficient cleared USD funds (Available: '.($wallet->usd_cleared ?? 0).')');
                     }
 
                     // Deduct subscription rate
                     $wallet->decrement('usd_cleared', $billingAmount);
-                    
+
                     // Recalculate absolute fields to maintain state sync
                     $wallet->refresh();
                     $wallet->balance = $wallet->usd_cleared + $wallet->usd_uncleared + $wallet->locked;
@@ -89,7 +90,7 @@ class ProcessQuarterlyBilling extends Command
                         'net_amount' => $billingAmount,
                         'meta' => [
                             'description' => "Quarterly renewal fee for advisory status tier: {$subscription->tier_level}",
-                            'reference' => 'SUB-QTR-' . strtoupper(uniqid()),
+                            'reference' => 'SUB-QTR-'.strtoupper(uniqid()),
                         ],
                     ]);
 
@@ -97,7 +98,7 @@ class ProcessQuarterlyBilling extends Command
                     $subscription->update([
                         'last_billing_at' => now(),
                         'next_billing_at' => now()->addMonths(3),
-                        'status' => 'active'
+                        'status' => 'active',
                     ]);
                 });
 
@@ -105,10 +106,10 @@ class ProcessQuarterlyBilling extends Command
                 // If billing fails, downgrade advisory access boundaries safely
                 $subscription->update([
                     'status' => 'suspended',
-                    'cancellation_reason' => 'Quarterly transaction deduction failed: ' . $e->getMessage()
+                    'cancellation_reason' => 'Quarterly transaction deduction failed: '.$e->getMessage(),
                 ]);
 
-                Log::warning("Quarterly billing failed for User ID {$user->id}: " . $e->getMessage());
+                Log::warning("Quarterly billing failed for User ID {$user->id}: ".$e->getMessage());
             }
 
             $bar->advance();

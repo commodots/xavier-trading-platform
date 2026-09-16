@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Fee;
+use App\Models\NewTransaction;
 use App\Models\PlatformEarning;
-use App\Models\RevenueRecord;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Models\UserSubscription;
@@ -54,7 +54,7 @@ class RevenueReportTest extends TestCase
 
     protected function makePlatformEarning(User $user, float $amount, float $amountNgn, string $source = 'withdrawal_charge', string $status = 'completed'): PlatformEarning
     {
-        $transaction = \App\Models\NewTransaction::create([
+        $transaction = NewTransaction::create([
             'user_id' => $user->id,
             'type' => 'deposit',
             'amount' => $amount,

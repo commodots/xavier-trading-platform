@@ -2,10 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\KycProfile;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\KycProfile>
+ * @extends Factory<KycProfile>
  */
 class KycProfileFactory extends Factory
 {
@@ -17,7 +19,7 @@ class KycProfileFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(),
+            'user_id' => User::factory(),
             'status' => 'pending',
         ];
     }

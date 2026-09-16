@@ -10,7 +10,7 @@ class MockOpayService implements PaymentGateway
     public function transfer(array $data): array
     {
         return [
-            'reference' => 'OPAY_' . Str::random(10),
+            'reference' => 'OPAY_'.Str::random(10),
             'status' => collect(['success', 'pending', 'failed'])->random(),
             'amount' => $data['amount'],
             'currency' => 'NGN',
@@ -21,7 +21,7 @@ class MockOpayService implements PaymentGateway
     public function createVirtualAccount(array $data): array
     {
         return [
-            'account_number' => '2309' . rand(100000, 999999),
+            'account_number' => '2309'.rand(100000, 999999),
             'bank' => 'OPay',
             'account_name' => $data['name'] ?? 'Mock User',
             'status' => 'ACTIVE',

@@ -16,12 +16,13 @@ class PaystackWebhookController extends Controller
 {
     public function handle(Request $request)
     {
-        $signature         = $request->header('x-paystack-signature');
-        $secret            = config('services.paystack.secret_key');
+        $signature = $request->header('x-paystack-signature');
+        $secret = config('services.paystack.secret_key');
         $computedSignature = hash_hmac('sha512', $request->getContent(), $secret);
 
-        if (!$signature || !$secret || !hash_equals($computedSignature, $signature)) {
+        if (! $signature || ! $secret || ! hash_equals($computedSignature, $signature)) {
             Log::warning('Paystack Webhook: Invalid Signature Attempt', ['ip' => $request->ip()]);
+
             return response()->json(['error' => 'Invalid signature'], 401);
         }
 
@@ -34,7 +35,6 @@ class PaystackWebhookController extends Controller
                 $this->handleSuccessfulPayment($payload['data'] ?? []);
                 break;
 
-                
             default:
                 Log::info('Paystack Webhook: Unhandled event ignored', ['event' => $event]);
                 break;
@@ -95,10 +95,10 @@ class PaystackWebhookController extends Controller
                 $wallet = Wallet::firstOrCreate(
                     ['user_id' => $user->id, 'currency' => $targetCurrency],
                     [
-                        'balance' => 0, 
-                        'status' => 'active', 
-                        'ngn_cleared' => 0, 
-                        'usd_cleared' => 0
+                        'balance' => 0,
+                        'status' => 'active',
+                        'ngn_cleared' => 0,
+                        'usd_cleared' => 0,
                     ]
                 );
 

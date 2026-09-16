@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\ServiceConfig;
+use Illuminate\Database\Seeder;
 
 class ServiceConfigSeeder extends Seeder
 {
@@ -26,15 +26,15 @@ class ServiceConfigSeeder extends Seeder
                 'mode' => 'test',
                 'base_url' => 'https://api.paystack.co',
                 'headers' => [
-                    'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
-                    'Content-Type' => 'application/json'
+                    'Authorization' => 'Bearer '.config('services.paystack.secret_key'),
+                    'Content-Type' => 'application/json',
                 ],
                 'params' => [
                     'currency' => 'NGN',
                 ],
                 'credentials' => [
                     'public_key' => config('services.paystack.public_key'),
-                    'secret_key' => config('services.paystack.secret_key')
+                    'secret_key' => config('services.paystack.secret_key'),
                 ],
                 'is_active' => true,
             ],

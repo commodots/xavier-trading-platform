@@ -17,7 +17,7 @@ class DeviceTrackingTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('password123')]);
 
         $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
@@ -30,7 +30,7 @@ class DeviceTrackingTest extends TestCase
 
         // First login
         $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
@@ -41,7 +41,7 @@ class DeviceTrackingTest extends TestCase
 
         // Second login from same device
         $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
@@ -79,7 +79,7 @@ class DeviceTrackingTest extends TestCase
         $this->assertEquals(3, $user->tokens()->count());
 
         // Make request using the current token
-        $response = $this->withHeader('Authorization', 'Bearer ' . $currentToken->plainTextToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$currentToken->plainTextToken)
             ->postJson('/api/user/sessions/logout-others');
 
         $response->assertStatus(200);

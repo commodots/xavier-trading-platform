@@ -23,7 +23,7 @@ return new class extends Migration
 
             // Product status
             $table->string('status')->default('draft');
-            
+
             // Investment limits
             $table->decimal('minimum_amount', 30, 8)->default(0);
             $table->decimal('maximum_amount', 30, 8)->nullable();

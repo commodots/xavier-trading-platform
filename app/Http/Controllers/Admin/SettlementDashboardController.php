@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SettleTradeJob;
+use App\Models\Ledger;
 use App\Models\Trade;
 use Illuminate\Http\Request;
 
@@ -17,7 +18,7 @@ class SettlementDashboardController extends Controller
         $trades = Trade::unsettled()
             ->where(function ($q) {
                 $q->whereNull('settlement_status')
-                  ->orWhere('settlement_status', 'pending');
+                    ->orWhere('settlement_status', 'pending');
             })
             ->with('user', 'order')
             ->orderByDesc('created_at')
@@ -53,13 +54,13 @@ class SettlementDashboardController extends Controller
     public function metrics()
     {
         return response()->json([
-            'pending' => \App\Models\Ledger::where('status', 'pending')
+            'pending' => Ledger::where('status', 'pending')
                 ->whereIn('type', ['FUND', 'FX_CONVERSION'])
                 ->count(),
-            'completed' => \App\Models\Ledger::where('status', 'completed')
+            'completed' => Ledger::where('status', 'completed')
                 ->whereIn('type', ['FUND', 'FX_CONVERSION'])
                 ->count(),
-            'failed' => \App\Models\Ledger::where('status', 'failed')
+            'failed' => Ledger::where('status', 'failed')
                 ->whereIn('type', ['FUND', 'FX_CONVERSION'])
                 ->count(),
         ]);
@@ -73,7 +74,7 @@ class SettlementDashboardController extends Controller
         dispatch(new SettleTradeJob($trade));
 
         return response()->json([
-            "message" => "Settlement complete dispatched for trade #{$trade->id}",
+            'message' => "Settlement complete dispatched for trade #{$trade->id}",
         ]);
     }
 }

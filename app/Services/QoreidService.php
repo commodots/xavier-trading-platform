@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use Exception;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class QoreidService
@@ -33,15 +33,15 @@ class QoreidService
 
         return Cache::remember('qoreid_access_token', 3500, function () {
             // QoreID standard endpoint is usually /token
-            $url = rtrim(config('services.qoreid.base_url'), '/') . '/token';
+            $url = rtrim(config('services.qoreid.base_url'), '/').'/token';
 
             $response = Http::post($url, [
                 'clientId' => config('services.qoreid.client_id'),
-                'secret'   => config('services.qoreid.client_secret'),
+                'secret' => config('services.qoreid.client_secret'),
             ]);
 
             if ($response->failed()) {
-                throw new Exception('Failed to get QoreID token: ' . $response->body());
+                throw new Exception('Failed to get QoreID token: '.$response->body());
             }
 
             return $response->json()['accessToken'] ?? null;
@@ -59,7 +59,7 @@ class QoreidService
 
         $token = self::getAccessToken();
         $baseUrl = rtrim(config('services.qoreid.base_url'), '/');
-        
+
         $endpoint = match ($idType) {
             'bvn' => "$baseUrl/v1/ng/identities/bvn/$idValue",
             'nin', 'vnin' => "$baseUrl/v1/ng/identities/nin/$idValue",
@@ -73,11 +73,12 @@ class QoreidService
         if ($response->failed()) {
             Log::error('QoreID Verification Error', [
                 'id_type' => $idType,
-                'response' => $response->body()
+                'response' => $response->body(),
             ]);
+
             return [
-                'success' => false, 
-                'message' => 'Verification failed: ' . ($response->json('message') ?? 'Unknown error')
+                'success' => false,
+                'message' => 'Verification failed: '.($response->json('message') ?? 'Unknown error'),
             ];
         }
 
@@ -85,9 +86,9 @@ class QoreidService
     }
 
     /**
-     * The 2FA Implementation: BVN + NIN + Selfie Match    
+     * The 2FA Implementation: BVN + NIN + Selfie Match
      */
-   public static function verify2FA($bvn, $nin, $imagePath, $userData = [])
+    public static function verify2FA($bvn, $nin, $imagePath, $userData = [])
     {
         // ✅ Dummy data mode
         if (config('services.qoreid.dummy_mode', false)) {
@@ -99,41 +100,41 @@ class QoreidService
                     'lastname' => 'Ogunleye',
                     'bvn' => $bvn,
                     'nin' => $nin,
-                ]
+                ],
             ];
         }
 
         $token = self::getAccessToken();
-        $url = rtrim(config('services.qoreid.base_url'), '/') . '/v1/ng/identities/complex-verification';
+        $url = rtrim(config('services.qoreid.base_url'), '/').'/v1/ng/identities/complex-verification';
 
-        if (!$imagePath || !file_exists($imagePath)) {
-            throw new Exception("Selfie image file not found.");
+        if (! $imagePath || ! file_exists($imagePath)) {
+            throw new Exception('Selfie image file not found.');
         }
 
         $payload = [
             'firstname' => $userData['firstname'] ?? '',
-            'lastname'  => $userData['lastname'] ?? '',
+            'lastname' => $userData['lastname'] ?? '',
             'field' => [
                 'bvn' => $bvn,
-                'nin' => $nin
+                'nin' => $nin,
             ],
             'image' => base64_encode(file_get_contents($imagePath)),
-            'imageType' => 'SELFIE'
+            'imageType' => 'SELFIE',
         ];
 
         $response = Http::withToken($token)->post($url, $payload);
 
         if ($response->failed()) {
-            throw new Exception('QoreID API Error: ' . $response->body());
+            throw new Exception('QoreID API Error: '.$response->body());
         }
 
         $result = $response->json();
 
         return [
-            'success'  => $response->successful(),
+            'success' => $response->successful(),
             // QoreID returns biometrics match status here
             'is_match' => $result['summary']['biometrics']['match'] ?? false,
-            'data'     => $result
+            'data' => $result,
         ];
     }
 }

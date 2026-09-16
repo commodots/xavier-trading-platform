@@ -3,9 +3,9 @@
 namespace App\Services\Fx;
 
 use App\Models\FxConversion;
+use App\Models\Ledger;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
-use App\Models\Ledger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -40,7 +40,7 @@ class FxConversionService
             $provider = $quote['provider'];
 
             // Create reference
-            $reference = 'FX-' . strtoupper(Str::random(12));
+            $reference = 'FX-'.strtoupper(Str::random(12));
 
             // Create FX conversion record
             $conversion = FxConversion::create([

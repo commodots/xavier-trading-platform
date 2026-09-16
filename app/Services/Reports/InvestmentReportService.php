@@ -106,7 +106,7 @@ class InvestmentReportService extends BaseReportService
     }
 
     /**
-     * Filters 
+     * Filters
      */
     public function filters(): array
     {
@@ -117,7 +117,7 @@ class InvestmentReportService extends BaseReportService
     }
 
     /**
-     * Top investors 
+     * Top investors
      */
     public function topInvestors(): array
     {
@@ -135,7 +135,7 @@ class InvestmentReportService extends BaseReportService
     }
 
     /**
-     * Distribution 
+     * Distribution
      */
     public function distribution(): array
     {
@@ -154,7 +154,7 @@ class InvestmentReportService extends BaseReportService
     }
 
     /**
-     * Charts 
+     * Charts
      */
     public function charts(): array
     {

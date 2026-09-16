@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Models\Wallet;
-use App\Console\Commands\CheckUserInactivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,7 +14,7 @@ class UserLifecycleTest extends TestCase
     {
         $user = User::factory()->create([
             'subscription_status' => 'suspended',
-            'wallet_debt'         => 6000,
+            'wallet_debt' => 6000,
         ]);
 
         $response = $this->actingAs($user)->getJson('/api/wallet/balances');
@@ -29,7 +27,7 @@ class UserLifecycleTest extends TestCase
     {
         $user = User::factory()->create([
             'subscription_status' => 'inactive',
-            'next_fee_due_at'     => now()->subDays(10),
+            'next_fee_due_at' => now()->subDays(10),
         ]);
 
         $this->actingAs($user)->getJson('/api/wallet/balances');
@@ -52,14 +50,14 @@ class UserLifecycleTest extends TestCase
     public function test_inactivity_command_notifies_user_after_30_days(): void
     {
         $user = User::factory()->create([
-            'last_active_at'      => now()->subDays(35),
+            'last_active_at' => now()->subDays(35),
             'subscription_status' => 'active',
         ]);
 
         $this->artisan('user:check-inactivity 30')->assertSuccessful();
 
         $this->assertDatabaseHas('notifications', [
-            'notifiable_id'   => $user->id,
+            'notifiable_id' => $user->id,
             'notifiable_type' => User::class,
         ]);
     }
@@ -67,7 +65,7 @@ class UserLifecycleTest extends TestCase
     public function test_inactivity_command_marks_user_inactive_after_60_days(): void
     {
         $user = User::factory()->create([
-            'last_active_at'      => now()->subDays(65),
+            'last_active_at' => now()->subDays(65),
             'subscription_status' => 'active',
         ]);
 
@@ -79,9 +77,9 @@ class UserLifecycleTest extends TestCase
     public function test_inactivity_command_skips_admin_users(): void
     {
         $admin = User::factory()->create([
-            'last_active_at'      => now()->subDays(65),
+            'last_active_at' => now()->subDays(65),
             'subscription_status' => 'active',
-            'role'                => 'admin',
+            'role' => 'admin',
         ]);
 
         $this->artisan('user:check-inactivity 30')->assertSuccessful();

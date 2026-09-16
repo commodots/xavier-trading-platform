@@ -30,12 +30,12 @@ class PriceService
 
         $basePrice = $basePrices[strtoupper($symbol)] ?? 100.00;
 
-        // If it's the NGX (local), simulate the fluctuation 
+        // If it's the NGX (local), simulate the fluctuation
         // to match DummyNgxController logic
         if ($marketType === 'local') {
             // Apply a random fluctuation between -10 and +10 to the base price
             // This mimics controller's: 150.00 + rand(-10, 10)
-            return $basePrice + rand(-5, 5); 
+            return $basePrice + rand(-5, 5);
         }
 
         // For International/Crypto, return base price (or add similar logic)

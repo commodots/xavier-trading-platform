@@ -12,20 +12,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('service_configs', function (Blueprint $table) {
-		$table->id();
-		$table->string('service'); 
-		$table->enum('type', ['ngx', 'crypto', 'stocks', 'fx', 'cscs', 'payment']);
-		$table->enum('mode', ['live', 'test', 'dummy'])->default('dummy');
+            $table->id();
+            $table->string('service');
+            $table->enum('type', ['ngx', 'crypto', 'stocks', 'fx', 'cscs', 'payment']);
+            $table->enum('mode', ['live', 'test', 'dummy'])->default('dummy');
 
-		$table->string('base_url')->nullable();
-		$table->json('headers')->nullable();
-		$table->json('params')->nullable();
-		$table->json('credentials')->nullable();
+            $table->string('base_url')->nullable();
+            $table->json('headers')->nullable();
+            $table->json('params')->nullable();
+            $table->json('credentials')->nullable();
 
-		$table->boolean('is_active')->default(false);
-		$table->timestamps();
-	});
-
+            $table->boolean('is_active')->default(false);
+            $table->timestamps();
+        });
 
     }
 

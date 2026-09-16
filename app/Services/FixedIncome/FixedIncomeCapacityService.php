@@ -2,8 +2,8 @@
 
 namespace App\Services\FixedIncome;
 
-use App\Models\FixedIncomeProduct;
 use App\Models\FixedIncomeInvestment;
+use App\Models\FixedIncomeProduct;
 use RuntimeException;
 
 class FixedIncomeCapacityService

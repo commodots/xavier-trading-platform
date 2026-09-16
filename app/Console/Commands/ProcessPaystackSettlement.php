@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Ledger;
-use App\Models\User;
 use App\Models\NewTransaction;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -18,7 +18,7 @@ class ProcessPaystackSettlement extends Command
 
     public function handle()
     {
-        $this->info("Fetching latest settlements from Paystack...");
+        $this->info('Fetching latest settlements from Paystack...');
 
         // Fetch settlements from the last 48 hours
         $response = Http::withToken(config('services.paystack.secret_key'))
@@ -27,16 +27,18 @@ class ProcessPaystackSettlement extends Command
                 'to' => now()->toIso8601String(),
             ]);
 
-        if (!$response->successful()) {
-            $this->error("Failed to fetch settlements from Paystack.");
-            Log::error("Paystack Settlement API Error", ['response' => $response->json()]);
+        if (! $response->successful()) {
+            $this->error('Failed to fetch settlements from Paystack.');
+            Log::error('Paystack Settlement API Error', ['response' => $response->json()]);
+
             return Command::FAILURE;
         }
 
         $settlements = $response->json()['data'] ?? [];
 
         if (empty($settlements)) {
-            $this->info("No recent settlements found from Paystack.");
+            $this->info('No recent settlements found from Paystack.');
+
             return Command::SUCCESS;
         }
 
@@ -59,10 +61,14 @@ class ProcessPaystackSettlement extends Command
                         ->where('status', 'pending')
                         ->first();
 
-                    if (!$ledger) return; // Already settled or doesn't exist
+                    if (! $ledger) {
+                        return;
+                    } // Already settled or doesn't exist
 
                     $user = User::find($ledger->user_id);
-                    if (!$user) return;
+                    if (! $user) {
+                        return;
+                    }
 
                     // Settle the Wallet (Moves uncleared -> cleared)
                     $wallet = $user->fxWallet($currency);
@@ -79,7 +85,8 @@ class ProcessPaystackSettlement extends Command
             }
         }
 
-        $this->info("Automated settlement processing complete.");
+        $this->info('Automated settlement processing complete.');
+
         return Command::SUCCESS;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FxRate;
 use App\Models\Trade;
 use Illuminate\Support\Collection;
 
@@ -63,7 +64,7 @@ class PortfolioService
 
         // Fetch real FX Rate from cache/DB
         $FX_RATE = cache()->remember('usd_ngn_rate', 3600, function () {
-            return \App\Models\FxRate::where('from_currency', 'USD')->where('to_currency', 'NGN')->latest()->value('effective_rate')
+            return FxRate::where('from_currency', 'USD')->where('to_currency', 'NGN')->latest()->value('effective_rate')
                 // Fallback to any latest effective rate if specific pair not found, or a default
                 ?? 1500;
         });

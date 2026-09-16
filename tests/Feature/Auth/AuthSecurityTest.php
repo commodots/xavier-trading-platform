@@ -3,8 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use App\Models\ActivityLog;
-use App\Models\UserDevice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -22,7 +20,7 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('password123')]);
 
         $response = $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
@@ -34,12 +32,12 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('password123')]);
 
         $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'wrongpassword',
         ]);
 
         $this->assertDatabaseHas('activity_logs', [
-            'user_id'  => $user->id,
+            'user_id' => $user->id,
             'activity' => 'Failed Login',
         ]);
     }
@@ -49,12 +47,12 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('password123')]);
 
         $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
         $this->assertDatabaseHas('activity_logs', [
-            'user_id'  => $user->id,
+            'user_id' => $user->id,
             'activity' => 'Login',
         ]);
     }
@@ -64,7 +62,7 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('password123')]);
 
         $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
@@ -74,13 +72,13 @@ class AuthSecurityTest extends TestCase
     public function test_login_requires_2fa_when_enabled(): void
     {
         $user = User::factory()->create([
-            'password'          => Hash::make('password123'),
+            'password' => Hash::make('password123'),
             'google2fa_enabled' => true,
-            'google2fa_secret'  => 'JBSWY3DPEHPK3PXP',
+            'google2fa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
         $response = $this->postJson('/api/login', [
-            'email'    => $user->email,
+            'email' => $user->email,
             'password' => 'password123',
         ]);
 
@@ -121,7 +119,7 @@ class AuthSecurityTest extends TestCase
 
         $this->assertEquals(2, $user->tokens()->count());
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $currentToken->plainTextToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$currentToken->plainTextToken)
             ->postJson('/api/user/sessions/logout-others');
 
         $response->assertStatus(200)->assertJsonPath('success', true);
@@ -138,8 +136,8 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('OldPass123')]);
 
         $response = $this->actingAs($user)->putJson('/api/user/security/password', [
-            'current_password'      => 'OldPass123',
-            'password'              => 'NewPass456!',
+            'current_password' => 'OldPass123',
+            'password' => 'NewPass456!',
             'password_confirmation' => 'NewPass456!',
         ]);
 
@@ -152,8 +150,8 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('OldPass123')]);
 
         $response = $this->actingAs($user)->putJson('/api/user/security/password', [
-            'current_password'      => 'WrongPass',
-            'password'              => 'NewPass456!',
+            'current_password' => 'WrongPass',
+            'password' => 'NewPass456!',
             'password_confirmation' => 'NewPass456!',
         ]);
 
@@ -165,13 +163,13 @@ class AuthSecurityTest extends TestCase
         $user = User::factory()->create(['password' => Hash::make('OldPass123')]);
 
         $this->actingAs($user)->putJson('/api/user/security/password', [
-            'current_password'      => 'OldPass123',
-            'password'              => 'NewPass456!',
+            'current_password' => 'OldPass123',
+            'password' => 'NewPass456!',
             'password_confirmation' => 'NewPass456!',
         ]);
 
         $this->assertDatabaseHas('activity_logs', [
-            'user_id'  => $user->id,
+            'user_id' => $user->id,
             'activity' => 'Password Changed',
         ]);
     }
@@ -184,10 +182,10 @@ class AuthSecurityTest extends TestCase
 
         $this->assertEquals(2, $user->tokens()->count());
 
-        $this->withHeader('Authorization', 'Bearer ' . $currentToken->plainTextToken)
+        $this->withHeader('Authorization', 'Bearer '.$currentToken->plainTextToken)
             ->putJson('/api/user/security/password', [
-                'current_password'      => 'OldPass123',
-                'password'              => 'NewPass456!',
+                'current_password' => 'OldPass123',
+                'password' => 'NewPass456!',
                 'password_confirmation' => 'NewPass456!',
             ]);
 

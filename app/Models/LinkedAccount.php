@@ -7,11 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class LinkedAccount extends Model
 {
     protected $fillable = [
-        'user_id', 'type', 'currency','provider', 
-        'account_name', 'account_number', 'is_verified'
+        'user_id', 'type', 'currency', 'provider',
+        'account_name', 'account_number', 'is_verified',
     ];
 
-    
     protected $casts = [
         'is_verified' => 'boolean',
     ];

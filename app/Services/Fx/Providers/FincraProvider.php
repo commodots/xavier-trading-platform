@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 class FincraProvider implements FxProviderInterface
 {
     protected string $baseUrl;
+
     protected string $secretKey;
+
     protected string $mode;
 
     public function __construct()
@@ -25,13 +27,12 @@ class FincraProvider implements FxProviderInterface
             throw new \Exception('Fincra is not configured. Missing FINCRA_SECRET_KEY in .env');
         }
 
-        
         $businessId = config('services.fincra.business_id');
 
         $response = Http::withHeaders([
             'api-key' => $this->secretKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/quotes/generate', [
+        ])->post($this->baseUrl.'/quotes/generate', [
             'sourceCurrency' => strtoupper($from),
             'destinationCurrency' => strtoupper($to),
             'amount' => (string) $amount,
@@ -46,7 +47,7 @@ class FincraProvider implements FxProviderInterface
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
-            throw new \Exception('Fincra quote failed (HTTP ' . $response->status() . '): ' . $response->body());
+            throw new \Exception('Fincra quote failed (HTTP '.$response->status().'): '.$response->body());
         }
 
         $data = $response->json();
@@ -69,14 +70,13 @@ class FincraProvider implements FxProviderInterface
             throw new \Exception('Fincra is not configured. Missing FINCRA_SECRET_KEY in .env');
         }
 
-        
         $businessId = config('services.fincra.business_id');
 
         // Step 1: Generate a quote first
         $quoteResponse = Http::withHeaders([
             'api-key' => $this->secretKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/quotes/generate', [
+        ])->post($this->baseUrl.'/quotes/generate', [
             'sourceCurrency' => strtoupper($from),
             'destinationCurrency' => strtoupper($to),
             'amount' => (string) $amount,
@@ -91,13 +91,13 @@ class FincraProvider implements FxProviderInterface
                 'status' => $quoteResponse->status(),
                 'body' => $quoteResponse->body(),
             ]);
-            throw new \Exception('Fincra quote failed (HTTP ' . $quoteResponse->status() . '): ' . $quoteResponse->body());
+            throw new \Exception('Fincra quote failed (HTTP '.$quoteResponse->status().'): '.$quoteResponse->body());
         }
 
         $quoteData = $quoteResponse->json();
         $quoteReference = $quoteData['data']['reference'] ?? null;
 
-        if (!$quoteReference) {
+        if (! $quoteReference) {
             throw new \Exception('Fincra quote failed: No reference returned');
         }
 
@@ -105,10 +105,10 @@ class FincraProvider implements FxProviderInterface
         $convertResponse = Http::withHeaders([
             'api-key' => $this->secretKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/conversions/initiate', [
+        ])->post($this->baseUrl.'/conversions/initiate', [
             'business' => $businessId,
             'quoteReference' => $quoteReference,
-            'customerReference' => 'CUST-' . uniqid(),
+            'customerReference' => 'CUST-'.uniqid(),
         ]);
 
         if ($convertResponse->failed()) {
@@ -116,7 +116,7 @@ class FincraProvider implements FxProviderInterface
                 'status' => $convertResponse->status(),
                 'body' => $convertResponse->body(),
             ]);
-            throw new \Exception('Fincra convert failed (HTTP ' . $convertResponse->status() . '): ' . $convertResponse->body());
+            throw new \Exception('Fincra convert failed (HTTP '.$convertResponse->status().'): '.$convertResponse->body());
         }
 
         $convertData = $convertResponse->json();
@@ -126,7 +126,7 @@ class FincraProvider implements FxProviderInterface
             'status' => 'completed',
             'rate' => $quoteData['data']['rate'] ?? 0,
             'converted_amount' => $quoteData['data']['amountToReceive'] ?? 0,
-            'reference' => $convertData['data']['reference'] ?? 'FINCRA-' . strtoupper(uniqid()),
+            'reference' => $convertData['data']['reference'] ?? 'FINCRA-'.strtoupper(uniqid()),
             'quote_reference' => $quoteReference,
             'raw_response' => [
                 'quote' => $quoteData,
@@ -152,7 +152,7 @@ class FincraProvider implements FxProviderInterface
         try {
             // Use a lightweight check - hit the quotes endpoint with POST (same as actual usage)
             $businessId = config('services.fincra.business_id');
-            
+
             $payload = [
                 'sourceCurrency' => 'USD',
                 'destinationCurrency' => 'NGN',
@@ -160,17 +160,17 @@ class FincraProvider implements FxProviderInterface
                 'action' => 'send',
                 'transactionType' => 'conversion',
             ];
-            
-            // Add business ID 
+
+            // Add business ID
             if ($businessId) {
                 $payload['business'] = $businessId;
                 $payload['paymentDestination'] = 'fliqpay_wallet';
             }
-            
+
             $response = Http::timeout(10)->withHeaders([
                 'api-key' => $this->secretKey,
                 'Content-Type' => 'application/json',
-            ])->post($this->baseUrl . '/quotes/generate', $payload);
+            ])->post($this->baseUrl.'/quotes/generate', $payload);
 
             if ($response->successful()) {
                 $status = 'connected';
@@ -186,7 +186,7 @@ class FincraProvider implements FxProviderInterface
                 $message = 'Business not found. Configure FINCRA_BUSINESS_ID in .env with your actual business ID from Fincra dashboard.';
             } else {
                 $status = 'disconnected';
-                $message = 'Fincra returned HTTP ' . $response->status() . ': ' . $response->body();
+                $message = 'Fincra returned HTTP '.$response->status().': '.$response->body();
             }
         } catch (\Exception $e) {
             $status = 'disconnected';

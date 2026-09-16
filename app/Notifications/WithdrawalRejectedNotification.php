@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class WithdrawalRejectedNotification extends Notification
 {
-    public function __construct(private WithdrawalRequest $withdrawal)
-    {
-    }
+    public function __construct(private WithdrawalRequest $withdrawal) {}
 
     public function via($notifiable): array
     {
@@ -30,7 +28,7 @@ class WithdrawalRejectedNotification extends Notification
             ->subject('Withdrawal Request Rejected')
             ->greeting("Hello {$notifiable->first_name},")
             ->line("Your withdrawal request of {$this->withdrawal->currency} {$this->withdrawal->amount} has been rejected.")
-            ->line("Reason: Please contact support or check your account status for more details.")
+            ->line('Reason: Please contact support or check your account status for more details.')
             ->action('View Details', url('/dashboard/security/withdrawals'))
             ->line('If you have questions regarding this rejection, please reach out to our compliance team.');
     }
@@ -42,7 +40,7 @@ class WithdrawalRejectedNotification extends Notification
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
-            
+
             'type' => 'withdrawal',
             'title' => 'Withdrawal Rejected',
             'action' => 'View Withdrawal',

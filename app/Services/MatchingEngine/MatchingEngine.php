@@ -4,10 +4,11 @@ namespace App\Services\MatchingEngine;
 
 use App\Models\Order;
 use App\Models\Trade;
+use App\Services\ContractNote\ContractNoteService;
 use App\Services\PriceService;
+use App\Services\Settlement\CSCSSettlementSimulator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\Settlement\CSCSSettlementSimulator;
 
 class MatchingEngine
 {
@@ -26,10 +27,11 @@ class MatchingEngine
             // Lock the incoming order for processing
             $incomingOrder->lockForUpdate();
 
-            // For Dummy NGX: We simulate an immediate "Market Fill" 
+            // For Dummy NGX: We simulate an immediate "Market Fill"
             // at the current price from our PriceService.
             if (config('services.ngx.mode') === 'dummy') {
                 $this->executeDummyMatch($incomingOrder);
+
                 return;
             }
 
@@ -63,9 +65,8 @@ class MatchingEngine
 
         // Add the filled quantity
         $incoming->increment('filled_units', $qtyToFill);
-        
-        
-        $this->syncStatus($incoming); 
+
+        $this->syncStatus($incoming);
     }
 
     /**
@@ -82,7 +83,7 @@ class MatchingEngine
             ->orderBy('price', $incoming->side === 'buy' ? 'asc' : 'desc')
             ->lockForUpdate()
             ->get();
-            
+
         $settlementDate = now()->addDays(2);
 
         foreach ($matches as $counter) {
@@ -91,7 +92,7 @@ class MatchingEngine
                 break;
             }
 
-            if (!$this->priceMatch($incoming, $counter)) {
+            if (! $this->priceMatch($incoming, $counter)) {
                 continue;
             }
 
@@ -105,8 +106,8 @@ class MatchingEngine
                 'settlement_status' => 'pending',
                 'settlement_date' => $settlementDate->toDateString(),
             ]);
-            
-            app(\App\Services\ContractNote\ContractNoteService::class)->generate($trade);
+
+            app(ContractNoteService::class)->generate($trade);
             app(CSCSSettlementSimulator::class)->settleTrade($trade);
 
             $incoming->increment('filled_units', $qty);
@@ -120,7 +121,7 @@ class MatchingEngine
                 'buy_or_sell' => $incoming->side,
                 'incoming' => $incoming->id,
                 'counter' => $counter->id,
-                'qty' => $qty
+                'qty' => $qty,
             ]);
         }
     }

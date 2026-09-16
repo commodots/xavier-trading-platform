@@ -3,8 +3,8 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
 
 class AdminBroadcastNotification extends Notification
 {
@@ -16,8 +16,7 @@ class AdminBroadcastNotification extends Notification
         public bool $sendEmail = false,
         public bool $sendMessage = false,
         public string $type = 'info'
-    ) {
-    }
+    ) {}
 
     public function via($notifiable): array
     {

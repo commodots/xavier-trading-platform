@@ -3,8 +3,8 @@
 namespace App\Observers;
 
 use App\Models\KycProfile;
-use App\Services\KycService;
 use App\Notifications\KycStatusNotification;
+use App\Services\KycService;
 
 class KycProfileObserver
 {
@@ -47,6 +47,7 @@ class KycProfileObserver
     {
         //
     }
+
     public function saved(KycProfile $kyc): void
     {
         if (! $kyc->user) {
@@ -74,7 +75,7 @@ class KycProfileObserver
             // Only auto-upgrade based on available documents. Do not downgrade a manually assigned tier.
             if ($targetTier > 0 && $targetTier > (int) $kyc->tier) {
                 $tierSetting = KycService::getKycSetting($targetTier);
-                
+
                 KycProfile::withoutEvents(function () use ($kyc, $targetTier, $tierSetting) {
                     $kyc->update([
                         'tier' => $targetTier,

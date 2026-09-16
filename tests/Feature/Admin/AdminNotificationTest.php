@@ -2,11 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AdminNotificationLog;
-use App\Models\NotificationPreference;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Notifications\Notification;
 use Tests\TestCase;
 
 class AdminNotificationTest extends TestCase

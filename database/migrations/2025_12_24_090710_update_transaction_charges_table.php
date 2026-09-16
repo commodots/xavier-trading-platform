@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transaction_charges', function (Blueprint $table) {
-            
+
             $table->boolean('active')->default(true)->after('flat_fee');
         });
     }

@@ -94,7 +94,7 @@ class WalletFxOperationsTest extends TestCase
     public function test_reserve_insufficient_balance(): void
     {
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Insufficient cleared funds'); 
+        $this->expectExceptionMessage('Insufficient cleared funds');
 
         $this->wallet->reserve(2000);
     }
@@ -147,7 +147,7 @@ class WalletFxOperationsTest extends TestCase
     public function test_wallets_created_on_user_signup(): void
     {
         $newUser = User::factory()->create();
-        
+
         // Use fxWallet helper to ensure they are created/retrieved
         $ngnWallet = $newUser->fxWallet('NGN');
         $usdWallet = $newUser->fxWallet('USD');

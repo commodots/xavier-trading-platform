@@ -5,7 +5,6 @@ namespace App\Services\Reports;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
-use Illuminate\Support\Facades\DB;
 
 class AccountStatementService
 {
@@ -25,12 +24,12 @@ class AccountStatementService
             $query->where(function ($q) use ($wallet, $stockTickers) {
                 if ($wallet === 'USD') {
                     $q->where('asset', 'USD')
-                      ->orWhere(function ($sub) use ($stockTickers) {
-                          foreach ($stockTickers as $i => $ticker) {
-                              $method = $i === 0 ? 'where' : 'orWhere';
-                              $sub->$method('asset', $ticker);
-                          }
-                      });
+                        ->orWhere(function ($sub) use ($stockTickers) {
+                            foreach ($stockTickers as $i => $ticker) {
+                                $method = $i === 0 ? 'where' : 'orWhere';
+                                $sub->$method('asset', $ticker);
+                            }
+                        });
                 } else {
                     $q->where('asset', $wallet);
                 }
@@ -59,14 +58,14 @@ class AccountStatementService
             if (in_array($currency, $stockTickers)) {
                 $currency = 'USD';
             }
-            
+
             // Get balance for this specific currency before transaction
             $balanceBefore = $currencyBalances[$currency] ?? 0;
-            
+
             // Determine if this is an inflow or outflow
             $isInflow = in_array($transaction->type, ['deposit', 'credit', 'transfer_in']);
             $amount = (float) $transaction->amount;
-            
+
             // Update balance for this currency only
             if ($isInflow) {
                 $currencyBalances[$currency] = $balanceBefore + $amount;
@@ -79,8 +78,8 @@ class AccountStatementService
             $balanceAfter = $currencyBalances[$currency];
 
             // Track per-currency totals
-            $key = $isInflow ? 'in_' . $currency : 'out_' . $currency;
-            if (!isset($totals[$key])) {
+            $key = $isInflow ? 'in_'.$currency : 'out_'.$currency;
+            if (! isset($totals[$key])) {
                 $totals[$key] = 0;
             }
             $totals[$key] += $amount;
@@ -102,9 +101,9 @@ class AccountStatementService
         }
 
         $closingBalance = array_sum($currencyBalances);
-        
+
         // Set opening balance from the first transaction's balance_before
-        $openingBalance = !empty($ledger) ? $ledger[0]['balance_before'] : 0;
+        $openingBalance = ! empty($ledger) ? $ledger[0]['balance_before'] : 0;
 
         // Get current wallet balances
         $currentBalances = [];

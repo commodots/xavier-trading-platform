@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\KycService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Services\KycService;
 
 class KycProfile extends Model
 {

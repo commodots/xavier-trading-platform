@@ -10,7 +10,7 @@ class AuditService
 {
     /**
      * Log an action with the Spatie-style simple interface
-     * 
+     *
      * Usage: AuditService::log('Deposit Created', $deposit);
      *        AuditService::log('Withdrawal Approved', $withdrawal);
      *        AuditService::log('KYC Approved', $user);
@@ -22,7 +22,7 @@ class AuditService
     ): TransactionAudit {
         $entityType = $model ? class_basename($model) : 'system';
         $entityId = $model ? $model->getKey() : 0;
-        
+
         return TransactionAudit::create([
             'user_id' => auth()->id(),
             'action' => $action,
@@ -83,13 +83,13 @@ class AuditService
         mixed $newValue,
         array $metadata = []
     ): void {
-        self::log('update_' . $settingName, $user, "Changed {$settingName}");
+        self::log('update_'.$settingName, $user, "Changed {$settingName}");
     }
 
     /**
      * Get audit logs for a user
      */
-    public static function getLogsForUser(User $user, string $eventType = null, int $limit = 50)
+    public static function getLogsForUser(User $user, ?string $eventType = null, int $limit = 50)
     {
         $query = TransactionAudit::where('user_id', $user->id);
 

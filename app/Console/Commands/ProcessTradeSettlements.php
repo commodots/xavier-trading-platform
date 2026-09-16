@@ -2,10 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Order;
 use App\Services\SettlementService;
-use Carbon\Carbon;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class ProcessTradeSettlements extends Command
@@ -23,19 +22,20 @@ class ProcessTradeSettlements extends Command
     /**
      * Execute the console command.
      */
-        public function handle(SettlementService $settlementService)
+    public function handle(SettlementService $settlementService)
     {
         $today = now()->toDateString();
         $this->info("Starting settlement process for {$today}...");
 
-         // Get trades that are due for settlement today or were missed in previous days
+        // Get trades that are due for settlement today or were missed in previous days
         $orders = Order::whereHas('trades', function ($query) use ($today) {
             $query->where('settlement_status', 'pending')
-                  ->whereDate('settlement_date', '<=', $today);
+                ->whereDate('settlement_date', '<=', $today);
         })->get();
 
         if ($orders->isEmpty()) {
             $this->info("No pending settlements found for {$today}.");
+
             return 0;
         }
 
@@ -47,12 +47,13 @@ class ProcessTradeSettlements extends Command
                 $settlementService->settleOrder($order);
                 $this->info("Successfully settled Order ID: {$order->id}");
             } catch (\Exception $e) {
-                $this->error("Failed to settle Order ID {$order->id}: " . $e->getMessage());
-                Log::error("Settlement Error [Order: {$order->id}]: " . $e->getMessage());
+                $this->error("Failed to settle Order ID {$order->id}: ".$e->getMessage());
+                Log::error("Settlement Error [Order: {$order->id}]: ".$e->getMessage());
             }
         }
 
         $this->info('Settlement process completed!');
+
         return 0;
     }
 }

@@ -13,10 +13,10 @@ class FxRateController extends Controller
     {
 
         $user = auth()->user();
-        $isAdmin = $user && (in_array(strtolower($user->role ?? ''), ['admin', 'super-admin']) 
+        $isAdmin = $user && (in_array(strtolower($user->role ?? ''), ['admin', 'super-admin'])
                     || $user->hasRole(['super-admin', 'admin']));
 
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             return response()->json(['success' => false, 'message' => 'Forbidden: Admins only'], 403);
         }
 
@@ -51,11 +51,12 @@ class FxRateController extends Controller
             return response()->json(['error' => 'Unable to save FX rate'], 500);
         }
     }
+
     public function destroy($id)
     {
         $user = auth()->user();
         // Check if admin
-        if (!$user || !in_array(strtolower($user->role ?? ''), ['admin', 'super-admin'])) {
+        if (! $user || ! in_array(strtolower($user->role ?? ''), ['admin', 'super-admin'])) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 

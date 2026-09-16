@@ -2,6 +2,8 @@
 
 namespace App\Services\Fx;
 
+use App\Models\FxSetting;
+
 class FxService
 {
     public function __construct(
@@ -20,7 +22,8 @@ class FxService
 
     public function getProviderName(): string
     {
-        $setting = \App\Models\FxSetting::first();
+        $setting = FxSetting::first();
+
         return $setting ? $setting->provider : 'manual';
     }
 }

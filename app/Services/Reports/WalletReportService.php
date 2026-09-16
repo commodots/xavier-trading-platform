@@ -2,9 +2,9 @@
 
 namespace App\Services\Reports;
 
+use App\Models\Ledger;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
-use App\Models\Ledger;
 
 class WalletReportService
 {
@@ -36,7 +36,7 @@ class WalletReportService
         $paginator = $builder->paginate($perPage);
 
         return [
-            'data' => collect($paginator->items())->map(fn($wt) => [
+            'data' => collect($paginator->items())->map(fn ($wt) => [
                 'id' => $wt->id,
                 'user_id' => $wt->user_id,
                 'type' => $wt->type,
@@ -64,7 +64,7 @@ class WalletReportService
         $paginator = $builder->paginate($perPage);
 
         return [
-            'data' => collect($paginator->items())->map(fn($l) => [
+            'data' => collect($paginator->items())->map(fn ($l) => [
                 'id' => $l->id,
                 'user_id' => $l->user_id,
                 'amount' => $l->amount,

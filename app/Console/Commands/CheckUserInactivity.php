@@ -2,10 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use App\Models\User;
+use App\Notifications\InactivityWarningNotification;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CheckUserInactivity extends Command
 {
@@ -35,19 +36,20 @@ class CheckUserInactivity extends Command
 
         // Locate profiles whose last login activity or updated state is older than the threshold, ignoring already flagged records
         $inactiveUsers = User::where(function ($query) use ($thresholdDate) {
-                $query->where('last_active_at', '<', $thresholdDate)
-                      ->orWhereNull('last_active_at');
-            })
+            $query->where('last_active_at', '<', $thresholdDate)
+                ->orWhereNull('last_active_at');
+        })
             ->whereNotIn('subscription_status', ['inactive', 'suspended'])
             ->where('role', '!=', 'admin')
             ->get();
 
         if ($inactiveUsers->isEmpty()) {
             $this->info('No active accounts match the requested inactivity threshold bounds.');
+
             return Command::SUCCESS;
         }
 
-        $this->info("Flagging " . $inactiveUsers->count() . " inactive user accounts...");
+        $this->info('Flagging '.$inactiveUsers->count().' inactive user accounts...');
 
         foreach ($inactiveUsers as $user) {
             try {
@@ -57,18 +59,19 @@ class CheckUserInactivity extends Command
 
                     if ($diff >= 60) {
                         $user->update(['subscription_status' => 'inactive']);
-                        $user->notify(new \App\Notifications\InactivityWarningNotification($diff));
+                        $user->notify(new InactivityWarningNotification($diff));
                     } elseif ($diff >= 30) {
-                        $user->notify(new \App\Notifications\InactivityWarningNotification($diff));
+                        $user->notify(new InactivityWarningNotification($diff));
                     }
                 });
 
             } catch (\Throwable $e) {
-                Log::error("Failed to update inactivity records for User ID {$user->id}: " . $e->getMessage());
+                Log::error("Failed to update inactivity records for User ID {$user->id}: ".$e->getMessage());
             }
         }
 
         $this->info('Inactivity sweep execution sequence finished.');
+
         return Command::SUCCESS;
     }
 }

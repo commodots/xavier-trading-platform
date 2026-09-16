@@ -37,7 +37,7 @@ class ExpenseReportService extends BaseReportService
 
         // Get paginated results
         $paginator = $this->paginate($query, $request);
-        
+
         // Build table response with pagination metadata
         $tableResponse = [
             'data' => $paginator->getCollection()->all(),
@@ -95,7 +95,7 @@ class ExpenseReportService extends BaseReportService
 
         $rows = $query
             ->select(
-                DB::raw($this->monthExpression() . ' as period'),
+                DB::raw($this->monthExpression().' as period'),
                 DB::raw('SUM(amount) as total')
             )
             ->groupBy('period')
@@ -261,7 +261,7 @@ class ExpenseReportService extends BaseReportService
         // Date range - support both parameter naming conventions
         $startDate = $request->filled('date_from') ? $request->date_from : ($request->filled('start_date') ? $request->start_date : null);
         $endDate = $request->filled('date_to') ? $request->date_to : ($request->filled('end_date') ? $request->end_date : null);
-        
+
         if ($startDate) {
             $query->whereDate($dateColumn, '>=', $startDate);
         }

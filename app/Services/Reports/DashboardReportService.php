@@ -2,14 +2,13 @@
 
 namespace App\Services\Reports;
 
-use App\Models\User;
-use App\Models\Wallet;
-use App\Models\Transaction;
-use App\Models\WithdrawalRequest;
+use App\Models\KycProfile;
 use App\Models\Order;
 use App\Models\PlatformEarning;
-use App\Models\RevenueRecord;
-use App\Models\KycProfile;
+use App\Models\Transaction;
+use App\Models\User;
+use App\Models\Wallet;
+use App\Models\WithdrawalRequest;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -187,7 +186,7 @@ class DashboardReportService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($u) => [
+            ->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -205,7 +204,7 @@ class DashboardReportService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($t) => [
+            ->map(fn ($t) => [
                 'user' => $t->user?->name ?? 'N/A',
                 'amount' => $t->amount,
                 'method' => $t->asset ?? 'N/A',
@@ -221,7 +220,7 @@ class DashboardReportService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($w) => [
+            ->map(fn ($w) => [
                 'user' => $w->user?->name ?? 'N/A',
                 'amount' => $w->amount,
                 'status' => $w->status,
@@ -236,7 +235,7 @@ class DashboardReportService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($o) => [
+            ->map(fn ($o) => [
                 'user' => $o->user?->name ?? 'N/A',
                 'plan' => $o->market ?? $o->symbol ?? 'N/A',
                 'amount' => $o->amount ?? ($o->price * $o->quantity),

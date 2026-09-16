@@ -52,24 +52,20 @@ class TradingExecutionService
 
             $reservation = $this->reserveLocalState($user, $data);
 
+            $providerData = [
+                ...$data,
+
+                'market_id' => $account->market_id,
+
+                'market_account_id' => $account->market_account_id,
+
+                'client_reference' => $clientReference,
+            ];
+
             $providerResult =
                 $data['side'] === 'buy'
-                    ? $this->broker->buy([
-                        ...$data,
-
-                        'market_id' => $account->market_id,
-
-                        'market_account_id' => $account->market_account_id,
-                        'xavier_client_reference' => $clientReference,
-                    ])
-                    : $this->broker->sell([
-                        ...$data,
-
-                        'market_id' => $account->market_id,
-
-                        'market_account_id' => $account->market_account_id,
-                        'xavier_client_reference' => $clientReference,
-                    ]);
+                ? $this->broker->buy($providerData)
+                : $this->broker->sell($providerData);
 
             $providerStatus = $providerResult['status'] ?? 'pending';
 
@@ -110,7 +106,7 @@ class TradingExecutionService
 
                 'status' => $this->mapStatus(
                     $providerResult['status']
-                    ?? 'pending'
+                        ?? 'pending'
                 ),
 
                 'market' => 'NGX',
@@ -119,9 +115,7 @@ class TradingExecutionService
 
                 'provider' => 'csl',
 
-                'provider_order_id' => $providerResult[
-                        'provider_order_id'
-                    ] ?? null,
+                'provider_order_id' => $providerResult['provider_order_id'] ?? null,
 
                 'provider_client_reference' => $clientReference,
 

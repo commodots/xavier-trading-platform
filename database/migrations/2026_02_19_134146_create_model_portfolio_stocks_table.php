@@ -10,15 +10,15 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('model_portfolio_stocks', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('model_portfolio_id')->constrained()->onDelete('cascade');
-        $table->string('symbol');
-        $table->decimal('allocation_percentage', 5,2);
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('model_portfolio_stocks', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('model_portfolio_id')->constrained()->onDelete('cascade');
+            $table->string('symbol');
+            $table->decimal('allocation_percentage', 5, 2);
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

@@ -25,7 +25,7 @@ class DojahProvider implements KycProviderInterface
      */
     protected function url(string $path): string
     {
-        return rtrim(config('services.dojah.base_url', 'https://api.dojah.io'), '/') . $path;
+        return rtrim(config('services.dojah.base_url', 'https://api.dojah.io'), '/').$path;
     }
 
     /**
@@ -85,7 +85,7 @@ class DojahProvider implements KycProviderInterface
         try {
             $base64Image = $data['image'] ?? $data['base64_image'] ?? null;
 
-            if (!$base64Image) {
+            if (! $base64Image) {
                 return [
                     'success' => false,
                     'message' => 'Image data is required for face verification.',

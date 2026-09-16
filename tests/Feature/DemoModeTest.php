@@ -2,11 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Demo\DemoWallet;
 use App\Models\Demo\DemoOrder;
 use App\Models\Demo\DemoPortfolio;
-use App\Models\Demo\DemoTransaction;
+use App\Models\Demo\DemoWallet;
+use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,47 +19,47 @@ class DemoModeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create a user and their associated wallets
         $this->user = User::factory()->create([
             'trading_mode' => 'live', // Default to live mode
         ]);
 
         // Create live wallets
-        
+
         Wallet::create([
             'user_id' => $this->user->id,
             'currency' => 'NGN',
             'balance' => 0,
             'locked' => 0,
             'ngn_cleared' => 0,
-            'ngn_uncleared' => 0
+            'ngn_uncleared' => 0,
         ]);
-        
+
         Wallet::create([
             'user_id' => $this->user->id,
             'currency' => 'USD',
             'balance' => 0,
             'locked' => 0,
             'usd_cleared' => 0,
-            'usd_uncleared' => 0
+            'usd_uncleared' => 0,
         ]);
 
         // Create a single demo wallet record with initial funding for both currencies
-       
+
         DemoWallet::create([
             'user_id' => $this->user->id,
             'currency' => 'NGN',
             'balance' => 1000000,
             'ngn_cleared' => 1000000,
-            'status' => 'active'
+            'status' => 'active',
         ]);
         DemoWallet::create([
             'user_id' => $this->user->id,
             'currency' => 'USD',
             'balance' => 10000,
             'usd_cleared' => 10000,
-            'status' => 'active'
+            'status' => 'active',
         ]);
     }
 
@@ -118,7 +117,7 @@ class DemoModeTest extends TestCase
             ->assertJson([
                 'success' => true,
                 'is_demo' => true,
-                'message' => "Demo account instantly funded! Successfully deposited ₦".number_format($fundingAmount, 2)." into your NGN wallet.",
+                'message' => 'Demo account instantly funded! Successfully deposited ₦'.number_format($fundingAmount, 2).' into your NGN wallet.',
             ]);
 
         $newBalance = DemoWallet::where('user_id', $this->user->id)->where('currency', 'NGN')->value('balance');
@@ -171,14 +170,14 @@ class DemoModeTest extends TestCase
     public function test_portfolio_endpoint_returns_demo_data_in_demo_mode(): void
     {
         DemoPortfolio::create([
-            'user_id' => $this->user->id, 
+            'user_id' => $this->user->id,
             'symbol' => 'DEMOSTOCK',
             'name' => 'Demo Stock',
             'quantity' => 10,
             'cleared_quantity' => 10,
             'avg_price' => 100,
             'category' => 'local',
-            'currency' => 'NGN'
+            'currency' => 'NGN',
         ]);
         $this->user->update(['trading_mode' => 'demo']);
         $this->actingAs($this->user);
@@ -191,14 +190,14 @@ class DemoModeTest extends TestCase
     public function test_portfolio_endpoint_returns_live_data_in_live_mode(): void
     {
         DemoPortfolio::create([
-            'user_id' => $this->user->id, 
+            'user_id' => $this->user->id,
             'symbol' => 'DEMOSTOCK',
             'name' => 'Demo Stock',
             'quantity' => 10,
             'cleared_quantity' => 10,
             'avg_price' => 100,
             'category' => 'local',
-            'currency' => 'NGN'
+            'currency' => 'NGN',
         ]);
         $this->actingAs($this->user); // User is in 'live' mode by default
 
@@ -220,10 +219,10 @@ class DemoModeTest extends TestCase
             'quantity' => 1,
             'price' => 100,
             'market_price' => 100,
-            'currency' => 'NGN'
+            'currency' => 'NGN',
         ]);
         DemoPortfolio::create([
-            'user_id' => $this->user->id, 
+            'user_id' => $this->user->id,
             'symbol' => 'TEST',
             'name' => 'Test Stock',
             'quantity' => 5,

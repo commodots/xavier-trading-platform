@@ -31,12 +31,14 @@ class PortfolioService
             $portfolio->decrement('units', $qty);
         }
     }
-	public function postTrade(Trade $trade): void
+
+    public function postTrade(Trade $trade): void
     {
         $order = $trade->order;
 
         if ($order->side === 'sell') {
             $this->decreaseHolding($order->user_id, $order->symbol, $trade->quantity);
+
             return;
         }
 
@@ -56,7 +58,7 @@ class PortfolioService
             ->where('symbol', $symbol)
             ->first();
 
-        if (!$portfolio) {
+        if (! $portfolio) {
             return [
                 'quantity' => $trade->quantity,
                 'avg_price' => $trade->price,

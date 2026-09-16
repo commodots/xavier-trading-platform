@@ -2,14 +2,11 @@
 
 namespace App\Services\Reports;
 
-use App\Models\User;
-use Illuminate\Support\Facades\DB;
-
 class ReferralReportService
 {
     public function summary(): array
     {
-        
+
         return [
             ['label' => 'Total Referrals', 'value' => 0, 'icon' => 'users', 'color' => '#0047AB'],
             ['label' => 'Successful', 'value' => 0, 'icon' => 'check-circle', 'color' => '#10B981'],

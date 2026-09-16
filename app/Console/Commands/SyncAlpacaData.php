@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Providers\AlpacaProvider;
 use App\Models\Order;
 use App\Models\Position;
+use App\Providers\AlpacaProvider;
 use Illuminate\Console\Command;
 
 class SyncAlpacaData extends Command

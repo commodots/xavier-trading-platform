@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 class PaystackService implements PaymentGateway
 {
     private string $secretKey;
+
     private string $publicKey;
+
     private string $baseUrl;
 
     public function __construct()
@@ -35,7 +37,7 @@ class PaystackService implements PaymentGateway
             if ($response->failed()) {
                 Log::error('Paystack transfer failed', [
                     'error' => $result,
-                    'data' => $data
+                    'data' => $data,
                 ]);
 
                 return [
@@ -54,7 +56,7 @@ class PaystackService implements PaymentGateway
         } catch (\Exception $e) {
             Log::error('Paystack transfer exception', [
                 'error' => $e->getMessage(),
-                'data' => $data
+                'data' => $data,
             ]);
 
             return [
@@ -78,7 +80,7 @@ class PaystackService implements PaymentGateway
             if ($response->failed()) {
                 Log::error('Paystack virtual account creation failed', [
                     'error' => $result,
-                    'data' => $data
+                    'data' => $data,
                 ]);
 
                 return [
@@ -96,7 +98,7 @@ class PaystackService implements PaymentGateway
         } catch (\Exception $e) {
             Log::error('Paystack virtual account creation exception', [
                 'error' => $e->getMessage(),
-                'data' => $data
+                'data' => $data,
             ]);
 
             return [
@@ -116,7 +118,7 @@ class PaystackService implements PaymentGateway
 
             if ($response->failed()) {
                 Log::error('Paystack balance check failed', [
-                    'error' => $result
+                    'error' => $result,
                 ]);
 
                 return [
@@ -134,7 +136,7 @@ class PaystackService implements PaymentGateway
             ];
         } catch (\Exception $e) {
             Log::error('Paystack balance check exception', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
@@ -167,7 +169,7 @@ class PaystackService implements PaymentGateway
             if ($response->failed()) {
                 Log::error('Paystack payment initialization failed', [
                     'error' => $result,
-                    'data' => $data
+                    'data' => $data,
                 ]);
 
                 return [
@@ -185,7 +187,7 @@ class PaystackService implements PaymentGateway
         } catch (\Exception $e) {
             Log::error('Paystack payment initialization exception', [
                 'error' => $e->getMessage(),
-                'data' => $data
+                'data' => $data,
             ]);
 
             return [
@@ -209,7 +211,7 @@ class PaystackService implements PaymentGateway
             if ($response->failed()) {
                 Log::error('Paystack payment verification failed', [
                     'error' => $result,
-                    'reference' => $reference
+                    'reference' => $reference,
                 ]);
 
                 return [
@@ -229,7 +231,7 @@ class PaystackService implements PaymentGateway
         } catch (\Exception $e) {
             Log::error('Paystack payment verification exception', [
                 'error' => $e->getMessage(),
-                'reference' => $reference
+                'reference' => $reference,
             ]);
 
             return [

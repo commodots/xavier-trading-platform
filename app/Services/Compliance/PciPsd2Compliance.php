@@ -2,6 +2,7 @@
 
 namespace App\Services\Compliance;
 
+use App\Models\NewTransaction;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
@@ -68,7 +69,7 @@ class PciPsd2Compliance
     {
         $dailyLimitNgn = 10000000; // NGN 10M per day
 
-        $usedToday = \App\Models\NewTransaction::where('user_id', $user->id)
+        $usedToday = NewTransaction::where('user_id', $user->id)
             ->where('type', $transactionType)
             ->where('status', 'completed')
             ->whereDate('created_at', now()->toDateString())
@@ -85,7 +86,7 @@ class PciPsd2Compliance
     public static function isSuspiciousActivity(User $user, array $transactionData): bool
     {
         $amount = $transactionData['amount'] ?? 0;
-        $userAvgTransaction = \App\Models\NewTransaction::where('user_id', $user->id)
+        $userAvgTransaction = NewTransaction::where('user_id', $user->id)
             ->where('type', $transactionData['type'] ?? 'withdrawal')
             ->avg('amount') ?? 0;
 

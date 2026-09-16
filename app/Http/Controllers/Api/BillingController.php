@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\BillingRecord;
 use App\Models\SubscriptionPlan;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class BillingController extends Controller
@@ -25,7 +25,7 @@ class BillingController extends Controller
                 'subscription_status' => $user->subscription_status,
                 'current_tier' => $user->current_tier,
                 'next_fee_due_at' => $user->next_fee_due_at ? $user->next_fee_due_at->toIso8601String() : null,
-            ]
+            ],
         ]);
     }
 
@@ -40,7 +40,7 @@ class BillingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $records
+            'data' => $records,
         ]);
     }
 
@@ -54,14 +54,14 @@ class BillingController extends Controller
         if ($user->wallet_debt <= 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Your account has no outstanding debt balance.'
+                'message' => 'Your account has no outstanding debt balance.',
             ], 400);
         }
 
         if ($user->wallet_balance < $user->wallet_debt) {
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient wallet balance to clear total debt. Please fund your wallet first.'
+                'message' => 'Insufficient wallet balance to clear total debt. Please fund your wallet first.',
             ], 402);
         }
 
@@ -72,7 +72,7 @@ class BillingController extends Controller
             $user->decrement('wallet_balance', $debtPaid);
             $user->update([
                 'wallet_debt' => 0,
-                'subscription_status' => 'active' // Restore visibility access instantly
+                'subscription_status' => 'active', // Restore visibility access instantly
             ]);
 
             // Append auditing historical record row
@@ -81,13 +81,13 @@ class BillingController extends Controller
                 'amount' => $debtPaid,
                 'type' => 'wallet_topup',
                 'status' => 'paid',
-                'reference' => 'DEBT_CLEAR_' . uniqid()
+                'reference' => 'DEBT_CLEAR_'.uniqid(),
             ]);
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Debt cleared successfully. Full account access has been restored.'
+            'message' => 'Debt cleared successfully. Full account access has been restored.',
         ]);
     }
 
@@ -97,7 +97,7 @@ class BillingController extends Controller
     public function purchasePlan(Request $request)
     {
         $request->validate([
-            'subscription_plan_id' => 'required|exists:subscription_plans,id'
+            'subscription_plan_id' => 'required|exists:subscription_plans,id',
         ]);
 
         $user = $request->user();
@@ -106,7 +106,7 @@ class BillingController extends Controller
         if ($user->wallet_balance < $plan->price) {
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient wallet balance to complete plan purchase.'
+                'message' => 'Insufficient wallet balance to complete plan purchase.',
             ], 402);
         }
 
@@ -123,14 +123,14 @@ class BillingController extends Controller
             $user->subscriptions()->create([
                 'subscription_plan_id' => $plan->id,
                 'expires_at' => now()->addMonth(),
-                'status' => 'active'
+                'status' => 'active',
             ]);
 
             // Synchronize primary user attributes
             $user->update([
                 'subscription_status' => 'active',
                 'next_fee_due_at' => now()->addMonth(),
-                'last_fee_charged_at' => now()
+                'last_fee_charged_at' => now(),
             ]);
 
             // Audit ledger tracking trail entry
@@ -139,13 +139,13 @@ class BillingController extends Controller
                 'amount' => $plan->price,
                 'type' => 'subscription_fee',
                 'status' => 'paid',
-                'reference' => 'SUB_BUY_' . uniqid()
+                'reference' => 'SUB_BUY_'.uniqid(),
             ]);
         });
 
         return response()->json([
             'success' => true,
-            'message' => "Successfully subscribed to the {$plan->name} tier."
+            'message' => "Successfully subscribed to the {$plan->name} tier.",
         ]);
     }
 }

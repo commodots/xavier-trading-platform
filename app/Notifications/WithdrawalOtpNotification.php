@@ -35,15 +35,15 @@ class WithdrawalOtpNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-       return (new MailMessage)
+        return (new MailMessage)
             ->subject('Withdrawal Verification Code')
             ->greeting('Hello!')
             ->line('You requested a withdrawal from your wallet.')
             ->line('Your verification code is:')
-            ->line('**' . $this->otp . '**') // Bolding the OTP
+            ->line('**'.$this->otp.'**') // Bolding the OTP
             ->line('This code will expire in 5 minutes.')
             ->line('If you did not initiate this, please ignore this email.');
-    
+
     }
 
     /**

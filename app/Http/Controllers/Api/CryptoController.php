@@ -62,7 +62,7 @@ class CryptoController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if (!$wallet || $wallet->usd_cleared < $amount) {
+            if (! $wallet || $wallet->usd_cleared < $amount) {
                 throw new \Exception('Insufficient balance');
             }
 
@@ -81,7 +81,7 @@ class CryptoController extends Controller
         try {
             $result = app(TatumService::class)->withdraw($toAddress, $amount, $privateKey);
             $transaction->update(['status' => 'completed', 'tx_hash' => $result['txId'] ?? null]);
-            
+
             return response()->json(['success' => true, 'tx_hash' => $result['txId'] ?? null]);
         } catch (\Exception $e) {
             // Refund if external call fails — restore BOTH the cleared balance and
@@ -99,6 +99,7 @@ class CryptoController extends Controller
 
                 $transaction->update(['status' => 'failed']);
             });
+
             return response()->json(['success' => false, 'message' => 'Withdrawal failed'], 500);
         }
     }

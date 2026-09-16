@@ -6,16 +6,16 @@ use App\Exceptions\InsufficientBalanceException;
 use App\Exceptions\WithdrawalLimitExceededException;
 use App\Models\Ledger;
 use App\Models\User;
-use App\Models\WithdrawalRequest;
 use App\Models\WithdrawalLimit;
-use App\Notifications\NewDeviceLoginNotification;
+use App\Models\WithdrawalRequest;
 use App\Notifications\WithdrawalApprovedNotification;
 use App\Notifications\WithdrawalInitiated;
-use App\Notifications\WithdrawalRejectedNotification;
 use App\Notifications\WithdrawalOtpNotification;
+use App\Notifications\WithdrawalRejectedNotification;
 use App\Services\Audit\AuditService;
 use Exception;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class WithdrawalService
 {
@@ -37,7 +37,7 @@ class WithdrawalService
         // Use the correct currency wallet — not $user->wallet which returns a collection
         $wallet = $user->wallet()->where('currency', $currency)->first();
 
-        if (!$wallet) {
+        if (! $wallet) {
             throw new Exception("No {$currency} wallet found.");
         }
 
@@ -53,8 +53,8 @@ class WithdrawalService
             'daily_limit_usd' => 2500,
         ]);
 
-        if (!$limit->canWithdraw($currency, $amount)) {
-            throw new WithdrawalLimitExceededException();
+        if (! $limit->canWithdraw($currency, $amount)) {
+            throw new WithdrawalLimitExceededException;
         }
 
         // Create withdrawal request
@@ -131,7 +131,7 @@ class WithdrawalService
         $withdrawal->reject($approver->id, $reason);
 
         // Refund daily limit counter atomically inside a transaction
-        \Illuminate\Support\Facades\DB::transaction(function () use ($withdrawal) {
+        DB::transaction(function () use ($withdrawal) {
             WithdrawalLimit::where('user_id', $withdrawal->user_id)->each(function ($limit) use ($withdrawal) {
                 $col = $withdrawal->currency === 'NGN' ? 'daily_withdrawn_ngn' : 'daily_withdrawn_usd';
                 $limit->$col = max(0, $limit->$col - $withdrawal->amount);
@@ -174,7 +174,7 @@ class WithdrawalService
         $withdrawal->update(['status' => 'failed']);
 
         // Refund daily limit counter atomically inside a transaction
-        \Illuminate\Support\Facades\DB::transaction(function () use ($withdrawal) {
+        DB::transaction(function () use ($withdrawal) {
             WithdrawalLimit::where('user_id', $withdrawal->user_id)->each(function ($limit) use ($withdrawal) {
                 $col = $withdrawal->currency === 'NGN' ? 'daily_withdrawn_ngn' : 'daily_withdrawn_usd';
                 $limit->$col = max(0, $limit->$col - $withdrawal->amount);
@@ -194,7 +194,7 @@ class WithdrawalService
      */
     private function deductFromWallet(WithdrawalRequest $withdrawal): void
     {
-        \Illuminate\Support\Facades\DB::transaction(function () use ($withdrawal) {
+        DB::transaction(function () use ($withdrawal) {
             $wallet = $withdrawal->user
                 ->wallet()
                 ->where('currency', $withdrawal->currency)
@@ -253,6 +253,7 @@ class WithdrawalService
         }
 
         Cache::forget($cacheKey);
+
         return true;
     }
 

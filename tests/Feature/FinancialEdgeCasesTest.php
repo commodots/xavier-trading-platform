@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\FxConfig;
 use App\Models\FxRate;
-use App\Models\SystemSetting;
-use App\Models\TransactionCharge;
 use App\Models\NewTransaction;
+use App\Models\TransactionCharge;
 use App\Models\User;
-use App\Models\Wallet;
 use App\Models\WithdrawalLimit;
 use App\Services\FxEngine;
 use App\Services\TransactionService;
@@ -24,11 +23,11 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_fx_engine_applies_markup_to_base_rate(): void
     {
-        \App\Models\FxConfig::create([
+        FxConfig::create([
             'target_margin_percent' => 2,
-            'min_markup'            => 1,
-            'max_markup'            => 5,
-            'volatility_threshold'  => 10,
+            'min_markup' => 1,
+            'max_markup' => 5,
+            'volatility_threshold' => 10,
         ]);
 
         FxRate::create(['from_currency' => 'USD', 'to_currency' => 'NGN', 'base_rate' => 1500, 'effective_rate' => 1530]);
@@ -56,11 +55,11 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_fx_engine_clamps_markup_to_max(): void
     {
-        \App\Models\FxConfig::create([
+        FxConfig::create([
             'target_margin_percent' => 5,
-            'min_markup'            => 1,
-            'max_markup'            => 5,
-            'volatility_threshold'  => 0, // Always triggers +1 volatility
+            'min_markup' => 1,
+            'max_markup' => 5,
+            'volatility_threshold' => 0, // Always triggers +1 volatility
         ]);
 
         // Seed 5 rates with high spread to trigger volatility
@@ -80,8 +79,8 @@ class FinancialEdgeCasesTest extends TestCase
 
         FxRate::create([
             'from_currency' => 'NGN',
-            'to_currency'   => 'USD',
-            'base_rate'     => 1500,
+            'to_currency' => 'USD',
+            'base_rate' => 1500,
             'effective_rate' => 1500,
         ]);
 
@@ -98,8 +97,8 @@ class FinancialEdgeCasesTest extends TestCase
 
         FxRate::create([
             'from_currency' => 'NGN',
-            'to_currency'   => 'USD',
-            'base_rate'     => 0,
+            'to_currency' => 'USD',
+            'base_rate' => 0,
             'effective_rate' => 0,
         ]);
 
@@ -117,18 +116,18 @@ class FinancialEdgeCasesTest extends TestCase
         // 200% fee — should be clamped to the transaction amount itself
         TransactionCharge::create([
             'transaction_type' => 'deposit',
-            'charge_type'      => 'percentage',
-            'value'            => 200,
-            'active'           => true,
+            'charge_type' => 'percentage',
+            'value' => 200,
+            'active' => true,
         ]);
 
         $user = User::factory()->create();
-        $tx   = NewTransaction::create([
-            'user_id'  => $user->id,
-            'type'     => 'deposit',
-            'amount'   => 1000,
+        $tx = NewTransaction::create([
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'amount' => 1000,
             'currency' => 'NGN',
-            'status'   => 'pending',
+            'status' => 'pending',
         ]);
 
         TransactionService::applyFees($tx);
@@ -145,12 +144,12 @@ class FinancialEdgeCasesTest extends TestCase
     {
         // No charge config = 0 fee
         $user = User::factory()->create();
-        $tx   = NewTransaction::create([
-            'user_id'  => $user->id,
-            'type'     => 'deposit',
-            'amount'   => 5000,
+        $tx = NewTransaction::create([
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'amount' => 5000,
             'currency' => 'NGN',
-            'status'   => 'pending',
+            'status' => 'pending',
         ]);
 
         TransactionService::applyFees($tx);
@@ -162,25 +161,25 @@ class FinancialEdgeCasesTest extends TestCase
     {
         TransactionCharge::create([
             'transaction_type' => 'withdrawal',
-            'charge_type'      => 'flat',
-            'value'            => 500,
-            'active'           => true,
+            'charge_type' => 'flat',
+            'value' => 500,
+            'active' => true,
         ]);
 
         $user = User::factory()->create();
-        $tx   = NewTransaction::create([
-            'user_id'  => $user->id,
-            'type'     => 'withdrawal',
-            'amount'   => 10000,
+        $tx = NewTransaction::create([
+            'user_id' => $user->id,
+            'type' => 'withdrawal',
+            'amount' => 10000,
             'currency' => 'NGN',
-            'status'   => 'pending',
+            'status' => 'pending',
         ]);
 
         TransactionService::applyFees($tx);
 
         $this->assertDatabaseHas('platform_earnings', [
             'transaction_id' => $tx->id,
-            'amount'         => 500,
+            'amount' => 500,
         ]);
     }
 
@@ -190,14 +189,14 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_withdrawal_limit_resets_when_last_reset_was_yesterday(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $limit = WithdrawalLimit::create([
-            'user_id'             => $user->id,
-            'daily_limit_ngn'     => 500000,
-            'daily_limit_usd'     => 2500,
+            'user_id' => $user->id,
+            'daily_limit_ngn' => 500000,
+            'daily_limit_usd' => 2500,
             'daily_withdrawn_ngn' => 400000,
             'daily_withdrawn_usd' => 0,
-            'last_reset_at'       => now()->subDay(), // yesterday
+            'last_reset_at' => now()->subDay(), // yesterday
         ]);
 
         // canWithdraw should reset the counter and then allow
@@ -210,14 +209,14 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_withdrawal_limit_resets_when_last_reset_is_two_days_old(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $limit = WithdrawalLimit::create([
-            'user_id'             => $user->id,
-            'daily_limit_ngn'     => 500000,
-            'daily_limit_usd'     => 2500,
+            'user_id' => $user->id,
+            'daily_limit_ngn' => 500000,
+            'daily_limit_usd' => 2500,
             'daily_withdrawn_ngn' => 499000,
             'daily_withdrawn_usd' => 0,
-            'last_reset_at'       => now()->subDays(3),
+            'last_reset_at' => now()->subDays(3),
         ]);
 
         $result = $limit->canWithdraw('NGN', 300000);
@@ -229,14 +228,14 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_withdrawal_blocked_when_daily_limit_would_be_exceeded(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $limit = WithdrawalLimit::create([
-            'user_id'             => $user->id,
-            'daily_limit_ngn'     => 500000,
-            'daily_limit_usd'     => 2500,
+            'user_id' => $user->id,
+            'daily_limit_ngn' => 500000,
+            'daily_limit_usd' => 2500,
             'daily_withdrawn_ngn' => 450000,
             'daily_withdrawn_usd' => 0,
-            'last_reset_at'       => now(), // reset today already
+            'last_reset_at' => now(), // reset today already
         ]);
 
         $result = $limit->canWithdraw('NGN', 100000); // 450k + 100k = 550k > 500k
@@ -246,13 +245,13 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_withdrawal_blocked_during_cooldown(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $limit = WithdrawalLimit::create([
-            'user_id'         => $user->id,
+            'user_id' => $user->id,
             'daily_limit_ngn' => 500000,
             'daily_limit_usd' => 2500,
-            'last_reset_at'   => now(),
-            'cooldown_until'  => now()->addHours(12),
+            'last_reset_at' => now(),
+            'cooldown_until' => now()->addHours(12),
         ]);
 
         $result = $limit->canWithdraw('NGN', 1000);
@@ -262,14 +261,14 @@ class FinancialEdgeCasesTest extends TestCase
 
     public function test_withdrawal_allowed_after_cooldown_expires(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $limit = WithdrawalLimit::create([
-            'user_id'             => $user->id,
-            'daily_limit_ngn'     => 500000,
-            'daily_limit_usd'     => 2500,
+            'user_id' => $user->id,
+            'daily_limit_ngn' => 500000,
+            'daily_limit_usd' => 2500,
             'daily_withdrawn_ngn' => 0,
-            'last_reset_at'       => now(),
-            'cooldown_until'      => now()->subHour(), // expired
+            'last_reset_at' => now(),
+            'cooldown_until' => now()->subHour(), // expired
         ]);
 
         $result = $limit->canWithdraw('NGN', 10000);

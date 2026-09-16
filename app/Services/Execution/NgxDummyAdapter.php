@@ -11,9 +11,9 @@ class NgxDummyAdapter
     {
         // Immediate matching locally
         app(MatchingEngine::class)->process($order);
-		if (config('app.simulate_errors')) {
-			throw new \Exception('NGX gateway timeout');
-		}
+        if (config('app.simulate_errors')) {
+            throw new \Exception('NGX gateway timeout');
+        }
 
         return [
             'status' => 'accepted',

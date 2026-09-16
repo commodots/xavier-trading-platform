@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use App\Models\Order;
+use App\Models\Portfolio;
+use App\Models\Trade;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Models\Portfolio;
-use App\Models\Order;
-use App\Models\Trade;
 use App\Services\SettlementService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class SettlementTest extends TestCase
 {

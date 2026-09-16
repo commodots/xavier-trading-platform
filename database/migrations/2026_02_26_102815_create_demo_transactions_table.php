@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('demo_transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-             $table->enum('type', [
-            'deposit', 'withdrawal', 'buy_stock', 'sell_stock', 
-            'buy_crypto', 'sell_crypto', 'buy_global', 'sell_global', 
-            'currency_change'
-        ]);
+            $table->enum('type', [
+                'deposit', 'withdrawal', 'buy_stock', 'sell_stock',
+                'buy_crypto', 'sell_crypto', 'buy_global', 'sell_global',
+                'currency_change',
+            ]);
             $table->decimal('amount', 20, 2);
             $table->string('currency')->default('NGN');
             $table->decimal('charge', 15, 2)->nullable()->default(0);

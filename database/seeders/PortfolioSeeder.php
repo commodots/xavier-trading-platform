@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Portfolio;
 use App\Models\User;
 use Faker\Factory as Faker;
+use Illuminate\Database\Seeder;
 
 class PortfolioSeeder extends Seeder
 {
@@ -26,16 +26,15 @@ class PortfolioSeeder extends Seeder
         ];
 
         foreach ($users as $user) {
-         
+
             $userHoldings = $faker->randomElements($holdings, rand(3, 5));
 
             foreach ($userHoldings as $holding) {
-                
+
                 $quantity = ($holding['category'] === 'crypto')
                     ? $faker->randomFloat(4, 0.001, 0.5)
                     : $faker->numberBetween(10, 1000);
 
-                
                 $variation = $holding['base_price'] * 0.15;
                 $avgPrice = $faker->randomFloat(2, $holding['base_price'] - $variation, $holding['base_price'] + $variation);
 

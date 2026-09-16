@@ -1,9 +1,20 @@
 <?php
 
+use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\CheckAdvisoryAccess;
+use App\Http\Middleware\CheckSubscription;
+use App\Http\Middleware\EnsureEmailIsVerified;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\HandleUserLifecycle;
+use App\Http\Middleware\KycLevelMiddleware;
+use App\Http\Middleware\RateLimitSensitiveOperations;
+use App\Jobs\UpdatePortfolioPerformance;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
@@ -18,19 +29,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // --- Web Middleware Stack ---
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         // --- Middleware Aliases ---
         $middleware->alias([
-            'admin'                => \App\Http\Middleware\AdminMiddleware::class,
-            'verified'             => \App\Http\Middleware\EnsureEmailIsVerified::class,
-            'subscribed'           => \App\Http\Middleware\CheckSubscription::class,
-            'advisory.access'      => \App\Http\Middleware\CheckAdvisoryAccess::class,
-            'rate-limit-sensitive' => \App\Http\Middleware\RateLimitSensitiveOperations::class,
-            'kyc'                  => \App\Http\Middleware\KycLevelMiddleware::class,
-            '2fa'                   => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
+            'admin' => AdminMiddleware::class,
+            'verified' => EnsureEmailIsVerified::class,
+            'subscribed' => CheckSubscription::class,
+            'advisory.access' => CheckAdvisoryAccess::class,
+            'rate-limit-sensitive' => RateLimitSensitiveOperations::class,
+            'kyc' => KycLevelMiddleware::class,
+            '2fa' => EnsureTwoFactorEnabled::class,
         ]);
 
         // --- API Middleware Stack ---
@@ -40,7 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(append: [
-            \App\Http\Middleware\HandleUserLifecycle::class,
+            HandleUserLifecycle::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'api/*',
@@ -53,7 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer()
             ->appendOutputTo(storage_path('logs/settlements.log'));
 
-        $schedule->job(new \App\Jobs\UpdatePortfolioPerformance)
+        $schedule->job(new UpdatePortfolioPerformance)
             ->dailyAt('00:00')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/portfolio_performance.log'));

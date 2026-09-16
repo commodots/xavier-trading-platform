@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AdvisoryPost;
 use App\Models\SubscriptionPlan;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 
 class AdvisoryController extends Controller
@@ -114,7 +115,7 @@ class AdvisoryController extends Controller
             return response()->json(['success' => false, 'message' => "Subscription plan not found for tier: {$request->tier}"], 404);
         }
 
-        $days = \App\Models\SystemSetting::value('trial_days') ?? 7;
+        $days = SystemSetting::value('trial_days') ?? 7;
 
         $user->subscriptions()->create([
             'subscription_plan_id' => $plan->id,

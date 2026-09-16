@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class DummyNgxController extends Controller
 {
@@ -18,8 +18,10 @@ class DummyNgxController extends Controller
                 $addedDays++;
             }
         }
+
         return $date;
     }
+
     public function marketData($symbol)
     {
         return response()->json([
@@ -41,7 +43,7 @@ class DummyNgxController extends Controller
             'quantity' => 'required|numeric',
         ]);
 
-        $order_id = 'NGX' . rand(100, 999);
+        $order_id = 'NGX'.rand(100, 999);
         $trade_date = Carbon::now()->toDateString();
         $settlement_date = $this->addBusinessDays(Carbon::now(), 2)->toDateString();
 
@@ -82,16 +84,16 @@ class DummyNgxController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Settlement triggered for trade ' . $trade_id,
+            'message' => 'Settlement triggered for trade '.$trade_id,
         ]);
     }
 
     public function marketQuotes()
     {
         return response()->json([
-            'ZENITH' => ['symbol' => 'ZENITH', 'price' => rand(4000, 6000)/100],
-            'GTCO' => ['symbol' => 'GTCO', 'price' => rand(3000, 5500)/100],
-            'DANGCEM' => ['symbol' => 'DANGCEM', 'price' => rand(3000, 5500)/100],
+            'ZENITH' => ['symbol' => 'ZENITH', 'price' => rand(4000, 6000) / 100],
+            'GTCO' => ['symbol' => 'GTCO', 'price' => rand(3000, 5500) / 100],
+            'DANGCEM' => ['symbol' => 'DANGCEM', 'price' => rand(3000, 5500) / 100],
         ]);
     }
 

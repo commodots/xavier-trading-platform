@@ -15,14 +15,18 @@ class FxConversionController extends Controller
     protected function checkKycLevel()
     {
         $user = auth()->user();
-        
+
         // Demo mode bypass
-        if ($user->trading_mode === 'demo') return;
-        
+        if ($user->trading_mode === 'demo') {
+            return;
+        }
+
         // Admin bypass
         $role = strtolower($user->role ?? '');
-        if (str_contains($role, 'admin')) return;
-        
+        if (str_contains($role, 'admin')) {
+            return;
+        }
+
         $verificationLevel = (int) ($user->verification_level ?? 0);
         if ($verificationLevel < 2) {
             abort(403, 'Verification required. Please complete KYC level 2 to access FX conversion.');
@@ -32,7 +36,7 @@ class FxConversionController extends Controller
     public function quote(Request $request)
     {
         $this->checkKycLevel();
-        
+
         $request->validate([
             'from_currency' => 'required|string|size:3',
             'to_currency' => 'required|string|size:3',
@@ -56,7 +60,7 @@ class FxConversionController extends Controller
     public function convert(Request $request)
     {
         $this->checkKycLevel();
-        
+
         $request->validate([
             'from_currency' => 'required|string|size:3',
             'to_currency' => 'required|string|size:3',

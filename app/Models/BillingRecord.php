@@ -11,7 +11,7 @@ class BillingRecord extends Model
         'amount',
         'type',   // subscription_fee, wallet_topup, adjustment
         'status', // pending, paid, failed
-        'reference'
+        'reference',
     ];
 
     public function user()

@@ -11,6 +11,7 @@ class IndicatorService
         foreach ($candles as $i => $candle) {
             if ($i < $period) {
                 $result[] = null;
+
                 continue;
             }
 

@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('notifications', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->after('id') ->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->after('id')->constrained()->onDelete('cascade');
             $table->string('title')->nullable();
             $table->text('message');
-            $table->string('action')->nullable(); 
-            $table->string('action_url')->nullable(); 
-            $table->string('icon')->nullable(); 
+            $table->string('action')->nullable();
+            $table->string('action_url')->nullable();
+            $table->string('icon')->nullable();
             $table->json('metadata')->nullable(); // Additional data
 
             $table->index(['user_id', 'read_at']);
@@ -28,7 +28,5 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
-    {
-    }
+    public function down(): void {}
 };

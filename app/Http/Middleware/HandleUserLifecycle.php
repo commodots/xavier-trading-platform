@@ -11,7 +11,7 @@ class HandleUserLifecycle
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -39,7 +39,7 @@ class HandleUserLifecycle
         if ($user->subscription_status === 'suspended') {
             return response()->json([
                 'error' => 'Account suspended due to outstanding debt. Please fund your wallet.',
-                'debt' => $user->wallet_debt
+                'debt' => $user->wallet_debt,
             ], 403);
         }
 

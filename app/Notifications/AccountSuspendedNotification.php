@@ -44,10 +44,10 @@ class AccountSuspendedNotification extends Notification implements ShouldQueue
     public function toArray($notifiable): array
     {
         return [
-            'title'   => 'Account Suspended',
+            'title' => 'Account Suspended',
             'message' => "Your account has been suspended: {$this->reason}",
-            'type'    => 'account',
-            'action'  => 'Resolve Now',
+            'type' => 'account',
+            'action' => 'Resolve Now',
         ];
     }
 }

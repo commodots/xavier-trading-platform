@@ -89,12 +89,14 @@ class MarketService
             $cached = cache()->get('crypto_prices_last_known');
             if ($cached) {
                 Log::warning('CoinGecko API unavailable, using last-known cached prices');
+
                 return $cached;
             }
 
             // If no cached prices exist at all, return empty array to signal prices are unavailable.
             // Callers must check for empty prices and refuse to execute trades.
             Log::error('CoinGecko API unavailable and no cached prices exist');
+
             return [];
         });
     }
@@ -147,6 +149,7 @@ class MarketService
     public function isCryptoPair(string $symbolOrPair): bool
     {
         $symbol = strtoupper(explode('/', $symbolOrPair)[0]);
+
         return in_array($symbol, $this->getCryptoSymbols(), true) || str_contains($symbolOrPair, '/USDT');
     }
 
@@ -171,6 +174,7 @@ class MarketService
         ];
 
         $id = $map[strtoupper($symbol)] ?? null;
+
         return $id ? (float) ($prices[$id]['usd'] ?? 0.0) : 0.0;
     }
 }

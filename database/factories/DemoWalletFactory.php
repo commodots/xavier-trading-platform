@@ -3,10 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Demo\DemoWallet;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Demo\DemoWallet>
+ * @extends Factory<DemoWallet>
  */
 class DemoWalletFactory extends Factory
 {
@@ -20,7 +21,7 @@ class DemoWalletFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(),
+            'user_id' => User::factory(),
             'balance_ngn' => 1000000,
             'ngn_cleared' => 1000000,
             'ngn_uncleared' => 0,

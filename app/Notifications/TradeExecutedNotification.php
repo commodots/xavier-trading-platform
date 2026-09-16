@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class TradeExecutedNotification extends Notification
 {
-    public function __construct(private Trade $trade, private string $action)
-    {
-    }
+    public function __construct(private Trade $trade, private string $action) {}
 
     public function via($notifiable): array
     {
@@ -26,6 +24,7 @@ class TradeExecutedNotification extends Notification
     public function toMail($notifiable): MailMessage
     {
         $actionText = $this->action === 'open' ? 'opened' : 'closed';
+
         return (new MailMessage)
             ->subject("Trade Executed: {$this->trade->pair}")
             ->greeting("Hello {$notifiable->first_name},")
@@ -45,7 +44,7 @@ class TradeExecutedNotification extends Notification
         return [
             'user_id' => $notifiable->id,
             'message' => $textMessage,
-            
+
             'type' => 'trade',
             'title' => $title,
             'action' => 'View Trade',

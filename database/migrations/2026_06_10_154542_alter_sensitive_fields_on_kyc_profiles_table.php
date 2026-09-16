@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('kyc_profiles', function (Blueprint $table) {
-$table->text('bvn')->nullable()->change();
-$table->text('nin')->nullable()->change();
-$table->text('tin')->nullable()->change();
+            $table->text('bvn')->nullable()->change();
+            $table->text('nin')->nullable()->change();
+            $table->text('tin')->nullable()->change();
 
         });
     }

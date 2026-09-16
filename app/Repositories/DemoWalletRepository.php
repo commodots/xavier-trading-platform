@@ -14,7 +14,7 @@ class DemoWalletRepository
     public function createOrUpdate($userId, $data)
     {
 
-        if (isset($data['balance']) && !isset($data['ngn_cleared'])) {
+        if (isset($data['balance']) && ! isset($data['ngn_cleared'])) {
             $data['ngn_cleared'] = $data['balance'];
         }
 
@@ -36,8 +36,10 @@ class DemoWalletRepository
         }
 
         $wallet->save();
+
         return $wallet;
     }
+
     public function findByCurrency($userId, $currency)
     {
         return DemoWallet::where('user_id', $userId)

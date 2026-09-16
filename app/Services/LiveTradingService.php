@@ -30,8 +30,8 @@ class LiveTradingService
                 ->value('effective_rate');
         });
 
-        if (!$rate || $rate <= 0) {
-            throw new FxRateUnavailableException();
+        if (! $rate || $rate <= 0) {
+            throw new FxRateUnavailableException;
         }
 
         return (float) $rate;
@@ -50,6 +50,7 @@ class LiveTradingService
             return 1.0;
         }
     }
+
     public function executeTrade($user, array $data)
     {
         return DB::transaction(function () use ($user, $data) {
@@ -126,7 +127,7 @@ class LiveTradingService
                 }
             } else {
                 if ($holding && $holding->cleared_quantity < $units) {
-                    throw new InsufficientBalanceException($currency . ' holdings', $units, $holding->cleared_quantity);
+                    throw new InsufficientBalanceException($currency.' holdings', $units, $holding->cleared_quantity);
                 }
 
                 if ($holding) {
@@ -144,12 +145,12 @@ class LiveTradingService
             $tradeFee = round($actualCost * 0.01, 2);
             if ($tradeFee > 0 && $data['side'] === 'buy') {
                 $wallet->refresh();
-                if ($wallet->$clearedCol >= $tradeFee) {
+                if ($tradeFee <= $wallet->$clearedCol) {
                     $wallet->decrement($clearedCol, $tradeFee);
                 } else {
                     // Not enough cleared balance for fee — skip silently but log
                     Log::warning('LiveTradingService: insufficient balance for trade fee', [
-                        'user_id'   => $user->id,
+                        'user_id' => $user->id,
                         'trade_fee' => $tradeFee,
                         'available' => $wallet->$clearedCol,
                     ]);
@@ -158,7 +159,7 @@ class LiveTradingService
 
             // Recompute `balance` from its components (cleared + uncleared + locked).
             // The buy path debits `cleared` for the trade fee without touching
-            // `balance`, 
+            // `balance`,
             $wallet->refreshBalance();
 
             $order = Order::create([
@@ -173,10 +174,10 @@ class LiveTradingService
 
             if ($tradeFee > 0 && $data['side'] === 'buy') {
                 Fee::create([
-                    'user_id'  => $user->id,
-                    'trade_id' => null, 
-                    'amount'   => $tradeFee,
-                    'type'     => 'trade_fee',
+                    'user_id' => $user->id,
+                    'trade_id' => null,
+                    'amount' => $tradeFee,
+                    'type' => 'trade_fee',
                 ]);
             }
 
@@ -244,7 +245,7 @@ class LiveTradingService
         // fill in any symbols not already present (e.g. crypto bypasses Portfolio).
         $existingSymbols = $groupedHoldings->pluck('symbol')->flip();
         $additionalHoldings = collect($tradeHoldings)->filter(
-            fn ($h) => !isset($existingSymbols[$h['symbol'] ?? ''])
+            fn ($h) => ! isset($existingSymbols[$h['symbol'] ?? ''])
         );
         $holdings = $groupedHoldings->concat($additionalHoldings)->values();
 

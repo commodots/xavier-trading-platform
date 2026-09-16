@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('activity_logs', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->onDelete('cascade');
-        $table->string('activity'); 
-        $table->string('ip_address')->nullable();
-        $table->text('user_agent')->nullable(); 
-        $table->json('details')->nullable();
-        $table->timestamps();
-    });
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('activity');
+            $table->string('ip_address')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->json('details')->nullable();
+            $table->timestamps();
+        });
     }
 
     /**

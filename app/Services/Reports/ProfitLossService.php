@@ -2,10 +2,9 @@
 
 namespace App\Services\Reports;
 
-use App\Models\RevenueRecord;
-use App\Models\PlatformEarning;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\RevenueRecord;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +22,7 @@ class ProfitLossService
     public function generate(Request $request): array
     {
         $filters = $this->parseFilters($request);
+
         return [
             'income' => $this->income($filters),
             'expenses' => $this->expenses($filters),
@@ -78,7 +78,7 @@ class ProfitLossService
         $breakdown = ExpenseCategory::with(['expenses' => function ($q) use ($filters) {
             $q->whereIn('status', ['approved', 'paid']);
             $this->applyDateFilter($q, $filters);
-        }])->get()->map(fn($cat) => [
+        }])->get()->map(fn ($cat) => [
             'category' => $cat->name,
             'amount' => (float) $cat->expenses->sum('amount'),
             'currency' => $cat->expenses->first()?->currency ?? 'NGN',
@@ -176,10 +176,10 @@ class ProfitLossService
     {
         $dateField = $query->getModel() instanceof Expense ? 'expense_date' : 'record_date';
 
-        if (!empty($filters['start_date'])) {
+        if (! empty($filters['start_date'])) {
             $query->whereDate($dateField, '>=', $filters['start_date']);
         }
-        if (!empty($filters['end_date'])) {
+        if (! empty($filters['end_date'])) {
             $query->whereDate($dateField, '<=', $filters['end_date']);
         }
         if (empty($filters['start_date']) && empty($filters['end_date'])) {

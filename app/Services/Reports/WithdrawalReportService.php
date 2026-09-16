@@ -38,7 +38,7 @@ class WithdrawalReportService
         $paginator = $builder->paginate($perPage);
 
         return [
-            'data' => collect($paginator->items())->map(fn($w) => [
+            'data' => collect($paginator->items())->map(fn ($w) => [
                 'id' => $w->id,
                 'user' => $w->user?->name ?? 'N/A',
                 'amount' => $w->amount,

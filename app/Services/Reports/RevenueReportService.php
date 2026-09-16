@@ -72,7 +72,6 @@ class RevenueReportService extends BaseReportService
             $rows = $rows->concat($this->otherIncomeRows($request));
         }
 
-       
         if ($request->filled('search')) {
             $search = strtolower($request->search);
             $rows = $rows->filter(function ($row) use ($search) {
@@ -226,7 +225,6 @@ class RevenueReportService extends BaseReportService
         return RevenueRecord::query()->exists();
     }
 
-
     protected function normalize(
         string $source,
         $date,
@@ -258,7 +256,6 @@ class RevenueReportService extends BaseReportService
             default => ucwords(str_replace('_', ' ', $source)),
         };
     }
-
 
     protected function summary(Collection $rows, Request $request): array
     {
@@ -427,10 +424,8 @@ class RevenueReportService extends BaseReportService
         ];
     }
 
-
     /**
      * Total revenue for the current filters.
-     *
      */
     public function total(Request $request): float
     {
@@ -439,7 +434,6 @@ class RevenueReportService extends BaseReportService
 
     /**
      * Revenue grouped by month (YYYY-MM) for the current filters.
-     *
      */
     public function monthlyTotals(Request $request): array
     {

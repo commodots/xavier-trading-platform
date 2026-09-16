@@ -15,17 +15,18 @@ class KycSetting extends Model
         'tier',
         'tier_name',
         'daily_limit',
-        'required_documents'
+        'required_documents',
     ];
 
     protected $casts = [
         'daily_limit' => 'decimal:2',
-        'required_documents' => 'array'
+        'required_documents' => 'array',
     ];
 
     protected $attributes = [
-        'required_documents' => '[]'
+        'required_documents' => '[]',
     ];
+
     public static function getByTier(int $tier)
     {
         return self::where('tier', $tier)->first();

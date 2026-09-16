@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class PortfolioPerformanceLog extends Model
 {
     protected $fillable = [
-        'model_portfolio_id', 
-        'value', 
-        'return_percentage'
+        'model_portfolio_id',
+        'value',
+        'return_percentage',
     ];
 
     public function portfolio()

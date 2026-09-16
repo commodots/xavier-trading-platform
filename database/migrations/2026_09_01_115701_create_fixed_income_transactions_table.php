@@ -39,7 +39,7 @@ return new class extends Migration
 
             $table->index([
                 'fixed_income_investment_id',
-                'type'
+                'type',
             ]);
 
             $table->index('transaction_id');

@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\FxRate;
+use App\Models\Ledger;
 use App\Models\Wallet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use App\Models\Ledger;
-use App\Models\FxRate;
 
 class FxReconciliationController extends Controller
 {
@@ -44,11 +44,11 @@ class FxReconciliationController extends Controller
 
             //  Assuming platform holds user funds + platform profit
             $totalPlatformProfitUsd = Ledger::where('is_platform', true)->where('type', 'FX_MARKUP_PROFIT')->sum('amount');
-            $brokerBalance = $userLiability + $totalPlatformProfitUsd; 
+            $brokerBalance = $userLiability + $totalPlatformProfitUsd;
 
             $buffer = $brokerBalance - $userLiability;
 
-            //Get pending settlements from Ledger
+            // Get pending settlements from Ledger
             $pendingSettlements = Ledger::where('status', 'pending')
                 ->whereIn('type', ['FUND', 'FX_CONVERSION'])
                 ->count();
@@ -58,7 +58,7 @@ class FxReconciliationController extends Controller
                 ->where('type', 'FX_MARKUP_PROFIT')
                 ->whereDate('created_at', today())
                 ->sum('amount');
-                
+
             $rate = FxRate::latest()->value('base_rate') ?? 1500;
             $fxMarginNgnToday = $fxMarginUsdToday * $rate;
 
@@ -87,15 +87,16 @@ class FxReconciliationController extends Controller
                     'last_synced' => now(),
                     'last_checked' => now(),
                     'daily_fx_count' => $dailyFxCount,
-                    'fx_margin_today' => $fxMarginNgnToday, 
+                    'fx_margin_today' => $fxMarginNgnToday,
                 ],
             ]);
         } catch (\Exception $e) {
             Log::error('FX reconciliation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
             return response()->json([
-                'status' => 'error', 
+                'status' => 'error',
                 'message' => 'Unable to fetch reconciliation data.',
-                'debug' => config('app.debug') ? $e->getMessage() : null
+                'debug' => config('app.debug') ? $e->getMessage() : null,
             ], 422);
         }
     }
@@ -131,7 +132,7 @@ class FxReconciliationController extends Controller
                     'amount' => $t->amount,
                     'currency' => $t->currency,
                     'status' => $t->status,
-                    'date' => $t->created_at->format('Y-m-d H:i')
+                    'date' => $t->created_at->format('Y-m-d H:i'),
                 ];
             });
 

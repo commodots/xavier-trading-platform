@@ -7,6 +7,7 @@ use App\Models\Order;
 class OrderBook
 {
     public $buyOrders = [];
+
     public $sellOrders = [];
 
     public function add(Order $order): void

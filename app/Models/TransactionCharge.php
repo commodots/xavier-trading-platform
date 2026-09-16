@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\PlatformEarning;
-use App\Models\SystemSetting;
 
 class TransactionCharge extends Model
 {
@@ -12,7 +10,7 @@ class TransactionCharge extends Model
         'transaction_type',
         'charge_type',
         'value',
-        'active'
+        'active',
     ];
 
     public static function calculate($type, $amount, $transaction = null)
@@ -28,7 +26,6 @@ class TransactionCharge extends Model
                 ? ($amount * $charge->value / 100)
                 : $charge->value;
         }
-
 
         if ($transaction && is_object($transaction)) {
             $transaction->update(['charge' => $fee]);

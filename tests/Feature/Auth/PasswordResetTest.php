@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
@@ -29,7 +30,6 @@ class PasswordResetTest extends TestCase
         // 4. Verify token was generated
         $this->assertNotNull($token, 'Failed to generate password reset token.');
     }
-
 
     public function test_reset_password_link_screen_can_be_rendered(): void
     {
@@ -58,7 +58,7 @@ class PasswordResetTest extends TestCase
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
 
-            $response = $this->get('/reset-password/' . $notification->token);
+            $response = $this->get('/reset-password/'.$notification->token);
 
             $response->assertStatus(200);
 
@@ -73,11 +73,9 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create();
         $newPassword = 'newPassword';
 
-
         $this->post('/forgot-password', ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user, $newPassword) {
-
 
             $response = $this->post('/reset-password', [
                 'token' => $notification->token,
@@ -86,12 +84,11 @@ class PasswordResetTest extends TestCase
                 'password_confirmation' => $newPassword,
             ]);
 
-
             $response->assertStatus(200)
                 ->assertJsonStructure(['status']);
 
             $this->assertTrue(
-                \Illuminate\Support\Facades\Hash::check($newPassword, $user->fresh()->password),
+                Hash::check($newPassword, $user->fresh()->password),
                 'The user\'s password was not correctly reset in the database.'
             );
 

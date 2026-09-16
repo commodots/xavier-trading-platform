@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Service;
-use App\Models\ServiceConnection;
-use App\Models\ActivityLog;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB;
-use App\Services\StaffPermissionService;
+use App\Models\ActivityLog;
+use App\Models\Service;
 use App\Models\ServiceConfig;
+use App\Models\ServiceConnection;
+use App\Services\StaffPermissionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminServiceController extends Controller
 {
@@ -28,7 +28,7 @@ class AdminServiceController extends Controller
 
         return response()->json([
             'success' => true,
-            'services' => $services
+            'services' => $services,
         ]);
     }
 
@@ -36,7 +36,7 @@ class AdminServiceController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $data = $request->validate([
@@ -49,23 +49,23 @@ class AdminServiceController extends Controller
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Service Created',
-                'details'    => "Created a new system service: {$service->name} (Type: {$service->type})",
+                'user_id' => auth()->id(),
+                'activity' => 'Service Created',
+                'details' => "Created a new system service: {$service->name} (Type: {$service->type})",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json($service, 201);
     }
 
-    
     public function update(Request $request, $id): JsonResponse
     {
         // Check permissions
         $user = auth()->user();
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
@@ -73,8 +73,8 @@ class AdminServiceController extends Controller
         $service = Service::findOrFail($id);
 
         $data = $request->validate([
-            'name'      => 'required|string',
-            'type'      => 'required|in:ngx,crypto,stocks,fx,cscs,payment|unique:services,type,' . $id,
+            'name' => 'required|string',
+            'type' => 'required|in:ngx,crypto,stocks,fx,cscs,payment|unique:services,type,'.$id,
             'is_active' => 'boolean',
         ]);
 
@@ -82,24 +82,25 @@ class AdminServiceController extends Controller
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Service Updated',
-                'details'    => "Updated system service: {$service->name}",
+                'user_id' => auth()->id(),
+                'activity' => 'Service Updated',
+                'details' => "Updated system service: {$service->name}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $service
+            'data' => $service,
         ]);
     }
 
     public function addConnection(Request $request, $serviceId): JsonResponse
     {
         $user = auth()->user();
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
         $request->validate([
@@ -131,13 +132,14 @@ class AdminServiceController extends Controller
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Service Connection Update',
-                'details'    => "Updated connection settings for {$service->name}. Mode: {$request->mode}",
+                'user_id' => auth()->id(),
+                'activity' => 'Service Connection Update',
+                'details' => "Updated connection settings for {$service->name}. Mode: {$request->mode}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json(['success' => true], 201);
     }
@@ -145,41 +147,42 @@ class AdminServiceController extends Controller
     public function toggleService($id): JsonResponse
     {
         $user = auth()->user();
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
         $service = Service::findOrFail($id);
         $old = $service->is_active;
-        $service->is_active = !$service->is_active;
+        $service->is_active = ! $service->is_active;
         $service->save();
-        
+
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Toggle Service',
-                'details'    => "Changed {$service->name} status from " . ($old ? 'Active' : 'Inactive') . " to " . ($service->is_active ? 'Active' : 'Inactive'),
+                'user_id' => auth()->id(),
+                'activity' => 'Toggle Service',
+                'details' => "Changed {$service->name} status from ".($old ? 'Active' : 'Inactive').' to '.($service->is_active ? 'Active' : 'Inactive'),
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
             'is_active' => $service->is_active,
-            'message' => $service->name . ($service->is_active ? ' enabled' : ' disabled')
+            'message' => $service->name.($service->is_active ? ' enabled' : ' disabled'),
         ]);
     }
 
     public function updateMode(Request $request, $id): JsonResponse
     {
         $user = auth()->user();
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
         $request->validate([
-            'mode' => 'required|in:live,testing,dummy'
+            'mode' => 'required|in:live,testing,dummy',
         ]);
 
         $service = Service::findOrFail($id);
@@ -188,13 +191,14 @@ class AdminServiceController extends Controller
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Service Mode Update',
-                'details'    => "Switched {$service->name} environment mode from [{$oldMode}] to [{$request->mode}]",
+                'user_id' => auth()->id(),
+                'activity' => 'Service Mode Update',
+                'details' => "Switched {$service->name} environment mode from [{$oldMode}] to [{$request->mode}]",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json(['message' => 'Mode updated']);
     }
@@ -206,19 +210,19 @@ class AdminServiceController extends Controller
 
         return response()->json([
             'success' => true,
-            'connections' => $connections
+            'connections' => $connections,
         ]);
     }
 
     public function updateConnection(Request $request, $connectionId): JsonResponse
     {
         $user = auth()->user();
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
-        
+
         $connection = ServiceConnection::findOrFail($connectionId);
-        
+
         $data = $request->validate([
             'mode' => 'required|in:live,testing,dummy',
             'base_url' => 'nullable|url', // Nullable so dummy mode saves
@@ -237,17 +241,18 @@ class AdminServiceController extends Controller
 
         try {
             ActivityLog::create([
-                'user_id'    => auth()->id(),
-                'activity'   => 'Service Connection Updated',
-                'details'    => "Updated connection for {$connection->service->name}",
+                'user_id' => auth()->id(),
+                'activity' => 'Service Connection Updated',
+                'details' => "Updated connection for {$connection->service->name}",
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'success' => true,
-            'connection' => $connection
+            'connection' => $connection,
         ]);
     }
 
@@ -258,32 +263,32 @@ class AdminServiceController extends Controller
 
         return response()->json([
             'success' => true,
-            'config' => $config
+            'config' => $config,
         ]);
     }
 
     public function updateConfig(Request $request, $serviceId): JsonResponse
     {
         $user = auth()->user();
-        if (! $user->isAdmin() && !StaffPermissionService::roleHasCapability($user, 'manage_services')) {
+        if (! $user->isAdmin() && ! StaffPermissionService::roleHasCapability($user, 'manage_services')) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
-        
+
         $service = Service::findOrFail($serviceId);
-        
+
         // Use updateOrCreate in case the config record doesn't exist yet
         $config = ServiceConfig::updateOrCreate(
             ['service' => strtoupper($service->type)],
             [
                 'params' => empty($request->params) ? null : $request->params,
                 'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
-                'mode' => $service->mode ?? 'live'
+                'mode' => $service->mode ?? 'live',
             ]
         );
 
         return response()->json([
             'success' => true,
-            'config' => $config
+            'config' => $config,
         ]);
     }
 }

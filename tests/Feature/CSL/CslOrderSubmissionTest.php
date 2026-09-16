@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\CSL;
 
-use App\Models\Order;
-use App\Models\Portfolio;
 use App\Models\ProviderAccount;
 use App\Models\User;
 use App\Models\Wallet;

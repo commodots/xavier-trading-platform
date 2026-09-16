@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -18,8 +18,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('demo_orders', function (Blueprint $table) {
-            //  SQLite doesn't support ENUM 
-            // so we use the driver check here 
+            //  SQLite doesn't support ENUM
+            // so we use the driver check here
             if (DB::getDriverName() === 'sqlite') {
                 $table->string('market_type')->change();
             } else {

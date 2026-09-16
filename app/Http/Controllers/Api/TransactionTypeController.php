@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 
 class TransactionTypeController extends Controller
 {
-    
     public function index()
     {
         return response()->json(TransactionType::all());
@@ -19,7 +18,7 @@ class TransactionTypeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|unique:transaction_types',
             'category' => 'required|string',
-            'active' => 'boolean'
+            'active' => 'boolean',
         ]);
 
         $type = TransactionType::create($validated);
@@ -27,13 +26,12 @@ class TransactionTypeController extends Controller
         return response()->json($type, 201);
     }
 
-    
     public function update(Request $request, TransactionType $transactionType)
     {
         $validated = $request->validate([
-            'name' => 'string|unique:transaction_types,name,' . $transactionType->id,
+            'name' => 'string|unique:transaction_types,name,'.$transactionType->id,
             'category' => 'string',
-            'active' => 'boolean'
+            'active' => 'boolean',
         ]);
 
         $transactionType->update($validated);
@@ -41,10 +39,10 @@ class TransactionTypeController extends Controller
         return response()->json($transactionType);
     }
 
-   
     public function destroy(TransactionType $transactionType)
     {
         $transactionType->delete();
+
         return response()->json(null, 204);
     }
 }

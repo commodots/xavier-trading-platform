@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoginHistory;
-use App\Models\UserSession;
 use App\Models\User;
+use App\Models\UserSession;
 use Illuminate\Http\Request;
 
 class SecurityController extends Controller
@@ -37,8 +37,8 @@ class SecurityController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('ip_address', 'like', "%{$search}%")
-                  ->orWhere('device', 'like', "%{$search}%")
-                  ->orWhere('browser', 'like', "%{$search}%");
+                    ->orWhere('device', 'like', "%{$search}%")
+                    ->orWhere('browser', 'like', "%{$search}%");
             });
         }
 
@@ -46,7 +46,7 @@ class SecurityController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $histories
+            'data' => $histories,
         ]);
     }
 
@@ -63,7 +63,7 @@ class SecurityController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $sessions
+            'data' => $sessions,
         ]);
     }
 
@@ -74,7 +74,7 @@ class SecurityController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Session terminated successfully'
+            'message' => 'Session terminated successfully',
         ]);
     }
 
@@ -84,7 +84,7 @@ class SecurityController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'All sessions terminated successfully'
+            'message' => 'All sessions terminated successfully',
         ]);
     }
 }

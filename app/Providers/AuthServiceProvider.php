@@ -37,7 +37,7 @@ class AuthServiceProvider extends ServiceProvider
          * Gate for staff access (support, analyst, moderator).
          */
         Gate::define('staff', function (User $user): bool {
-            return $user->hasRole('super-admin','support');
+            return $user->hasRole('super-admin', 'support');
         });
 
         /**

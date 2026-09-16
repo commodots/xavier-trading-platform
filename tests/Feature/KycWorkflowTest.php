@@ -2,15 +2,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\KycProfile;
 use App\Models\KycSetting;
-use App\Models\ActivityLog;
+use App\Models\User;
 use App\Services\KycService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class KycWorkflowTest extends TestCase
 {
@@ -49,7 +48,7 @@ class KycWorkflowTest extends TestCase
 
         $response->assertSuccessful();
         $response->assertJson(['success' => true]);
-        
+
         $this->assertDatabaseHas('kyc_profiles', [
             'user_id' => $this->user->id,
             'status' => 'pending',
@@ -98,7 +97,7 @@ class KycWorkflowTest extends TestCase
         $kyc = KycProfile::where('user_id', $this->user->id)->first();
         $this->assertNotNull($kyc->photo);
         $this->assertNotNull($kyc->national_id);
-        
+
         // Verify files were stored
         Storage::disk('public')->assertExists($kyc->photo);
         Storage::disk('public')->assertExists($kyc->national_id);
@@ -122,13 +121,13 @@ class KycWorkflowTest extends TestCase
         $response = $this->actingAs($this->user)->getJson('/api/profile/kyc');
 
         $response->assertSuccessful();
-        
+
         $data = $response->json('data');
-        
+
         // BVN and NIN should be masked
         $this->assertStringContainsString('*', $data['bvn']);
         $this->assertStringContainsString('*', $data['nin']);
-        
+
         // Last 4 digits should be visible
         $this->assertStringEndsWith('8901', $data['bvn']);
         $this->assertStringEndsWith('2101', $data['nin']);
@@ -186,7 +185,7 @@ class KycWorkflowTest extends TestCase
         $response = $this->postJson('/api/qoreid/webhook', $webhookData);
 
         $response->assertSuccessful();
-        
+
         $kyc = KycProfile::where('user_id', $this->user->id)->first();
         $this->assertEquals('verified', $kyc->status);
         $this->assertEquals(1, $kyc->tier);
@@ -212,7 +211,7 @@ class KycWorkflowTest extends TestCase
         $response = $this->postJson('/api/qoreid/webhook', $webhookData);
 
         $response->assertSuccessful();
-        
+
         $kyc = KycProfile::where('user_id', $this->user->id)->first();
         $this->assertEquals('rejected', $kyc->status);
         $this->assertEquals('Document not clear', $kyc->rejection_reason);

@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class WalletTest extends TestCase
 {
@@ -18,9 +18,9 @@ class WalletTest extends TestCase
         $wallet = Wallet::factory()->create(['user_id' => $user->id]);
 
         $this->actingAs($user);
-        
+
         $response = $this->get('/wallet');
-        
+
         $response->assertStatus(200);
         $response->assertJson([
             'success' => true,
@@ -33,12 +33,12 @@ class WalletTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user);
-        
+
         $response = $this->postJson('/wallet/deposit', [
             'amount' => 10000,
             'currency' => 'NGN',
         ]);
-        
+
         $response->assertStatus(200);
         $response->assertJson([
             'success' => true,
@@ -51,12 +51,12 @@ class WalletTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user);
-        
+
         $response = $this->postJson('/wallet/deposit', [
             'amount' => 50,
             'currency' => 'NGN',
         ]);
-        
+
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('amount');
     }

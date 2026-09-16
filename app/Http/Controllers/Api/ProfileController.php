@@ -3,27 +3,27 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessKycVerification;
+use App\Models\ActivityLog;
+use App\Models\KycProfile;
+use App\Models\KycSetting;
+use App\Models\SystemSetting;
+use App\Services\KycService;
+use App\Services\StaffPermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\KycProfile;
-use App\Models\SystemSetting;
-use App\Models\KycSetting;
-use App\Models\ActivityLog;
-use App\Services\StaffPermissionService;
-use App\Services\KycService;
-use App\Jobs\ProcessKycVerification;
 
 class ProfileController extends Controller
 {
     public function show(Request $request)
     {
         $user = Auth::user()->load(['kyc', 'linkedAccounts', 'wallet', 'demoWallet', 'roles']);
-        
-        $user->name = $user->name ?: trim($user->first_name . ' ' . $user->last_name);
+
+        $user->name = $user->name ?: trim($user->first_name.' '.$user->last_name);
 
         $settings = SystemSetting::first();
         $baseCurrency = $settings->base_currency ?? 'NGN';
-        
+
         if ($user->kyc) {
             $tier = (int) KycService::determineTier($user->kyc);
             $levelLabels = [0 => 'none', 1 => 'basic', 2 => 'identity', 3 => 'biometric'];
@@ -63,8 +63,8 @@ class ProfileController extends Controller
         $displayRole = $roleNames->first();
 
         // If no explicit role is assigned but they have permissions, label accordingly for UI logic
-        if (!$displayRole) {
-            $displayRole = ($permissions['manage_system_settings'] ?? false) ? 'admin' : 
+        if (! $displayRole) {
+            $displayRole = ($permissions['manage_system_settings'] ?? false) ? 'admin' :
                            (collect($permissions)->contains(true) ? 'staff' : 'user');
         }
 
@@ -72,7 +72,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => array_merge($user->toArray(), ['role' => $displayRole])
+            'data' => array_merge($user->toArray(), ['role' => $displayRole]),
         ]);
     }
 
@@ -81,7 +81,7 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $r->validate([
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'email' => 'required|email|unique:users,email,'.$user->id,
             'name' => 'nullable|string|max:255',
             'first_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
@@ -113,7 +113,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $user->fresh()
+            'data' => $user->fresh(),
         ]);
     }
 
@@ -129,14 +129,14 @@ class ProfileController extends Controller
             'tin' => 'nullable|string',
             'id_type' => 'nullable|string|in:intl_passport,national_id,drivers_license,voters_card,nin_slip,proof_of_address',
             'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120'
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         // Require at least BVN or NIN
-        if (!$r->filled('bvn') && !$r->filled('nin')) {
+        if (! $r->filled('bvn') && ! $r->filled('nin')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please provide at least BVN or NIN to begin verification.'
+                'message' => 'Please provide at least BVN or NIN to begin verification.',
             ], 422);
         }
 
@@ -208,7 +208,7 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Verification started. Please wait while we validate your identity.',
-            'data' => $kyc->toFormattedArray()
+            'data' => $kyc->toFormattedArray(),
         ]);
     }
 
@@ -220,16 +220,16 @@ class ProfileController extends Controller
         $user = Auth::user();
         $kyc = KycProfile::where('user_id', $user->id)->first();
 
-        if (!$kyc) {
+        if (! $kyc) {
             return response()->json([
                 'success' => true,
-                'data' => null
+                'data' => null,
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $kyc->toFormattedArray()
+            'data' => $kyc->toFormattedArray(),
         ]);
     }
 
@@ -242,25 +242,25 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         // Only admins can access unmasked KYC data
-        if (!$user->hasRole('admin')) {
+        if (! $user->hasRole('admin')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Admin access required.',
             ], 403);
         }
 
         $kyc = KycProfile::where('user_id', $user->id)->first();
 
-        if (!$kyc) {
+        if (! $kyc) {
             return response()->json([
                 'success' => true,
-                'data' => null
+                'data' => null,
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $kyc->toArray()
+            'data' => $kyc->toArray(),
         ]);
     }
 
@@ -268,14 +268,14 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
         $mode = $request->mode === 'demo' ? 'demo' : 'live';
-        
+
         $user->update(['trading_mode' => $mode]);
 
         return response()->json([
             'success' => true,
-            'message' => "Switched to " . strtoupper($mode) . " mode",
+            'message' => 'Switched to '.strtoupper($mode).' mode',
             'trading_mode' => $mode,
-            'user' => $user->load(['wallet', 'demoWallet']) 
+            'user' => $user->load(['wallet', 'demoWallet']),
         ]);
     }
 }

@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         // Ensure settlement fields exist on trades table
-        if (!Schema::hasColumn('trades', 'settlement_date')) {
+        if (! Schema::hasColumn('trades', 'settlement_date')) {
             Schema::table('trades', function (Blueprint $table) {
                 $table->timestamp('settlement_date')->nullable();
             });
         }
 
-        if (!Schema::hasColumn('trades', 'is_settled')) {
+        if (! Schema::hasColumn('trades', 'is_settled')) {
             Schema::table('trades', function (Blueprint $table) {
                 $table->boolean('is_settled')->default(false);
             });
@@ -66,7 +66,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('withdrawal_limits');
         Schema::dropIfExists('withdrawal_requests');
-        
+
         if (Schema::hasColumn('trades', 'settlement_date')) {
             Schema::table('trades', function (Blueprint $table) {
                 $table->dropColumn('settlement_date');

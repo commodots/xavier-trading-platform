@@ -10,7 +10,7 @@ return new class extends Migration
     {
         // Ensure the main watchlist table has the initial price field to track "Added Price"
         Schema::table('watchlists', function (Blueprint $table) {
-            if (!Schema::hasColumn('watchlists', 'added_price')) {
+            if (! Schema::hasColumn('watchlists', 'added_price')) {
                 $table->decimal('added_price', 20, 8)->nullable()->after('price')->comment('Price at the time of adding to watchlist');
             }
         });

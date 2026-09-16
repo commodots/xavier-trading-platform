@@ -41,7 +41,7 @@ class DemoTradingService
                 ->value('effective_rate');
         });
 
-        return ($rate && $rate > 0) ? (float) $rate : throw new FxRateUnavailableException();
+        return ($rate && $rate > 0) ? (float) $rate : throw new FxRateUnavailableException;
     }
 
     /**
@@ -133,9 +133,9 @@ class DemoTradingService
                     ->where('symbol', $symbol)
                     ->first();
 
-                if (!$portfolio || (float) $portfolio->cleared_quantity < $quantity) {
+                if (! $portfolio || (float) $portfolio->cleared_quantity < $quantity) {
                     $available = (float) ($portfolio?->cleared_quantity ?? 0);
-                    throw new InsufficientBalanceException($symbol . ' holdings', $quantity, $available);
+                    throw new InsufficientBalanceException($symbol.' holdings', $quantity, $available);
                 }
 
                 $wallet->increment('balance', $totalCost);

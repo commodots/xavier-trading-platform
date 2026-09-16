@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('error_simulations', function (Blueprint $table) {
-		$table->id();
-		$table->string('service'); // ngx, cscs, payment
-		$table->string('error_type'); // timeout, rejection, partial_fill
-		$table->boolean('enabled')->default(false);
+            $table->id();
+            $table->string('service'); // ngx, cscs, payment
+            $table->string('error_type'); // timeout, rejection, partial_fill
+            $table->boolean('enabled')->default(false);
 
-		$table->timestamps();
-	});
+            $table->timestamps();
+        });
 
     }
 

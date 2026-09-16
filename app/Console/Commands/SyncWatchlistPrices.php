@@ -2,26 +2,27 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Watchlist;
 use App\Models\WatchlistPriceHistory;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SyncWatchlistPrices extends Command
 {
     protected $signature = 'watchlist:sync-prices';
+
     protected $description = 'Sync current prices for all watchlist items from external APIs';
 
     public function handle(): void
     {
         $items = Watchlist::all();
-        $this->info("Syncing prices for " . $items->count() . " items...");
+        $this->info('Syncing prices for '.$items->count().' items...');
 
         foreach ($items as $item) {
             try {
                 $price = $this->getPriceFromApi($item);
-                
+
                 if ($price) {
                     // Update the current price on the item
                     $item->update(['price' => $price]);
@@ -36,7 +37,7 @@ class SyncWatchlistPrices extends Command
                     $this->line("Updated {$item->symbol}: {$price}");
                 }
             } catch (\Exception $e) {
-                Log::error("Failed to sync price for {$item->symbol}: " . $e->getMessage());
+                Log::error("Failed to sync price for {$item->symbol}: ".$e->getMessage());
             }
         }
 
@@ -51,15 +52,17 @@ class SyncWatchlistPrices extends Command
         switch (strtoupper($item->market)) {
             case 'CRYPTO':
                 // Using CoinGecko for crypto prices
-                $response = Http::get("https://api.coingecko.com/api/v3/simple/price", [
-                    'ids' => strtolower($item->name), 
+                $response = Http::get('https://api.coingecko.com/api/v3/simple/price', [
+                    'ids' => strtolower($item->name),
                     'vs_currencies' => 'usd',
                 ]);
+
                 return $response->json()[strtolower($item->name)]['usd'] ?? null;
 
             case 'NGX':
                 // Using the internal/dummy NGX market endpoint
-                $response = Http::get(config('app.url') . "/api/dummy/ngx/market/{$item->symbol}");
+                $response = Http::get(config('app.url')."/api/dummy/ngx/market/{$item->symbol}");
+
                 return $response->json()['bid'] ?? $response->json()['price'] ?? null;
 
             case 'GLOBAL':

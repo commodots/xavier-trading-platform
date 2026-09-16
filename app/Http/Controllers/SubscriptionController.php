@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubscriptionPlan;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -10,7 +11,7 @@ class SubscriptionController extends Controller
 {
     public function plans()
     {
-        $days = \App\Models\SystemSetting::value('trial_days') ?? 7;
+        $days = SystemSetting::value('trial_days') ?? 7;
 
         return response()->json([
             'success' => true,
@@ -122,7 +123,7 @@ class SubscriptionController extends Controller
             'status' => 'cancelled',
             'expires_at' => now(),
         ]);
-        
+
         // Update the User subscription status
         // Assuming 'inactive' or 'free' is the default state after cancellation
         $user->update(['subscription_status' => 'inactive']);

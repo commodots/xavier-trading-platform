@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('demo_settlements', function (Blueprint $table) {
             $table->id();
-		$table->foreignId('trade_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('trade_id')->constrained()->cascadeOnDelete();
 
-		$table->enum('status', ['pending', 'settled', 'failed'])->default('pending');
-		$table->date('settlement_date');
-		$table->string('reference')->nullable();
+            $table->enum('status', ['pending', 'settled', 'failed'])->default('pending');
+            $table->date('settlement_date');
+            $table->string('reference')->nullable();
 
-		$table->timestamps();
+            $table->timestamps();
         });
     }
 

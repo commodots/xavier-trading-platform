@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Service;
 use App\Models\ServiceConnection;
+use Illuminate\Database\Seeder;
 
 class ServiceConnectionSeeder extends Seeder
 {
@@ -15,14 +15,14 @@ class ServiceConnectionSeeder extends Seeder
             ServiceConnection::firstOrCreate(
                 [
                     'service_id' => $ngx->id,
-                    'mode' => 'dummy'
+                    'mode' => 'dummy',
                 ],
                 [
                     'base_url' => 'http://localhost:8000/api/dummy/ngx',
                     'headers' => ['Accept' => 'application/json'],
                     'parameters' => ['lot_size' => 100, 'tick_size' => 0.01],
                     'credentials' => ['sender_comp_id' => 'XAVIER', 'target_comp_id' => 'NGX'],
-                    'is_active' => 1
+                    'is_active' => 1,
                 ]
             );
         }
@@ -32,14 +32,14 @@ class ServiceConnectionSeeder extends Seeder
             ServiceConnection::firstOrCreate(
                 [
                     'service_id' => $cscs->id,
-                    'mode' => 'dummy'
+                    'mode' => 'dummy',
                 ],
                 [
                     'base_url' => 'http://localhost:8000/api/dummy/cscs',
                     'headers' => ['Accept' => 'application/json'],
                     'parameters' => ['settlement_cycle' => 'T+3'],
                     'credentials' => ['member_code' => 'XAVIER001'],
-                    'is_active' => 1
+                    'is_active' => 1,
                 ]
             );
         }
@@ -48,23 +48,22 @@ class ServiceConnectionSeeder extends Seeder
             ServiceConnection::updateOrCreate(
                 [
                     'service_id' => $paystack->id,
-                    'mode' => 'testing'
+                    'mode' => 'testing',
                 ],
                 [
                     'base_url' => 'https://api.paystack.co',
                     'headers' => [
-                    'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
-                    'Content-Type' => 'application/json'
-                ],
+                        'Authorization' => 'Bearer '.config('services.paystack.secret_key'),
+                        'Content-Type' => 'application/json',
+                    ],
                     'parameters' => [
                         'currency' => 'NGN',
                     ],
-                    'credentials' =>
-                    [
+                    'credentials' => [
                         'public_key' => config('services.paystack.public_key'),
-                        'secret_key' => config('services.paystack.secret_key')
+                        'secret_key' => config('services.paystack.secret_key'),
                     ],
-                    'is_active' => 1
+                    'is_active' => 1,
                 ]
             );
         }

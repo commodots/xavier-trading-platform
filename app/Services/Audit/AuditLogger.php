@@ -18,7 +18,7 @@ class AuditLogger
 
         // Filter reserved keys from payload
         $cleanPayload = array_filter($payload, function ($key) use ($reserved) {
-            return !in_array($key, $reserved, true);
+            return ! in_array($key, $reserved, true);
         }, ARRAY_FILTER_USE_KEY);
 
         AuditLog::create([

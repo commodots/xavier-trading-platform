@@ -3,7 +3,6 @@
 namespace App\Services\FixedIncome;
 
 use App\Models\FixedIncomeInvestment;
-use Illuminate\Support\Facades\DB;
 
 class FixedIncomeDashboardService
 {

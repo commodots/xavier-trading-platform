@@ -10,16 +10,16 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('user_subscriptions', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->onDelete('cascade');
-        $table->foreignId('subscription_plan_id')->constrained();
-        $table->timestamp('expires_at');
-        $table->string('paystack_subscription_code')->nullable(); // To track the recurring sub
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('user_subscriptions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('subscription_plan_id')->constrained();
+            $table->timestamp('expires_at');
+            $table->string('paystack_subscription_code')->nullable(); // To track the recurring sub
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

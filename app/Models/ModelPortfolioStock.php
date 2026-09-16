@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class ModelPortfolioStock extends Model
 {
     protected $fillable = [
-        'model_portfolio_id', 
-        'symbol', 
-        'allocation_percentage'
+        'model_portfolio_id',
+        'symbol',
+        'allocation_percentage',
     ];
 
     public function portfolio()

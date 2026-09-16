@@ -17,20 +17,22 @@ class FincraWebhookController extends Controller
         // Fincra webhook signature verification
         $signature = $request->header('x-fincra-signature');
         $webhookKey = config('services.fincra.webhook_key');
-        
-        if (!$webhookKey) {
+
+        if (! $webhookKey) {
             Log::warning('Fincra Webhook: Webhook key not configured');
+
             return response()->json(['error' => 'Webhook not configured'], 500);
         }
 
         // Verify webhook signature
         $computedSignature = hash_hmac('sha256', $request->getContent(), $webhookKey);
-        
-        if (!$signature || !hash_equals($computedSignature, $signature)) {
+
+        if (! $signature || ! hash_equals($computedSignature, $signature)) {
             Log::warning('Fincra Webhook: Invalid Signature Attempt', [
                 'ip' => $request->ip(),
                 'signature' => $signature,
             ]);
+
             return response()->json(['error' => 'Invalid signature'], 401);
         }
 
@@ -49,16 +51,16 @@ class FincraWebhookController extends Controller
             case 'conversion.success':
                 $this->handleConversionCompleted($data);
                 break;
-            
+
             case 'conversion.failed':
             case 'conversion.failure':
                 $this->handleConversionFailed($data);
                 break;
-            
+
             case 'conversion.processing':
                 $this->handleConversionProcessing($data);
                 break;
-            
+
             default:
                 Log::info('Fincra Webhook: Unhandled event ignored', ['event' => $event]);
                 break;
@@ -75,8 +77,9 @@ class FincraWebhookController extends Controller
         $reference = $data['reference'] ?? $data['quoteReference'] ?? null;
         $conversionReference = $data['conversionReference'] ?? null;
 
-        if (!$reference && !$conversionReference) {
+        if (! $reference && ! $conversionReference) {
             Log::warning('Fincra Webhook: No reference found in payload');
+
             return;
         }
 
@@ -85,17 +88,19 @@ class FincraWebhookController extends Controller
             ->orWhere('reference', $conversionReference)
             ->first();
 
-        if (!$conversion) {
+        if (! $conversion) {
             Log::warning('Fincra Webhook: Conversion not found', [
                 'reference' => $reference,
                 'conversion_reference' => $conversionReference,
             ]);
+
             return;
         }
 
         // Idempotency check
         if ($conversion->status === 'completed') {
             Log::info('Fincra Webhook: Conversion already completed', ['id' => $conversion->id]);
+
             return;
         }
 
@@ -123,8 +128,9 @@ class FincraWebhookController extends Controller
         $conversionReference = $data['conversionReference'] ?? null;
         $reason = $data['reason'] ?? $data['failureReason'] ?? 'Unknown error';
 
-        if (!$reference && !$conversionReference) {
+        if (! $reference && ! $conversionReference) {
             Log::warning('Fincra Webhook: No reference found in payload');
+
             return;
         }
 
@@ -133,11 +139,12 @@ class FincraWebhookController extends Controller
             ->orWhere('reference', $conversionReference)
             ->first();
 
-        if (!$conversion) {
+        if (! $conversion) {
             Log::warning('Fincra Webhook: Conversion not found', [
                 'reference' => $reference,
                 'conversion_reference' => $conversionReference,
             ]);
+
             return;
         }
 
@@ -166,8 +173,9 @@ class FincraWebhookController extends Controller
         $reference = $data['reference'] ?? $data['quoteReference'] ?? null;
         $conversionReference = $data['conversionReference'] ?? null;
 
-        if (!$reference && !$conversionReference) {
+        if (! $reference && ! $conversionReference) {
             Log::warning('Fincra Webhook: No reference found in payload');
+
             return;
         }
 
@@ -176,11 +184,12 @@ class FincraWebhookController extends Controller
             ->orWhere('reference', $conversionReference)
             ->first();
 
-        if (!$conversion) {
+        if (! $conversion) {
             Log::warning('Fincra Webhook: Conversion not found', [
                 'reference' => $reference,
                 'conversion_reference' => $conversionReference,
             ]);
+
             return;
         }
 

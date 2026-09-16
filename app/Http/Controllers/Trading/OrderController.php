@@ -17,7 +17,6 @@ class OrderController extends Controller
         $user = auth()->user();
         $model = ($user->trading_mode === 'demo') ? new DemoOrder : new Order;
 
-       
         $orders = $model->where('user_id', $user->id)
             ->whereIn('status', ['filled', 'open', 'partially_filled'])
             ->where('market', 'GLOBAL') // Filter for foreign/global stocks

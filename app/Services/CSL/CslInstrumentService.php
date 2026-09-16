@@ -17,16 +17,32 @@ class CslInstrumentService
 
         $rows = $this->extractRows($response);
 
+        if ($rows === []) {
+            throw new \RuntimeException(
+                'CSL returned no instrument rows.'
+            );
+        }
+
         $count = 0;
 
         DB::transaction(function () use ($rows, &$count) {
             foreach ($rows as $row) {
+
                 $providerSymbolId = trim((string) (
                     $row['symbol_id']
                     ?? $row['symbol_identifier']
                     ?? ''
                 ));
 
+                if ($providerSymbolId === '') {
+                    continue;
+                }
+
+                /*
+                 * CSL ST does not necessarily call this field "symbol".
+                 * Prefer the actual symbol/ticker if returned, otherwise
+                 * retain symbol_id as the fallback.
+                 */
                 $symbol = strtoupper(trim((string) (
                     $row['symbol_code']
                     ?? $row['symbol']
@@ -34,7 +50,7 @@ class CslInstrumentService
                     ?? $providerSymbolId
                 )));
 
-                if ($providerSymbolId === '' || $symbol === '') {
+                if ($symbol === '') {
                     continue;
                 }
 
@@ -59,8 +75,8 @@ class CslInstrumentService
 
                         'last_price' => $this->number(
                             $row['current_price']
-                                ?? $row['opening_price']
-                                ?? null
+                            ?? $row['opening_price']
+                            ?? null
                         ),
 
                         'market_id' => isset($row['market_id'])

@@ -4,21 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Jobs\ProcessKycVerification;
 use App\Models\ActivityLog;
+use App\Models\CryptoAddress;
 use App\Models\Demo\DemoWallet;
 use App\Models\KycProfile;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Models\CryptoAddress;
-use App\Models\SystemSetting;
 use App\Notifications\WelcomeNotification;
-use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Jobs\ProcessKycVerification;
 use Illuminate\Support\Str;
 
 class OnboardingController extends Controller
@@ -66,14 +65,14 @@ class OnboardingController extends Controller
             // Step 2: Handle saving profile image string/metadata safely
             $savedImagePath = null; // Default fallback to null or a default asset path
 
-            if (!empty($validated['profile_image'])) {
-                $savedImagePath = 'avatars/' . uniqid() . '.txt';
+            if (! empty($validated['profile_image'])) {
+                $savedImagePath = 'avatars/'.uniqid().'.txt';
                 if (str_starts_with($validated['profile_image'], 'data:image')) {
                     if (preg_match('/^data:image\/(\w+);base64,/', $validated['profile_image'], $matches)) {
                         $imageType = in_array($matches[1], ['jpeg', 'jpg', 'png', 'webp']) ? $matches[1] : 'jpg';
                         $imageData = base64_decode(substr($validated['profile_image'], strpos($validated['profile_image'], ',') + 1), true);
                         if ($imageData !== false) {
-                            $savedImagePath = 'avatars/' . uniqid() . '.' . $imageType;
+                            $savedImagePath = 'avatars/'.uniqid().'.'.$imageType;
                             Storage::disk('public')->put($savedImagePath, $imageData);
                         }
                     }
@@ -83,14 +82,13 @@ class OnboardingController extends Controller
                 }
             }
 
-            
             $user->update(['profile_image' => $savedImagePath]);
 
             // Step 3: Create Live Wallets
             foreach (['NGN', 'USD'] as $curr) {
                 Wallet::create([
                     'user_id' => $user->id,
-                    'account_number' => 'XAV' . rand(10000000, 99999999),
+                    'account_number' => 'XAV'.rand(10000000, 99999999),
                     'balance' => 0.00,
                     'ngn_cleared' => 0.00,
                     'ngn_uncleared' => 0.00,
@@ -106,7 +104,7 @@ class OnboardingController extends Controller
             foreach (['NGN', 'USD'] as $curr) {
                 DemoWallet::create([
                     'user_id' => $user->id,
-                    'account_number' => 'DEMO' . rand(10000000, 99999999),
+                    'account_number' => 'DEMO'.rand(10000000, 99999999),
                     'balance' => ($curr === 'NGN') ? 1000000.00 : 0.00,
                     'ngn_cleared' => ($curr === 'NGN') ? 1000000.00 : 0,
                     'ngn_uncleared' => 0.00,
@@ -122,7 +120,7 @@ class OnboardingController extends Controller
             CryptoAddress::create([
                 'user_id' => $user->id,
                 'blockchain' => 'TRON',
-                'address' => 'T' . Str::random(33),
+                'address' => 'T'.Str::random(33),
                 'private_key' => encrypt('pending_generation'),
             ]);
 
@@ -158,7 +156,7 @@ class OnboardingController extends Controller
             }
 
             ActivityLog::log($user->id, 'Registration', [
-                'message' => "New user registered: {$user->email}. Verification job queued."
+                'message' => "New user registered: {$user->email}. Verification job queued.",
             ]);
 
             // Generate authentication token

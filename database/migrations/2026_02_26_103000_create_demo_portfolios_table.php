@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('symbol');
             $table->string('name')->nullable();
-            $table->string('category'); 
+            $table->string('category');
             $table->decimal('quantity', 18, 8)->default(0);
             $table->integer('cleared_quantity')->default(0);
             $table->integer('uncleared_quantity')->default(0);

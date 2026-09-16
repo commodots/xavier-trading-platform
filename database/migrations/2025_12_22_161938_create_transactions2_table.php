@@ -13,17 +13,17 @@ return new class extends Migration
     {
         Schema::create('transactions2', function (Blueprint $table) {
             $table->id();
-        $table->foreignId('user_id')->constrained();
-        $table->enum('type', [
-            'deposit', 'withdrawal', 'buy_stock', 'sell_stock', 
-            'buy_crypto', 'sell_crypto', 'buy_global', 'sell_global', 
-            'currency_change'
-        ]);
-        $table->decimal('amount', 20, 2);
-        $table->string('currency')->default('NGN');
-        $table->enum('status', ['pending', 'completed', 'failed'])->default('pending');
-        $table->json('meta')->nullable();
-        $table->timestamps();
+            $table->foreignId('user_id')->constrained();
+            $table->enum('type', [
+                'deposit', 'withdrawal', 'buy_stock', 'sell_stock',
+                'buy_crypto', 'sell_crypto', 'buy_global', 'sell_global',
+                'currency_change',
+            ]);
+            $table->decimal('amount', 20, 2);
+            $table->string('currency')->default('NGN');
+            $table->enum('status', ['pending', 'completed', 'failed'])->default('pending');
+            $table->json('meta')->nullable();
+            $table->timestamps();
         });
     }
 

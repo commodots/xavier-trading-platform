@@ -17,7 +17,7 @@ return new class extends Migration
             ->where('quantity', '>', 0)
             ->update([
                 'cleared_quantity' => DB::raw('quantity'),
-                'uncleared_quantity' => 0
+                'uncleared_quantity' => 0,
             ]);
     }
 

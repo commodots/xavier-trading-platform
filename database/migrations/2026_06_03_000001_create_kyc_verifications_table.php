@@ -22,7 +22,7 @@ return new class extends Migration
         });
 
         // verification_level: 0=registered, 1=email verified, 2=BVN+NIN, 3=face verified
-        if (!Schema::hasColumn('users', 'verification_level')) {
+        if (! Schema::hasColumn('users', 'verification_level')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->unsignedTinyInteger('verification_level')->default(0)->after('kyc_status');
             });

@@ -18,8 +18,8 @@ class FxEngine
         $volatility = $this->getVolatility();
 
         $dynamicMarkup = (float) ($config?->target_margin_percent ?? 2);
-        $minMarkup     = (float) ($config?->min_markup ?? 1);
-        $maxMarkup     = (float) ($config?->max_markup ?? 5);
+        $minMarkup = (float) ($config?->min_markup ?? 1);
+        $maxMarkup = (float) ($config?->max_markup ?? 5);
 
         if ($volatility > (float) ($config?->volatility_threshold ?? 3)) {
             $dynamicMarkup += 1;
@@ -31,7 +31,7 @@ class FxEngine
 
         return [
             'effective_rate' => $effectiveRate,
-            'markup_used'    => $dynamicMarkup,
+            'markup_used' => $dynamicMarkup,
         ];
     }
 

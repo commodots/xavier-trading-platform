@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\KycProfile;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Models\User;
-use App\Models\KycProfile;
 
 class KycControlPanelTest extends TestCase
 {
@@ -18,9 +18,9 @@ class KycControlPanelTest extends TestCase
         // ensure kyc_settings exist via migrations
         $payload = [
             'settings' => [
-                ['tier' => 1, 'tier_name' => 'Basic', 'daily_limit' => 50000, 'required_documents' => ['bvn','nin','national_id']],
-                ['tier' => 2, 'tier_name' => 'Mid', 'daily_limit' => 200000, 'required_documents' => ['bvn','nin','intl_passport']],
-            ]
+                ['tier' => 1, 'tier_name' => 'Basic', 'daily_limit' => 50000, 'required_documents' => ['bvn', 'nin', 'national_id']],
+                ['tier' => 2, 'tier_name' => 'Mid', 'daily_limit' => 200000, 'required_documents' => ['bvn', 'nin', 'intl_passport']],
+            ],
         ];
 
         $this->actingAs($admin, 'sanctum')
@@ -41,16 +41,14 @@ class KycControlPanelTest extends TestCase
             'level' => 'basic',
             'tier' => 1,
             'daily_limit' => 50000,
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
-       
-        
         $resp = $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/kycs/{$user->id}/review", [
                 'status' => 'verified',
                 'tier' => 3,
-                'daily_limit' => 999999999
+                'daily_limit' => 999999999,
             ]);
 
         $resp->assertStatus(200)->assertJson(['success' => true]);
@@ -73,14 +71,14 @@ class KycControlPanelTest extends TestCase
             'level' => 'mid',
             'tier' => 2,
             'daily_limit' => 200000,
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
         $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/kycs/{$user->id}/review", [
                 'status' => 'verified',
                 'tier' => 3,
-                'daily_limit' => 999999999
+                'daily_limit' => 999999999,
             ])->assertStatus(200);
 
         $kyc->refresh();
@@ -96,11 +94,11 @@ class KycControlPanelTest extends TestCase
         // Ensure tiers exist or are updated instead of inserting duplicates
         \DB::table('kyc_settings')->updateOrInsert(
             ['tier' => 1],
-            ['tier_name' => 'Basic', 'daily_limit' => 50000, 'required_documents' => json_encode(['bvn','nin'])]
+            ['tier_name' => 'Basic', 'daily_limit' => 50000, 'required_documents' => json_encode(['bvn', 'nin'])]
         );
         \DB::table('kyc_settings')->updateOrInsert(
             ['tier' => 3],
-            ['tier_name' => 'Full', 'daily_limit' => 999999999, 'required_documents' => json_encode(['bvn','nin','intl_passport','proof_of_address'])]
+            ['tier_name' => 'Full', 'daily_limit' => 999999999, 'required_documents' => json_encode(['bvn', 'nin', 'intl_passport', 'proof_of_address'])]
         );
 
         // create kyc profile with all required docs for tier 3
@@ -113,13 +111,13 @@ class KycControlPanelTest extends TestCase
             'bvn' => 'BVN123',
             'nin' => 'NIN123',
             'intl_passport' => 'path/to/passport.pdf',
-            'proof_of_address' => 'path/to/poa.pdf'
+            'proof_of_address' => 'path/to/poa.pdf',
         ]);
 
         $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/kycs/{$user->id}/review", [
                 'status' => 'verified',
-                'daily_limit' => 999999999
+                'daily_limit' => 999999999,
             ])
             ->assertStatus(200);
 

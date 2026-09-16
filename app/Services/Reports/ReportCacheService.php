@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Cache;
 class ReportCacheService
 {
     protected string $prefix;
+
     protected int $ttl;
 
     public function __construct()
@@ -17,12 +18,12 @@ class ReportCacheService
 
     public function remember(string $key, \Closure $callback, ?int $ttl = null): mixed
     {
-        if (!config('reporting.cache.enabled', true)) {
+        if (! config('reporting.cache.enabled', true)) {
             return $callback();
         }
 
         return Cache::remember(
-            $this->prefix . ':' . $key,
+            $this->prefix.':'.$key,
             $ttl ?? $this->ttl,
             $callback
         );
@@ -30,13 +31,13 @@ class ReportCacheService
 
     public function forget(string $key): void
     {
-        Cache::forget($this->prefix . ':' . $key);
+        Cache::forget($this->prefix.':'.$key);
     }
 
     public function flush(): void
     {
         // Only flushes keys with our prefix pattern
-        $pattern = $this->prefix . ':*';
+        $pattern = $this->prefix.':*';
         // Implementation depends on cache driver
     }
 }

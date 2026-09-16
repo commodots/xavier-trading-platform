@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
-use Tests\TestCase;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class LoginTest extends TestCase
 {
@@ -48,11 +48,11 @@ class LoginTest extends TestCase
     public function user_can_logout()
     {
         $user = User::factory()->create();
-        
+
         $this->actingAs($user);
-        
+
         $response = $this->post('/logout');
-        
+
         $response->assertRedirect('/');
         $this->assertGuest();
     }

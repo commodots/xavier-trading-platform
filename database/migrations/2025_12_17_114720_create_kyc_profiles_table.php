@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('kyc_profiles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('level')->default('none');//none,basic,full
+            $table->string('level')->default('none'); // none,basic,full
             $table->string('bvn')->nullable();
             $table->string('nin')->nullable();
             $table->string('id_type')->nullable();
             $table->string('id_number')->nullable();
-            $table->string('status')->default('pending');//pending, approved, rejected
+            $table->string('status')->default('pending'); // pending, approved, rejected
             $table->text('rejection_reason')->nullable();
             $table->timestamps();
         });

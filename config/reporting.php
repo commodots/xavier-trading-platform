@@ -74,7 +74,7 @@ return [
     | The queue connection to use for report generation and export jobs.
     |
     */
-    'queue_connection' =>  null,
+    'queue_connection' => null,
 
     /*
     |--------------------------------------------------------------------------
@@ -152,8 +152,8 @@ return [
     */
     'performance' => [
         'enable_query_logging' => false,
-        'slow_query_threshold' =>  1000, // ms
-        'max_execution_time' =>  300, // seconds
+        'slow_query_threshold' => 1000, // ms
+        'max_execution_time' => 300, // seconds
     ],
 
     /*

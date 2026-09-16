@@ -2,8 +2,8 @@
 
 namespace App\Services\Settlement;
 
-use App\Models\Trade;
 use App\Models\Portfolio;
+use App\Models\Trade;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,20 +21,21 @@ class CscsSettlementService
 
         $trade->update([
             'settlement_status' => 'pending',
-            'settlement_date'   => $settlementDate->toDateString()
+            'settlement_date' => $settlementDate->toDateString(),
         ]);
     }
 
     public function finalizeSettlement(Trade $trade): void
     {
-        if ($trade->settlement_status === 'settled') return;
+        if ($trade->settlement_status === 'settled') {
+            return;
+        }
 
         DB::transaction(function () use ($trade) {
-            
-            $userId = $trade->order->user_id; 
-            
-            
-            $symbol = $trade->order->symbol; 
+
+            $userId = $trade->order->user_id;
+
+            $symbol = $trade->order->symbol;
 
             // Update Portfolio
             $portfolio = Portfolio::where('user_id', $userId)
@@ -47,16 +48,16 @@ class CscsSettlementService
                 $portfolio->increment('cleared_quantity', $trade->quantity);
             } else {
                 Portfolio::create([
-                    'user_id'            => $userId,
-                    'symbol'             => $symbol,
-                    'name'               => $symbol,
-                    'quantity'           => $trade->quantity,
-                    'cleared_quantity'   => $trade->quantity,
+                    'user_id' => $userId,
+                    'symbol' => $symbol,
+                    'name' => $symbol,
+                    'quantity' => $trade->quantity,
+                    'cleared_quantity' => $trade->quantity,
                     'uncleared_quantity' => 0,
-                    'category'           => 'local',
-                    'currency'           => 'NGN',
-                    'avg_price'          => $trade->price,
-                    'market_price'       => $trade->price,
+                    'category' => 'local',
+                    'currency' => 'NGN',
+                    'avg_price' => $trade->price,
+                    'market_price' => $trade->price,
                 ]);
             }
 
@@ -65,18 +66,18 @@ class CscsSettlementService
             if ($user && $trade->order->side === 'buy') {
                 $tradeCost = $trade->quantity * $trade->price;
                 $wallet = $user->fxWallet('NGN');
-                
+
                 if ($wallet) {
-                    $wallet->finalizeReservation($tradeCost); 
+                    $wallet->finalizeReservation($tradeCost);
                 }
             }
 
-            //  Mark the Trade as fully settled 
+            //  Mark the Trade as fully settled
             // (Removed 'settled_at' to match your exact Trade model fillable array)
             $trade->update([
-                'settlement_status' => 'settled'
+                'settlement_status' => 'settled',
             ]);
-            
+
             Log::info("Trade Settled: {$trade->quantity} units of {$symbol} for User {$userId}");
         });
     }
@@ -86,10 +87,11 @@ class CscsSettlementService
         $d = $date->copy();
         while ($days > 0) {
             $d->addDay();
-            if (!$d->isWeekend()) {
+            if (! $d->isWeekend()) {
                 $days--;
             }
         }
+
         return $d;
     }
 }

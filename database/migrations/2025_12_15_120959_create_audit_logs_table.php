@@ -12,16 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('audit_logs', function (Blueprint $table) {
-		$table->id();
-		$table->foreignId('user_id')->nullable();
-		$table->string('action');
-		$table->string('entity');
-		$table->unsignedBigInteger('entity_id')->nullable();
-		$table->json('payload')->nullable();
+            $table->id();
+            $table->foreignId('user_id')->nullable();
+            $table->string('action');
+            $table->string('entity');
+            $table->unsignedBigInteger('entity_id')->nullable();
+            $table->json('payload')->nullable();
 
-		$table->timestamps();
+            $table->timestamps();
 
-	});
+        });
     }
 
     /**

@@ -2,10 +2,9 @@
 
 namespace App\Models\Demo;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
-
 
 class DemoPortfolio extends Model
 {
@@ -21,7 +20,7 @@ class DemoPortfolio extends Model
         'uncleared_quantity',
         'avg_price',
         'market_price',
-        'currency'
+        'currency',
     ];
 
     protected $casts = [

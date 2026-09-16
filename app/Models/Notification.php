@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Notification extends Model
 {
     use HasFactory, HasUuids;
 
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -66,18 +67,26 @@ class Notification extends Model
     protected static function booted()
     {
         static::creating(function ($notification) {
-           
+
             $data = is_array($notification->data) ? $notification->data : json_decode($notification->data, true);
-            if (is_array($data) && !empty($data)) {
+            if (is_array($data) && ! empty($data)) {
                 // Only fill from data if the column values weren't already provided
-                if (empty($notification->title)) $notification->title = $data['title'] ?? null;
-                if (empty($notification->message)) $notification->message = $data['message'] ?? null;
-                if (empty($notification->action)) $notification->action = $data['action'] ?? null;
-                if (empty($notification->icon)) $notification->icon = $data['icon'] ?? null;
+                if (empty($notification->title)) {
+                    $notification->title = $data['title'] ?? null;
+                }
+                if (empty($notification->message)) {
+                    $notification->message = $data['message'] ?? null;
+                }
+                if (empty($notification->action)) {
+                    $notification->action = $data['action'] ?? null;
+                }
+                if (empty($notification->icon)) {
+                    $notification->icon = $data['icon'] ?? null;
+                }
             }
-            
+
             // Ensure data is a JSON string
-            if (!is_string($notification->data)) {
+            if (! is_string($notification->data)) {
                 $notification->data = json_encode($notification->data ?? []);
             }
         });

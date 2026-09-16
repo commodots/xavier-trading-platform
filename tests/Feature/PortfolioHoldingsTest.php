@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\FxRate;
 use App\Models\Order;
 use App\Models\Trade;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Models\FxRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
@@ -21,17 +21,17 @@ class PortfolioHoldingsTest extends TestCase
         $user = User::factory()->create();
         putenv('MARKET_PROVIDER=finnhub');
         putenv('FINNHUB_API_KEY=test_key');
-        
+
         // Ensure FX rate is available for the service
-        \App\Models\FxRate::create([
-            'from_currency'   => 'USD',
-            'to_currency'     => 'NGN',
-            'base_rate'       => 1500.00,
-            'markup_percent'  => 0.0,
-            'effective_rate'  => 1500.00,
+        FxRate::create([
+            'from_currency' => 'USD',
+            'to_currency' => 'NGN',
+            'base_rate' => 1500.00,
+            'markup_percent' => 0.0,
+            'effective_rate' => 1500.00,
         ]);
 
-       Wallet::create([
+        Wallet::create([
             'user_id' => $user->id,
             'currency' => 'USD',
             'usd_cleared' => 2000,
@@ -125,12 +125,12 @@ class PortfolioHoldingsTest extends TestCase
         putenv('FINNHUB_API_KEY=test_key');
 
         // Ensure FX rate is available for the service
-        \App\Models\FxRate::create([
-            'from_currency'   => 'USD',
-            'to_currency'     => 'NGN',
-            'base_rate'       => 1500.00,
-            'markup_percent'  => 0.0,
-            'effective_rate'  => 1500.00,
+        FxRate::create([
+            'from_currency' => 'USD',
+            'to_currency' => 'NGN',
+            'base_rate' => 1500.00,
+            'markup_percent' => 0.0,
+            'effective_rate' => 1500.00,
         ]);
         $user = User::factory()->create();
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Position;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 
 class AlpacaWebhookController extends Controller
@@ -57,7 +58,7 @@ class AlpacaWebhookController extends Controller
 
     protected function handleWallet($order)
     {
-        $wallet = \App\Models\Wallet::where('user_id', $order->user_id)
+        $wallet = Wallet::where('user_id', $order->user_id)
             ->where('currency', $order->currency ?? 'USD')
             ->first();
 

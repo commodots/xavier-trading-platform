@@ -5,12 +5,12 @@ namespace App\Jobs;
 use App\Models\FixedIncomeInvestment;
 use App\Services\FixedIncome\FixedIncomeProviderManager;
 use App\Services\FixedIncome\ProviderLogService;
+use App\Services\FixedIncomeLifecycleService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
-class ReconcileFixedIncomeProviders
-    implements ShouldQueue
+class ReconcileFixedIncomeProviders implements ShouldQueue
 {
     use Queueable;
 
@@ -42,16 +42,13 @@ class ReconcileFixedIncomeProviders
                             $investment,
                             'status_reconciliation',
                             [
-                                'status' =>
-                                    $result['status']
+                                'status' => $result['status']
                                         ?? 'unknown',
 
-                                'provider_reference' =>
-                                    $result['provider_reference']
+                                'provider_reference' => $result['provider_reference']
                                         ?? $investment->provider_reference,
 
-                                'response_payload' =>
-                                    $result,
+                                'response_payload' => $result,
                             ]
                         );
 
@@ -63,7 +60,7 @@ class ReconcileFixedIncomeProviders
                             && $investment->status !== 'active'
                         ) {
                             app(
-                                \App\Services\FixedIncomeLifecycleService::class
+                                FixedIncomeLifecycleService::class
                             )->activate(
                                 $investment,
                                 $result['provider_reference']
@@ -76,10 +73,8 @@ class ReconcileFixedIncomeProviders
                         Log::warning(
                             'Fixed Income reconciliation failed',
                             [
-                                'investment_id' =>
-                                    $investment->id,
-                                'error' =>
-                                    $e->getMessage(),
+                                'investment_id' => $investment->id,
+                                'error' => $e->getMessage(),
                             ]
                         );
                     }

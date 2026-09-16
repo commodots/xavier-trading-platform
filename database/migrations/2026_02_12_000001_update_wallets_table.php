@@ -17,18 +17,18 @@ return new class extends Migration
 
         // Migrate existing values from generic cleared/uncleared into currency-specific columns
         if (Schema::hasColumn('wallets', 'cleared_balance') && Schema::hasColumn('wallets', 'uncleared_balance')) {
-            $wallets = \DB::table('wallets')->get();
+            $wallets = DB::table('wallets')->get();
 
             foreach ($wallets as $w) {
                 if ($w->currency === 'NGN') {
-                    \DB::table('wallets')->where('id', $w->id)->update([
+                    DB::table('wallets')->where('id', $w->id)->update([
                         'ngn_cleared' => $w->cleared_balance ?? 0,
                         'ngn_uncleared' => $w->uncleared_balance ?? 0,
                     ]);
                 }
 
                 if ($w->currency === 'USD') {
-                    \DB::table('wallets')->where('id', $w->id)->update([
+                    DB::table('wallets')->where('id', $w->id)->update([
                         'usd_cleared' => $w->cleared_balance ?? 0,
                         'usd_uncleared' => $w->uncleared_balance ?? 0,
                     ]);
@@ -61,7 +61,7 @@ return new class extends Migration
             }
         });
 
-        $wallets = \DB::table('wallets')->get();
+        $wallets = DB::table('wallets')->get();
         foreach ($wallets as $w) {
             $update = [];
             if ($w->currency === 'NGN') {
@@ -74,7 +74,7 @@ return new class extends Migration
             }
 
             if (! empty($update)) {
-                \DB::table('wallets')->where('id', $w->id)->update($update);
+                DB::table('wallets')->where('id', $w->id)->update($update);
             }
         }
 

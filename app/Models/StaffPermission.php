@@ -14,7 +14,7 @@ class StaffPermission extends Model
     protected $fillable = ['role', 'permissions'];
 
     protected $casts = [
-        'permissions' => 'array'
+        'permissions' => 'array',
     ];
 
     public static function forRole(string $role)

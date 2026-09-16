@@ -6,11 +6,12 @@ use App\Models\Service;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Service>
+ * @extends Factory<Service>
  */
 class ServiceFactory extends Factory
 {
     protected $model = Service::class;
+
     /**
      * Define the model's default state.
      *
@@ -21,8 +22,8 @@ class ServiceFactory extends Factory
         static $sequence = 1;
 
         return [
-            'name' => $this->faker->company() . ' Service',
-            'type' => 'test_service_' . $sequence++, 
+            'name' => $this->faker->company().' Service',
+            'type' => 'test_service_'.$sequence++,
             'is_active' => $this->faker->boolean(),
         ];
     }

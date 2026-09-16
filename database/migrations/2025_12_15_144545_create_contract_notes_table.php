@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('contract_notes', function (Blueprint $table) {
-		$table->id();
-		$table->foreignId('trade_id')->constrained()->cascadeOnDelete();
+            $table->id();
+            $table->foreignId('trade_id')->constrained()->cascadeOnDelete();
 
-		$table->string('file_path');
-		$table->timestamp('generated_at');
+            $table->string('file_path');
+            $table->timestamp('generated_at');
 
-		$table->timestamps();
-	});
+            $table->timestamps();
+        });
 
     }
 

@@ -26,14 +26,15 @@ class TwoFactorService
      */
     public function verifyRecoveryCode(User $user, string $code): bool
     {
-       
+
         $codes = $user->two_factor_recovery_codes ? json_decode($user->two_factor_recovery_codes, true) : [];
 
         if (($key = array_search($code, $codes, true)) !== false) {
             unset($codes[$key]);
-            
+
             $user->two_factor_recovery_codes = json_encode(array_values($codes));
             $user->save();
+
             return true;
         }
 
@@ -49,17 +50,15 @@ class TwoFactorService
     public function enableTwoFactor(User $user): array
     {
         try {
-            $google2fa = new Google2FA();
+            $google2fa = new Google2FA;
             $secret = $google2fa->generateSecretKey();
             $codes = $this->generateRecoveryCodes();
 
-            
             $payload = [
                 'secret' => $secret,
-                'recovery_codes' => $codes
+                'recovery_codes' => $codes,
             ];
 
-         
             $user->google2fa_secret = json_encode($payload);
             $user->save();
 
@@ -69,7 +68,7 @@ class TwoFactorService
                 'qr_code_url' => $this->generateQrCodeUrl($user, $secret),
             ];
         } catch (Exception $e) {
-            throw new Exception('Failed to enable 2FA: ' . $e->getMessage());
+            throw new Exception('Failed to enable 2FA: '.$e->getMessage());
         }
     }
 
@@ -103,6 +102,6 @@ class TwoFactorService
         $appName = config('app.name', 'Xavier Trading');
         $email = $user->email;
 
-        return 'otpauth://totp/' . urlencode("{$appName}:{$email}") . '?secret=' . $secret . '&issuer=' . urlencode($appName);
+        return 'otpauth://totp/'.urlencode("{$appName}:{$email}").'?secret='.$secret.'&issuer='.urlencode($appName);
     }
 }

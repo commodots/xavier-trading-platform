@@ -1,5 +1,12 @@
 <?php
 
+use Spatie\Backup\Notifications\Notifications\BackupHasFailed;
+use Spatie\Backup\Notifications\Notifications\BackupWasSuccessful;
+use Spatie\Backup\Notifications\Notifications\CleanupHasFailed;
+use Spatie\Backup\Notifications\Notifications\CleanupWasSuccessful;
+use Spatie\Backup\Notifications\Notifications\HealthyBackupWasFound;
+use Spatie\Backup\Notifications\Notifications\UnhealthyBackupWasFound;
+
 return [
 
     'backup' => [
@@ -37,18 +44,18 @@ return [
         ],
 
         'destination' => [
-            'filename' => env('APP_NAME') . '_' . now()->format('Y-m-d_H-i-s') . '.zip',
+            'filename' => env('APP_NAME').'_'.now()->format('Y-m-d_H-i-s').'.zip',
             'disk' => 'local',
         ],
 
         'notifications' => [
             'notifications' => [
-                \Spatie\Backup\Notifications\Notifications\BackupHasFailed::class => ['mail'],
-                \Spatie\Backup\Notifications\Notifications\UnhealthyBackupWasFound::class => ['mail'],
-                \Spatie\Backup\Notifications\Notifications\CleanupHasFailed::class => ['mail'],
-                \Spatie\Backup\Notifications\Notifications\BackupWasSuccessful::class => ['mail'],
-                \Spatie\Backup\Notifications\Notifications\HealthyBackupWasFound::class => ['mail'],
-                \Spatie\Backup\Notifications\Notifications\CleanupWasSuccessful::class => ['mail'],
+                BackupHasFailed::class => ['mail'],
+                UnhealthyBackupWasFound::class => ['mail'],
+                CleanupHasFailed::class => ['mail'],
+                BackupWasSuccessful::class => ['mail'],
+                HealthyBackupWasFound::class => ['mail'],
+                CleanupWasSuccessful::class => ['mail'],
             ],
         ],
     ],

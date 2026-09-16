@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ReportHistory extends Model
 {
     protected $fillable = [
-        'user_id', 'name', 'type', 'format', 'wallet', 'period', 'start_date', 'end_date', 'status'
+        'user_id', 'name', 'type', 'format', 'wallet', 'period', 'start_date', 'end_date', 'status',
     ];
 
     protected $casts = [

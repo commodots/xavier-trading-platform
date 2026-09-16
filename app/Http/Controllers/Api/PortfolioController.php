@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Demo\DemoPortfolio;
 use App\Models\Portfolio;
+use App\Models\Position;
 use App\Services\Demo\DemoTradingService;
 use App\Services\LiveTradingService;
 use Illuminate\Http\Request;
@@ -49,7 +50,7 @@ class PortfolioController extends Controller
 
         if (! $models->isDemo) {
             // Query local positions attributed to this user
-            $positions = \App\Models\Position::where('user_id', $user->id)->get();
+            $positions = Position::where('user_id', $user->id)->get();
 
             return response()->json([
                 'success' => true,
@@ -114,7 +115,7 @@ class PortfolioController extends Controller
 
         // Calculate actual change from first data point to last
         $totalChange = 0;
-        if (!empty($multiSeries)) {
+        if (! empty($multiSeries)) {
             $firstValue = $multiSeries[0]['data'][0]['y'] ?? 0;
             $lastValue = end($multiSeries[0]['data'])['y'] ?? 0;
             $totalChange = $firstValue > 0 ? round((($lastValue - $firstValue) / $firstValue) * 100, 2) : 0;

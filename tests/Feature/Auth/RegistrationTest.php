@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
@@ -90,10 +91,10 @@ class RegistrationTest extends TestCase
             'dob' => '1990-01-01',
         ]);
 
-        $user = \App\Models\User::where('email', 'test@example.com')->first();
-        
+        $user = User::where('email', 'test@example.com')->first();
+
         // Assert that no email verification notification was sent (welcome notification is OK)
-        Notification::assertNotSentTo($user, \Illuminate\Auth\Notifications\VerifyEmail::class);
+        Notification::assertNotSentTo($user, VerifyEmail::class);
     }
 
     public function test_api_verify_email_endpoint_marks_user_verified(): void

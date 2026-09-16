@@ -35,8 +35,8 @@ Route::middleware('guest')->group(function () {
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
-        'database' => \DB::connection()->getPdo() !== false,
-        'redis' => \Cache::store('redis')->get('health_check') !== null,
+        'database' => DB::connection()->getPdo() !== false,
+        'redis' => Cache::store('redis')->get('health_check') !== null,
         'queue' => true,
     ]);
 });

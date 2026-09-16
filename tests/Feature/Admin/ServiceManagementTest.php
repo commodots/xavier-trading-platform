@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\StaffPermission;
 use App\Models\Service;
 use App\Models\ServiceConnection;
+use App\Models\StaffPermission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,7 +20,7 @@ class ServiceManagementTest extends TestCase
     {
         parent::setUp();
         // Create a basic unverified user factory if it doesn't exist
-        if (!method_exists(User::class, 'factory')) {
+        if (! method_exists(User::class, 'factory')) {
             // Assume the test setup ensures User model has a factory or methods for creating roles
         }
     }
@@ -33,8 +33,9 @@ class ServiceManagementTest extends TestCase
         // Based on your plan, both 'admin' and 'compliance' roles should pass AdminMiddleware
         StaffPermission::create([
             'role' => $role,
-            'permissions' => ['manage_services' => true]
+            'permissions' => ['manage_services' => true],
         ]);
+
         return User::factory()->create(['role' => $role, 'email_verified_at' => now()]);
     }
 
@@ -92,7 +93,7 @@ class ServiceManagementTest extends TestCase
         $compliance = $this->createAuthorizedUser('compliance');
         $payload = [
             'name' => 'New Service ABC',
-            'type' => 'payment', 
+            'type' => 'payment',
         ];
 
         // Act
@@ -114,7 +115,7 @@ class ServiceManagementTest extends TestCase
         // Arrange
         $admin = $this->createAuthorizedUser('admin');
         Service::factory()->create(['type' => 'duplicate_type']);
-        
+
         $payload = ['name' => 'Another Service', 'type' => 'duplicate_type'];
 
         // Act

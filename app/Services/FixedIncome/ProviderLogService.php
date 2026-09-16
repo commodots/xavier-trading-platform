@@ -13,39 +13,29 @@ class ProviderLogService
         array $data = []
     ): FixedIncomeProviderLog {
         return FixedIncomeProviderLog::create([
-            'fixed_income_investment_id' =>
-                $investment->id,
+            'fixed_income_investment_id' => $investment->id,
 
-            'provider' =>
-                $investment->provider,
+            'provider' => $investment->provider,
 
-            'operation' =>
-                $operation,
+            'operation' => $operation,
 
-            'request_reference' =>
-                $data['request_reference'] ?? null,
+            'request_reference' => $data['request_reference'] ?? null,
 
-            'provider_reference' =>
-                $data['provider_reference'] ?? null,
+            'provider_reference' => $data['provider_reference'] ?? null,
 
-            'http_status' =>
-                $data['http_status'] ?? null,
+            'http_status' => $data['http_status'] ?? null,
 
-            'status' =>
-                $data['status'] ?? 'unknown',
+            'status' => $data['status'] ?? 'unknown',
 
-            'request_payload' =>
-                $this->sanitize(
-                    $data['request_payload'] ?? []
-                ),
+            'request_payload' => $this->sanitize(
+                $data['request_payload'] ?? []
+            ),
 
-            'response_payload' =>
-                $this->sanitize(
-                    $data['response_payload'] ?? []
-                ),
+            'response_payload' => $this->sanitize(
+                $data['response_payload'] ?? []
+            ),
 
-            'error_message' =>
-                $data['error_message'] ?? null,
+            'error_message' => $data['error_message'] ?? null,
         ]);
     }
 

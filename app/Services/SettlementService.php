@@ -3,17 +3,15 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\Portfolio;
 use App\Models\Trade;
 use App\Models\Wallet;
-use App\Models\Portfolio;
 use App\Notifications\SettlementCompletedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class SettlementService
 {
-   
     public function settle(Order $order): void
     {
         $this->settleOrder($order);
@@ -29,6 +27,7 @@ class SettlementService
         // Fail-safe check: If the order was structurally killed, reject the settlement loop
         if (in_array($order->status, ['cancelled', 'failed'])) {
             Log::warning("SettlementService: Aborted settlement for order {$order->id} because status is {$order->status}");
+
             return;
         }
 
@@ -40,7 +39,7 @@ class SettlementService
                     $this->processTradeSettlement($trade, $order);
                     Log::info("SettlementService: Trade {$trade->id} settled successfully for order {$order->id}");
                 } catch (\Exception $e) {
-                    Log::error("SettlementService: Critical failure settling trade {$trade->id}: " . $e->getMessage());
+                    Log::error("SettlementService: Critical failure settling trade {$trade->id}: ".$e->getMessage());
                     throw $e; // Rollback entire transaction sequence if a single step errors out
                 }
             }
@@ -64,7 +63,7 @@ class SettlementService
             ->lockForUpdate()
             ->first();
 
-        if (!$wallet) {
+        if (! $wallet) {
             throw new \Exception("Wallet missing for user {$order->user_id} [{$currency}]");
         }
 
@@ -73,7 +72,7 @@ class SettlementService
             ['user_id' => $order->user_id, 'symbol' => $order->symbol],
             ['quantity' => 0, 'cleared_quantity' => 0, 'uncleared_quantity' => 0]
         );
-        
+
         // Lock portfolio record for modification safety
         $portfolio = Portfolio::where('id', $portfolio->id)->lockForUpdate()->first();
 
@@ -92,7 +91,7 @@ class SettlementService
             // Move asset tokens out of holding status directly into clear balances
             $portfolio->decrement('uncleared_quantity', $trade->quantity);
             $portfolio->increment('cleared_quantity', $trade->quantity);
-            
+
         } else {
             // SETTLE SELL:
             // Protect against negative balances from double-settlement calls
@@ -117,7 +116,7 @@ class SettlementService
         $trade->update([
             'settlement_status' => 'settled',
             'is_settled' => true,
-            'settlement_date' => now()
+            'settlement_date' => now(),
         ]);
 
         if ($trade->user) {
@@ -142,8 +141,8 @@ class SettlementService
 
         foreach ($pendingTrades as $trade) {
             $order = $trade->order;
-            if (!$order || in_array($order->status, ['cancelled', 'failed'])) {
-                continue; 
+            if (! $order || in_array($order->status, ['cancelled', 'failed'])) {
+                continue;
             }
 
             Log::info("Executing automated T+1 daily settlement routine for trade record: {$trade->id}");
@@ -152,7 +151,7 @@ class SettlementService
                 // Keep individual order processes separate so one broken trade record doesn't stall the whole loop
                 $this->settleOrder($order);
             } catch (\Exception $e) {
-                Log::error("Automated settlement processing failed for trade {$trade->id}: " . $e->getMessage());
+                Log::error("Automated settlement processing failed for trade {$trade->id}: ".$e->getMessage());
             }
         }
     }

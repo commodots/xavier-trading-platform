@@ -10,7 +10,7 @@ class Fee extends Model
         'user_id',
         'trade_id',
         'amount',
-        'type' // trade_fee, subscription_fee
+        'type', // trade_fee, subscription_fee
     ];
 
     public function user()

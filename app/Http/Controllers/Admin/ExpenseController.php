@@ -37,7 +37,7 @@ class ExpenseController extends Controller
                 return;
             }
         } catch (\Throwable $e) {
-            
+
         }
 
         $legacyRole = $user->role ?? null;
@@ -217,7 +217,7 @@ class ExpenseController extends Controller
         );
     }
 
-    // Expense Category Management 
+    // Expense Category Management
 
     public function indexCategories()
     {
@@ -282,7 +282,7 @@ class ExpenseController extends Controller
         return response()->json($category->fresh());
     }
 
-    //  Vendor Management 
+    //  Vendor Management
 
     public function indexVendors()
     {

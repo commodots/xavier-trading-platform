@@ -15,6 +15,7 @@ class SendSMSJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $timeout = 30;
 
     /**
@@ -33,8 +34,9 @@ class SendSMSJob implements ShouldQueue
     {
         $phone = $this->phone ?? $this->user->phone;
 
-        if (!$phone) {
+        if (! $phone) {
             Log::warning("SendSMSJob: No phone number for user {$this->user->id}");
+
             return;
         }
 

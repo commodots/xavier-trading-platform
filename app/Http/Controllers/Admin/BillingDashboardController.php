@@ -21,10 +21,10 @@ class BillingDashboardController extends Controller
         $debtTotal = User::where('wallet_debt', '>', 0)->sum('wallet_debt');
 
         return response()->json([
-            'total_users'              => $totalUsers,
+            'total_users' => $totalUsers,
             'active_subscription_users' => $activeSubscriptionUsers,
-            'trial_users'              => $trialUsers,
-            'debt_total'               => $debtTotal,
+            'trial_users' => $trialUsers,
+            'debt_total' => $debtTotal,
         ]);
     }
 
@@ -108,8 +108,8 @@ class BillingDashboardController extends Controller
             ->sum('amount');
 
         return response()->json([
-            'total'   => $total,
-            'today'   => $today,
+            'total' => $total,
+            'today' => $today,
             'monthly' => $monthly,
         ]);
     }

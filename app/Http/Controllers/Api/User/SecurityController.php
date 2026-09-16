@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\User;
 
+use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class SecurityController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password'         => 'required|min:8|confirmed',
+            'password' => 'required|min:8|confirmed',
         ]);
 
         $user = $request->user();
@@ -43,11 +44,11 @@ class SecurityController extends Controller
 
         $tokens = $request->user()->tokens()->select('id', 'name', 'last_used_at', 'created_at')->get()
             ->map(fn ($t) => [
-                'id'           => $t->id,
-                'device'       => $t->name,
-                'last_active'  => $t->last_used_at?->diffForHumans() ?? 'Never',
-                'created_at'   => $t->created_at->toDateTimeString(),
-                'is_current'   => $t->id === $currentTokenId,
+                'id' => $t->id,
+                'device' => $t->name,
+                'last_active' => $t->last_used_at?->diffForHumans() ?? 'Never',
+                'created_at' => $t->created_at->toDateTimeString(),
+                'is_current' => $t->id === $currentTokenId,
             ]);
 
         return response()->json(['success' => true, 'sessions' => $tokens]);
@@ -84,11 +85,11 @@ class SecurityController extends Controller
 
     public function enable2FA(Request $request)
     {
-        return app(\App\Http\Controllers\Api\TwoFactorController::class)->enable2FA($request);
+        return app(TwoFactorController::class)->enable2FA($request);
     }
 
     public function verify2FA(Request $request)
     {
-        return app(\App\Http\Controllers\Api\TwoFactorController::class)->confirm2FA($request);
+        return app(TwoFactorController::class)->confirm2FA($request);
     }
 }

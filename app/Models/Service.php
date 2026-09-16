@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Models\ServiceConnection;
 use Illuminate\Database\Eloquent\Model;
 
 class Service extends Model
@@ -19,6 +18,6 @@ class Service extends Model
 
     public function activeConnection()
     {
-        return $this->connections()->where('is_active', true)->first(); 
+        return $this->connections()->where('is_active', true)->first();
     }
 }

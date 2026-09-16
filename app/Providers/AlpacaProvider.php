@@ -35,11 +35,12 @@ class AlpacaProvider
                 ->timeout($this->timeout)
                 ->get($this->dataBaseUrl.'/stocks/'.strtoupper($symbol).'/latest/quote');
 
-                if ($response->successful()) {
+            if ($response->successful()) {
                 $data = $response->json();
-               
+
                 return (float) ($data['quote']['ap'] ?? $data['quote']['bp'] ?? 0.0);
             }
+
             return 0.0;
         } catch (\Exception $e) {
             return 0.0;

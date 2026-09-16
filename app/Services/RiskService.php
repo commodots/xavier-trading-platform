@@ -54,7 +54,7 @@ class RiskService
                 ->where('type', RiskFlag::TYPE_MULTIPLE_KYC_FAILURES)
                 ->first();
 
-            if (!$existing) {
+            if (! $existing) {
                 $this->flag($user, RiskFlag::TYPE_MULTIPLE_KYC_FAILURES, [
                     'failure_count' => $failures,
                     'severity' => 'high',
@@ -84,7 +84,7 @@ class RiskService
                 ->where('type', RiskFlag::TYPE_HIGH_DEBT)
                 ->first();
 
-            if (!$existing) {
+            if (! $existing) {
                 $this->flag($user, RiskFlag::TYPE_HIGH_DEBT, [
                     'debt_amount' => $debt,
                     'severity' => $debt > 100000 ? 'critical' : 'medium',
@@ -105,7 +105,7 @@ class RiskService
                 ->where('type', RiskFlag::TYPE_MULTIPLE_DEVICES)
                 ->first();
 
-            if (!$existing) {
+            if (! $existing) {
                 $this->flag($user, RiskFlag::TYPE_MULTIPLE_DEVICES, [
                     'device_count' => $deviceCount,
                     'severity' => 'medium',

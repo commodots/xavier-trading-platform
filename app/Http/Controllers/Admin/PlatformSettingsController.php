@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSetting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class PlatformSettingsController extends Controller
 {
@@ -15,7 +14,7 @@ class PlatformSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $settings
+            'data' => $settings,
         ]);
     }
 
@@ -23,7 +22,7 @@ class PlatformSettingsController extends Controller
     {
         $validated = $request->validate([
             'settings' => 'required|array',
-            'settings.*' => 'nullable'
+            'settings.*' => 'nullable',
         ]);
 
         foreach ($validated['settings'] as $key => $value) {
@@ -32,7 +31,7 @@ class PlatformSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Settings updated successfully'
+            'message' => 'Settings updated successfully',
         ]);
     }
 
@@ -42,7 +41,7 @@ class PlatformSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Settings cache cleared'
+            'message' => 'Settings cache cleared',
         ]);
     }
 }

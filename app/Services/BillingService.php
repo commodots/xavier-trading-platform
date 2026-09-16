@@ -3,9 +3,6 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Models\BillingRecord;
-use App\Services\SubscriptionService;
-use Illuminate\Support\Facades\DB;
 
 class BillingService
 {

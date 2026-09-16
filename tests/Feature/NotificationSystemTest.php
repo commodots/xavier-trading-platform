@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Models\UserDevice;
+use App\Notifications\AccountSuspendedNotification;
 use App\Notifications\AdminBroadcastNotification;
+use App\Notifications\BillingAlertNotification;
+use App\Notifications\InactivityWarningNotification;
 use App\Notifications\NewDeviceLoginNotification;
-
+use App\Notifications\TrialEndingNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,7 +23,7 @@ class NotificationSystemTest extends TestCase
         $user = User::factory()->create();
 
         // Dispatch a real database notification
-        $user->notify(new \App\Notifications\BillingAlertNotification(1000, 'Test billing'));
+        $user->notify(new BillingAlertNotification(1000, 'Test billing'));
 
         $response = $this->actingAs($user)->getJson('/api/user/notifications');
 
@@ -38,8 +41,8 @@ class NotificationSystemTest extends TestCase
     public function test_unread_count_reflects_unread_notifications(): void
     {
         $user = User::factory()->create();
-        $user->notify(new \App\Notifications\BillingAlertNotification(500, 'Fee due'));
-        $user->notify(new \App\Notifications\InactivityWarningNotification(30));
+        $user->notify(new BillingAlertNotification(500, 'Fee due'));
+        $user->notify(new InactivityWarningNotification(30));
 
         $response = $this->actingAs($user)->getJson('/api/user/notifications');
 
@@ -87,7 +90,7 @@ class NotificationSystemTest extends TestCase
             'newsletters' => false,
         ]);
 
-        $notification = new \App\Notifications\BillingAlertNotification(1000, 'Pref test');
+        $notification = new BillingAlertNotification(1000, 'Pref test');
 
         $this->assertEquals(['database'], $notification->via($user));
     }
@@ -95,7 +98,7 @@ class NotificationSystemTest extends TestCase
     public function test_mark_single_notification_as_read(): void
     {
         $user = User::factory()->create();
-        $user->notify(new \App\Notifications\BillingAlertNotification(1000, 'Test'));
+        $user->notify(new BillingAlertNotification(1000, 'Test'));
 
         $notificationId = $user->notifications()->first()->id;
 
@@ -108,8 +111,8 @@ class NotificationSystemTest extends TestCase
     public function test_mark_all_notifications_as_read(): void
     {
         $user = User::factory()->create();
-        $user->notify(new \App\Notifications\BillingAlertNotification(1000, 'Test 1'));
-        $user->notify(new \App\Notifications\InactivityWarningNotification(30));
+        $user->notify(new BillingAlertNotification(1000, 'Test 1'));
+        $user->notify(new InactivityWarningNotification(30));
 
         $response = $this->actingAs($user)->postJson('/api/user/notifications/read-all');
 
@@ -120,7 +123,7 @@ class NotificationSystemTest extends TestCase
     public function test_billing_notification_has_correct_type_and_action(): void
     {
         $user = User::factory()->create();
-        $user->notify(new \App\Notifications\BillingAlertNotification(1000, 'Insufficient balance'));
+        $user->notify(new BillingAlertNotification(1000, 'Insufficient balance'));
 
         $response = $this->actingAs($user)->getJson('/api/user/notifications');
 
@@ -132,7 +135,7 @@ class NotificationSystemTest extends TestCase
     public function test_account_suspended_notification_has_correct_type_and_action(): void
     {
         $user = User::factory()->create();
-        $user->notify(new \App\Notifications\AccountSuspendedNotification('Debt exceeded'));
+        $user->notify(new AccountSuspendedNotification('Debt exceeded'));
 
         $response = $this->actingAs($user)->getJson('/api/user/notifications');
 
@@ -144,7 +147,7 @@ class NotificationSystemTest extends TestCase
     public function test_trial_ending_notification_has_correct_type_and_action(): void
     {
         $user = User::factory()->create();
-        $user->notify(new \App\Notifications\TrialEndingNotification(2));
+        $user->notify(new TrialEndingNotification(2));
 
         $response = $this->actingAs($user)->getJson('/api/user/notifications');
 

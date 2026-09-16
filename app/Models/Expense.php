@@ -51,7 +51,6 @@ class Expense extends Model
         return $this->belongsTo(User::class, 'requested_by');
     }
 
-    
     public static function generateNumber(int $id): string
     {
         return 'EXP-'.now()->format('Ym').'-'.str_pad($id, 6, '0', STR_PAD_LEFT);

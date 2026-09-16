@@ -20,7 +20,7 @@ class PlatformEarning extends Model
         'amount',
         'currency',
         'amount_ngn',
-        'source'
+        'source',
     ];
 
     /**
@@ -34,6 +34,6 @@ class PlatformEarning extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'amount_ngn' => 'decimal:2'
+        'amount_ngn' => 'decimal:2',
     ];
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Order;
 use App\Models\User;
 use App\Services\MarketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,7 +89,7 @@ class TradeIntegrationTest extends TestCase
     public function test_trade_positions_list_includes_order_position_type(): void
     {
         $user = User::factory()->create();
-        $order = \App\Models\Order::create([
+        $order = Order::create([
             'user_id' => $user->id,
             'symbol' => 'AAPL',
             'side' => 'buy',

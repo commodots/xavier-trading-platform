@@ -10,16 +10,16 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::table('wallets', function (Blueprint $table) {
-        $table->string('account_number', 20)->nullable()->unique()->after('user_id');
-    });
-}
+    {
+        Schema::table('wallets', function (Blueprint $table) {
+            $table->string('account_number', 20)->nullable()->unique()->after('user_id');
+        });
+    }
 
-public function down(): void
-{
-    Schema::table('wallets', function (Blueprint $table) {
-        $table->dropColumn('account_number');
-    });
-}
+    public function down(): void
+    {
+        Schema::table('wallets', function (Blueprint $table) {
+            $table->dropColumn('account_number');
+        });
+    }
 };

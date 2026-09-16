@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\StaffPermission;
-use Illuminate\Support\Facades\Log;
 
 class StaffPermissionService
 {
@@ -17,7 +16,9 @@ class StaffPermissionService
 
     public static function roleHasCapability($roleOrUser, string $capability): bool
     {
-        if (!in_array($capability, self::CAPABILITIES)) return false;
+        if (! in_array($capability, self::CAPABILITIES)) {
+            return false;
+        }
 
         $roleName = null;
 
@@ -26,25 +27,27 @@ class StaffPermissionService
         } elseif ($roleOrUser && method_exists($roleOrUser, 'getRoleNames')) {
             // Check Spatie roles first, ignoring generic ones
             $names = $roleOrUser->getRoleNames();
-            $roleName = $names->reject(fn($name) => in_array($name, ['user', 'super-admin', 'admin']))->first();
-            
+            $roleName = $names->reject(fn ($name) => in_array($name, ['user', 'super-admin', 'admin']))->first();
+
             // Fallback to the 'role' column on the User model if Spatie is empty
-            if (!$roleName && isset($roleOrUser->role)) {
+            if (! $roleName && isset($roleOrUser->role)) {
                 $roleName = $roleOrUser->role;
             }
         }
 
         // Final check: if it's still empty or just 'user', deny access
-        if (!$roleName || $roleName === 'user') {
+        if (! $roleName || $roleName === 'user') {
             return false;
         }
 
         $sp = StaffPermission::forRole($roleName);
-        if (!$sp) return false;
+        if (! $sp) {
+            return false;
+        }
 
         $perms = $sp->permissions ?? [];
 
         // Return true only if the capability exists and is truthy
-        return isset($perms[$capability]) && ($perms[$capability] === true || $perms[$capability] === 'true' || $perms[$capability] === 1 || $perms[$capability] === "1");
+        return isset($perms[$capability]) && ($perms[$capability] === true || $perms[$capability] === 'true' || $perms[$capability] === 1 || $perms[$capability] === '1');
     }
 }

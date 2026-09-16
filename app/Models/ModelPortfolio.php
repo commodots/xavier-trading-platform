@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class ModelPortfolio extends Model
 {
     protected $fillable = [
-        'name', 
-        'description', 
-        'risk_profile', 
-        'starting_value', 
-        'is_premium'
+        'name',
+        'description',
+        'risk_profile',
+        'starting_value',
+        'is_premium',
     ];
 
     protected $casts = [

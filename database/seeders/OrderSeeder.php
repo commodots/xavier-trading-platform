@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
 use App\Models\Order;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class OrderSeeder extends Seeder
 {
@@ -14,23 +14,23 @@ class OrderSeeder extends Seeder
             [
                 'name' => 'GLOBAL',
                 'currency' => 'USD',
-                'symbols' => ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN']
+                'symbols' => ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN'],
             ],
             [
                 'name' => 'CRYPTO',
                 'currency' => 'USD',
-                'symbols' => ['BTC', 'ETH', 'SOL', 'BNB', 'XRP']
+                'symbols' => ['BTC', 'ETH', 'SOL', 'BNB', 'XRP'],
             ],
             [
                 'name' => 'NGX', // Local Stocks
                 'currency' => 'NGN',
-                'symbols' => ['ZENITHBANK', 'GTCO', 'DANGCEM', 'MTNN', 'AIRTELAFRI']
+                'symbols' => ['ZENITHBANK', 'GTCO', 'DANGCEM', 'MTNN', 'AIRTELAFRI'],
             ],
             [
-                'name' => 'FIXED INCOME', 
+                'name' => 'FIXED INCOME',
                 'currency' => 'NGN',
-                'symbols' => ['FG132026S1', 'ABB2026S0', 'FGNSB_2027', 'CP_MTN_I','CP_DAN_X']
-            ]
+                'symbols' => ['FG132026S1', 'ABB2026S0', 'FGNSB_2027', 'CP_MTN_I', 'CP_DAN_X'],
+            ],
         ];
 
         User::all()->each(function ($user) use ($markets) {

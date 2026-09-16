@@ -2,9 +2,8 @@
 
 namespace App\Models\Demo;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
-
+use Illuminate\Database\Eloquent\Model;
 
 class DemoLedger extends Model
 {

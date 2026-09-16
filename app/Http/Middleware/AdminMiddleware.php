@@ -10,13 +10,13 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
-        
-        $staffRoles = ['super-admin','admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
 
-        if (!auth()->check()) {
+        $staffRoles = ['super-admin', 'admin', 'staff', 'compliance', 'manager', 'support', 'accounts'];
+
+        if (! auth()->check()) {
             return response()->json([
                 'message' => 'Access Denied: Staff or Admin privileges required.',
-                'roles' => []
+                'roles' => [],
             ], 403);
         }
 
@@ -35,14 +35,14 @@ class AdminMiddleware
                 Log::warning('AdminMiddleware access denied', [
                     'user_id' => $user->id ?? null,
                     'legacy_role' => $user->role ?? null,
-                    'spatie_roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : []
+                    'spatie_roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
                 ]);
             } catch (\Throwable $e) {
             }
 
             return response()->json([
                 'message' => 'Access Denied: Staff or Admin privileges required.',
-                'roles' => $user->getRoleNames() ?? []
+                'roles' => $user->getRoleNames() ?? [],
             ], 403);
         }
 

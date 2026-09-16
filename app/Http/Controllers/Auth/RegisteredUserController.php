@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,9 +28,9 @@ class RegisteredUserController extends Controller
     /**
      * Handle an incoming registration request.
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $request->validate([
             'name' => 'required|string|max:255',
@@ -44,7 +46,6 @@ class RegisteredUserController extends Controller
         $firstName = trim($nameParts[0]);
         $lastName = trim($nameParts[1] ?? '');
 
-
         $user = User::create([
             'name' => $request->name,
             'first_name' => $firstName,
@@ -54,7 +55,7 @@ class RegisteredUserController extends Controller
             'dob' => $request->dob,
             'bvn' => $request->bvn,
             'nin' => $request->nin,
-'profile_image' => $request->profile_image,        ]);
+            'profile_image' => $request->profile_image,        ]);
 
         event(new Registered($user));
 

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Trade;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 
 class SettleUnsettledTrades implements ShouldQueue
 {
@@ -26,34 +27,36 @@ class SettleUnsettledTrades implements ShouldQueue
     private function settleTrade(Trade $trade): void
     {
         try {
-            if (!$trade->user) {
+            if (! $trade->user) {
                 \Log::warning("SettleUnsettledTrades: No user for trade {$trade->id}");
+
                 return;
             }
 
-            $currency     = $trade->currency === 'USD' ? 'USD' : 'NGN';
+            $currency = $trade->currency === 'USD' ? 'USD' : 'NGN';
             $unclearedCol = $trade->currency === 'USD' ? 'usd_uncleared' : 'ngn_uncleared';
-            $clearedCol   = $trade->currency === 'USD' ? 'usd_cleared'   : 'ngn_cleared';
+            $clearedCol = $trade->currency === 'USD' ? 'usd_cleared' : 'ngn_cleared';
 
             $tradeWallet = $trade->user->wallet()
                 ->where('currency', $currency)
                 ->lockForUpdate()
                 ->first();
 
-            if (!$tradeWallet) {
+            if (! $tradeWallet) {
                 \Log::warning("SettleUnsettledTrades: No {$currency} wallet for user {$trade->user_id}");
                 $trade->update(['settlement_status' => 'failed']);
+
                 return;
             }
 
             $settledAmount = $trade->total_amount ?? ($trade->quantity * $trade->price);
 
-            \Illuminate\Support\Facades\DB::transaction(function () use ($trade, $tradeWallet, $unclearedCol, $clearedCol, $settledAmount) {
+            DB::transaction(function () use ($trade, $tradeWallet, $unclearedCol, $clearedCol, $settledAmount) {
                 $tradeWallet->decrement($unclearedCol, $settledAmount);
                 $tradeWallet->increment($clearedCol, $settledAmount);
 
                 $trade->update([
-                    'is_settled'        => true,
+                    'is_settled' => true,
                     'settlement_status' => 'completed',
                 ]);
             });

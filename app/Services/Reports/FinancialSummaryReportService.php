@@ -9,7 +9,7 @@ class FinancialSummaryReportService extends BaseReportService
     /**
      * Generate the financial summary report.
      *
-    
+
      *
      * All figures come from the same services so reports reconcile.
      */

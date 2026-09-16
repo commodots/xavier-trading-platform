@@ -1,15 +1,15 @@
-<?php 
+<?php
 
 namespace App\Services\Documents;
 
 use App\Models\Trade;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
+
 class ContractNoteService
 {
     public function generate(Trade $trade)
     {
-        $pdf = PDF::loadView('pdf.contract-note', [
+        $pdf = Pdf::loadView('pdf.contract-note', [
             'trade' => $trade,
             'order' => $trade->order,
             'user' => $trade->order->user,

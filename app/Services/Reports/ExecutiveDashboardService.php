@@ -15,8 +15,6 @@ class ExecutiveDashboardService extends BaseReportService
 {
     /**
      * Generate the executive dashboard data.
-     *
-     *  
      */
     public function generate(Request $request): array
     {
@@ -39,7 +37,7 @@ class ExecutiveDashboardService extends BaseReportService
     }
 
     /**
-     * Financial KPI cards 
+     * Financial KPI cards
      */
     protected function financialSummary(array $financial): array
     {

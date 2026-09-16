@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Kyc;
+use Illuminate\Database\Seeder;
 
 class KycSeeder extends Seeder
 {
@@ -12,10 +12,10 @@ class KycSeeder extends Seeder
         foreach (range(2, 21) as $id) {
             Kyc::create([
                 'user_id' => $id,
-                'bvn' => '22' . rand(100000000, 999999999),
+                'bvn' => '22'.rand(100000000, 999999999),
                 'id_type' => 'NIN',
                 'id_value' => rand(10000000000, 99999999999),
-                'status' => ['pending','verified','rejected'][rand(0,2)],
+                'status' => ['pending', 'verified', 'rejected'][rand(0, 2)],
             ]);
         }
     }

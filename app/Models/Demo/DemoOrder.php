@@ -3,7 +3,6 @@
 namespace App\Models\Demo;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Demo\DemoTrade;
 
 class DemoOrder extends Model
 {
@@ -22,12 +21,11 @@ class DemoOrder extends Model
         'company',
         'units',
         'amount',
-        'market_price'
+        'market_price',
     ];
 
-
     protected $casts = [
-        'quantity'     => 'decimal:8',
+        'quantity' => 'decimal:8',
         'price' => 'float',
         'amount' => 'float',
         'market_price' => 'float',

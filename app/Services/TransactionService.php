@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\TransactionCharge;
-use App\Models\PlatformEarning;
 use App\Models\NewTransaction;
+use App\Models\PlatformEarning;
 use App\Models\SystemSetting;
+use App\Models\TransactionCharge;
 
-class TransactionService {
+class TransactionService
+{
     public static function applyFees(NewTransaction $transaction): NewTransaction
     {
         $chargeConfig = TransactionCharge::where('transaction_type', $transaction->type)
@@ -38,10 +39,10 @@ class TransactionService {
 
             PlatformEarning::create([
                 'transaction_id' => $transaction->id,
-                'amount'         => $fee,
-                'currency'       => $currency,
-                'amount_ngn'     => $amountNgn,
-                'source'         => $transaction->type,
+                'amount' => $fee,
+                'currency' => $currency,
+                'amount_ngn' => $amountNgn,
+                'source' => $transaction->type,
             ]);
         }
 

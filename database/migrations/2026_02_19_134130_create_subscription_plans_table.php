@@ -10,17 +10,17 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('subscription_plans', function (Blueprint $table) {
-        $table->id();
-        $table->string('name'); // e.g., "Premium Advisory"
-        $table->string('paystack_plan_code')->nullable();
-        $table->decimal('price', 15, 2);
-        $table->integer('duration_days')->default(30);
-        $table->text('features')->nullable();
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('subscription_plans', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // e.g., "Premium Advisory"
+            $table->string('paystack_plan_code')->nullable();
+            $table->decimal('price', 15, 2);
+            $table->integer('duration_days')->default(30);
+            $table->text('features')->nullable();
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

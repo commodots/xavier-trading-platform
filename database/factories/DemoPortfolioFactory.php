@@ -3,10 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Demo\DemoPortfolio;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Demo\DemoPortfolio>
+ * @extends Factory<DemoPortfolio>
  */
 class DemoPortfolioFactory extends Factory
 {
@@ -15,7 +16,7 @@ class DemoPortfolioFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(),
+            'user_id' => User::factory(),
             'symbol' => $this->faker->randomElement(['MTNN', 'GTCO', 'ZENITHBANK']),
             'cleared_quantity' => $this->faker->numberBetween(10, 1000),
             'average_price' => $this->faker->randomFloat(2, 10, 200),

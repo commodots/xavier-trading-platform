@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Services\Demo\DemoWalletService;
-use App\Services\Demo\DemoTradingService;
-use Illuminate\Http\Request;
 use App\Models\Demo\DemoOrder;
 use App\Models\Demo\DemoPortfolio;
-use App\Models\Demo\DemoTransaction;
+use App\Services\Demo\DemoTradingService;
+use App\Services\Demo\DemoWalletService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DemoController extends Controller
 {
     protected $walletService;
+
     protected $tradingService;
 
     public function __construct(
@@ -36,13 +35,14 @@ class DemoController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Switched to {$modeLabel} mode",
-            'trading_mode' => $user->trading_mode
+            'trading_mode' => $user->trading_mode,
         ]);
     }
 
     public function startDemo(Request $request)
     {
         $request->validate(['amount' => 'required|numeric|min:1000']);
+
         return response()->json($this->walletService->fund($request->user()->id, $request->amount));
     }
 
@@ -53,21 +53,21 @@ class DemoController extends Controller
             'market' => 'required|string|in:NGX,GLOBAL,CRYPTO,FIXED_INCOME,LOCAL,INTERNATIONAL',
             'side' => 'required|in:buy,sell',
             'amount' => 'required|numeric|min:0',
-            'market_price' => 'required|numeric'
+            'market_price' => 'required|numeric',
         ]);
 
         return DB::transaction(function () use ($request) {
 
             $tradeData = [
-                "symbol" => $request->symbol,
-                "market" => $request->market,
-                "side" => $request->side,
-                "amount" => $request->amount,
-                "market_price" => $request->market_price,
+                'symbol' => $request->symbol,
+                'market' => $request->market,
+                'side' => $request->side,
+                'amount' => $request->amount,
+                'market_price' => $request->market_price,
             ];
 
             // 1. Let the service handle the complex trading logic
-            
+
             $order = $this->tradingService->executeTrade(
                 $request->user(),
                 $tradeData
@@ -85,19 +85,20 @@ class DemoController extends Controller
                         ->increment('balance', $request->amount);
                 }
             }
+
             return response()->json($order);
         });
     }
 
     public function portfolio(Request $request)
     {
-        // 🌟 Reverted to the clean 1-liner! 
+        // 🌟 Reverted to the clean 1-liner!
         // The newly updated DemoTradingService now formats this perfectly for Vue.
         $portfolioData = $this->tradingService->getPortfolio($request->user()->id);
 
         return response()->json([
             'success' => true,
-            'data' => $portfolioData
+            'data' => $portfolioData,
         ]);
     }
 

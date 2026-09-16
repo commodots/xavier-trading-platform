@@ -56,7 +56,6 @@ class ProfitLossReportService extends BaseReportService
 
     /**
      * Total revenue for the period.
-     *
      */
     public function getRevenue(Request $request): float
     {
@@ -112,7 +111,7 @@ class ProfitLossReportService extends BaseReportService
     }
 
     /**
-     * Monthly revenue 
+     * Monthly revenue
      */
     protected function monthlyRevenue(Request $request): array
     {

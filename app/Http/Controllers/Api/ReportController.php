@@ -61,9 +61,9 @@ class ReportController extends Controller
         if (in_array($format, ['pdf', 'excel', 'csv'])) {
             try {
                 $user = $request->user();
-                $walletLabel = $wallet === 'all' ? 'All Wallets' : $wallet . ' Wallet';
+                $walletLabel = $wallet === 'all' ? 'All Wallets' : $wallet.' Wallet';
                 $typeLabel = $request->type === 'trading' ? 'Trading Performance' : 'Statement';
-                
+
                 ReportHistory::create([
                     'user_id' => $user->id,
                     'name' => "Account {$typeLabel} - {$walletLabel} ({$request->from} to {$request->to})",
@@ -76,7 +76,7 @@ class ReportController extends Controller
                     'status' => 'completed',
                 ]);
             } catch (\Exception $e) {
-                logger()->error('Failed to save report history: ' . $e->getMessage());
+                logger()->error('Failed to save report history: '.$e->getMessage());
             }
         }
 
@@ -98,10 +98,10 @@ class ReportController extends Controller
                             $tx->created_at?->format('Y-m-d H:i:s'),
                             $tx->reference ?? 'N/A',
                             $tx->type ?? 'N/A',
-                            number_format((float)($tx->amount ?? 0), 2),
+                            number_format((float) ($tx->amount ?? 0), 2),
                             $tx->status ?? 'N/A',
-                            number_format((float)($item['balance_before'] ?? 0), 2),
-                            number_format((float)($item['balance_after'] ?? 0), 2),
+                            number_format((float) ($item['balance_before'] ?? 0), 2),
+                            number_format((float) ($item['balance_after'] ?? 0), 2),
                         ]);
                     }
                     fclose($file);
@@ -117,6 +117,7 @@ class ReportController extends Controller
                 'period' => $period,
                 'current_balances' => $currentBalances,
             ]);
+
             return $pdf->download('account-statement.pdf');
         }
 
@@ -171,8 +172,8 @@ class ReportController extends Controller
         if (in_array($format, ['pdf', 'excel', 'csv'])) {
             try {
                 $user = $request->user();
-                $walletLabel = $wallet === 'all' ? 'All Wallets' : $wallet . ' Wallet';
-                
+                $walletLabel = $wallet === 'all' ? 'All Wallets' : $wallet.' Wallet';
+
                 ReportHistory::create([
                     'user_id' => $user->id,
                     'name' => "Trading Performance - {$walletLabel} ({$request->from} to {$request->to})",
@@ -185,7 +186,7 @@ class ReportController extends Controller
                     'status' => 'completed',
                 ]);
             } catch (\Exception $e) {
-                logger()->error('Failed to save report history: ' . $e->getMessage());
+                logger()->error('Failed to save report history: '.$e->getMessage());
             }
         }
 
@@ -207,10 +208,10 @@ class ReportController extends Controller
                             $tx->created_at?->format('Y-m-d H:i:s'),
                             $tx->reference ?? 'N/A',
                             $tx->type ?? 'N/A',
-                            number_format((float)($tx->amount ?? 0), 2),
+                            number_format((float) ($tx->amount ?? 0), 2),
                             $tx->status ?? 'N/A',
-                            number_format((float)($item['balance_before'] ?? 0), 2),
-                            number_format((float)($item['balance_after'] ?? 0), 2),
+                            number_format((float) ($item['balance_before'] ?? 0), 2),
+                            number_format((float) ($item['balance_after'] ?? 0), 2),
                         ]);
                     }
                     fclose($file);
@@ -227,6 +228,7 @@ class ReportController extends Controller
                 'current_balances' => $result['current_balances'] ?? [],
                 'title' => 'Trading Performance Report',
             ]);
+
             return $pdf->download('trading-performance.pdf');
         }
 
@@ -306,6 +308,7 @@ class ReportController extends Controller
                 'from' => $request->from,
                 'to' => $request->to,
             ]);
+
             return $pdf->download('deposit-register.pdf');
         }
 
@@ -385,6 +388,7 @@ class ReportController extends Controller
                 'from' => $request->from,
                 'to' => $request->to,
             ]);
+
             return $pdf->download('withdrawal-register.pdf');
         }
 
@@ -466,6 +470,7 @@ class ReportController extends Controller
                 'from' => $request->from,
                 'to' => $request->to,
             ]);
+
             return $pdf->download('audit-trail.pdf');
         }
 
@@ -513,17 +518,20 @@ class ReportController extends Controller
         foreach ($users as $user) {
             try {
                 $result = $this->generateAndSendReport($admin, $user, $request, $wallet, $format, true);
-                if ($result) $sent++;
-                else $failed++;
+                if ($result) {
+                    $sent++;
+                } else {
+                    $failed++;
+                }
             } catch (\Exception $e) {
-                logger()->error("Failed to send report to user {$user->id}: " . $e->getMessage());
+                logger()->error("Failed to send report to user {$user->id}: ".$e->getMessage());
                 $failed++;
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => "Report sent to {$sent} users" . ($failed > 0 ? ". {$failed} failed." : "."),
+            'message' => "Report sent to {$sent} users".($failed > 0 ? ". {$failed} failed." : '.'),
         ]);
     }
 
@@ -599,18 +607,19 @@ class ReportController extends Controller
                 $admin
             ));
         } catch (\Exception $e) {
-            logger()->error("Failed to send report notification to user {$user->id}: " . $e->getMessage());
+            logger()->error("Failed to send report notification to user {$user->id}: ".$e->getMessage());
+
             return false;
         }
 
         // Save report history
         try {
-            $walletLabel = $wallet === 'all' ? 'All Wallets' : $wallet . ' Wallet';
+            $walletLabel = $wallet === 'all' ? 'All Wallets' : $wallet.' Wallet';
             $typeLabel = $request->report_type === 'trading_performance' ? 'Trading Performance' : 'Statement';
-            
+
             ReportHistory::create([
                 'user_id' => $user->id,
-                'name' => "{$typeLabel} - {$walletLabel} ({$request->from} to {$request->to}) [Sent by admin" . ($bulk ? ' - Bulk' : '') . "]",
+                'name' => "{$typeLabel} - {$walletLabel} ({$request->from} to {$request->to}) [Sent by admin".($bulk ? ' - Bulk' : '').']',
                 'type' => $request->report_type,
                 'format' => $format,
                 'wallet' => $wallet,
@@ -620,7 +629,7 @@ class ReportController extends Controller
                 'status' => 'completed',
             ]);
         } catch (\Exception $e) {
-            logger()->error('Failed to save report history: ' . $e->getMessage());
+            logger()->error('Failed to save report history: '.$e->getMessage());
         }
 
         // Log audit trail
@@ -661,7 +670,7 @@ class ReportController extends Controller
             });
 
         return response()->json([
-            'reports' => $reports
+            'reports' => $reports,
         ]);
     }
 
@@ -698,15 +707,16 @@ class ReportController extends Controller
                 $tx->created_at?->format('Y-m-d H:i:s'),
                 $tx->reference ?? 'N/A',
                 $tx->type ?? 'N/A',
-                number_format((float)($tx->amount ?? 0), 2),
+                number_format((float) ($tx->amount ?? 0), 2),
                 $tx->status ?? 'N/A',
-                number_format((float)($item['balance_before'] ?? 0), 2),
-                number_format((float)($item['balance_after'] ?? 0), 2),
+                number_format((float) ($item['balance_before'] ?? 0), 2),
+                number_format((float) ($item['balance_after'] ?? 0), 2),
             ]);
         }
         rewind($file);
         $content = stream_get_contents($file);
         fclose($file);
+
         return $content;
     }
 }

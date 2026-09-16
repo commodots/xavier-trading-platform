@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CryptoAddress;
 use App\Models\NewTransaction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class CryptoWebhookController extends Controller
         $amount = (float) $request->input('amount');
         $txHash = $request->input('txId'); // Tatum sends txId in the payload
 
-        $cryptoAddress = \App\Models\CryptoAddress::where('address', $address)->first();
+        $cryptoAddress = CryptoAddress::where('address', $address)->first();
 
         if (! $cryptoAddress || $amount <= 0 || ! $txHash) {
             return response()->json(['status' => 'ignored']);

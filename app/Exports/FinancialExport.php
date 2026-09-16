@@ -2,16 +2,19 @@
 
 namespace App\Exports;
 
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class FinancialExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class FinancialExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     protected $data;
+
     protected $tab;
 
     public function __construct($data, string $tab = 'deposits')
@@ -22,9 +25,10 @@ class FinancialExport implements FromCollection, WithHeadings, WithMapping, With
 
     public function collection()
     {
-        if ($this->data instanceof \Illuminate\Support\Collection) {
+        if ($this->data instanceof Collection) {
             return $this->data;
         }
+
         return collect($this->data);
     }
 
@@ -44,7 +48,7 @@ class FinancialExport implements FromCollection, WithHeadings, WithMapping, With
     {
         $row = (array) $row;
         $date = $row['created_at'] ?? $row['date'] ?? 'N/A';
-        if ($date instanceof \DateTime || $date instanceof \Carbon\Carbon) {
+        if ($date instanceof \DateTime || $date instanceof Carbon) {
             $date = $date->format('Y-m-d H:i:s');
         }
 

@@ -10,15 +10,15 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Services\Reports\DashboardReportService;
 use App\Services\Reports\DashboardService;
+use App\Services\Reports\ExecutiveDashboardService;
 use App\Services\Reports\ExpenseReportService;
 use App\Services\Reports\FinancialReportService;
+use App\Services\Reports\FinancialSummaryReportService;
 use App\Services\Reports\InvestmentPlanReportService;
 use App\Services\Reports\InvestmentReportService;
 use App\Services\Reports\KYCReportService;
 use App\Services\Reports\LoginHistoryReportService;
 use App\Services\Reports\MaturityReportService;
-use App\Services\Reports\ExecutiveDashboardService;
-use App\Services\Reports\FinancialSummaryReportService;
 use App\Services\Reports\ProfitLossReportService;
 use App\Services\Reports\ProfitLossService;
 use App\Services\Reports\ReferralReportService;
@@ -33,7 +33,6 @@ use App\Services\Reports\WithdrawalReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
 
 class ReportsController extends Controller
 {
@@ -780,12 +779,12 @@ class ReportsController extends Controller
     {
         $params = array_merge($request->all(), ['per_page' => 10000]);
         $result = app(ExpenseReportService::class)->generate($params);
-        
+
         // Extract table data from paginator
-        $tableData = is_array($result['table']) && isset($result['table']['data']) 
-            ? $result['table']['data'] 
+        $tableData = is_array($result['table']) && isset($result['table']['data'])
+            ? $result['table']['data']
             : ($result['table'] ?? []);
-        
+
         $headers = [
             'Expense No',
             'Expense Date',
@@ -798,9 +797,9 @@ class ReportsController extends Controller
             'Invoice Number',
             'Status',
             'Requested By',
-            'Description'
+            'Description',
         ];
-        
+
         $rows = array_map(function ($item) {
             return [
                 $item['expense_no'] ?? 'N/A',
@@ -817,7 +816,7 @@ class ReportsController extends Controller
                 $item['description'] ?? 'N/A',
             ];
         }, $tableData);
-        
+
         return [
             'headers' => $headers,
             'rows' => $rows,

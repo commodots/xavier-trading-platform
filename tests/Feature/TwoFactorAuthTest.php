@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -25,7 +24,7 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_2fa_confirm_with_valid_otp_enables_2fa(): void
     {
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey();
 
         $user = User::factory()->create(['google2fa_secret' => $secret]);
@@ -40,7 +39,7 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_2fa_confirm_with_invalid_otp_fails(): void
     {
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey();
 
         $user = User::factory()->create(['google2fa_secret' => $secret]);
@@ -53,12 +52,12 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_2fa_verify_endpoint_issues_token_on_valid_otp(): void
     {
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey();
 
         $user = User::factory()->create([
             'google2fa_enabled' => true,
-            'google2fa_secret'  => $secret,
+            'google2fa_secret' => $secret,
         ]);
 
         $otp = $google2fa->getCurrentOtp($secret);
@@ -77,7 +76,7 @@ class TwoFactorAuthTest extends TestCase
     {
         $user = User::factory()->create([
             'google2fa_enabled' => true,
-            'google2fa_secret'  => 'JBSWY3DPEHPK3PXP',
+            'google2fa_secret' => 'JBSWY3DPEHPK3PXP',
         ]);
 
         for ($i = 0; $i < 5; $i++) {
@@ -97,15 +96,15 @@ class TwoFactorAuthTest extends TestCase
 
     public function test_2fa_disable_clears_secret_and_flag(): void
     {
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey();
 
         $user = User::factory()->create([
             'google2fa_enabled' => true,
-            'google2fa_secret'  => $secret,
+            'google2fa_secret' => $secret,
         ]);
 
-        $response = $this->actingAs($user)->postJson('/api/security/2fa/disable',[
+        $response = $this->actingAs($user)->postJson('/api/security/2fa/disable', [
             'password' => 'password',
         ]);
 

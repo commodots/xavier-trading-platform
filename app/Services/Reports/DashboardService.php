@@ -2,15 +2,14 @@
 
 namespace App\Services\Reports;
 
+use App\Models\Investment;
+use App\Models\KycProfile;
+use App\Models\NewTransaction;
+use App\Models\Order;
+use App\Models\RevenueRecord;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Models\NewTransaction;
 use App\Models\WithdrawalRequest;
-use App\Models\Order;
-use App\Models\PlatformEarning;
-use App\Models\RevenueRecord;
-use App\Models\KycProfile;
-use App\Models\Investment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -128,7 +127,7 @@ class DashboardService
             ->latest()
             ->take($limit)
             ->get()
-            ->map(fn($t) => [
+            ->map(fn ($t) => [
                 'id' => $t->id,
                 'user' => $t->user?->name ?? 'N/A',
                 'type' => $t->type,
@@ -147,7 +146,7 @@ class DashboardService
             ->latest()
             ->take(5)
             ->get()
-            ->map(fn($k) => [
+            ->map(fn ($k) => [
                 'type' => 'KYC',
                 'user' => $k->user?->name ?? 'N/A',
                 'status' => $k->status,
@@ -159,7 +158,7 @@ class DashboardService
             ->latest()
             ->take(5)
             ->get()
-            ->map(fn($w) => [
+            ->map(fn ($w) => [
                 'type' => 'Withdrawal',
                 'user' => $w->user?->name ?? 'N/A',
                 'amount' => $w->amount,
