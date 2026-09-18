@@ -16,11 +16,16 @@ class ProviderSyncLog extends Model
         'response',
         'started_at',
         'completed_at',
+        'entity_type',
+        'entity_id',
+        'severity',
+        'metadata',
     ];
 
     protected $casts = [
         'request' => 'array',
         'response' => 'array',
+        'metadata' => 'array',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
     ];

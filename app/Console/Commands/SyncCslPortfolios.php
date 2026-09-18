@@ -16,6 +16,12 @@ class SyncCslPortfolios extends Command
 
     public function handle(CslPortfolioSyncService $service): int
     {
+        if (filter_var(config('services.csl.mock', true), FILTER_VALIDATE_BOOL)) {
+            $this->info('CSL mock mode enabled; skipping real portfolio sync.');
+
+            return self::SUCCESS;
+        }
+
         $accounts = ProviderAccount::query()
             ->where('provider', 'csl')
             ->where('status', 'active')

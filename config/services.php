@@ -104,11 +104,16 @@ return [
 
     'csl' => [
 
-        'mode' => env('CSL_MODE', 'mock'),
+        'mode' => env('CSL_MODE', 'test'),
 
         'client_id' => env('CSL_CLIENT_ID'),
 
         'client_secret' => env('CSL_CLIENT_SECRET'),
+
+        'live_trading_enabled' => filter_var(
+            env('CSL_LIVE_TRADING_ENABLED', false),
+            FILTER_VALIDATE_BOOL
+        ),
 
         'st_base_url' => env(
             'CSL_ST_BASE_URL',
@@ -127,6 +132,11 @@ return [
         'timeout' => (int) env('CSL_TIMEOUT', 30),
 
         'connect_timeout' => (int) env('CSL_CONNECT_TIMEOUT', 10),
+
+        'mock' => filter_var(
+            env('CSL_MOCK', true),
+            FILTER_VALIDATE_BOOL
+        ),
     ],
     'stock_broker' => env(
         'STOCK_BROKER',

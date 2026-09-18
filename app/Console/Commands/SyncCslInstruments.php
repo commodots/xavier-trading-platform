@@ -17,6 +17,12 @@ class SyncCslInstruments extends Command
         CslInstrumentService $service
     ): int {
 
+        if (filter_var(config('services.csl.mock', true), FILTER_VALIDATE_BOOL)) {
+            $this->info('CSL mock mode enabled; skipping real instrument sync.');
+
+            return self::SUCCESS;
+        }
+
         try {
 
             $count = $service->sync();

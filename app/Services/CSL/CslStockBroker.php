@@ -14,6 +14,8 @@ class CslStockBroker implements StockBroker
 
     public function buy(array $data): array
     {
+        $this->guardLiveTrading();
+
         return $this->submit(
             'buy',
             $data
@@ -22,6 +24,8 @@ class CslStockBroker implements StockBroker
 
     public function sell(array $data): array
     {
+        $this->guardLiveTrading();
+
         return $this->submit(
             'sell',
             $data
@@ -91,6 +95,20 @@ class CslStockBroker implements StockBroker
             'request' => $payload,
             'response' => $response,
         ];
+    }
+
+    protected function guardLiveTrading(): void
+    {
+        $enabled = filter_var(
+            config('services.csl.live_trading_enabled', false),
+            FILTER_VALIDATE_BOOL
+        );
+
+        $mode = strtolower((string) config('services.csl.mode', 'test'));
+
+        if ($mode === 'live' && ! $enabled) {
+            throw new RuntimeException('CSL live trading is disabled');
+        }
     }
 
     protected function mapOrderType(

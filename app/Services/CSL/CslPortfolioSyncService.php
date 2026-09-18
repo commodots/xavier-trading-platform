@@ -30,7 +30,7 @@ class CslPortfolioSyncService
 
             $rows = $this->extractRows($response);
 
-            /*
+            /**
              * Never zero the local portfolio if CSL returned an empty
              * response. Empty can indicate an API/data problem.
              */
@@ -103,7 +103,7 @@ class CslPortfolioSyncService
 
                         'quantity' => $quantity,
 
-                        /*
+                        /**
                          * Initial provider snapshot.
                          * Reconciliation remains responsible for
                          * pending/uncleared Xavier transactions.
@@ -121,7 +121,7 @@ class CslPortfolioSyncService
                 $count++;
             }
 
-            /*
+            /**
              * Only remove stale local holdings after a successful,
              * non-empty provider snapshot.
              */

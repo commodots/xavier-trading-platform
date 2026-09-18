@@ -38,7 +38,7 @@ class CslInstrumentService
                     continue;
                 }
 
-                /*
+                /**
                  * CSL ST does not necessarily call this field "symbol".
                  * Prefer the actual symbol/ticker if returned, otherwise
                  * retain symbol_id as the fallback.
