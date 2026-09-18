@@ -60,6 +60,7 @@ class TradingExecutionService
                 'market_account_id' => $account->market_account_id,
 
                 'client_reference' => $clientReference,
+                'xavier_client_reference' => $clientReference,
             ];
 
             $providerResult =
