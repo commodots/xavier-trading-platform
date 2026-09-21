@@ -1,14 +1,22 @@
 {
-  "result": [
-    {
-      "order_id": "CSL-1",
-      "symbol_code": "TEST",
-      "order_side": "buy",
-      "order_quantity": 10,
-      "filled_quantity": 10,
-      "order_status": "filled",
-      "average_fill_price": 100,
-      "trade_id": "TRADE-1"
-    }
-  ]
+    "GetCRXTExecutedOrders": [
+        {
+            "order_remark": "Fully executed",
+            "time_placed": "2026-09-18T10:00:00",
+            "order_id": "CSL-1",
+            "order_status": "FILLED",
+            "market_account_id": "ACC-1",
+            "symbol_code": "TEST",
+            "symbol_description": "Test Instrument",
+            "market_code": "NGX",
+            "order_quantity": 10,
+            "filled_quantity": 10,
+            "average_fill_price": 100,
+            "order_side": "BUY",
+            "order_type": "LIMIT",
+            "time_in_force": "DAY",
+            "order_expiry_date": null,
+            "limit_price": 100
+        }
+    ]
 }

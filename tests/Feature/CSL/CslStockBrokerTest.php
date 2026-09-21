@@ -10,6 +10,13 @@ class CslStockBrokerTest extends TestCase
 {
     public function test_buy_maps_xavier_order_to_csl(): void
     {
+        /*
+         * Http::fake below guarantees no request ever reaches CSL, so it is
+         * safe to simulate an explicitly activated environment here.
+         */
+        config()->set('services.csl.mock', false);
+        config()->set('services.csl.live_trading_enabled', true);
+
         Http::fake([
             '*/oauth/token' => Http::response([
                 'access_token' => 'test-token',

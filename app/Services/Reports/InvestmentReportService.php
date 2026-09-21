@@ -112,7 +112,7 @@ class InvestmentReportService extends BaseReportService
     {
         return [
             'plans' => Order::select('market')->distinct()->whereNotNull('market')->orderBy('market')->pluck('market'),
-            'statuses' => ['open', 'pending', 'filled', 'canceled'],
+            'statuses' => ['open', 'pending', 'partially_filled', 'filled', 'canceled'],
         ];
     }
 

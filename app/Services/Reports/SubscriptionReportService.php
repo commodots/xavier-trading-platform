@@ -50,6 +50,8 @@ class SubscriptionReportService extends BaseReportService
 
         $summary['trial'] = UserSubscription::where('status', 'trial')->count();
         $summary['expired'] = UserSubscription::where('status', 'expired')->count();
+        // Subscription lifecycle statuses are intentionally separate from
+        // trading order statuses (always 'canceled'); do not rename these.
         $summary['cancelled'] = UserSubscription::where('status', 'cancelled')->count();
         $summary['renewals'] = UserSubscription::where('status', 'active')
             ->where('expires_at', '>', now())->count();

@@ -21,6 +21,13 @@ class CslOrderSubmissionTest extends TestCase
 
     public function test_submission_records_provider_reference_and_keeps_local_reservation_until_confirmation(): void
     {
+        /*
+         * Http::fake below guarantees no request ever reaches CSL, so it is
+         * safe to simulate an explicitly activated environment here.
+         */
+        config()->set('services.csl.mock', false);
+        config()->set('services.csl.live_trading_enabled', true);
+
         Http::fake([
             '*/oauth/token' => Http::response([
                 'access_token' => 'test-token',

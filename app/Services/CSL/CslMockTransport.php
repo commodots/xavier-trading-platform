@@ -77,16 +77,9 @@ class CslMockTransport
 
             'open_orders' => $this->fixture('open_orders'),
 
-            /**
-             * Executed orders advance as UAT scenarios progress. Override the
-             * fixture with CSL_MOCK_EXECUTED_FIXTURE (for example
-             * partial_fill_completed) to replay the second reconciliation.
-             */
             'executed_orders' => $this->fixture(
                 (string) config('services.csl.mock_executed_fixture', 'partial_fill')
             ),
-
-            'executed_order' => $this->fixture('executed_order'),
 
             'partial_fill' => $this->fixture('partial_fill'),
 

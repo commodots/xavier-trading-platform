@@ -74,7 +74,7 @@ class DemoController extends Controller
             );
 
             // 2. Safety Refund check! If it failed, give the money back immediately.
-            if (in_array($order->status, ['failed', 'canceled', 'cancelled']) && $request->side === 'buy') {
+                        if (in_array($order->status, ['failed', 'canceled']) && $request->side === 'buy') {
                 // REFUNDING IF THE TRADE FAILED
 
                 // if the service failed, give the money back immediately.

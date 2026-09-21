@@ -55,14 +55,25 @@ class CslOrderReconciliationService
 
             $created = DB::transaction(function () use ($order, $row, $matchedByFallback): bool {
                 $order = Order::query()->lockForUpdate()->findOrFail($order->id);
-                $filled = $this->number($row['filled_quantity'] ?? $row['order_quantity'] ?? 0);
+                $filled = $this->number(
+                    $row['filled_quantity']
+                    ?? $row['FILLED_QUANTITY']
+                    ?? $row['executed_quantity']
+                    ?? $row['order_quantity']
+                    ?? 0
+                );
                 $previouslyFilled = (float) $order->filled_quantity;
                 $newlyFilled = max(0, $filled - $previouslyFilled);
                 $providerOrderId = $this->stringValue(
                     $row['order_id'] ?? $row['ORDER_ID'] ?? $row['order_identifier'] ?? null
                 );
                 $fillPrice = $this->number(
-                    $row['average_fill_price'] ?? $row['fill_price'] ?? $row['limit_price'] ?? $order->price
+                    $row['average_fill_price']
+                    ?? $row['AVERAGE_FILL_PRICE']
+                    ?? $row['fill_price']
+                    ?? $row['LIMIT_PRICE']
+                    ?? $row['limit_price']
+                    ?? $order->price
                 );
 
                 $updates = [
@@ -102,7 +113,7 @@ class CslOrderReconciliationService
                         'status' => 'pending',
                         'is_settled' => false,
                         'provider_response' => $row,
-                        'provider_executed_at' => $row['time_placed'] ?? null,
+                        'provider_executed_at' => $row['time_placed'] ?? $row['TIME_PLACED'] ?? null,
                     ]
                 );
 
@@ -130,12 +141,28 @@ class CslOrderReconciliationService
             }
 
             DB::transaction(function () use ($order, $row, $matchedByFallback): void {
-                $filled = $this->number($row['filled_quantity'] ?? $row['executed_quantity'] ?? $order->filled_quantity);
+                // Cancelled-order rows use UPPER_CASE keys and a misspelled
+                // FILLED_QUAMTITY field; executed rows use lowercase keys.
+                $filled = $this->number(
+                    $row['filled_quantity']
+                    ?? $row['FILLED_QUANTITY']
+                    ?? $row['FILLED_QUAMTITY']
+                    ?? $row['executed_quantity']
+                    ?? $order->filled_quantity
+                );
                 $previouslyFilled = (float) $order->filled_quantity;
                 $newlyFilled = max(0, $filled - $previouslyFilled);
 
                 if ($newlyFilled > 0) {
-                    $this->applyLocalFill($order, $newlyFilled, $this->number($row['average_fill_price'] ?? $order->price));
+                    $this->applyLocalFill(
+                        $order,
+                        $newlyFilled,
+                        $this->number(
+                            $row['average_fill_price']
+                            ?? $row['AVERAGE_FILL_PRICE']
+                            ?? $order->price
+                        )
+                    );
                 }
 
                 $order->update([
@@ -480,9 +507,23 @@ class CslOrderReconciliationService
 
     protected function extractRows(array $response): array
     {
-        foreach (['result', 'data', 'orders', 'GetCRXTMarketOpenOrders', 'GetCRXTExecutedOrders', 'GetCRXTCancelledOrderByDate'] as $key) {
+        foreach (['result', 'data', 'orders'] as $key) {
             if (isset($response[$key]) && is_array($response[$key])) {
                 return $response[$key];
+            }
+        }
+
+        foreach (['GetCRXTMarketOpenOrders', 'GetCRXTExecutedOrders', 'GetCRXTCancelledOrderByDate'] as $key) {
+            if (isset($response[$key]) && is_array($response[$key])) {
+                return $response[$key];
+            }
+        }
+
+        if (isset($response['result'][0]) && is_array($response['result'][0])) {
+            foreach (['GetCRXTMarketOpenOrders', 'GetCRXTExecutedOrders', 'GetCRXTCancelledOrderByDate'] as $key) {
+                if (isset($response['result'][0][$key]) && is_array($response['result'][0][$key])) {
+                    return $response['result'][0][$key];
+                }
             }
         }
 
