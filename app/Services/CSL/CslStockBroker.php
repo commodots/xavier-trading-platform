@@ -104,9 +104,17 @@ class CslStockBroker implements StockBroker
             FILTER_VALIDATE_BOOL
         );
 
-        $mode = strtolower((string) config('services.csl.mode', 'test'));
+        $mock = filter_var(
+            config('services.csl.mock', true),
+            FILTER_VALIDATE_BOOL
+        );
 
-        if ($mode === 'live' && ! $enabled) {
+        /*
+         * Safety rule: the broker always refuses live trading unless the
+         * activation flag is on. Mock mode is the exception because no real
+         * order leaves Xavier in that case.
+         */
+        if (! $enabled && ! $mock) {
             throw new RuntimeException('CSL live trading is disabled');
         }
     }
@@ -152,9 +160,34 @@ class CslStockBroker implements StockBroker
         $row = $response['result'][0]
             ?? [];
 
-        return $row['order_identifier']
+        $orderId = $row['order_identifier']
             ?? $row['order_id']
             ?? null;
+
+        if (filled($orderId)) {
+            return (string) $orderId;
+        }
+
+        /*
+         * XT submit responses may nest the accepted order number inside a
+         * "reference" object instead of exposing a flat order id.
+         */
+        $reference = $row['reference']
+            ?? null;
+
+        if (is_array($reference)) {
+
+            $nested = $reference['OrderNo']
+                ?? $reference['order_no']
+                ?? $reference['order_id']
+                ?? null;
+
+            if (filled($nested)) {
+                return (string) $nested;
+            }
+        }
+
+        return null;
     }
 
     protected function extractRemarks(

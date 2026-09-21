@@ -47,7 +47,7 @@ class DashboardReportService
             $totalInvestments = Order::count();
             $activeInvestments = Order::whereIn('status', ['open', 'pending'])->count();
             $completedInvestments = Order::where('status', 'filled')->count();
-            $cancelledInvestments = Order::where('status', 'cancelled')->count();
+            $cancelledInvestments = Order::where('status', 'canceled')->count();
 
             // Revenue metrics
             $todayRevenue = PlatformEarning::whereDate('created_at', $today)->sum('amount');

@@ -25,6 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        if (Schema::hasIndex('trades', 'trades_provider_reference_unique')) {
+            Schema::table('trades', function (Blueprint $table) {
+                $table->dropUnique('trades_provider_reference_unique');
+            });
+        }
     }
 };

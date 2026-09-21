@@ -2,6 +2,7 @@
 
 namespace App\Services\CSL;
 
+use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -12,11 +13,22 @@ class CslClient
 {
     protected string $tokenCacheKey = 'csl.oauth.access_token';
 
+    protected ?CslMockTransport $mockTransport = null;
+
     /**
      * Get CSL OAuth access token.
      */
     public function getAccessToken(): string
     {
+        /*
+         * Mock UAT must never require CSL credentials: the fixture
+         * transport answers every ST/XT call, so OAuth would be the only
+         * remaining network dependency. Short-circuit it here as well.
+         */
+        if ($this->isMockEnabled()) {
+            return 'mock-csl-access-token';
+        }
+
         $cached = Cache::get($this->tokenCacheKey);
 
         if ($cached) {
@@ -116,6 +128,10 @@ class CslClient
         string $endpoint,
         array $data = []
     ): Response {
+        if ($mock = $this->mockResponse($endpoint)) {
+            return $mock;
+        }
+
         return $this->request(
             config('services.csl.st_base_url'),
             $method,
@@ -129,6 +145,10 @@ class CslClient
         string $endpoint,
         array $data = []
     ): Response {
+        if ($mock = $this->mockResponse($endpoint)) {
+            return $mock;
+        }
+
         return $this->request(
             config('services.csl.xt_base_url'),
             $method,
@@ -142,6 +162,10 @@ class CslClient
         string $endpoint,
         array $data = []
     ): Response {
+        if ($mock = $this->mockResponse($endpoint)) {
+            return $mock;
+        }
+
         $url = rtrim(config('services.csl.xt_base_url'), '/')
             .'/'.ltrim($endpoint, '/');
 
@@ -157,6 +181,47 @@ class CslClient
                 "Unsupported CSL order HTTP method: {$method}"
             ),
         };
+    }
+
+    /**
+     * Whether the deterministic fixture transport is active.
+     */
+    public function isMockEnabled(): bool
+    {
+        return filter_var(
+            config('services.csl.mock', true),
+            FILTER_VALIDATE_BOOL
+        );
+    }
+
+    protected function mock(): CslMockTransport
+    {
+        return $this->mockTransport ??= new CslMockTransport;
+    }
+
+    /**
+     * Return a synthetic 200 response from the mock transport when the
+     * endpoint is mocked. Returns null so callers hit the real CSL API.
+     */
+    protected function mockResponse(string $endpoint): ?Response
+    {
+        if (! $this->isMockEnabled()) {
+            return null;
+        }
+
+        $payload = $this->mock()->forEndpoint($endpoint);
+
+        if ($payload === null) {
+            return null;
+        }
+
+        return new Response(
+            new Psr7Response(
+                200,
+                ['Content-Type' => 'application/json'],
+                json_encode($payload)
+            )
+        );
     }
 
     protected function http(): PendingRequest

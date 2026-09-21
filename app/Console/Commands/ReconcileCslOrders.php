@@ -21,9 +21,7 @@ class ReconcileCslOrders extends Command
     ): int {
 
         if (filter_var(config('services.csl.mock', true), FILTER_VALIDATE_BOOL)) {
-            $this->info('CSL mock mode enabled; skipping real order reconciliation.');
-
-            return self::SUCCESS;
+            $this->info('CSL mock mode enabled; using deterministic fixture responses.');
         }
 
         $accounts = ProviderAccount::where(

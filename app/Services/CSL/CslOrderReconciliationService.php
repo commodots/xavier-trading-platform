@@ -8,6 +8,7 @@ use App\Models\ProviderSyncLog;
 use App\Models\Trade;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CslOrderReconciliationService
 {
@@ -188,7 +189,7 @@ class CslOrderReconciliationService
             return [null, false];
         }
 
-        $order = Order::query()
+        $matches = Order::query()
             ->where('provider', 'csl')
             ->where('provider_market_account_id', $marketAccountId)
             ->where('symbol', $symbol)
@@ -197,9 +198,37 @@ class CslOrderReconciliationService
             ->where('provider_submitted_at', '>=', now()->subDays(2))
             ->orderBy('provider_submitted_at')
             ->get()
-            ->first(fn (Order $candidate): bool => abs((float) $candidate->quantity - $quantity) < 0.000001);
+            ->filter(fn (Order $candidate): bool => abs((float) $candidate->quantity - $quantity) < 0.000001);
 
-        return [$order, $order !== null];
+        /*
+         * Correlation must be unambiguous. If two local orders look identical
+         * we cannot tell which one CSL is reporting, and guessing would mark
+         * the wrong order as executed. Leave them for investigation instead.
+         */
+        if ($matches->count() !== 1) {
+            if ($matches->isNotEmpty()) {
+                Log::warning('CSL order correlation was ambiguous; orders left unmatched for investigation', [
+                    'market_account_id' => $marketAccountId,
+                    'symbol' => $symbol,
+                    'side' => $side,
+                    'quantity' => $quantity,
+                    'candidate_order_ids' => $matches->pluck('id')->all(),
+                ]);
+            }
+
+            return [null, false];
+        }
+
+        $order = $matches->first();
+
+        Log::warning('CSL order matched using fallback correlation', [
+            'order_id' => $order->id,
+            'provider_order_id' => $providerOrderId,
+            'symbol' => $order->symbol,
+            'side' => $order->side,
+        ]);
+
+        return [$order, true];
     }
 
     protected function updateOrderFromProvider(Order $order, array $row, bool $matchedByFallback): void
@@ -210,7 +239,16 @@ class CslOrderReconciliationService
 
         $updates = [
             'status' => $this->mapOrderStatus($row),
-            'filled_quantity' => $this->number($row['filled_quantity'] ?? 0),
+
+            /*
+             * Open-order payloads may omit (or zero) the filled quantity.
+             * Never reduce a fill we already recorded.
+             */
+            'filled_quantity' => max(
+                $this->number($row['filled_quantity'] ?? 0),
+                (float) $order->filled_quantity
+            ),
+
             'provider_response' => $row,
             'last_reconciled_at' => now(),
             'reconciliation_status' => $matchedByFallback ? 'matched_by_fallback' : 'matched',

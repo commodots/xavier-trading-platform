@@ -1,9 +1,19 @@
 {
-  "result": [
-    {
-      "code": "A",
-      "status": "accepted",
-      "remarks": "Accepted"
-    }
-  ]
+    "GetCRXTCancelledOrderByDate": [
+        {
+            "ORDER_ID": "100001",
+            "ORDER_TYPE": "LIMIT",
+            "ORDER_STATUS": "CANCELLED",
+            "MARKET_CODE": "NGX",
+            "MARKET_ACCOUNT_ID": "TEST-MA-001",
+            "SYMBOL_CODE": "TIP",
+            "SYMBOL_DESCRIPTION": "Test Instrument",
+            "TIME_IN_FORCE": "DAY",
+            "TIME_PLACED": "2026-09-18T10:00:00",
+            "LIMIT_PRICE": 105,
+            "ORDER_REMARK": "Cancelled",
+            "ORDER_QUANTITY": 100,
+            "FILLED_QUAMTITY": 40
+        }
+    ]
 }

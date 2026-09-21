@@ -47,7 +47,7 @@
             :class="{
               'bg-green-900/50 text-green-400': row.status === 'active' || row.status === 'filled',
               'bg-yellow-900/50 text-yellow-400': row.status === 'pending',
-              'bg-red-900/50 text-red-400': row.status === 'cancelled',
+              'bg-red-900/50 text-red-400': row.status === 'canceled',
               'bg-gray-900/50 text-gray-400': !row.status,
             }"
           >

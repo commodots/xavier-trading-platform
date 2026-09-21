@@ -16,23 +16,37 @@ class CslDiagnose extends Command
 
     public function handle(CslHealthService $health): int
     {
-        $healthCheck = $health->check();
-        $isMock = config('services.csl.mode', 'mock') === 'mock';
-        $servicesPass = $isMock || $healthCheck['connected'];
+        $mock = filter_var(config('services.csl.mock', true), FILTER_VALIDATE_BOOL);
+        $liveTrading = filter_var(config('services.csl.live_trading_enabled', false), FILTER_VALIDATE_BOOL);
+
+        /** 
+         * In mock mode the transport serves fixtures, so no real connectivity
+         * is required (and none is attempted).
+         */
+        $healthCheck = $mock
+            ? ['connected' => true, 'status' => 'ok']
+            : $health->check();
+
+        $connected = (bool) $healthCheck['connected'];
+        $serviceState = $mock ? 'MOCK' : ($connected ? 'PASS' : 'FAIL');
         $configured = static fn (mixed $value): string => filled($value) ? 'configured' : 'missing';
 
         $this->line('CSL DIAGNOSTICS');
         $this->line('============================');
         $this->line('Configuration');
-        $this->line('  Mode: '.config('services.csl.mode', 'mock'));
+        $this->line('  Mode: '.config('services.csl.mode', 'test'));
+        $this->line('  Mock transport: '.($mock ? 'ENABLED' : 'DISABLED'));
+        $this->line('  Live trading: '.($liveTrading ? 'ENABLED' : 'DISABLED'));
+        $this->line('  Client ID: '.$configured(config('services.csl.client_id')));
+        $this->line('  Client Secret: '.$configured(config('services.csl.client_secret')));
         $this->line('  ST Base URL: '.$configured(config('services.csl.st_base_url')));
         $this->line('  XT Base URL: '.$configured(config('services.csl.xt_base_url')));
         $this->line('  OAuth URL: '.$configured(config('services.csl.oauth_url')));
         $this->line('');
         $this->line('Services');
-        $this->line('  OAuth: '.($servicesPass ? 'PASS' : 'FAIL'));
-        $this->line('  ST: '.($servicesPass ? 'PASS' : 'FAIL'));
-        $this->line('  XT: '.($servicesPass ? 'PASS' : 'FAIL'));
+        $this->line('  OAuth: '.$serviceState);
+        $this->line('  ST: '.$serviceState);
+        $this->line('  XT: '.$serviceState);
         $this->line('');
         $this->line('Database');
         $this->line('  Provider accounts: '.ProviderAccount::where('provider', 'csl')->count());
@@ -46,8 +60,16 @@ class CslDiagnose extends Command
         $this->line('  Order reconciliation: configured');
         $this->line('  Portfolio sync: configured');
         $this->line('');
-        $this->line('RESULT: '.($servicesPass ? 'PASS' : 'FAIL'));
 
-        return $servicesPass ? self::SUCCESS : self::FAILURE;
+        if ($liveTrading) {
+            $this->error('Live CSL trading is enabled.');
+            $this->error('RESULT: FAIL');
+
+            return self::FAILURE;
+        }
+
+        $this->line('RESULT: '.(($mock || $connected) ? 'PASS' : 'FAIL'));
+
+        return ($mock || $connected) ? self::SUCCESS : self::FAILURE;
     }
 }

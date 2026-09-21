@@ -1,0 +1,11 @@
+{
+    "GetCRSTMarkets": [
+        {
+            "market_id": "NGX",
+            "market_code": "NGX",
+            "market_description": "Nigerian Exchange",
+            "product_id": "1",
+            "market_status": "OPEN"
+        }
+    ]
+}

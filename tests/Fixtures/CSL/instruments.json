@@ -1,15 +1,33 @@
 {
-  "data": {
-    "provider": "csl",
-    "provider_symbol_id": "CSL-TEST-001",
-    "symbol": "TEST",
-    "name": "Test Company",
-    "type": "equity",
-    "exchange": "NGX",
-    "last_price": 99.5,
-    "market_id": "NGX1",
-    "product_id": "NGX-TEST",
-    "isin": "NGXTEST0001",
-    "provider_symbol_type": "stock"
-  }
+    "status": "success",
+    "result": [
+        {
+            "GetCRSTInstruments": [
+                {
+                    "market_id": "NGX",
+                    "market_description": "Nigerian Exchange",
+                    "symbol_id": "TIP",
+                    "symbol_description": "Test Instrument",
+                    "opening_price": 100,
+                    "current_price": 105,
+                    "registrar_description": "Test Registrar",
+                    "symbol_type": "EQUITY",
+                    "bond_par_value": null,
+                    "isin_identifier": "NGTEST000001"
+                },
+                {
+                    "market_id": "NGX",
+                    "market_description": "Nigerian Exchange",
+                    "symbol_id": "DANGCEM",
+                    "symbol_description": "Dangote Cement",
+                    "opening_price": 500,
+                    "current_price": 510,
+                    "registrar_description": "Test Registrar",
+                    "symbol_type": "EQUITY",
+                    "bond_par_value": null,
+                    "isin_identifier": "NGDANGCEM0001"
+                }
+            ]
+        }
+    ]
 }

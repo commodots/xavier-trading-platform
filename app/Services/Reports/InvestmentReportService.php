@@ -46,7 +46,7 @@ class InvestmentReportService extends BaseReportService
             'total_investments' => Order::count(),
             'active' => Order::whereIn('status', ['open', 'pending'])->count(),
             'completed' => Order::where('status', 'filled')->count(),
-            'cancelled' => Order::where('status', 'cancelled')->count(),
+            'cancelled' => Order::where('status', 'canceled')->count(),
             'pending' => Order::where('status', 'pending')->count(),
             'principal' => Order::sum(DB::raw('amount * price')),
             'expected_roi' => 0,
@@ -112,7 +112,7 @@ class InvestmentReportService extends BaseReportService
     {
         return [
             'plans' => Order::select('market')->distinct()->whereNotNull('market')->orderBy('market')->pluck('market'),
-            'statuses' => ['open', 'pending', 'filled', 'cancelled'],
+            'statuses' => ['open', 'pending', 'filled', 'canceled'],
         ];
     }
 

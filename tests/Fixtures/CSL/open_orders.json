@@ -1,14 +1,22 @@
 {
-  "result": [
-    {
-      "order_id": "CSL-OPEN-1",
-      "symbol_code": "TEST",
-      "order_side": "buy",
-      "order_quantity": 10,
-      "filled_quantity": 0,
-      "order_status": "open",
-      "limit_price": 100,
-      "time_placed": "2026-09-15T09:30:00Z"
-    }
-  ]
+    "GetCRXTMarketOpenOrders": [
+        {
+            "order_remark": "Order accepted",
+            "time_placed": "2026-09-18T10:00:00",
+            "order_id": "100001",
+            "order_status": "OPEN",
+            "market_account_id": "TEST-MA-001",
+            "symbol_code": "TIP",
+            "symbol_description": "Test Instrument",
+            "market_code": "NGX",
+            "order_quantity": "100",
+            "filled_quantity": "0",
+            "average_fill_price": "0",
+            "order_side": "BUY",
+            "order_type": "LIMIT",
+            "time_in_force": "DAY",
+            "limit_price": "105",
+            "order_expiry_date": null
+        }
+    ]
 }

@@ -137,6 +137,15 @@ return [
             env('CSL_MOCK', true),
             FILTER_VALIDATE_BOOL
         ),
+
+        /*
+        |----------------------------------------------------------------------
+        | Fixture served for /GetCRXTExecutedOrders while CSL_MOCK is enabled.
+        | Switch to "partial_fill_completed" to replay the second reconciliation
+        | pass (40 -> 100 filled) during mock UAT.
+        |----------------------------------------------------------------------
+        */
+        'mock_executed_fixture' => env('CSL_MOCK_EXECUTED_FIXTURE', 'partial_fill'),
     ],
     'stock_broker' => env(
         'STOCK_BROKER',

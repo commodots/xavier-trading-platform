@@ -19,12 +19,15 @@ class CslReconciliationReport extends Command
         $this->line('============================');
         $this->line('Matched:              '.$query->clone()->where('reconciliation_status', 'matched')->count());
         $this->line('Fallback matched:     '.$query->clone()->where('reconciliation_status', 'matched_by_fallback')->count());
+        $this->line('Pending:              '.$query->clone()->where('reconciliation_status', 'pending')->count());
         $this->line('Unmatched:             '.$query->clone()->where('reconciliation_status', 'unmatched')->count());
+        $this->line('Unknown:              '.$query->clone()->where('reconciliation_status', 'unknown')->count());
         $this->line('Errors:                '.$query->clone()->where('reconciliation_status', 'error')->count());
 
         $unmatched = $query->clone()
-            ->whereIn('reconciliation_status', ['unmatched', 'error'])
+            ->whereIn('reconciliation_status', ['unmatched', 'unknown', 'error'])
             ->latest('last_reconciled_at')
+            ->limit(20)
             ->get();
 
         if ($unmatched->isNotEmpty()) {

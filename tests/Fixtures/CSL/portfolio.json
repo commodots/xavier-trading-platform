@@ -1,14 +1,15 @@
 {
-  "data": {
-    "user_id": 1,
-    "symbol": "TEST",
-    "name": "Test Company",
-    "category": "local",
-    "currency": "NGN",
-    "quantity": 25,
-    "cleared_quantity": 20,
-    "uncleared_quantity": 5,
-    "avg_price": 92.5,
-    "market_price": 98.0
-  }
+    "GetStockPortfolio": [
+        {
+            "symbol_identifier": "TIP",
+            "symbol_context": "TIP",
+            "symbol_description": "Test Instrument",
+            "market_code": "NGX",
+            "currency_description": "NGN",
+            "unit_quantity": "100",
+            "current_quantity": "100",
+            "average_cost_price": "105",
+            "market_price": "105"
+        }
+    ]
 }

@@ -3,7 +3,7 @@
     "result": [
         {
             "code": "A",
-            "remarks": "Order accepted",
+            "remarks": "Cancel request received",
             "reference": {
                 "OrderNo": 100001
             }

@@ -72,18 +72,21 @@ class CslPortfolioSyncService
                 $quantity = $this->number(
                     $row['unit_quantity']
                     ?? $row['current_quantity']
+                    ?? $row['quantity']
                     ?? 0
                 );
 
                 $averagePrice = $this->number(
                     $row['average_cost_price']
                     ?? $row['average_price']
+                    ?? $row['cost_price']
                     ?? 0
                 );
 
                 $marketPrice = $this->number(
                     $row['market_price']
                     ?? $row['current_price']
+                    ?? $row['price']
                     ?? 0
                 );
 
@@ -166,6 +169,20 @@ class CslPortfolioSyncService
             && is_array($response['GetStockPortfolio'])
         ) {
             return $response['GetStockPortfolio'];
+        }
+
+        if (
+            isset($response['result'][0]['GetCRSTStockPortfolio'])
+            && is_array($response['result'][0]['GetCRSTStockPortfolio'])
+        ) {
+            return $response['result'][0]['GetCRSTStockPortfolio'];
+        }
+
+        if (
+            isset($response['GetCRSTStockPortfolio'])
+            && is_array($response['GetCRSTStockPortfolio'])
+        ) {
+            return $response['GetCRSTStockPortfolio'];
         }
 
         return [];

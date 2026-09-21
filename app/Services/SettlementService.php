@@ -25,7 +25,7 @@ class SettlementService
         Log::info("SettlementService: settleOrder initiated for order {$order->id}, side {$order->side}");
 
         // Fail-safe check: If the order was structurally killed, reject the settlement loop
-        if (in_array($order->status, ['cancelled', 'failed'])) {
+        if (in_array($order->status, ['canceled', 'failed'])) {
             Log::warning("SettlementService: Aborted settlement for order {$order->id} because status is {$order->status}");
 
             return;
@@ -141,7 +141,7 @@ class SettlementService
 
         foreach ($pendingTrades as $trade) {
             $order = $trade->order;
-            if (! $order || in_array($order->status, ['cancelled', 'failed'])) {
+            if (! $order || in_array($order->status, ['canceled', 'failed'])) {
                 continue;
             }
 

@@ -10,6 +10,7 @@ use App\Models\Wallet;
 use App\Services\Stocks\Contracts\StockBroker;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 class TradingExecutionService
 {
@@ -22,59 +23,47 @@ class TradingExecutionService
         array $data
     ): Order {
 
-        return DB::transaction(function () use (
+        $account = ProviderAccount::where(
+            'user_id',
+            $user->id
+        )
+            ->where(
+                'provider',
+                'csl'
+            )
+            ->where(
+                'status',
+                'active'
+            )
+            ->first();
+
+        if (! $account) {
+            throw new RuntimeException(
+                'No active CSL trading account is mapped to this user.'
+            );
+        }
+
+        $clientReference = 'XAV-'.now()->format('YmdHis').'-'.str()->uuid();
+
+        $reservation = null;
+
+        /*
+         * Persist the order intent and the local reservation BEFORE talking to
+         * CSL. If the provider call times out we must still own an auditable
+         * order record, otherwise a fill on CSL's side would have nothing to
+         * reconcile against.
+         */
+        $order = DB::transaction(function () use (
             $user,
-            $data
-        ) {
-
-            $account =
-                ProviderAccount::where(
-                    'user_id',
-                    $user->id
-                )
-                    ->where(
-                        'provider',
-                        'csl'
-                    )
-                    ->where(
-                        'status',
-                        'active'
-                    )
-                    ->first();
-
-            if (! $account) {
-                throw new RuntimeException(
-                    'No active CSL trading account is mapped to this user.'
-                );
-            }
-
-            $clientReference = 'XAV-'.now()->format('YmdHis').'-'.str()->uuid();
+            $data,
+            $account,
+            $clientReference,
+            &$reservation
+        ): Order {
 
             $reservation = $this->reserveLocalState($user, $data);
 
-            $providerData = [
-                ...$data,
-
-                'market_id' => $account->market_id,
-
-                'market_account_id' => $account->market_account_id,
-
-                'client_reference' => $clientReference,
-                'xavier_client_reference' => $clientReference,
-            ];
-
-            $providerResult =
-                $data['side'] === 'buy'
-                ? $this->broker->buy($providerData)
-                : $this->broker->sell($providerData);
-
-            $providerStatus = $providerResult['status'] ?? 'pending';
-
-            if (! in_array($providerStatus, ['accepted', 'pending'], true)) {
-                $this->releaseLocalState($reservation);
-            }
-
-            $order = Order::create([
+            return Order::create([
                 'user_id' => $user->id,
 
                 'symbol' => $data['symbol'],
@@ -103,20 +92,18 @@ class TradingExecutionService
                 'company' => $data['company']
                     ?? $data['symbol'],
 
+                /*
+                 * Open, not filled: the provider has not accepted the order yet.
+                 */
                 'filled_quantity' => 0,
 
-                'status' => $this->mapStatus(
-                    $providerResult['status']
-                        ?? 'pending'
-                ),
+                'status' => 'open',
 
                 'market' => 'NGX',
 
                 'currency' => 'NGN',
 
                 'provider' => 'csl',
-
-                'provider_order_id' => $providerResult['provider_order_id'] ?? null,
 
                 'provider_client_reference' => $clientReference,
 
@@ -129,12 +116,8 @@ class TradingExecutionService
                     ?? null,
 
                 'provider_request' => [
-                    ...($providerResult['request'] ?? []),
                     'xavier_client_reference' => $clientReference,
                 ],
-
-                'provider_response' => $providerResult['response']
-                    ?? null,
 
                 'provider_submitted_at' => now(),
 
@@ -142,9 +125,60 @@ class TradingExecutionService
 
                 'source' => 'csl',
             ]);
-
-            return $order;
         });
+
+        $providerData = [
+            ...$data,
+
+            'market_id' => $account->market_id,
+
+            'market_account_id' => $account->market_account_id,
+
+            'client_reference' => $clientReference,
+            'xavier_client_reference' => $clientReference,
+        ];
+
+        try {
+            $providerResult =
+                $data['side'] === 'buy'
+                ? $this->broker->buy($providerData)
+                : $this->broker->sell($providerData);
+        } catch (Throwable $exception) {
+            /*
+             * Timeout, connection reset or 5xx: the request may or may not have
+             * reached CSL. Never retry blindly and never release the
+             * reservation - reconciliation has to establish what happened.
+             */
+            $order->update([
+                'reconciliation_status' => 'unknown',
+                'provider_response' => [
+                    'error' => $exception->getMessage(),
+                ],
+            ]);
+
+            throw $exception;
+        }
+
+        $providerStatus = $providerResult['status'] ?? 'pending';
+
+        if (! in_array($providerStatus, ['accepted', 'pending'], true)) {
+            $this->releaseLocalState($reservation);
+        }
+
+        $order->update([
+            'status' => $this->mapStatus($providerStatus),
+
+            'provider_order_id' => $providerResult['provider_order_id'] ?? null,
+
+            'provider_request' => [
+                ...($providerResult['request'] ?? []),
+                'xavier_client_reference' => $clientReference,
+            ],
+
+            'provider_response' => $providerResult['response'] ?? null,
+        ]);
+
+        return $order->fresh();
     }
 
     protected function reserveLocalState(User $user, array $data): array

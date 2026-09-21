@@ -1,21 +1,9 @@
 {
-  "data": {
-    "symbol": "TEST",
-    "name": "Test Company",
-    "market": "NGX",
-    "price": 99.5,
-    "previous_close": 98.0,
-    "open": 98.25,
-    "high": 100.0,
-    "low": 97.5,
-    "change": 1.5,
-    "change_percent": 1.53,
-    "bid_price": 99.25,
-    "bid_quantity": 250,
-    "offer_price": 99.75,
-    "offer_quantity": 180,
-    "volume": 4200,
-    "value": 417900,
-    "provider": "csl"
-  }
+    "GetCRXTMarketStatus": [
+        {
+            "market_code": "NGX",
+            "market_description": "Nigerian Exchange",
+            "market_status_code": "OPEN"
+        }
+    ]
 }

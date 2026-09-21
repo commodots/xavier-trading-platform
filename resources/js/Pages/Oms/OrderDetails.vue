@@ -15,7 +15,7 @@
             :class="{
               'bg-yellow-500/20 text-yellow-400': order.status === 'pending_market',
               'bg-blue-500/20 text-blue-400': order.status === 'executed',
-              'bg-red-500/20 text-red-400': order.status === 'cancelled'
+              'bg-red-500/20 text-red-400': order.status === 'canceled'
             }"
           >
             {{ order.status }}
@@ -98,6 +98,6 @@ const cancelOrder = async () => {
   );
 
   message.value = "Order cancelled successfully.";
-  order.value.status = "cancelled";
+  order.value.status = "canceled";
 };
 </script>

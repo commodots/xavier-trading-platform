@@ -44,7 +44,7 @@
       </div>
       <ReportTable v-else :columns="columns" :data="investments" :pagination="pagination" :sort-by="sortBy" :sort-dir="sortDir" @sort="handleSort" @page-change="handlePageChange" :filters="tableFilters" title="Investment positions" description="Live positions and their current status for the selected range.">
         <template #cell-status="{ row }">
-          <span :class="row.status === 'filled' ? 'text-green-400' : row.status === 'cancelled' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
+          <span :class="row.status === 'filled' ? 'text-green-400' : row.status === 'canceled' ? 'text-red-400' : 'text-yellow-400'" class="text-xs font-medium capitalize">{{ row.status }}</span>
         </template>
       </ReportTable>
       <div>
@@ -94,7 +94,7 @@ const investorColumns = [
 
 const filterOptions = ref({
   plans: [],
-  statuses: ['open', 'pending', 'filled', 'cancelled']
+  statuses: ['open', 'pending', 'filled', 'canceled']
 });
 
 const sortBy = ref('');
@@ -138,7 +138,7 @@ const tableFilters = computed(() => [
       { label: 'Active', value: 'open' },
       { label: 'Pending', value: 'pending' },
       { label: 'Completed', value: 'filled' },
-      { label: 'Cancelled', value: 'cancelled' },
+      { label: 'Cancelled', value: 'canceled' },
     ],
   },
   {
