@@ -20,7 +20,13 @@ class OrderPolicy
      */
     public function cancel(User $user, Order $order): bool
     {
-        return $user->id === $order->user_id && $order->status === 'open';
+        return $user->id === $order->user_id
+            && in_array($order->status, [
+                'open',
+                'pending',
+                'partially_filled',
+                'cancel_requested',
+            ], true);
     }
 
     /**

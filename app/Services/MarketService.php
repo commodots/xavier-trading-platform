@@ -6,6 +6,9 @@ use App\Models\Symbol;
 use App\Models\SystemSetting;
 use App\Providers\AlpacaProvider;
 use App\Providers\FinnhubProvider;
+use App\Services\CSL\CslMarketDataProvider;
+use App\Services\Stocks\AlpacaMarketDataProvider;
+use App\Services\Stocks\Contracts\MarketDataProvider;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,9 +22,15 @@ class MarketService
         };
     }
 
-    public function quote(string $symbol): float
+    public function quote(string $symbol, ?string $market = null): float
     {
         $symbol = strtoupper($symbol);
+
+        if ($market !== null) {
+            $quote = $this->stockDataProvider($market)->quote($symbol);
+
+            return (float) ($quote['price'] ?? 0);
+        }
 
         $price = (float) $this->getProvider()->quote($symbol);
         if ($price > 0) {
@@ -50,8 +59,12 @@ class MarketService
         return in_array($symbol, $this->getCryptoSymbols(), true) || str_contains($symbol, '/USDT');
     }
 
-    public function quoteDetails(string $symbol): array
+    public function quoteDetails(string $symbol, ?string $market = null): array
     {
+        if ($market !== null) {
+            return $this->stockDataProvider($market)->quote($symbol);
+        }
+
         $provider = $this->getProvider();
 
         if (method_exists($provider, 'quoteDetails')) {
@@ -67,6 +80,17 @@ class MarketService
             'previous_close' => 0.0,
             'timestamp' => now()->toISOString(),
         ];
+    }
+
+    protected function stockDataProvider(string $market): MarketDataProvider
+    {
+        return match (strtoupper(trim($market))) {
+            'NGX', 'LOCAL' => app(CslMarketDataProvider::class),
+            'GLOBAL', 'INTERNATIONAL', 'US', 'UK' => app(AlpacaMarketDataProvider::class),
+            default => throw new \InvalidArgumentException(
+                "Unsupported stock market: {$market}"
+            ),
+        };
     }
 
     public function getPrices(): array

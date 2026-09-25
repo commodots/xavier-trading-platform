@@ -2,6 +2,7 @@
 
 namespace App\Services\CSL;
 
+use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\ProviderSyncLog;
@@ -31,10 +32,12 @@ class CslOrderReconciliationService
         $fallbackMatches = 0;
 
         foreach ($openRows as $row) {
-            [$order, $matchedByFallback] = $this->resolveOrder($row, $marketAccountId);
+            [$order, $matchedByFallback, $ambiguousMatches] = $this->resolveOrder($row, $marketAccountId);
 
             if (! $order) {
-                $this->markUnmatched($row);
+                $ambiguousMatches?->isNotEmpty()
+                    ? $this->markAmbiguous($ambiguousMatches, $row)
+                    : $this->markUnmatched($row);
 
                 continue;
             }
@@ -45,22 +48,27 @@ class CslOrderReconciliationService
         }
 
         foreach ($executedRows as $row) {
-            [$order, $matchedByFallback] = $this->resolveOrder($row, $marketAccountId);
+            [$order, $matchedByFallback, $ambiguousMatches] = $this->resolveOrder($row, $marketAccountId);
 
             if (! $order) {
-                $this->markUnmatched($row);
+                $ambiguousMatches?->isNotEmpty()
+                    ? $this->markAmbiguous($ambiguousMatches, $row)
+                    : $this->markUnmatched($row);
 
                 continue;
             }
 
             $created = DB::transaction(function () use ($order, $row, $matchedByFallback): bool {
                 $order = Order::query()->lockForUpdate()->findOrFail($order->id);
-                $filled = $this->number(
-                    $row['filled_quantity']
-                    ?? $row['FILLED_QUANTITY']
-                    ?? $row['executed_quantity']
-                    ?? $row['order_quantity']
-                    ?? 0
+                $filled = min(
+                    $this->number(
+                        $row['filled_quantity']
+                        ?? $row['FILLED_QUANTITY']
+                        ?? $row['executed_quantity']
+                        ?? $row['order_quantity']
+                        ?? 0
+                    ),
+                    (float) $order->quantity
                 );
                 $previouslyFilled = (float) $order->filled_quantity;
                 $newlyFilled = max(0, $filled - $previouslyFilled);
@@ -108,7 +116,6 @@ class CslOrderReconciliationService
                         'price' => $fillPrice,
                         'quantity' => $newlyFilled,
                         'amount' => $newlyFilled * $fillPrice,
-                        'currency' => $order->currency,
                         'settlement_status' => 'pending',
                         'status' => 'pending',
                         'is_settled' => false,
@@ -132,51 +139,66 @@ class CslOrderReconciliationService
         }
 
         foreach ($canceledRows as $row) {
-            [$order, $matchedByFallback] = $this->resolveOrder($row, $marketAccountId);
+            [$order, $matchedByFallback, $ambiguousMatches] = $this->resolveOrder($row, $marketAccountId);
 
             if (! $order) {
-                $this->markUnmatched($row);
+                $ambiguousMatches?->isNotEmpty()
+                    ? $this->markAmbiguous($ambiguousMatches, $row)
+                    : $this->markUnmatched($row);
 
                 continue;
             }
 
-            DB::transaction(function () use ($order, $row, $matchedByFallback): void {
-                // Cancelled-order rows use UPPER_CASE keys and a misspelled
-                // FILLED_QUAMTITY field; executed rows use lowercase keys.
-                $filled = $this->number(
-                    $row['filled_quantity']
-                    ?? $row['FILLED_QUANTITY']
-                    ?? $row['FILLED_QUAMTITY']
-                    ?? $row['executed_quantity']
-                    ?? $order->filled_quantity
+            $created = DB::transaction(function () use ($order, $row, $matchedByFallback): bool {
+                $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+                $wasConfirmed = $order->provider_cancellation_status === 'confirmed';
+                $filled = min(
+                    $this->number(
+                        $row['filled_quantity']
+                        ?? $row['FILLED_QUANTITY']
+                        ?? $row['FILLED_QUAMTITY']
+                        ?? $row['executed_quantity']
+                        ?? $order->filled_quantity
+                    ),
+                    (float) $order->quantity
                 );
-                $previouslyFilled = (float) $order->filled_quantity;
-                $newlyFilled = max(0, $filled - $previouslyFilled);
 
-                if ($newlyFilled > 0) {
-                    $this->applyLocalFill(
-                        $order,
-                        $newlyFilled,
-                        $this->number(
-                            $row['average_fill_price']
-                            ?? $row['AVERAGE_FILL_PRICE']
-                            ?? $order->price
-                        )
-                    );
-                }
+                $created = $this->processExecution(
+                    $order,
+                    $row,
+                    $matchedByFallback
+                );
 
                 $order->update([
                     'status' => 'canceled',
-                    'filled_quantity' => $filled,
+                    'filled_quantity' => max(
+                        $filled,
+                        (float) $order->filled_quantity
+                    ),
                     'provider_response' => $row,
                     'last_reconciled_at' => now(),
-                    'reconciliation_status' => $matchedByFallback ? 'matched_by_fallback' : 'matched',
+                    'reconciliation_status' => $matchedByFallback
+                        ? 'matched_by_fallback'
+                        : 'matched',
                     'provider_cancellation_status' => 'confirmed',
                 ]);
 
-                $this->releaseRemainingReservation($order, $filled);
+                if (! $wasConfirmed) {
+                    $this->releaseRemainingReservation($order, $filled);
+                }
+
+                ActivityLog::log($order->user_id, 'stock_order_cancelled', [
+                    'order_id' => $order->id,
+                    'provider' => 'csl',
+                    'provider_order_id' => $order->provider_order_id,
+                    'provider_client_reference' => $order->provider_client_reference,
+                    'filled_quantity' => (float) $order->filled_quantity,
+                ]);
+
+                return $created;
             });
 
+            $trades += (int) $created;
             $updated++;
             $fallbackMatches += (int) $matchedByFallback;
         }
@@ -204,7 +226,7 @@ class CslOrderReconciliationService
                 ->first();
 
             if ($order) {
-                return [$order, false];
+                return [$order, false, null];
             }
         }
 
@@ -213,7 +235,7 @@ class CslOrderReconciliationService
         $quantity = $this->number($row['order_quantity'] ?? $row['ORDER_QUANTITY'] ?? 0);
 
         if ($symbol === '' || ! in_array($side, ['buy', 'sell'], true) || $quantity <= 0) {
-            return [null, false];
+            return [null, false, null];
         }
 
         $matches = Order::query()
@@ -221,13 +243,13 @@ class CslOrderReconciliationService
             ->where('provider_market_account_id', $marketAccountId)
             ->where('symbol', $symbol)
             ->where('side', $side)
-            ->whereIn('status', ['open', 'partially_filled'])
+            ->whereIn('status', ['open', 'pending', 'partially_filled', 'cancel_requested'])
             ->where('provider_submitted_at', '>=', now()->subDays(2))
             ->orderBy('provider_submitted_at')
             ->get()
             ->filter(fn (Order $candidate): bool => abs((float) $candidate->quantity - $quantity) < 0.000001);
 
-        /*
+        /**
          * Correlation must be unambiguous. If two local orders look identical
          * we cannot tell which one CSL is reporting, and guessing would mark
          * the wrong order as executed. Leave them for investigation instead.
@@ -243,7 +265,7 @@ class CslOrderReconciliationService
                 ]);
             }
 
-            return [null, false];
+            return [null, false, $matches->isNotEmpty() ? $matches : null];
         }
 
         $order = $matches->first();
@@ -255,7 +277,7 @@ class CslOrderReconciliationService
             'side' => $order->side,
         ]);
 
-        return [$order, true];
+        return [$order, true, null];
     }
 
     protected function updateOrderFromProvider(Order $order, array $row, bool $matchedByFallback): void
@@ -267,7 +289,7 @@ class CslOrderReconciliationService
         $updates = [
             'status' => $this->mapOrderStatus($row),
 
-            /*
+            /**
              * Open-order payloads may omit (or zero) the filled quantity.
              * Never reduce a fill we already recorded.
              */
@@ -292,13 +314,33 @@ class CslOrderReconciliationService
     {
         return DB::transaction(function () use ($order, $row, $matchedByFallback): bool {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $filled = $this->number($row['filled_quantity'] ?? $row['executed_quantity'] ?? $row['order_quantity'] ?? 0);
+            $filled = min(
+                $this->number(
+                    $row['filled_quantity']
+                    ?? $row['FILLED_QUANTITY']
+                    ?? $row['FILLED_QUAMTITY']
+                    ?? $row['executed_quantity']
+                    ?? $row['order_quantity']
+                    ?? $row['ORDER_QUANTITY']
+                    ?? 0
+                ),
+                (float) $order->quantity
+            );
             $newlyFilled = max(0, $filled - (float) $order->filled_quantity);
             $providerOrderId = $this->stringValue(
-                $row['order_id'] ?? $row['ORDER_ID'] ?? $row['order_identifier'] ?? null
+                $row['order_id']
+                ?? $row['ORDER_ID']
+                ?? $row['order_identifier']
+                ?? $row['ORDER_IDENTIFIER']
+                ?? null
             );
             $fillPrice = $this->number(
-                $row['average_fill_price'] ?? $row['fill_price'] ?? $row['limit_price'] ?? $order->price
+                $row['average_fill_price']
+                ?? $row['AVERAGE_FILL_PRICE']
+                ?? $row['fill_price']
+                ?? $row['LIMIT_PRICE']
+                ?? $row['limit_price']
+                ?? $order->price
             );
 
             $updates = [
@@ -333,7 +375,6 @@ class CslOrderReconciliationService
                     'price' => $fillPrice,
                     'quantity' => $newlyFilled,
                     'amount' => $newlyFilled * $fillPrice,
-                    'currency' => $order->currency,
                     'settlement_status' => 'pending',
                     'status' => 'pending',
                     'is_settled' => false,
@@ -387,7 +428,7 @@ class CslOrderReconciliationService
                 ->where('currency', $order->currency)
                 ->lockForUpdate()
                 ->firstOrFail()
-                ->decrement('locked', $value);
+                ->consumeReservation($value);
 
             return;
         }
@@ -429,6 +470,38 @@ class CslOrderReconciliationService
         $portfolio->increment('cleared_quantity', $remaining);
     }
 
+    protected function markAmbiguous(iterable $matches, array $row): void
+    {
+        $orders = collect($matches);
+        $candidateIds = $orders->pluck('id')->all();
+
+        Order::query()
+            ->whereIn('id', $candidateIds)
+            ->update([
+                'reconciliation_status' => 'ambiguous',
+                'last_reconciled_at' => now(),
+            ]);
+
+        ProviderSyncLog::create([
+            'provider' => 'csl',
+            'operation' => 'reconcile-orders',
+            'entity_type' => 'order',
+            'entity_id' => $candidateIds[0] ?? null,
+            'status' => 'ambiguous',
+            'severity' => 'warning',
+            'reference' => $this->stringValue(
+                $row['order_id'] ?? $row['ORDER_ID'] ?? null
+            ) ?: 'ambiguous',
+            'response' => $row,
+            'metadata' => [
+                'reason' => 'Unable to uniquely match provider order.',
+                'candidate_order_ids' => $candidateIds,
+            ],
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+    }
+
     protected function markUnmatched(array $row): void
     {
         $providerOrderId = $this->stringValue(
@@ -459,9 +532,15 @@ class CslOrderReconciliationService
         ProviderSyncLog::create([
             'provider' => 'csl',
             'operation' => 'reconcile-orders',
+            'entity_type' => 'order',
+            'entity_id' => $query->value('id'),
             'status' => 'unmatched',
+            'severity' => 'warning',
             'reference' => $providerOrderId ?: ($symbol ?: 'unknown'),
             'response' => $row,
+            'metadata' => [
+                'reason' => 'Unable to uniquely match provider order.',
+            ],
             'started_at' => now(),
             'completed_at' => now(),
         ]);

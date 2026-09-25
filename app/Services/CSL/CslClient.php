@@ -2,6 +2,7 @@
 
 namespace App\Services\CSL;
 
+use App\Services\Stocks\Exceptions\ProviderRequestException;
 use GuzzleHttp\Psr7\Response as Psr7Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -20,7 +21,7 @@ class CslClient
      */
     public function getAccessToken(): string
     {
-        /*
+        /**
          * Mock UAT must never require CSL credentials: the fixture
          * transport answers every ST/XT call, so OAuth would be the only
          * remaining network dependency. Short-circuit it here as well.
@@ -59,10 +60,7 @@ class CslClient
 
         if ($response->failed()) {
             throw new RuntimeException(
-                'CSL authentication failed. HTTP '
-                .$response->status()
-                .': '
-                .$response->body()
+                'CSL authentication failed. HTTP '.$response->status().'.'
             );
         }
 
@@ -260,6 +258,23 @@ class CslClient
         return is_array($json)
             ? $json
             : [];
+    }
+
+    public function orderJson(Response $response): array
+    {
+        if ($response->failed()) {
+            $status = $response->status();
+
+            throw new ProviderRequestException(
+                'CSL order request failed. HTTP '.$status.'.',
+                $status === 429 || $status >= 500,
+                $status
+            );
+        }
+
+        $json = $response->json();
+
+        return is_array($json) ? $json : [];
     }
 
     public function clearToken(): void

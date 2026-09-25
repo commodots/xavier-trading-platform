@@ -61,4 +61,51 @@ class CslCancellationTest extends TestCase
         $this->assertSame(1000.0, (float) Wallet::first()->ngn_cleared);
         $this->assertSame(0.0, (float) Wallet::first()->locked);
     }
+
+    public function test_uncertain_cancellation_request_is_not_treated_as_confirmed(): void
+    {
+        $user = User::factory()->create();
+        Wallet::create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'balance' => 1000,
+            'ngn_cleared' => 0,
+            'locked' => 1000,
+            'status' => 'active',
+        ]);
+        $order = Order::create([
+            'user_id' => $user->id,
+            'symbol' => 'TEST',
+            'side' => 'buy',
+            'type' => 'limit',
+            'price' => 100,
+            'quantity' => 10,
+            'filled_quantity' => 0,
+            'status' => 'open',
+            'provider' => 'csl',
+            'provider_order_id' => 'CSL-4',
+            'provider_market_account_id' => 'ACC-1',
+            'provider_submitted_at' => now(),
+            'currency' => 'NGN',
+            'provider_request' => ['market_id' => 'NGX1'],
+        ]);
+        $client = Mockery::mock(CslTradeXClient::class);
+        $client->shouldReceive('cancelOrder')->once()
+            ->andThrow(new \RuntimeException('Connection timed out'));
+
+        try {
+            (new CslOrderService(
+                $client,
+                new CslOrderReconciliationService($client)
+            ))->cancel($order);
+            $this->fail('The uncertain cancellation must be surfaced.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Connection timed out', $exception->getMessage());
+        }
+
+        $this->assertSame('cancel_requested', $order->fresh()->status);
+        $this->assertSame('unknown', $order->fresh()->provider_cancellation_status);
+        $this->assertSame(1000.0, (float) Wallet::first()->locked);
+        $this->assertSame(0.0, (float) Wallet::first()->ngn_cleared);
+    }
 }

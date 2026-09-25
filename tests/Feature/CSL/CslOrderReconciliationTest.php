@@ -23,9 +23,9 @@ class CslOrderReconciliationTest extends TestCase
             'user_id' => $user->id,
             'currency' => 'NGN',
             'balance' => 1000,
-            'ngn_cleared' => 1000,
+            'ngn_cleared' => 0,
             'ngn_uncleared' => 0,
-            'locked' => 0,
+            'locked' => 1000,
             'status' => 'active',
         ]);
 
@@ -59,5 +59,45 @@ class CslOrderReconciliationTest extends TestCase
         $this->assertSame('filled', $order->fresh()->status);
         $this->assertSame(1, $order->fresh()->trades()->count());
         $this->assertSame(10.0, (float) Trade::first()->quantity);
+    }
+
+    public function test_ambiguous_fallback_match_is_never_guessed(): void
+    {
+        $user = User::factory()->create();
+        Wallet::create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 2000,
+            'locked' => 0,
+            'status' => 'active',
+        ]);
+
+        foreach (range(1, 2) as $index) {
+            Order::create([
+                'user_id' => $user->id,
+                'symbol' => 'TEST',
+                'side' => 'buy',
+                'type' => 'limit',
+                'price' => 100,
+                'quantity' => 10,
+                'filled_quantity' => 0,
+                'status' => 'open',
+                'provider' => 'csl',
+                'provider_market_account_id' => 'ACC-1',
+                'provider_submitted_at' => now(),
+                'currency' => 'NGN',
+            ]);
+        }
+
+        $client = Mockery::mock(CslTradeXClient::class);
+        $client->shouldReceive('openOrders')->once()->with('ACC-1')->andReturn([]);
+        $client->shouldReceive('cancelledOrdersByDate')->once()->andReturn([]);
+        $client->shouldReceive('executedOrders')->once()->with('ACC-1')
+            ->andReturn($this->cslFixture('executed_order'));
+
+        (new CslOrderReconciliationService($client))->reconcile('ACC-1');
+
+        $this->assertSame(2, Order::where('reconciliation_status', 'ambiguous')->count());
+        $this->assertSame(0, Trade::count());
     }
 }

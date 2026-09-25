@@ -243,7 +243,7 @@ class MarketController extends Controller
         foreach ($tabs as $tabKey => $symbols) {
             $insights[$tabKey] = collect($symbols)
                 ->map(function ($symbol) use ($marketService) {
-                    $quote = $marketService->quoteDetails($symbol);
+                    $quote = $marketService->quoteDetails($symbol, 'GLOBAL');
 
                     if (empty($quote) || empty($quote['symbol'])) {
                         return null;

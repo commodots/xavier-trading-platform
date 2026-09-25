@@ -4,17 +4,24 @@ namespace App\Services\Stocks;
 
 use App\Providers\AlpacaProvider;
 use App\Services\Stocks\Contracts\StockBroker;
+use App\Services\Stocks\Contracts\StockBrokerPreflight;
 use RuntimeException;
 
 /**
  * Provider-neutral adapter that translates Xavier's common stock order shape
  * into Alpaca's order schema, mirroring CslStockBroker.
  */
-class AlpacaStockBroker implements StockBroker
+class AlpacaStockBroker implements StockBroker, StockBrokerPreflight
 {
     public function __construct(
-        protected AlpacaProvider $provider
+        protected AlpacaProvider $provider,
+        protected ?AlpacaPortfolioSyncService $portfolioSync = null
     ) {}
+
+    public function assertReadyForSubmission(array $data): void
+    {
+        $this->provider->guardLiveTrading();
+    }
 
     public function buy(array $data): array
     {
@@ -63,7 +70,7 @@ class AlpacaStockBroker implements StockBroker
             }
         }
 
-        /*
+        /**
          * Alpaca represents a bracket as a market order with order_class set;
          * the take-profit / stop-loss legs ride along on the same payload.
          */
@@ -84,7 +91,7 @@ class AlpacaStockBroker implements StockBroker
             ];
         }
 
-        /*
+        /**
          * Correlate the provider order with the Xavier order so that
          * reconciliation can discover it even if the submit response is
          * ambiguous.
@@ -157,7 +164,10 @@ class AlpacaStockBroker implements StockBroker
 
     public function portfolio(int $userId): array
     {
-        return $this->provider->portfolio($userId);
+        $service = $this->portfolioSync
+            ?? app(AlpacaPortfolioSyncService::class);
+
+        return $service->portfolioForUser($userId);
     }
 
     public function history(int $userId): array

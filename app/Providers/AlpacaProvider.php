@@ -2,12 +2,17 @@
 
 namespace App\Providers;
 
+use App\Services\Stocks\Exceptions\ProviderRequestException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class AlpacaProvider
 {
+    /** @var array<string, array<string, mixed>> */
+    protected static array $mockOrders = [];
+
     protected $key;
 
     protected $secret;
@@ -16,29 +21,38 @@ class AlpacaProvider
 
     protected $dataBaseUrl;
 
+    protected int $timeout;
+
     public function __construct()
     {
-        /**
-         * Read from config() (not env()) so config:cache works and tests can
-         * override values with config()->set().
-         */
+        // Read from config() (not env()) so config:cache works and tests can
+        // override values with config()->set().
         $this->key = config('services.alpaca.api_key');
         $this->secret = config('services.alpaca.secret_key');
-        $this->baseUrl = config(
-            'services.alpaca.base_url',
-            'https://paper-api.alpaca.markets'
+        $this->baseUrl = rtrim(
+            (string) config(
+                'services.alpaca.base_url',
+                'https://paper-api.alpaca.markets'
+            ),
+            '/'
         );
-        $this->dataBaseUrl = config(
-            'services.alpaca.data_base_url',
-            'https://data.alpaca.markets/v2'
+        $this->dataBaseUrl = rtrim(
+            (string) config(
+                'services.alpaca.data_base_url',
+                'https://data.alpaca.markets/v2'
+            ),
+            '/'
         );
+        $this->timeout = (int) config('services.alpaca.timeout', 15);
     }
-
-    protected int $timeout = 10;
 
     public function quote(string $symbol): float
     {
-        if (! $this->key || ! $this->secret) {
+        if ($this->isMockEnabled()) {
+            return 100.0;
+        }
+
+        if (! $this->credentialsConfigured()) {
             return 0.0;
         }
 
@@ -61,7 +75,18 @@ class AlpacaProvider
 
     public function quoteDetails(string $symbol): array
     {
-        if (! $this->key || ! $this->secret) {
+        if ($this->isMockEnabled()) {
+            return [
+                'symbol' => strtoupper($symbol),
+                'name' => strtoupper($symbol),
+                'price' => 100.0,
+                'previous_close' => 99.0,
+                'change' => 1.0,
+                'timestamp' => now()->toISOString(),
+            ];
+        }
+
+        if (! $this->credentialsConfigured()) {
             return [
                 'symbol' => strtoupper($symbol),
                 'price' => 0.0,
@@ -74,7 +99,7 @@ class AlpacaProvider
         try {
             $data = Http::withHeaders($this->headers())
                 ->timeout($this->timeout)
-                ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/latest/quote')
+                ->get($this->dataBaseUrl.'/stocks/'.strtoupper($symbol).'/latest/quote')
                 ->json();
 
             $current = (float) ($data['quote']['ap'] ?? $data['quote']['lp'] ?? 0.0);
@@ -104,7 +129,7 @@ class AlpacaProvider
         try {
             $response = Http::withHeaders($this->headers())
                 ->timeout($this->timeout)
-                ->get($this->baseUrl.'/v2/stocks/'.strtoupper($symbol).'/bars', [
+                ->get($this->dataBaseUrl.'/stocks/'.strtoupper($symbol).'/bars', [
                     'timeframe' => '1Day',
                     'start' => now()->subDays(7)->toDateString(),
                     'end' => now()->toDateString(),
@@ -135,8 +160,12 @@ class AlpacaProvider
      */
     public function bars(string $symbol, int $days = 30, string $timeframe = '1Day'): array
     {
-        if (! $this->key || ! $this->secret) {
+        if ($this->isMockEnabled()) {
             return ['bars' => []];
+        }
+
+        if (! $this->credentialsConfigured()) {
+            throw new RuntimeException('Alpaca credentials are not configured.');
         }
 
         $response = Http::withHeaders($this->headers())
@@ -190,15 +219,30 @@ class AlpacaProvider
             return $this->mockOrder($payload);
         }
 
-        $response = Http::withHeaders($this->headers())
-            ->timeout($this->timeout)
-            ->post(rtrim($this->baseUrl, '/').'/v2/orders', $payload);
+        if (! $this->credentialsConfigured()) {
+            throw new RuntimeException('Alpaca credentials are not configured.');
+        }
+
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
+                ->post($this->baseUrl.'/v2/orders', $payload);
+        } catch (ConnectionException $exception) {
+            throw new ProviderRequestException(
+                'Alpaca order submission outcome is unknown: '.$exception->getMessage(),
+                true,
+                0,
+                $exception
+            );
+        }
 
         if ($response->failed()) {
-            throw new RuntimeException(
-                'Alpaca order submission failed. HTTP '
-                .$response->status().': '
-                .$response->body()
+            $status = $response->status();
+
+            throw new ProviderRequestException(
+                'Alpaca order submission failed. HTTP '.$status.'.',
+                $status === 429 || $status >= 500,
+                $status
             );
         }
 
@@ -216,25 +260,47 @@ class AlpacaProvider
         $this->guardLiveTrading();
 
         if ($this->isMockEnabled()) {
-            return [
+            $order = self::$mockOrders[$providerOrderId] ?? [
                 'id' => $providerOrderId,
-                'status' => 'canceled',
-                'canceled_at' => now()->toIso8601String(),
+                'filled_qty' => '0',
+                'qty' => '0',
             ];
+
+            $order['status'] = 'canceled';
+            $order['canceled_at'] = now()->toIso8601String();
+            $order['updated_at'] = now()->toIso8601String();
+            self::$mockOrders[$providerOrderId] = $order;
+
+            return $order;
         }
 
-        $response = Http::withHeaders($this->headers())
-            ->timeout($this->timeout)
-            ->delete(
-                rtrim($this->baseUrl, '/').'/v2/orders/'
-                .rawurlencode($providerOrderId)
+        if (! $this->credentialsConfigured()) {
+            throw new RuntimeException('Alpaca credentials are not configured.');
+        }
+
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->timeout($this->timeout)
+                ->delete(
+                    $this->baseUrl.'/v2/orders/'
+                    .rawurlencode($providerOrderId)
+                );
+        } catch (ConnectionException $exception) {
+            throw new ProviderRequestException(
+                'Alpaca cancellation outcome is unknown: '.$exception->getMessage(),
+                true,
+                0,
+                $exception
             );
+        }
 
         if ($response->failed()) {
-            throw new RuntimeException(
-                'Alpaca order cancellation failed. HTTP '
-                .$response->status().': '
-                .$response->body()
+            $status = $response->status();
+
+            throw new ProviderRequestException(
+                'Alpaca order cancellation failed. HTTP '.$status.'.',
+                $status === 429 || $status >= 500,
+                $status
             );
         }
 
@@ -255,28 +321,91 @@ class AlpacaProvider
 
     public function placeAdvancedOrder($data)
     {
-        return Http::withHeaders($this->headers())
-            ->post($this->baseUrl.'/v2/orders', $data)
-            ->json();
+        $side = strtolower((string) ($data['side'] ?? ''));
+
+        if (! in_array($side, ['buy', 'sell'], true)) {
+            throw new RuntimeException('Alpaca order side must be buy or sell.');
+        }
+
+        return $this->submit($side, $data);
     }
 
     public function getOrders()
     {
-        return Http::withHeaders($this->headers())->get($this->baseUrl.'/v2/orders')->json();
+        return $this->orders();
     }
 
     public function getPositions()
     {
-        return Http::withHeaders($this->headers())
-            ->get($this->baseUrl.'/v2/positions')
-            ->json();
+        return $this->positions();
     }
 
     public function getAccount()
     {
-        return Http::withHeaders($this->headers())
-            ->get($this->baseUrl.'/v2/account')
-            ->json();
+        if ($this->isMockEnabled()) {
+            return [
+                'id' => 'mock-alpaca-account',
+                'status' => 'ACTIVE',
+                'currency' => 'USD',
+            ];
+        }
+
+        $this->requireCredentials();
+
+        $response = Http::withHeaders($this->headers())
+            ->timeout($this->timeout)
+            ->get($this->baseUrl.'/v2/account');
+
+        if ($response->failed()) {
+            throw new RuntimeException('Alpaca account request failed.');
+        }
+
+        return $response->json() ?? [];
+    }
+
+    public function positions(): array
+    {
+        if ($this->isMockEnabled()) {
+            return [];
+        }
+
+        $this->requireCredentials();
+
+        $response = Http::withHeaders($this->headers())
+            ->timeout($this->timeout)
+            ->get($this->baseUrl.'/v2/positions');
+
+        if ($response->failed()) {
+            throw new RuntimeException('Alpaca positions request failed.');
+        }
+
+        $positions = $response->json() ?? [];
+
+        return is_array($positions) ? $positions : [];
+    }
+
+    public function assets(array $query = []): array
+    {
+        if ($this->isMockEnabled()) {
+            return [];
+        }
+
+        $this->requireCredentials();
+
+        $response = Http::withHeaders($this->headers())
+            ->timeout($this->timeout)
+            ->get($this->dataBaseUrl.'/assets', array_merge([
+                'status' => 'active',
+                'asset_class' => 'us_equity',
+            ], $query));
+
+        if ($response->failed()) {
+            throw new RuntimeException('Alpaca assets request failed.');
+        }
+
+        $assets = $response->json() ?? [];
+
+        return is_array($assets) ? $assets : [];
     }
 
     /**
@@ -285,13 +414,15 @@ class AlpacaProvider
     public function orders(array $query = []): array
     {
         if ($this->isMockEnabled()) {
-            return [];
+            return array_values(self::$mockOrders);
         }
+
+        $this->requireCredentials();
 
         $response = Http::withHeaders($this->headers())
             ->timeout($this->timeout)
             ->get(
-                rtrim($this->baseUrl, '/').'/v2/orders',
+                $this->baseUrl.'/v2/orders',
                 array_merge(['limit' => 500, 'direction' => 'desc'], $query)
             );
 
@@ -308,13 +439,7 @@ class AlpacaProvider
 
     public function portfolio(int $userId): array
     {
-        if ($this->isMockEnabled()) {
-            return [];
-        }
-
-        $positions = $this->getPositions();
-
-        return is_array($positions) ? $positions : [];
+        return $this->positions();
     }
 
     public function history(int $userId): array
@@ -322,12 +447,24 @@ class AlpacaProvider
         return $this->orders(['status' => 'closed', 'limit' => 100]);
     }
 
-    protected function headers()
+    protected function headers(): array
     {
         return [
-            'APCA-API-KEY-ID' => $this->key,
-            'APCA-API-SECRET-KEY' => $this->secret,
+            'APCA-API-KEY-ID' => (string) $this->key,
+            'APCA-API-SECRET-KEY' => (string) $this->secret,
         ];
+    }
+
+    protected function credentialsConfigured(): bool
+    {
+        return filled($this->key) && filled($this->secret);
+    }
+
+    protected function requireCredentials(): void
+    {
+        if (! $this->credentialsConfigured()) {
+            throw new RuntimeException('Alpaca credentials are not configured.');
+        }
     }
 
     protected function buildPayload(string $side, array $data): array
@@ -339,7 +476,7 @@ class AlpacaProvider
             'time_in_force' => strtolower($data['time_in_force'] ?? 'day'),
         ];
 
-        /*
+        /**
          * Fractional quantities are valid for Alpaca, so qty stays a float and
          * is never cast to int (a cast would turn 0.25 into 0).
          */
@@ -368,7 +505,13 @@ class AlpacaProvider
         }
 
         if (! empty($data['client_order_id'])) {
-            $payload['client_order_id'] = (string) $data['client_order_id'];
+            $clientOrderId = (string) $data['client_order_id'];
+
+            if (strlen($clientOrderId) > 48) {
+                throw new RuntimeException('Alpaca client_order_id may not exceed 48 characters.');
+            }
+
+            $payload['client_order_id'] = $clientOrderId;
         }
 
         // Bracket legs and order class pass through untouched.
@@ -414,6 +557,11 @@ class AlpacaProvider
         );
     }
 
+    public function resetMockState(): void
+    {
+        self::$mockOrders = [];
+    }
+
     protected function mockOrder(array $payload): array
     {
         $now = now()->toIso8601String();
@@ -423,8 +571,9 @@ class AlpacaProvider
          * quantity. It must never be reported filled: execution is a separate
          * provider event discovered through reconciliation.
          */
-        return [
-            'id' => (string) Str::uuid(),
+        $id = (string) Str::uuid();
+        $order = [
+            'id' => $id,
             'client_order_id' => $payload['client_order_id'] ?? null,
             'created_at' => $now,
             'updated_at' => $now,
@@ -446,5 +595,9 @@ class AlpacaProvider
             'extended_hours' => false,
             'asset_class' => 'us_equity',
         ];
+
+        self::$mockOrders[$id] = $order;
+
+        return $order;
     }
 }

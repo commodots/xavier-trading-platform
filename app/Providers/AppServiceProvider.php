@@ -10,6 +10,8 @@ use App\Observers\UserObserver;
 use App\Services\CSL\CslClient;
 use App\Services\CSL\CslMarketDataProvider;
 use App\Services\CSL\CslStockBroker;
+use App\Services\Stocks\AlpacaMarketDataProvider;
+use App\Services\Stocks\AlpacaStockBroker;
 use App\Services\Stocks\Contracts\MarketDataProvider;
 use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Mock\MockDriveWealthService;
@@ -48,6 +50,12 @@ class AppServiceProvider extends ServiceProvider
                     );
                 }
 
+                if ($driver === 'alpaca') {
+                    return $app->make(
+                        AlpacaStockBroker::class
+                    );
+                }
+
                 return $app->make(
                     MockDriveWealthService::class
                 );
@@ -72,6 +80,12 @@ class AppServiceProvider extends ServiceProvider
                 if ($driver === 'csl') {
                     return $app->make(
                         CslMarketDataProvider::class
+                    );
+                }
+
+                if ($driver === 'alpaca') {
+                    return $app->make(
+                        AlpacaMarketDataProvider::class
                     );
                 }
 

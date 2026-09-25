@@ -159,6 +159,32 @@ class Wallet extends Model
         return $this->refreshBalance();
     }
 
+    /**
+     * Consume cash that has already been moved into the locked bucket.
+     *
+     * The model is refreshed before recalculating the total so callers never
+     * leave a stale wallet balance after a provider execution.
+     */
+    public function consumeReservation(float $amount): self
+    {
+        if ($amount < 0) {
+            throw new \InvalidArgumentException(
+                'Reservation consumption amount cannot be negative.'
+            );
+        }
+
+        if ((float) $this->locked < $amount) {
+            throw new \RuntimeException(
+                'Insufficient locked balance to consume reservation.'
+            );
+        }
+
+        $this->decrement('locked', $amount, []);
+        $this->refresh();
+
+        return $this->refreshBalance();
+    }
+
     public function finalizeReservation(float $filledAmount): self
     {
         $this->locked -= $filledAmount;

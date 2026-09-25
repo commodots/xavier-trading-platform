@@ -2,6 +2,7 @@
 
 namespace App\Services\Stocks;
 
+use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\ProviderSyncLog;
@@ -82,30 +83,26 @@ class AlpacaOrderReconciliationService
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
 
             $previouslyFilled = (float) $order->filled_quantity;
-
-            /*
-             * Cap the provider quantity at the order's own quantity, and never
-             * let a payload that omits filled_qty (a bare cancel event, for
-             * instance) reduce a fill we have already recorded.
-             */
             $providerFilled = min(
                 $this->number($providerOrder['filled_qty'] ?? 0),
                 $this->number($order->quantity)
             );
-
             $providerFilled = max($providerFilled, $previouslyFilled);
-
             $newlyFilled = max(0, $providerFilled - $previouslyFilled);
-
             $fillPrice = $this->number(
                 $providerOrder['filled_avg_price']
                 ?? $providerOrder['limit_price']
             ) ?: (float) $order->price;
-
             $providerOrderId = $this->stringValue($providerOrder['id'] ?? null);
-
             $status = $this->mapStatus(
                 (string) ($providerOrder['status'] ?? '')
+            );
+            $wasCancellationConfirmed =
+                $order->provider_cancellation_status === 'confirmed';
+            $wasTerminal = in_array(
+                $order->status,
+                ['canceled', 'rejected', 'failed'],
+                true
             );
 
             $updates = [
@@ -121,19 +118,18 @@ class AlpacaOrderReconciliationService
                 $updates['alpaca_order_id'] = $providerOrderId;
             }
 
-            /*
-             * A cancellation is only final once the provider reports it, which
-             * is why the refund happens here and not when the cancel request is
-             * sent.
-             */
             $canceled = $status === 'canceled';
+            $unsuccessfulTerminal = in_array(
+                $status,
+                ['canceled', 'rejected', 'failed'],
+                true
+            );
 
             if ($canceled) {
                 $updates['provider_cancellation_status'] = 'confirmed';
             }
 
             $order->update($updates);
-
             $bookedFill = false;
 
             if ($newlyFilled > 0) {
@@ -151,9 +147,14 @@ class AlpacaOrderReconciliationService
                 }
             }
 
-            if ($canceled) {
+            // A repeated terminal webhook must not release the same remainder.
+            if ($unsuccessfulTerminal
+                && ! $wasTerminal
+                && ! $wasCancellationConfirmed) {
                 $this->releaseRemainingReservation($order, $providerFilled);
             }
+
+            $this->recordAudit($order, $status, $bookedFill);
 
             return $bookedFill;
         });
@@ -214,10 +215,16 @@ class AlpacaOrderReconciliationService
         ProviderSyncLog::create([
             'provider' => 'alpaca',
             'operation' => 'reconcile-orders',
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
             'status' => 'unmatched',
+            'severity' => 'warning',
             'reference' => $order->provider_order_id
                 ?: $order->provider_client_reference,
             'response' => ['symbol' => $order->symbol],
+            'metadata' => [
+                'reason' => 'Alpaca did not return a uniquely matching order.',
+            ],
             'started_at' => now(),
             'completed_at' => now(),
         ]);
@@ -271,7 +278,7 @@ class AlpacaOrderReconciliationService
              * The reserved cash has been spent on shares, so it leaves the
              * wallet entirely rather than returning to the cleared balance.
              */
-            $this->lockWallet($order)?->decrement('locked', $value);
+            $this->lockWallet($order)?->consumeReservation($value);
 
             return;
         }
@@ -279,16 +286,18 @@ class AlpacaOrderReconciliationService
         $portfolio = $this->lockPortfolio($order);
 
         if ($portfolio) {
+            $portfolio->quantity = max(
+                0,
+                (float) $portfolio->quantity - $quantity
+            );
+            $portfolio->uncleared_quantity = max(
+                0,
+                (float) $portfolio->uncleared_quantity - $quantity
+            );
             $portfolio->market_price = $price;
             $portfolio->save();
         }
 
-        /*
-         * Sell proceeds land as uncleared cash. The reserved shares themselves
-         * stay in the portfolio's uncleared bucket: TradingExecutionService
-         * moved them there, and SettlementService is what finally removes them
-         * and moves these proceeds into the cleared balance.
-         */
         $this->lockWallet($order)?->credit($value, 'uncleared');
     }
 
@@ -399,18 +408,12 @@ class AlpacaOrderReconciliationService
      */
     protected function mapStatus(string $status): string
     {
-        return match (strtolower($status)) {
+        return match (strtolower(trim($status))) {
             'filled' => 'filled',
-
             'partially_filled' => 'partially_filled',
-
-            'canceled',
-            'cancelled',
-            'expired',
-            'replaced',
-            'rejected',
-            'rejected_for_day' => 'canceled',
-
+            'canceled', 'cancelled', 'expired', 'replaced' => 'canceled',
+            'rejected', 'rejected_for_day' => 'rejected',
+            'failed' => 'failed',
             default => 'open',
         };
     }
@@ -432,6 +435,29 @@ class AlpacaOrderReconciliationService
         }
 
         return [];
+    }
+
+    protected function recordAudit(
+        Order $order,
+        string $status,
+        bool $newTrade
+    ): void {
+        $activity = match ($status) {
+            'partially_filled' => 'stock_order_partially_filled',
+            'filled' => 'stock_order_filled',
+            'canceled' => 'stock_order_cancelled',
+            default => 'provider_order_reconciled',
+        };
+
+        ActivityLog::log($order->user_id, $activity, [
+            'order_id' => $order->id,
+            'provider' => 'alpaca',
+            'provider_order_id' => $order->provider_order_id,
+            'provider_client_reference' => $order->provider_client_reference,
+            'status' => $order->status,
+            'filled_quantity' => (float) $order->filled_quantity,
+            'new_trade' => $newTrade,
+        ]);
     }
 
     protected function number(mixed $value): float

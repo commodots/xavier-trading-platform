@@ -41,7 +41,7 @@ class CslTradeXClient
         string $marketAccountId,
         string $orderIdentifier
     ): array {
-        /*
+        /**
          * IMPORTANT:
          *
          * The supplied CSL Swagger spells this field
@@ -297,7 +297,7 @@ class CslTradeXClient
         string $endpoint,
         array $payload
     ): array {
-        return $this->client->json(
+        return $this->client->orderJson(
             $this->client->orderRequest(
                 'POST',
                 $endpoint,

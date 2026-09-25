@@ -42,7 +42,7 @@ class AlpacaCancellationTest extends TestCase
         $order = $order->fresh();
 
         $this->assertSame('unknown', $order->provider_cancellation_status);
-        $this->assertSame('open', $order->status);
+        $this->assertSame('cancel_requested', $order->status);
         $this->assertSame('unmatched', $order->reconciliation_status);
 
         // Nothing is released on an unconfirmed cancellation.
@@ -100,7 +100,7 @@ class AlpacaCancellationTest extends TestCase
         $this->assertSame(4700.0, (float) Wallet::query()->firstOrFail()->usd_cleared);
     }
 
-    public function test_a_provider_rejection_is_stored_as_a_terminal_cancelled_order(): void
+    public function test_a_provider_rejection_is_stored_as_a_terminal_rejected_order(): void
     {
         $user = $this->userWithWallet();
 
@@ -112,12 +112,10 @@ class AlpacaCancellationTest extends TestCase
 
         $order = $order->fresh();
 
-        /*
-         * orders.status is an enum (open|partially_filled|filled|canceled), so
-         * an Alpaca rejection has to be represented as canceled.
-         */
-        $this->assertSame('canceled', $order->status);
-        $this->assertSame('confirmed', $order->provider_cancellation_status);
+        // Provider rejection is a terminal execution outcome, not a
+        // confirmed cancellation state transition.
+        $this->assertSame('rejected', $order->status);
+        $this->assertSame('requested', $order->provider_cancellation_status);
         $this->assertSame(0, Trade::count());
         $this->assertSame(0.0, (float) Wallet::query()->firstOrFail()->locked);
         $this->assertSame(5000.0, (float) Wallet::query()->firstOrFail()->usd_cleared);

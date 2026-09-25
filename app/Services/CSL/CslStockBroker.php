@@ -3,14 +3,20 @@
 namespace App\Services\CSL;
 
 use App\Services\Stocks\Contracts\StockBroker;
+use App\Services\Stocks\Contracts\StockBrokerPreflight;
 use RuntimeException;
 
-class CslStockBroker implements StockBroker
+class CslStockBroker implements StockBroker, StockBrokerPreflight
 {
     public function __construct(
         protected CslStockClient $st,
         protected CslTradeXClient $xt
     ) {}
+
+    public function assertReadyForSubmission(array $data): void
+    {
+        $this->guardLiveTrading();
+    }
 
     public function buy(array $data): array
     {
@@ -109,7 +115,7 @@ class CslStockBroker implements StockBroker
             FILTER_VALIDATE_BOOL
         );
 
-        /*
+        /**
          * Safety rule: the broker always refuses live trading unless the
          * activation flag is on. Mock mode is the exception because no real
          * order leaves Xavier in that case.
@@ -168,7 +174,7 @@ class CslStockBroker implements StockBroker
             return (string) $orderId;
         }
 
-        /*
+        /**
          * XT submit responses may nest the accepted order number inside a
          * "reference" object instead of exposing a flat order id.
          */

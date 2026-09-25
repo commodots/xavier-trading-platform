@@ -47,7 +47,7 @@ class AlpacaPartialFillTest extends TestCase
         $this->assertSame('filled', $order->status);
         $this->assertSame('matched', $order->reconciliation_status);
 
-        /*
+        /**
          * The second execution is the delta (1.0), never the cumulative total
          * (2.5): 1.5 + 1.0 = 2.5.
          */

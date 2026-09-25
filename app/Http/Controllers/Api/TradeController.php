@@ -17,17 +17,22 @@ use App\Models\Trade;
 use App\Models\Wallet;
 use App\Notifications\TradeExecutedNotification;
 use App\Providers\AlpacaProvider;
+use App\Services\Demo\DemoTradingService;
 use App\Services\MarketService;
 use App\Services\Trading\TradingExecutionService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Validation\ValidationException;
 
 class TradeController extends Controller
 {
+    use AuthorizesRequests;
+
     private function resolveModels($user): object
     {
         $isDemo = $user->trading_mode === 'demo';
@@ -585,167 +590,100 @@ class TradeController extends Controller
 
     public function placeOrder(Request $request): JsonResponse
     {
-        $request->validate([
-            'symbol' => 'required|string',
-            'qty' => 'required|numeric|min:0.000001',
+        $data = $request->validate([
+            'symbol' => 'required|string|max:30',
+            'qty' => 'required|numeric|gt:0',
             'side' => 'required|in:buy,sell',
             'type' => 'required|in:market,limit,stop,bracket',
+            'limit_price' => 'nullable|numeric|gt:0',
+            'stop_price' => 'nullable|numeric|gt:0',
+            'take_profit' => 'nullable|numeric|gt:0',
+            'stop_loss' => 'nullable|numeric|gt:0',
+            'time_in_force' => 'nullable|in:day,gtc,opg',
         ]);
 
-        if ($request->type === 'limit' && (! $request->limit_price || $request->limit_price <= 0)) {
-            return response()->json(['message' => 'Limit price required for limit orders'], 422);
+        if ($data['type'] === 'bracket'
+            && (! isset($data['take_profit'], $data['stop_loss']))) {
+            return response()->json([
+                'message' => 'Bracket orders require both take profit and stop loss',
+            ], 422);
         }
 
-        if ($request->type === 'bracket' && (! $request->take_profit || ! $request->stop_loss)) {
-            return response()->json(['message' => 'Bracket orders require both take profit and stop loss'], 422);
+        $user = $request->user();
+        $this->authorize('create', Order::class);
+
+        if ($user->trading_mode === 'demo') {
+            $demoPrice = (float) Symbol::where('symbol', strtoupper($data['symbol']))
+                ->value('last_price') ?: 1.0;
+            $quantity = (float) $data['qty'];
+            $order = app(DemoTradingService::class)->executeTrade($user, [
+                ...$data,
+                'market' => 'GLOBAL',
+                'currency' => 'USD',
+                'market_price' => $demoPrice,
+                'amount' => $quantity * $demoPrice,
+            ]);
+
+            return response()->json(['success' => true, 'data' => $order], 201);
         }
 
-        $user = auth()->user();
-        $models = $this->resolveModels($user);
-
-        $marketService = app(MarketService::class);
-
-        $currentPrice = $marketService->quote($request->symbol);
+        $currentPrice = app(MarketService::class)->quote(
+            strtoupper($data['symbol']),
+            'GLOBAL'
+        );
 
         if ($currentPrice <= 0) {
-            return response()->json(['message' => "Price for {$request->symbol} is currently unavailable. Please try again in a moment."], 422);
+            return response()->json([
+                'success' => false,
+                'message' => "Price for {$data['symbol']} is currently unavailable.",
+            ], 422);
         }
 
-        // Logic: If it's a limit order, use the limit price for calculations.
-        // Otherwise (Market, Stop, Bracket), use the current market price.
-        $effectivePrice = ($request->type === 'limit')
-            ? (float) $request->limit_price
+        $effectivePrice = $data['type'] === 'limit'
+            ? (float) $data['limit_price']
             : $currentPrice;
+        $totalAmount = (float) $data['qty'] * $effectivePrice;
+        $maxTrade = (float) (SystemSetting::first()->max_trade_amount ?? 0);
 
-        $totalAmount = (float) ($request->qty * $effectivePrice);
-
-        $settings = SystemSetting::first();
-        $maxTrade = (float) ($settings->max_trade_amount ?? 0);
         if ($maxTrade > 0 && $totalAmount > $maxTrade) {
-            return response()->json(['success' => false, 'message' => 'Order value exceeds max trade amount.'], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Order value exceeds max trade amount.',
+            ], 422);
         }
 
         try {
-            return DB::transaction(function () use ($request, $user, $totalAmount, $currentPrice, $models) {
-                // Balance Check and Deduction (For Buy Orders)
-                if ($request->side === 'buy') {
-                    $wallet = $models->wallet::where('user_id', $user->id)
-                        ->where('currency', 'USD')
-                        ->lockForUpdate()
-                        ->first();
+            $order = app(TradingExecutionService::class)->submit($user, [
+                ...$data,
+                'market' => 'GLOBAL',
+                'currency' => 'USD',
+                'quantity' => (float) $data['qty'],
+                'company' => strtoupper($data['symbol']),
+                'market_price' => $currentPrice,
+                'amount' => $totalAmount,
+                'time_in_force' => $data['time_in_force'] ?? 'gtc',
+            ]);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::error('Global stock order submission failed.', [
+                'user_id' => $user->id,
+                'symbol' => $data['symbol'],
+                'exception' => $exception,
+            ]);
 
-                    if (! $wallet || $wallet->usd_cleared < $totalAmount) {
-                        throw new \Exception('Insufficient cleared USD balance to place this order.');
-                    }
-
-                    // Standardize: Move to locked state instead of decrementing total balance
-                    $wallet->decrement('usd_cleared', $totalAmount);
-                    $wallet->increment('locked', $totalAmount);
-
-                    $wallet->refreshBalance();
-                } elseif ($request->side === 'sell') {
-                    // For sell orders, verify the user has a position to sell
-                    // Check existing open orders for this symbol to prevent overselling
-                    $existingSellOrders = $models->order::where('user_id', $user->id)
-                        ->where('symbol', strtoupper($request->symbol))
-                        ->where('side', 'sell')
-                        ->whereIn('status', ['open', 'partially_filled'])
-                        ->sum('quantity');
-
-                    $existingBuyOrders = $models->order::where('user_id', $user->id)
-                        ->where('symbol', strtoupper($request->symbol))
-                        ->where('side', 'buy')
-                        ->whereIn('status', ['filled', 'partially_filled'])
-                        ->sum('quantity');
-
-                    $netPosition = $existingBuyOrders - $existingSellOrders;
-
-                    if ($netPosition < (float) $request->qty) {
-                        throw new \Exception('Insufficient position to sell. Available quantity: '.max(0, $netPosition));
-                    }
-                }
-
-                $order = $models->order::create([
-                    'user_id' => $user->id,
-                    'symbol' => strtoupper($request->symbol),
-                    'quantity' => $request->qty,
-                    'side' => $request->side,
-                    'type' => $request->type,
-                    'status' => 'open',
-                    'amount' => $totalAmount,
-                    'market_price' => $currentPrice,
-                    'limit_price' => $request->limit_price,
-                    'stop_price' => $request->stop_price,
-                    'take_profit' => $request->take_profit,
-                    'stop_loss' => $request->stop_loss,
-                    'currency' => 'USD',
-                    'market' => 'GLOBAL',
-                ]);
-
-                // 3. Execute through the provider-neutral broker layer
-                try {
-                    $broker = app(TradingExecutionService::class)
-                        ->brokerFor('GLOBAL');
-
-                    $brokerData = [
-                        'symbol' => $request->symbol,
-                        'quantity' => (float) $request->qty,
-                        'type' => $request->type,
-                        'limit_price' => $request->limit_price,
-                        'stop_price' => $request->stop_price,
-                        'take_profit' => $request->take_profit,
-                        'stop_loss' => $request->stop_loss,
-                        'time_in_force' => 'gtc',
-                    ];
-
-                    $result = $request->side === 'buy'
-                        ? $broker->buy($brokerData)
-                        : $broker->sell($brokerData);
-
-                    $providerOrderId = $result['provider_order_id'] ?? null;
-
-                    $order->update([
-                        'alpaca_order_id' => $providerOrderId,
-                        'provider' => 'alpaca',
-                        'provider_order_id' => $providerOrderId,
-                        'provider_response' => $result['response'] ?? null,
-                        'provider_submitted_at' => now(),
-                    ]);
-
-                    $models->transaction::create([
-                        'user_id' => $user->id,
-                        'type' => $request->side === 'buy' ? 'buy_stock' : 'sell_stock',
-                        'amount' => $totalAmount,
-                        'net_amount' => $totalAmount,
-                        'currency' => 'USD',
-                        'status' => 'completed',
-                        'meta' => [
-                            'order_id' => $order->id,
-                            'symbol' => strtoupper($request->symbol),
-                            'quantity' => $request->qty,
-                            'alpaca_id' => $providerOrderId,
-                            'order_type' => $request->type,
-                        ],
-                    ]);
-
-                    return response()->json(['success' => true, 'data' => $order->fresh()]);
-                } catch (\Exception $e) {
-                    throw $e;
-                }
-            });
-        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order Failed: '.$e->getMessage(),
+                'message' => $exception->getMessage(),
             ], 500);
         }
+
+        return response()->json(['success' => true, 'data' => $order], 201);
     }
 
     public function account(): JsonResponse
     {
-        $alpaca = new AlpacaProvider;
-
-        return response()->json($alpaca->getAccount());
+        return response()->json(app(AlpacaProvider::class)->getAccount());
     }
 
     public function buy(Request $request): JsonResponse
@@ -758,41 +696,60 @@ class TradeController extends Controller
         return $this->placeSimpleOrder($request, 'sell');
     }
 
-    /**
-     * Execute a market order through the provider-neutral broker layer
-     * instead of calling Alpaca (or any provider) directly from here.
-     */
     private function placeSimpleOrder(Request $request, string $side): JsonResponse
     {
-        if ($request->mode === 'demo') {
-            // DEMO MODE: simulated execution, never reaches a provider.
-            return response()->json(['status' => 'demo executed']);
+        $data = $request->validate([
+            'symbol' => 'required|string|max:30',
+            'qty' => 'required|numeric|gt:0',
+            'mode' => 'nullable|in:demo,live',
+        ]);
+        $user = $request->user();
+        $this->authorize('create', Order::class);
+
+        if (($data['mode'] ?? $user->trading_mode) === 'demo') {
+            $demoPrice = (float) Symbol::where('symbol', strtoupper($data['symbol']))
+                ->value('last_price') ?: 1.0;
+            $quantity = (float) $data['qty'];
+            $order = app(DemoTradingService::class)->executeTrade($user, [
+                'market' => 'GLOBAL',
+                'currency' => 'USD',
+                'symbol' => strtoupper($data['symbol']),
+                'side' => $side,
+                'quantity' => $quantity,
+                'type' => 'market',
+                'market_price' => $demoPrice,
+                'amount' => $quantity * $demoPrice,
+            ]);
+
+            return response()->json(['success' => true, 'data' => $order], 201);
         }
 
-        try {
-            $broker = app(TradingExecutionService::class)->brokerFor('GLOBAL');
+        $price = app(MarketService::class)->quote(
+            strtoupper($data['symbol']),
+            'GLOBAL'
+        );
 
-            $result = $side === 'buy'
-                ? $broker->buy([
-                    'symbol' => $request->symbol,
-                    'quantity' => (float) $request->qty,
-                    'type' => 'market',
-                    'time_in_force' => 'gtc',
-                ])
-                : $broker->sell([
-                    'symbol' => $request->symbol,
-                    'quantity' => (float) $request->qty,
-                    'type' => 'market',
-                    'time_in_force' => 'gtc',
-                ]);
-
-            return response()->json($result['response'] ?? []);
-        } catch (\Exception $e) {
+        if ($price <= 0) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
+                'message' => 'Global market price is unavailable.',
+            ], 422);
         }
+
+        $order = app(TradingExecutionService::class)->submit($user, [
+            'market' => 'GLOBAL',
+            'currency' => 'USD',
+            'symbol' => strtoupper($data['symbol']),
+            'side' => $side,
+            'quantity' => (float) $data['qty'],
+            'type' => 'market',
+            'market_price' => $price,
+            'amount' => (float) $data['qty'] * $price,
+            'company' => strtoupper($data['symbol']),
+            'time_in_force' => 'gtc',
+        ]);
+
+        return response()->json(['success' => true, 'data' => $order], 201);
     }
 
     public function trackSymbol(Request $request): JsonResponse

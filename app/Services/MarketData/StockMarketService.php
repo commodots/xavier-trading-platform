@@ -3,11 +3,29 @@
 namespace App\Services\MarketData;
 
 use App\Providers\FinnhubProvider;
+use App\Services\CSL\CslMarketDataProvider;
+use App\Services\Stocks\AlpacaMarketDataProvider;
+use App\Services\Stocks\Contracts\MarketDataProvider;
 
 class StockMarketService
 {
-    public function candles(string $symbol, string $interval = '1D', int $limit = 100)
-    {
+    public function candles(
+        string $symbol,
+        string $interval = '1D',
+        int $limit = 100,
+        ?string $market = null
+    ) {
+        if ($market !== null) {
+            $range = match (strtolower($interval)) {
+                '1', '1m', '5', '5m', '15', '15m', '30', '30m', '60', '60m' => '1d',
+                '1w', 'w' => '7d',
+                default => '30d',
+            };
+            $response = $this->providerFor($market)->historical($symbol, $range);
+
+            return $this->formatProviderCandles($response['data'] ?? []);
+        }
+
         $provider = new FinnhubProvider;
         $resolution = $this->normalizeInterval($interval);
         [$from, $to] = $this->buildRange($resolution, $limit);
@@ -19,6 +37,33 @@ class StockMarketService
         }
 
         return $this->formatFinnhubCandles($response);
+    }
+
+    protected function providerFor(string $market): MarketDataProvider
+    {
+        return match (strtoupper(trim($market))) {
+            'NGX', 'LOCAL' => app(CslMarketDataProvider::class),
+            'GLOBAL', 'INTERNATIONAL', 'US', 'UK' => app(AlpacaMarketDataProvider::class),
+            default => throw new \InvalidArgumentException(
+                "Unsupported stock market: {$market}"
+            ),
+        };
+    }
+
+    protected function formatProviderCandles(array $rows): array
+    {
+        return collect($rows)->map(function (array $row): array {
+            $date = $row['date'] ?? null;
+
+            return [
+                'time' => $date ? (int) (strtotime((string) $date) * 1000) : null,
+                'open' => (float) ($row['open'] ?? 0),
+                'high' => (float) ($row['high'] ?? 0),
+                'low' => (float) ($row['low'] ?? 0),
+                'close' => (float) ($row['close'] ?? 0),
+                'volume' => (float) ($row['volume'] ?? 0),
+            ];
+        })->values()->all();
     }
 
     protected function normalizeInterval(string $interval): string

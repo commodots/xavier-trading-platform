@@ -2,6 +2,7 @@
 
 namespace App\Services\Trading;
 
+use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\ProviderAccount;
@@ -10,7 +11,10 @@ use App\Models\Wallet;
 use App\Services\CSL\CslStockBroker;
 use App\Services\Stocks\AlpacaStockBroker;
 use App\Services\Stocks\Contracts\StockBroker;
+use App\Services\Stocks\Exceptions\ProviderRequestException;
+use App\Services\Stocks\Contracts\StockBrokerPreflight;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use RuntimeException;
@@ -61,17 +65,26 @@ class TradingExecutionService
         array $data
     ): Order {
 
-        $market = strtoupper($data['market'] ?? 'NGX');
+        $data = $this->validateOrderData($data);
+
+        $market = $data['market'];
         $currency = $this->currencyFor($market);
         $provider = $this->providerFor($market);
-
-        $data['quantity'] = $this->normaliseQuantity($market, $data);
-
         $broker = $this->broker ?? $this->brokerFor($market);
-
         $account = $this->resolveProviderAccount($user, $provider);
+        $clientReference = $this->clientReference();
 
-        $clientReference = 'XAV-'.now()->format('YmdHis').'-'.str()->uuid();
+        $providerData = [
+            ...$data,
+            'market_id' => $account->market_id,
+            'market_account_id' => $account->market_account_id,
+            'client_reference' => $clientReference,
+            'xavier_client_reference' => $clientReference,
+        ];
+
+        if ($broker instanceof StockBrokerPreflight) {
+            $broker->assertReadyForSubmission($providerData);
+        }
 
         $reservation = null;
 
@@ -158,16 +171,8 @@ class TradingExecutionService
             ]);
         });
 
-        $providerData = [
-            ...$data,
-
-            'market_id' => $account->market_id,
-
-            'market_account_id' => $account->market_account_id,
-
-            'client_reference' => $clientReference,
-            'xavier_client_reference' => $clientReference,
-        ];
+        $this->recordAudit($user->id, 'stock_order_created', $order, $provider);
+        $this->recordAudit($user->id, 'provider_order_submitted', $order, $provider);
 
         try {
             $providerResult =
@@ -175,16 +180,29 @@ class TradingExecutionService
                 ? $broker->buy($providerData)
                 : $broker->sell($providerData);
         } catch (Throwable $exception) {
-            /**
-             * Timeout, connection reset or 5xx: the request may or may not have
-             * reached CSL. Never retry blindly and never release the
-             * reservation - reconciliation has to establish what happened.
-             */
+            $definitiveRejection = $exception instanceof ProviderRequestException
+                && ! $exception->ambiguous;
+
             $order->update([
-                'reconciliation_status' => 'unknown',
+                'status' => $definitiveRejection ? 'rejected' : 'open',
+                'reconciliation_status' => $definitiveRejection
+                    ? 'rejected'
+                    : 'unknown',
                 'provider_response' => [
                     'error' => $exception->getMessage(),
+                    'http_status' => $exception instanceof ProviderRequestException
+                        ? $exception->statusCode
+                        : null,
                 ],
+            ]);
+
+            if ($definitiveRejection) {
+                $this->releaseLocalState($reservation);
+            }
+
+            $this->recordAudit($user->id, 'provider_error', $order, $provider, [
+                'exception' => $exception::class,
+                'ambiguous' => ! $definitiveRejection,
             ]);
 
             throw $exception;
@@ -192,12 +210,16 @@ class TradingExecutionService
 
         $providerStatus = $providerResult['status'] ?? 'pending';
 
-        /*
+        /**
          * Only a definitive refusal releases the reservation. An accepted or
          * pending order stays reserved until reconciliation reports execution
          * (or a confirmed cancellation).
          */
-        if (in_array($providerStatus, ['rejected', 'canceled', 'cancelled'], true)) {
+        if (in_array(
+            $providerStatus,
+            ['rejected', 'failed', 'canceled', 'cancelled'],
+            true
+        )) {
             $this->releaseLocalState($reservation);
         }
 
@@ -214,7 +236,117 @@ class TradingExecutionService
             'provider_response' => $providerResult['response'] ?? null,
         ]);
 
+        if (! in_array($providerStatus, ['rejected', 'failed'], true)) {
+            $this->recordAudit(
+                $user->id,
+                'provider_order_accepted',
+                $order,
+                $provider
+            );
+        }
+
         return $order->fresh();
+    }
+
+    protected function validateOrderData(array $data): array
+    {
+        $market = strtoupper(trim((string) ($data['market'] ?? 'NGX')));
+        $supportedMarkets = ['NGX', 'GLOBAL', 'INTERNATIONAL', 'US'];
+
+        if (! in_array($market, $supportedMarkets, true)) {
+            throw ValidationException::withMessages([
+                'market' => 'Unsupported stock market.',
+            ]);
+        }
+
+        $symbol = strtoupper(trim((string) ($data['symbol'] ?? '')));
+
+        if ($symbol === '' || strlen($symbol) > 30) {
+            throw ValidationException::withMessages([
+                'symbol' => 'A stock symbol is required.',
+            ]);
+        }
+
+        $side = strtolower(trim((string) ($data['side'] ?? '')));
+
+        if (! in_array($side, ['buy', 'sell'], true)) {
+            throw ValidationException::withMessages([
+                'side' => 'Order side must be buy or sell.',
+            ]);
+        }
+
+        $type = strtolower(trim((string) ($data['type'] ?? 'market')));
+        $allowedTypes = $market === 'NGX'
+            ? ['market', 'limit']
+            : ['market', 'limit', 'stop', 'bracket'];
+
+        if (! in_array($type, $allowedTypes, true)) {
+            throw ValidationException::withMessages([
+                'type' => 'Unsupported order type for this market.',
+            ]);
+        }
+
+        $price = (float) ($data['limit_price'] ?? $data['market_price'] ?? 0);
+
+        if ($price <= 0) {
+            throw ValidationException::withMessages([
+                'price' => 'A positive market or limit price is required.',
+            ]);
+        }
+
+        if ($type === 'limit' && (float) ($data['limit_price'] ?? 0) <= 0) {
+            throw ValidationException::withMessages([
+                'limit_price' => 'A positive limit price is required.',
+            ]);
+        }
+
+        if ($type === 'stop' && (float) ($data['stop_price'] ?? 0) <= 0) {
+            throw ValidationException::withMessages([
+                'stop_price' => 'A positive stop price is required.',
+            ]);
+        }
+
+        if ($type === 'bracket'
+            && (! isset($data['take_profit'], $data['stop_loss']))) {
+            throw ValidationException::withMessages([
+                'type' => 'Bracket orders require take profit and stop loss.',
+            ]);
+        }
+
+        $data['market'] = $market;
+        $data['symbol'] = $symbol;
+        $data['side'] = $side;
+        $data['type'] = $type;
+        $data['quantity'] = $this->normaliseQuantity($market, $data);
+
+        return $data;
+    }
+
+    protected function clientReference(): string
+    {
+        // Alpaca limits client_order_id to 48 characters. Keep the readable
+        // Xavier prefix and a 116-bit UUID prefix within that hard limit.
+        return 'XAV-'.now()->format('YmdHis').'-'
+            .Str::substr((string) Str::uuid(), 0, 29);
+    }
+
+    protected function recordAudit(
+        int $userId,
+        string $activity,
+        Order $order,
+        string $provider,
+        array $metadata = []
+    ): void {
+        ActivityLog::log($userId, $activity, [
+            'order_id' => $order->id,
+            'provider' => $provider,
+            'market' => $order->market,
+            'symbol' => $order->symbol,
+            'side' => $order->side,
+            'status' => $order->status,
+            'provider_client_reference' => $order->provider_client_reference,
+            ...$metadata,
+        ]);
     }
 
     /**
@@ -256,7 +388,7 @@ class TradingExecutionService
     /**
      * NGX trades whole shares only; Global markets may trade fractions.
      */
-    protected function normaliseQuantity(string $market, array $data): float
+    protected function normaliseQuantity(string $market, array $data): int|float
     {
         $quantity = (float) ($data['quantity'] ?? 0);
 
@@ -273,7 +405,9 @@ class TradingExecutionService
             ]);
         }
 
-        return $quantity;
+        return strtoupper($market) === 'NGX'
+            ? (int) $quantity
+            : $quantity;
     }
 
     /**
@@ -289,10 +423,10 @@ class TradingExecutionService
             ->where('status', 'active')
             ->first();
 
-        if (! $account) {
+        if (! $account || blank($account->market_account_id)) {
             throw new RuntimeException(
                 'No active '.strtoupper($provider)
-                .' trading account is mapped to this user.'
+                .' trading account with a provider account ID is mapped to this user.'
             );
         }
 
@@ -313,7 +447,13 @@ class TradingExecutionService
                 ->where('user_id', $user->id)
                 ->where('currency', $currency)
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if (! $wallet) {
+                throw ValidationException::withMessages([
+                    'wallet' => "A {$currency} wallet is required for this order.",
+                ]);
+            }
 
             $wallet->reserve($amount);
 
@@ -331,7 +471,9 @@ class TradingExecutionService
             ->first();
 
         if (! $portfolio || (float) $portfolio->cleared_quantity < $quantity) {
-            throw new RuntimeException('Insufficient cleared holdings.');
+            throw ValidationException::withMessages([
+                'portfolio' => 'Insufficient cleared holdings.',
+            ]);
         }
 
         $portfolio->decrement('cleared_quantity', $quantity);
@@ -362,18 +504,15 @@ class TradingExecutionService
         string $status
     ): string {
 
-        return match ($status) {
-            'accepted',
-            'pending' => 'open',
-
+        return match (strtolower(trim($status))) {
+            'accepted' => 'open',
+            'pending' => 'pending',
             'partially_filled' => 'partially_filled',
-
             'filled' => 'filled',
-
-            'canceled',
-            'cancelled',
-            'rejected' => 'canceled',
-
+            'cancel_requested' => 'cancel_requested',
+            'canceled', 'cancelled' => 'canceled',
+            'rejected' => 'rejected',
+            'failed' => 'failed',
             default => 'open',
         };
     }

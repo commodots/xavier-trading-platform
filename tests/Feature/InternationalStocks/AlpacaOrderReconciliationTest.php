@@ -45,7 +45,7 @@ class AlpacaOrderReconciliationTest extends TestCase
         $this->assertSame('pending', $trade->settlement_status);
         $this->assertFalse((bool) $trade->is_settled);
 
-        /*
+        /**
          * The reserved USD was spent on the shares, so it leaves the wallet
          * instead of being handed back to the cleared balance.
          */

@@ -35,6 +35,7 @@ class CslAccountService
                 $account = ProviderAccount::updateOrCreate(
                     [
                         'provider' => 'csl',
+                        'user_id' => $userId,
                         'market_account_id' => $marketAccountId,
                     ],
                     [

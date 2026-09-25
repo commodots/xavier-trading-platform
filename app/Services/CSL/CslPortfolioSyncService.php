@@ -90,36 +90,41 @@ class CslPortfolioSyncService
                     ?? 0
                 );
 
-                Portfolio::updateOrCreate(
-                    [
-                        'user_id' => $account->user_id,
-                        'symbol' => $symbol,
-                    ],
-                    [
-                        'name' => $row['symbol_description']
-                            ?? $symbol,
+                $portfolio = Portfolio::firstOrNew([
+                    'user_id' => $account->user_id,
+                    'symbol' => $symbol,
+                ]);
 
-                        'category' => 'local',
+                $uncleared = array_key_exists('uncleared_quantity', $row)
+                    || array_key_exists('UNCLEARED_QUANTITY', $row)
+                    ? $this->number(
+                        $row['uncleared_quantity']
+                        ?? $row['UNCLEARED_QUANTITY']
+                    )
+                    : (float) $portfolio->uncleared_quantity;
 
-                        'currency' => $row['currency_description']
-                            ?? 'NGN',
+                $uncleared = min($quantity, max(0, $uncleared));
+                $cleared = array_key_exists('cleared_quantity', $row)
+                    || array_key_exists('CLEARED_QUANTITY', $row)
+                    ? $this->number(
+                        $row['cleared_quantity']
+                        ?? $row['CLEARED_QUANTITY']
+                    )
+                    : max(0, $quantity - $uncleared);
 
-                        'quantity' => $quantity,
-
-                        /**
-                         * Initial provider snapshot.
-                         * Reconciliation remains responsible for
-                         * pending/uncleared Xavier transactions.
-                         */
-                        'cleared_quantity' => $quantity,
-
-                        'uncleared_quantity' => 0,
-
-                        'avg_price' => $averagePrice,
-
-                        'market_price' => $marketPrice,
-                    ]
-                );
+                $portfolio->fill([
+                    'name' => $row['symbol_description']
+                        ?? $portfolio->name
+                        ?? $symbol,
+                    'category' => 'local',
+                    'currency' => $row['currency_description']
+                        ?? 'NGN',
+                    'quantity' => $quantity,
+                    'cleared_quantity' => min($quantity, max(0, $cleared)),
+                    'uncleared_quantity' => $uncleared,
+                    'avg_price' => $averagePrice,
+                    'market_price' => $marketPrice,
+                ])->save();
 
                 $count++;
             }

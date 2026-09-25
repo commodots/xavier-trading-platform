@@ -18,7 +18,11 @@ class MarketDataController extends Controller
             $market = new StockMarketService;
             $indicator = new IndicatorService;
 
-            $candles = $market->candles($symbol, $interval);
+            $candles = $market->candles(
+                $symbol,
+                $interval,
+                market: $request->string('market', 'GLOBAL')->toUpperString()
+            );
 
             return [
                 'candles' => $candles,
@@ -36,7 +40,11 @@ class MarketDataController extends Controller
 
         return response()->json([
             'symbol' => $symbol,
-            'history' => $market->candles($symbol, $interval),
+            'history' => $market->candles(
+                $symbol,
+                $interval,
+                market: $request->string('market', 'GLOBAL')->toUpperString()
+            ),
         ]);
     }
 }

@@ -2,49 +2,66 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Order;
-use App\Models\Position;
-use App\Providers\AlpacaProvider;
+use App\Models\ProviderAccount;
+use App\Models\ProviderSyncLog;
+use App\Services\Stocks\AlpacaPortfolioSyncService;
 use Illuminate\Console\Command;
+use Throwable;
 
 class SyncAlpacaData extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'app:sync-alpaca-data';
+    protected $signature = 'alpaca:sync-portfolios';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
+    protected $description = 'Synchronize dedicated Alpaca provider-account portfolios into Xavier';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(AlpacaPortfolioSyncService $service): int
     {
-        $alpaca = new AlpacaProvider;
+        $accounts = ProviderAccount::query()
+            ->where('provider', 'alpaca')
+            ->where('status', 'active')
+            ->whereNotNull('market_account_id')
+            ->get();
+        $failed = false;
 
-        $positions = $alpaca->getPositions();
+        foreach ($accounts as $account) {
+            $startedAt = now();
 
-        foreach ($positions as $p) {
-            // Find the last user who traded this symbol to attribute the position
-            // Or map this to a specific master 'house' user ID.
-            $lastOrder = Order::where('symbol', $p['symbol'])->latest()->first();
-            $userId = $lastOrder ? $lastOrder->user_id : 1;
+            try {
+                $count = $service->sync($account);
 
-            Position::updateOrCreate(
-                ['symbol' => $p['symbol'], 'user_id' => $userId],
-                [
-                    'qty' => $p['qty'],
-                    'avg_price' => $p['avg_entry_price'],
-                ]
-            );
+                ProviderSyncLog::create([
+                    'provider' => 'alpaca',
+                    'operation' => 'sync-portfolios',
+                    'entity_type' => 'provider_account',
+                    'entity_id' => $account->id,
+                    'status' => 'success',
+                    'reference' => $account->market_account_id,
+                    'response' => ['positions' => $count],
+                    'started_at' => $startedAt,
+                    'completed_at' => now(),
+                ]);
+
+                $this->info("Account {$account->market_account_id}: {$count} positions synchronized.");
+            } catch (Throwable $exception) {
+                $failed = true;
+
+                ProviderSyncLog::create([
+                    'provider' => 'alpaca',
+                    'operation' => 'sync-portfolios',
+                    'entity_type' => 'provider_account',
+                    'entity_id' => $account->id,
+                    'status' => 'failed',
+                    'severity' => 'error',
+                    'reference' => $account->market_account_id,
+                    'error_message' => $exception->getMessage(),
+                    'started_at' => $startedAt,
+                    'completed_at' => now(),
+                ]);
+
+                $this->error("Account {$account->market_account_id}: {$exception->getMessage()}");
+            }
         }
+
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 }

@@ -2,8 +2,10 @@
 
 namespace App\Services\Stocks;
 
+use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Providers\AlpacaProvider;
+use App\Services\Stocks\Exceptions\ProviderRequestException;
 use RuntimeException;
 
 /**
@@ -26,9 +28,40 @@ class AlpacaOrderService
             throw new RuntimeException('Order is not an Alpaca order.');
         }
 
+        if (in_array($order->provider_cancellation_status, [
+            'requested', 'unknown', 'confirmed',
+        ], true)) {
+            return [
+                'id' => $order->provider_order_id,
+                'status' => $order->provider_cancellation_status === 'confirmed'
+                    ? 'canceled'
+                    : 'cancel_requested',
+            ];
+        }
+
+        if (! in_array(
+            $order->status,
+            ['open', 'pending', 'partially_filled', 'cancel_requested'],
+            true
+        )) {
+            throw new RuntimeException(
+                'This Alpaca order cannot be canceled in its current state.'
+            );
+        }
+
+        $previousStatus = $order->status;
+
         $order->update([
+            'status' => 'cancel_requested',
             'provider_cancellation_status' => 'requested',
             'provider_cancel_requested_at' => now(),
+        ]);
+
+        ActivityLog::log($order->user_id, 'stock_order_cancel_requested', [
+            'order_id' => $order->id,
+            'provider' => 'alpaca',
+            'provider_order_id' => $order->provider_order_id,
+            'provider_client_reference' => $order->provider_client_reference,
         ]);
 
         try {
@@ -36,12 +69,14 @@ class AlpacaOrderService
                 $order->provider_order_id
             );
         } catch (\Throwable $exception) {
-            /*
-             * The request may still have reached Alpaca. Record the ambiguity
-             * instead of assuming failure, and never release funds here.
-             */
+            $rejected = $exception instanceof ProviderRequestException
+                && ! $exception->ambiguous;
+
             $order->update([
-                'provider_cancellation_status' => 'unknown',
+                'status' => $rejected ? $previousStatus : $order->status,
+                'provider_cancellation_status' => $rejected
+                    ? 'rejected'
+                    : 'unknown',
             ]);
 
             throw $exception;
@@ -51,6 +86,7 @@ class AlpacaOrderService
 
         if (in_array($status, ['rejected', 'error'], true)) {
             $order->update([
+                'status' => $previousStatus,
                 'provider_cancellation_status' => 'rejected',
             ]);
 
@@ -59,7 +95,7 @@ class AlpacaOrderService
             );
         }
 
-        /*
+        /**
          * Accepted-but-unconfirmed: reconciliation decides the final outcome.
          */
         $order->update([

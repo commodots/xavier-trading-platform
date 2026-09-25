@@ -62,6 +62,9 @@ Schedule::command(
     'csl:reconcile-orders'
 )->everyFiveMinutes();
 
+Schedule::command('csl:sync-account')
+    ->hourly();
+
 Schedule::command(
     'csl:sync-portfolios'
 )->everyTenMinutes();
@@ -69,3 +72,6 @@ Schedule::command(
 Schedule::command(
     'alpaca:reconcile-orders'
 )->everyFiveMinutes();
+
+Schedule::command('alpaca:sync-portfolios')
+    ->everyTenMinutes();

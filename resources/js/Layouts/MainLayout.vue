@@ -63,32 +63,35 @@
 		</div>
 
           <div v-if="currentView === 'staff'">
-            <SidebarHoverSection title="Admin Management" group-key="staff-admin-management" :items="adminManagementItems"
-              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
+            <SidebarHoverSection title="Administration" group-key="staff-administration"
+              :items="administrationItems" :expanded-group="expandedGroup"
+              :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarHoverSection title="Fixed Income" group-key="staff-fixed-income" :items="fixedIncomeItems"
-              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
+            <SidebarHoverSection title="Investments" group-key="staff-investments"
+              :items="investmentItems" :expanded-group="expandedGroup"
+              :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarHoverSection title="Operations" group-key="staff-operations" :items="operationsItems"
-              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
+            <SidebarHoverSection title="Operations" group-key="staff-operations"
+              :items="operationsItems" :expanded-group="expandedGroup"
+              :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarHoverSection title="Finance" group-key="staff-finance" :items="financeItems"
-              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
+            <SidebarHoverSection title="Finance" group-key="staff-finance"
+              :items="financeItems" :expanded-group="expandedGroup"
+              :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <div v-if="isAdmin || can('manage_kyc_settings')"
-              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">Compliance
-            </div>
-            <SidebarLink v-if="isAdmin || can('manage_kyc_settings')" to="/admin/compliance" :icon="ShieldAlert" :active-path="activePath">Compliance Dashboard
-            </SidebarLink>
+            <SidebarHoverSection title="Compliance" group-key="staff-compliance"
+              :items="complianceItems" :expanded-group="expandedGroup"
+              :active-path="activePath || ''" @toggle="toggleGroup"
+              header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <div v-if="isAdmin || can('manage_system_settings')"
-              class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold">System
-              Settings</div>
-            <SidebarLink to="/admin/control-panel" :icon="MonitorCog" :active-path="activePath">Control Panel</SidebarLink>
+            <SidebarHoverSection title="System" group-key="staff-system"
+              :items="systemItems" :expanded-group="expandedGroup"
+              :active-path="activePath || ''" @toggle="toggleGroup"
+              header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
           </div>
 
           <hr class="border-[#1F2A44] my-4">
@@ -147,7 +150,6 @@ import {
   CreditCard, ArrowLeftRight, History, Download, Receipt, RefreshCw, Calendar
 } from "lucide-vue-next";
 
-import SidebarLink from "@/Components/SidebarLink.vue";
 import SidebarHoverSection from "@/Components/SidebarHoverSection.vue";
 import DemoToggle from "@/Components/DemoToggle.vue";
 import NotificationBell from "@/Components/Notifications/NotificationBell.vue";
@@ -171,11 +173,10 @@ const user = ref(getUser());
 const isAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
   const roles = user.value?.roles || [];
-  const hasAdminRole = role === "super-admin" || "admin" ||
-    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin')) ||
-    user.value?.permissions?.manage_system_settings === true;
+  const hasAdminRole = ["super-admin", "admin"].includes(role) ||
+    (user.value?.roles || []).some((r) => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin');
   const hasSuperAdminRole = role === "super-admin" ||
-    (user.value?.roles && user.value.roles.some(r => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'super-admin'));
+    (user.value?.roles || []).some((r) => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'super-admin');
   
   return hasAdminRole || hasSuperAdminRole;
 });
@@ -243,18 +244,18 @@ const insightsItems = [
   { label: "Advisory", to: "/advisory", icon: Gem },
 ];
 
-const adminManagementItems = computed(() => [
+const administrationItems = computed(() => [
   { label: "Dashboard", to: "/admin", icon: PieChart },
   { label: "Activity Log", to: "/admin/activity-log", icon: SquareChartGantt, access: () => isAdmin.value },
   { label: "Audit Logs", to: "/admin/audit-logs", icon: ShieldCheck, access: () => isAdmin.value },
-  { label: "Generate Reports", to: "/admin/reports", icon: FileSpreadsheet },
+  { label: "Generate Reports", to: "/admin/reports", icon: FileSpreadsheet, access: () => isAdmin.value || can("manage_system_settings") },
   { label: "Notifications", to: "/admin/notifications", icon: Bell, access: () => isAdmin.value || can("manage_system_settings") },
   { label: "FX Management", to: "/admin/fx-management", icon: DollarSign, access: () => isAdmin.value },
   { label: "Advisory Content", to: "/admin/advisory-dashboard", icon: Newspaper, access: () => isAdmin.value },
   { label: "Crypto Settings", to: "/admin/crypto-settings", icon: Bitcoin, access: () => isAdmin.value },
 ]);
 
-const fixedIncomeItems = computed(() => [
+const investmentItems = computed(() => [
   { label: "Dashboard", to: "/admin/fixed-income", icon: TrendingUp, access: () => isAdmin.value },
   { label: "Products", to: "/admin/fixed-income/products", icon: FileText, access: () => isAdmin.value },
   { label: "Investments", to: "/admin/fixed-income/investments", icon: ListOrdered, access: () => isAdmin.value },
@@ -263,17 +264,32 @@ const fixedIncomeItems = computed(() => [
   { label: "Reports", to: "/admin/fixed-income/reports", icon: FileSpreadsheet, access: () => isAdmin.value },
 ]);
 
+
+const complianceItems = computed(() => [
+  { label: "KYC", to: "/admin/compliance", icon: ShieldAlert, access: () => isAdmin.value || can("manage_kyc_settings") },
+  { label: "Audit", to: "/admin/audit-logs", icon: ShieldCheck, access: () => isAdmin.value },
+]);
+
+const systemItems = computed(() => [
+  { label: "Services", to: "/admin/services", icon: Store, access: () => isAdmin.value || can("manage_system_settings") },
+  { label: "Notifications", to: "/admin/notifications", icon: Bell, access: () => isAdmin.value || can("manage_system_settings") },
+  { label: "Settings", to: "/admin/control-panel", icon: MonitorCog, access: () => isAdmin.value || can("manage_system_settings") },
+]);
+
+
 const operationsItems = computed(() => [
   { label: "User Management", to: "/admin/users", icon: Users, access: () => isAdmin.value || can("manage_kyc_settings") },
   { label: "Transactions", to: "/admin/transactions", icon: ListOrdered, access: () => isAdmin.value || can("manage_transaction_charges") },
   { label: "Orders", to: "/admin/orders", icon: FileText, access: () => isAdmin.value || can("manage_transaction_charges") },
   { label: "Order Book", to: "/admin/orderbook", icon: BarChart2, access: () => isAdmin.value },
+  { label: "Settlements", to: "/admin/settlements", icon: ArrowLeftRight, access: () => isAdmin.value || can("manage_transaction_charges") },
 ]);
 
 const financeItems = computed(() => [
   { label: "Billing Dashboard", to: "/admin/billing", icon: CreditCard, access: () => isAdmin.value },
   { label: "Settlements Dashboard", to: "/admin/settlements", icon: ArrowLeftRight, access: () => isAdmin.value },
   { label: "Expenses", to: "/admin/expenses", icon: Receipt, access: () => isAdmin.value },
+  { label: "Reports", to: "/admin/reports", icon: FileSpreadsheet, access: () => isAdmin.value || can("manage_system_settings") },
 ]);
 
 // --------------------------------------------------------------
@@ -293,12 +309,12 @@ const sidebarItems = computed(() => {
     ];
   }
   return [
-    ...adminManagementItems.value,
-    ...fixedIncomeItems.value,
+    ...administrationItems.value,
+    ...investmentItems.value,
     ...operationsItems.value,
     ...financeItems.value,
-    { to: "/admin/compliance" },
-    { to: "/admin/control-panel" },
+    ...complianceItems.value,
+    ...systemItems.value,
   ];
 });
 
@@ -370,9 +386,15 @@ watch(() => route.path, (path) => {
 // --------------------------------------------------------------
 const expandedGroup = ref(
   currentView.value === 'staff'
-    ? 'staff-admin-management'
+    ? 'staff-administration'
     : 'user-overview'
 );
+
+watch(currentView, (view) => {
+  expandedGroup.value = view === 'staff'
+    ? 'staff-administration'
+    : 'user-overview';
+});
 
 const toggleGroup = (groupKey) => {
   expandedGroup.value =
