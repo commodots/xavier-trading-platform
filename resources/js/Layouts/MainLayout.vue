@@ -30,44 +30,53 @@
 
           <div v-if="currentView === 'user'">
 
-      <!-- OVERVIEW (always expanded) -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Overview</div>
-		  <SidebarLink to="/dashboard" :icon="Home" :active-path="activePath">Dashboard</SidebarLink>
-		  <SidebarLink to="/portfolio" :icon="PieChart" :active-path="activePath">Portfolio</SidebarLink>
-
-		  <!-- HOLDINGS (collapsible — one option shown, hover to expand) -->
-		  <SidebarHoverSection title="Holdings" group-key="user-holdings" :items="holdingsItems" :active-path="activePath"
+      <!-- OVERVIEW (accordion group) -->
+		  <SidebarHoverSection title="Overview" group-key="user-overview" :items="overviewItems" :expanded-group="expandedGroup"
+        :active-path="activePath || ''" @toggle="toggleGroup"
         header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
 
-      <!-- MARKET (single item — stays expanded) -->
-      <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Market</div>
-		  <SidebarLink to="/fx-market" :icon="ChartNoAxesCombined" :active-path="activePath">FX Market</SidebarLink>
-
-		  <!-- ACCOUNT (collapsible — one option shown, hover to expand) -->
-		  <SidebarHoverSection title="Account" group-key="user-account" :items="accountItems" :active-path="activePath"
+		  <!-- HOLDINGS (accordion group) -->
+		  <SidebarHoverSection title="Holdings" group-key="user-holdings" :items="holdingsItems" :expanded-group="expandedGroup"
+        :active-path="activePath || ''" @toggle="toggleGroup"
         header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
 
-      <!-- WATCHLIST (single item — stays expanded) -->
-      <div class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Watchlist</div>
-		  <SidebarLink to="/watchlist" :icon="Star" :active-path="activePath">Watchlist</SidebarLink>
+      <!-- MARKET (accordion group) -->
+      <SidebarHoverSection title="Market" group-key="user-market" :items="marketItems" :expanded-group="expandedGroup"
+        :active-path="activePath || ''" @toggle="toggleGroup"
+        header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
 
-		  <!-- INSIGHTS (single item — stays expanded) -->
-		  <div class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase">Insights</div>
-		  <SidebarLink to="/advisory" :icon="Gem" :active-path="activePath">Advisory</SidebarLink>
+		  <!-- ACCOUNT (accordion group) -->
+		  <SidebarHoverSection title="Account" group-key="user-account" :items="accountItems" :expanded-group="expandedGroup"
+        :active-path="activePath || ''" @toggle="toggleGroup"
+        header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
+
+      <!-- WATCHLIST (accordion group) -->
+      <SidebarHoverSection title="Watchlist" group-key="user-watchlist" :items="watchlistItems" :expanded-group="expandedGroup"
+        :active-path="activePath || ''" @toggle="toggleGroup"
+        header-class="px-3 mt-4 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
+
+      <!-- INSIGHTS (accordion group) -->
+      <SidebarHoverSection title="Insights" group-key="user-insights" :items="insightsItems" :expanded-group="expandedGroup"
+        :active-path="activePath || ''" @toggle="toggleGroup"
+        header-class="px-3 mt-6 mb-2 text-[10px] tracking-widest text-gray-400 uppercase" />
 
 		</div>
 
           <div v-if="currentView === 'staff'">
-            <SidebarHoverSection title="Admin Management" group-key="staff-admin-management" :items="adminManagementItems" :active-path="activePath"
+            <SidebarHoverSection title="Admin Management" group-key="staff-admin-management" :items="adminManagementItems"
+              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-4 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarHoverSection title="Fixed Income" group-key="staff-fixed-income" :items="fixedIncomeItems" :active-path="activePath"
+            <SidebarHoverSection title="Fixed Income" group-key="staff-fixed-income" :items="fixedIncomeItems"
+              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarHoverSection title="Operations" group-key="staff-operations" :items="operationsItems" :active-path="activePath"
+            <SidebarHoverSection title="Operations" group-key="staff-operations" :items="operationsItems"
+              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
-            <SidebarHoverSection title="Finance" group-key="staff-finance" :items="financeItems" :active-path="activePath"
+            <SidebarHoverSection title="Finance" group-key="staff-finance" :items="financeItems"
+              :expanded-group="expandedGroup" :active-path="activePath || ''" @toggle="toggleGroup"
               header-class="mt-6 mb-1 text-xs text-[#818CF8] opacity-70 uppercase tracking-wider px-3 font-semibold" />
 
             <div v-if="isAdmin || can('manage_kyc_settings')"
@@ -197,15 +206,24 @@ const can = (capability) => {
 };
 
 // --------------------------------------------------------------
-// Collapsible sidebar sections
-// (multi-item groups collapse to their active option and expand on hover;
-//  access functions mirror the previous v-if guards on each link)
+// Accordion sidebar groups
+// (parent owns which single group is open; access functions mirror the
+//  previous v-if guards on each link)
 // --------------------------------------------------------------
+const overviewItems = [
+  { label: "Dashboard", to: "/dashboard", icon: Home },
+  { label: "Portfolio", to: "/portfolio", icon: PieChart },
+];
+
 const holdingsItems = [
   { label: "NGX", to: "/ngx", icon: BarChart2 },
   { label: "Global Stocks", to: "/global-stocks", icon: Globe },
   { label: "Crypto", to: "/crypto", icon: Bitcoin },
   { label: "Fixed Income", to: "/fixed-income", icon: TrendingUp },
+];
+
+const marketItems = [
+  { label: "FX Market", to: "/fx-market", icon: ChartNoAxesCombined },
 ];
 
 const accountItems = [
@@ -215,6 +233,14 @@ const accountItems = [
   { label: "User Settings", to: "/profile", icon: Settings },
   { label: "Help & Support", to: "/support", icon: MessageCircleQuestionMark },
   { label: "Notifications", to: "/notifications", icon: Bell },
+];
+
+const watchlistItems = [
+  { label: "Watchlist", to: "/watchlist", icon: Star },
+];
+
+const insightsItems = [
+  { label: "Advisory", to: "/advisory", icon: Gem },
 ];
 
 const adminManagementItems = computed(() => [
@@ -258,13 +284,12 @@ const financeItems = computed(() => [
 const sidebarItems = computed(() => {
   if (currentView.value === "user") {
     return [
-      { to: "/dashboard" },
-      { to: "/portfolio" },
+      ...overviewItems,
       ...holdingsItems,
-      { to: "/fx-market" },
+      ...marketItems,
       ...accountItems,
-      { to: "/watchlist" },
-      { to: "/advisory" },
+      ...watchlistItems,
+      ...insightsItems,
     ];
   }
   return [
@@ -338,6 +363,23 @@ watch(() => route.path, (path) => {
   currentView.value = path.startsWith('/admin') ? 'staff' : 'user';
   localStorage.setItem("active_view", currentView.value);
 }, { immediate: true });
+
+// --------------------------------------------------------------
+// Accordion state (Part 55): the parent owns which single group is open.
+// Clicking an open group collapses it; clicking another closes the first.
+// --------------------------------------------------------------
+const expandedGroup = ref(
+  currentView.value === 'staff'
+    ? 'staff-admin-management'
+    : 'user-overview'
+);
+
+const toggleGroup = (groupKey) => {
+  expandedGroup.value =
+    expandedGroup.value === groupKey
+      ? null
+      : groupKey;
+};
 
 const toggleAccountMode = () => {
   router.push(currentView.value === 'user' ? '/admin' : '/dashboard');

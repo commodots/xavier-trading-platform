@@ -6,6 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    protected static function booted(): void
+    {
+        static::creating(function (Order $order): void {
+            if ($order->amount === null) {
+                $order->amount = (float) $order->quantity
+                    * (float) ($order->price ?? 0);
+            }
+
+            if ($order->market_price === null) {
+                $order->market_price = $order->price;
+            }
+        });
+    }
+
     protected $fillable = [
         'user_id',
         'alpaca_order_id',

@@ -76,8 +76,30 @@ return [
     ],
     'alpaca' => [
         'api_key' => env('ALPACA_API_KEY'),
+
         'secret_key' => env('ALPACA_SECRET_KEY'),
-        'base_url' => env('ALPACA_BASE_URL'),
+
+        'base_url' => env(
+            'ALPACA_BASE_URL',
+            'https://paper-api.alpaca.markets'
+        ),
+
+        'data_base_url' => env(
+            'ALPACA_DATA_BASE_URL',
+            'https://data.alpaca.markets/v2'
+        ),
+
+        'mock' => filter_var(
+            env('ALPACA_MOCK', true),
+            FILTER_VALIDATE_BOOL
+        ),
+
+        'live_trading_enabled' => filter_var(
+            env('ALPACA_LIVE_TRADING_ENABLED', false),
+            FILTER_VALIDATE_BOOL
+        ),
+
+        'timeout' => (int) env('ALPACA_TIMEOUT', 15),
     ],
     'pusher' => [
         'pusher_app_id' => env('PUSHER_APP_ID'),

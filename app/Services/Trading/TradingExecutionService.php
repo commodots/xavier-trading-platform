@@ -7,47 +7,75 @@ use App\Models\Portfolio;
 use App\Models\ProviderAccount;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\CSL\CslStockBroker;
+use App\Services\Stocks\AlpacaStockBroker;
 use App\Services\Stocks\Contracts\StockBroker;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 
 class TradingExecutionService
 {
+    /**
+     * Optional explicitly-injected broker.
+     *
+     * Deliberately untyped: the container auto-resolves class-typed constructor
+     * params from the global StockBroker binding, which would funnel every
+     * market through one provider. Untyped means
+     * `app(TradingExecutionService::class)` resolves per-market at runtime,
+     * while tests can still inject via
+     * `app(TradingExecutionService::class, ['broker' => $broker])`.
+     *
+     * @var StockBroker|null
+     */
     public function __construct(
-        protected StockBroker $broker
+        protected $broker = null
     ) {}
+
+    /**
+     * Resolve the stock broker that owns a market.
+     *
+     * NGX -> CSL, GLOBAL/US/INTERNATIONAL -> Alpaca. Everything else is an
+     * unsupported stock market; Crypto, Fixed Income and Demo must never reach
+     * this service.
+     */
+    public function brokerFor(string $market): StockBroker
+    {
+        return match (strtoupper($market)) {
+            'NGX' => app(CslStockBroker::class),
+
+            'GLOBAL',
+            'INTERNATIONAL',
+            'US' => app(AlpacaStockBroker::class),
+
+            default => throw new InvalidArgumentException(
+                "Unsupported stock market: {$market}"
+            ),
+        };
+    }
 
     public function submit(
         User $user,
         array $data
     ): Order {
 
-        $account = ProviderAccount::where(
-            'user_id',
-            $user->id
-        )
-            ->where(
-                'provider',
-                'csl'
-            )
-            ->where(
-                'status',
-                'active'
-            )
-            ->first();
+        $market = strtoupper($data['market'] ?? 'NGX');
+        $currency = $this->currencyFor($market);
+        $provider = $this->providerFor($market);
 
-        if (! $account) {
-            throw new RuntimeException(
-                'No active CSL trading account is mapped to this user.'
-            );
-        }
+        $data['quantity'] = $this->normaliseQuantity($market, $data);
+
+        $broker = $this->broker ?? $this->brokerFor($market);
+
+        $account = $this->resolveProviderAccount($user, $provider);
 
         $clientReference = 'XAV-'.now()->format('YmdHis').'-'.str()->uuid();
 
         $reservation = null;
 
-        /*
+        /**
          * Persist the order intent and the local reservation BEFORE talking to
          * CSL. If the provider call times out we must still own an auditable
          * order record, otherwise a fill on CSL's side would have nothing to
@@ -58,10 +86,13 @@ class TradingExecutionService
             $data,
             $account,
             $clientReference,
+            $market,
+            $currency,
+            $provider,
             &$reservation
         ): Order {
 
-            $reservation = $this->reserveLocalState($user, $data);
+            $reservation = $this->reserveLocalState($user, $data, $currency);
 
             return Order::create([
                 'user_id' => $user->id,
@@ -92,18 +123,18 @@ class TradingExecutionService
                 'company' => $data['company']
                     ?? $data['symbol'],
 
-                /*
+                /**
                  * Open, not filled: the provider has not accepted the order yet.
                  */
                 'filled_quantity' => 0,
 
                 'status' => 'open',
 
-                'market' => 'NGX',
+                'market' => $market,
 
-                'currency' => 'NGN',
+                'currency' => $currency,
 
-                'provider' => 'csl',
+                'provider' => $provider,
 
                 'provider_client_reference' => $clientReference,
 
@@ -123,7 +154,7 @@ class TradingExecutionService
 
                 'reconciliation_status' => 'pending',
 
-                'source' => 'csl',
+                'source' => $provider,
             ]);
         });
 
@@ -141,10 +172,10 @@ class TradingExecutionService
         try {
             $providerResult =
                 $data['side'] === 'buy'
-                ? $this->broker->buy($providerData)
-                : $this->broker->sell($providerData);
+                ? $broker->buy($providerData)
+                : $broker->sell($providerData);
         } catch (Throwable $exception) {
-            /*
+            /**
              * Timeout, connection reset or 5xx: the request may or may not have
              * reached CSL. Never retry blindly and never release the
              * reservation - reconciliation has to establish what happened.
@@ -161,7 +192,12 @@ class TradingExecutionService
 
         $providerStatus = $providerResult['status'] ?? 'pending';
 
-        if (! in_array($providerStatus, ['accepted', 'pending'], true)) {
+        /*
+         * Only a definitive refusal releases the reservation. An accepted or
+         * pending order stays reserved until reconciliation reports execution
+         * (or a confirmed cancellation).
+         */
+        if (in_array($providerStatus, ['rejected', 'canceled', 'cancelled'], true)) {
             $this->releaseLocalState($reservation);
         }
 
@@ -181,8 +217,93 @@ class TradingExecutionService
         return $order->fresh();
     }
 
-    protected function reserveLocalState(User $user, array $data): array
+    /**
+     * Trading currency for a market: NGX settles in NGN, Global in USD.
+     */
+    protected function currencyFor(string $market): string
     {
+        return match (strtoupper($market)) {
+            'NGX' => 'NGN',
+
+            'GLOBAL',
+            'INTERNATIONAL',
+            'US' => 'USD',
+
+            default => throw new InvalidArgumentException(
+                "Unsupported stock market: {$market}"
+            ),
+        };
+    }
+
+    /**
+     * The provider account provider key for a market.
+     */
+    protected function providerFor(string $market): string
+    {
+        return match (strtoupper($market)) {
+            'NGX' => 'csl',
+
+            'GLOBAL',
+            'INTERNATIONAL',
+            'US' => 'alpaca',
+
+            default => throw new InvalidArgumentException(
+                "Unsupported stock market: {$market}"
+            ),
+        };
+    }
+
+    /**
+     * NGX trades whole shares only; Global markets may trade fractions.
+     */
+    protected function normaliseQuantity(string $market, array $data): float
+    {
+        $quantity = (float) ($data['quantity'] ?? 0);
+
+        if ($quantity <= 0) {
+            throw ValidationException::withMessages([
+                'quantity' => 'Quantity must be greater than zero.',
+            ]);
+        }
+
+        if (strtoupper($market) === 'NGX'
+            && $quantity !== floor($quantity)) {
+            throw ValidationException::withMessages([
+                'quantity' => 'NGX stock quantity must be a whole number.',
+            ]);
+        }
+
+        return $quantity;
+    }
+
+    /**
+     * Locate the provider-owned trading account for this user.
+     */
+    protected function resolveProviderAccount(
+        User $user,
+        string $provider
+    ): ProviderAccount {
+
+        $account = ProviderAccount::where('user_id', $user->id)
+            ->where('provider', $provider)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $account) {
+            throw new RuntimeException(
+                'No active '.strtoupper($provider)
+                .' trading account is mapped to this user.'
+            );
+        }
+
+        return $account;
+    }
+
+    protected function reserveLocalState(
+        User $user,
+        array $data,
+        string $currency = 'NGN'
+    ): array {
         $quantity = (float) $data['quantity'];
         $price = (float) ($data['limit_price'] ?? $data['market_price']);
         $amount = $quantity * $price;
@@ -190,7 +311,7 @@ class TradingExecutionService
         if ($data['side'] === 'buy') {
             $wallet = Wallet::query()
                 ->where('user_id', $user->id)
-                ->where('currency', 'NGN')
+                ->where('currency', $currency)
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -245,9 +366,15 @@ class TradingExecutionService
             'accepted',
             'pending' => 'open',
 
+            'partially_filled' => 'partially_filled',
+
             'filled' => 'filled',
 
-            default => 'canceled',
+            'canceled',
+            'cancelled',
+            'rejected' => 'canceled',
+
+            default => 'open',
         };
     }
 }

@@ -3,80 +3,87 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
-use App\Models\Position;
-use App\Models\Wallet;
+use App\Services\Stocks\AlpacaOrderReconciliationService;
 use Illuminate\Http\Request;
 
+/**
+ * Alpaca order events.
+ *
+ * The webhook never creates a trade from a cumulative quantity. It hands the
+ * payload to the reconciliation service, which computes the newly filled delta
+ * and creates an idempotent trade, so a 0.5 fill followed by a 1.0 fill records
+ * 0.5 + 0.5 rather than 0.5 + 1.0.
+ */
 class AlpacaWebhookController extends Controller
 {
-    public function handle(Request $request)
-    {
-
-        $response = response()->json(['ok'], 200);
-
+    public function handle(
+        Request $request,
+        AlpacaOrderReconciliationService $reconciliation
+    ) {
         $event = $request->all();
 
-        $orderId = $event['order']['id'] ?? null;
+        $payload = $event['order'] ?? $event;
+        $eventType = strtolower((string) (
+            $event['event_type']
+            ?? $event['event']
+            ?? $payload['status']
+            ?? ''
+        ));
 
-        $order = Order::where('alpaca_order_id', $orderId)->first();
+        $orderId = $payload['id']
+            ?? $payload['order_id']
+            ?? $event['order_id']
+            ?? null;
+
+        if (! $orderId) {
+            return response()->json(['ignored']);
+        }
+
+        $order = Order::query()
+            ->where('provider', 'alpaca')
+            ->where(function ($query) use ($orderId) {
+                $query->where('provider_order_id', $orderId)
+                    ->orWhere('alpaca_order_id', $orderId);
+            })
+            ->first();
+
+        if (! $order) {
+            // Fall back to the Xavier client reference when the id is unknown.
+            $clientOrderId = $payload['client_order_id'] ?? null;
+
+            $order = $clientOrderId
+                ? Order::query()
+                    ->where('provider', 'alpaca')
+                    ->where('provider_client_reference', $clientOrderId)
+                    ->first()
+                : null;
+        }
 
         if (! $order) {
             return response()->json(['ignored']);
         }
 
-        $status = $event['event']; // fill, partial_fill, canceled
+        /*
+         * Terminal events (cancel/expire/reject) are the provider's word on the
+         * final state, so they go through the same delta logic: whatever did
+         * execute is booked, and only the remainder is released.
+         */
+        $terminalEvents = ['canceled', 'cancelled', 'expired', 'rejected', 'replaced'];
 
-        if ($status === 'fill' && $order->status !== 'filled') {
-            $order->update([
-                'status' => 'filled',
-                'price' => $event['order']['filled_avg_price'] ?? $order->price,
-            ]);
+        if (in_array($eventType, $terminalEvents, true)) {
+            $payload['status'] = $payload['status'] ?? $eventType;
 
-            $this->syncPosition($order);
-            $this->handleWallet($order);
+            $reconciliation->applyProviderOrder($order, $payload);
+
+            return response()->json(['ok' => true]);
         }
 
-        return response()->json(['ok']);
-    }
-
-    protected function syncPosition($order)
-    {
-        $position = Position::firstOrNew([
-            'user_id' => $order->user_id,
-            'symbol' => $order->symbol,
-        ]);
-
-        if ($order->side === 'buy') {
-            $position->qty += $order->quantity;
-        } else {
-            $position->qty -= $order->quantity;
+        if (! isset($payload['filled_qty'])) {
+            return response()->json(['ok' => true]);
         }
 
-        $position->avg_price = $order->price;
-        $position->save();
-    }
+        $reconciliation->applyProviderOrder($order, $payload);
 
-    protected function handleWallet($order)
-    {
-        $wallet = Wallet::where('user_id', $order->user_id)
-            ->where('currency', $order->currency ?? 'USD')
-            ->first();
-
-        if (! $wallet) {
-            return;
-        }
-
-        $totalValue = $order->quantity * $order->price;
-
-        if ($order->side === 'buy') {
-            // Deduct from cleared and lock the funds
-            if ($wallet->usd_cleared >= $totalValue) {
-                $wallet->decrement('usd_cleared', $totalValue);
-                $wallet->increment('locked', $totalValue);
-            }
-        } else {
-            // For sell, add proceeds to uncleared
-            $wallet->increment('usd_uncleared', $totalValue);
-        }
+        return response()->json(['ok' => true]);
     }
 }

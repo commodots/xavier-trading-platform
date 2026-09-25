@@ -18,11 +18,11 @@ use App\Models\Wallet;
 use App\Notifications\TradeExecutedNotification;
 use App\Providers\AlpacaProvider;
 use App\Services\MarketService;
+use App\Services\Trading\TradingExecutionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -682,41 +682,34 @@ class TradeController extends Controller
                     'market' => 'GLOBAL',
                 ]);
 
-                // 2. Build Alpaca Payload
-                $payload = [
-                    'symbol' => $request->symbol,
-                    'qty' => (float) $request->qty, // Changed to float to support fractional shares
-                    'side' => $request->side,
-                    'time_in_force' => 'gtc',
-                ];
-
-                switch ($request->type) {
-                    case 'market':
-                        $payload['type'] = 'market';
-                        break;
-                    case 'limit':
-                        $payload['type'] = 'limit';
-                        $payload['limit_price'] = (float) $request->limit_price;
-                        break;
-                    case 'stop':
-                        $payload['type'] = 'stop';
-                        $payload['stop_price'] = (float) $request->stop_price;
-                        break;
-                    case 'bracket':
-                        $payload['type'] = 'market';
-                        $payload['order_class'] = 'bracket';
-                        $payload['take_profit'] = ['limit_price' => (float) $request->take_profit];
-                        $payload['stop_loss'] = ['stop_price' => (float) $request->stop_loss];
-                        break;
-                }
-
-                // 3. Execute
+                // 3. Execute through the provider-neutral broker layer
                 try {
-                    $alpaca = new AlpacaProvider;
-                    $response = $alpaca->placeAdvancedOrder($payload);
+                    $broker = app(TradingExecutionService::class)
+                        ->brokerFor('GLOBAL');
+
+                    $brokerData = [
+                        'symbol' => $request->symbol,
+                        'quantity' => (float) $request->qty,
+                        'type' => $request->type,
+                        'limit_price' => $request->limit_price,
+                        'stop_price' => $request->stop_price,
+                        'take_profit' => $request->take_profit,
+                        'stop_loss' => $request->stop_loss,
+                        'time_in_force' => 'gtc',
+                    ];
+
+                    $result = $request->side === 'buy'
+                        ? $broker->buy($brokerData)
+                        : $broker->sell($brokerData);
+
+                    $providerOrderId = $result['provider_order_id'] ?? null;
 
                     $order->update([
-                        'alpaca_order_id' => $response['id'] ?? null,
+                        'alpaca_order_id' => $providerOrderId,
+                        'provider' => 'alpaca',
+                        'provider_order_id' => $providerOrderId,
+                        'provider_response' => $result['response'] ?? null,
+                        'provider_submitted_at' => now(),
                     ]);
 
                     $models->transaction::create([
@@ -730,12 +723,12 @@ class TradeController extends Controller
                             'order_id' => $order->id,
                             'symbol' => strtoupper($request->symbol),
                             'quantity' => $request->qty,
-                            'alpaca_id' => $response['id'] ?? null,
+                            'alpaca_id' => $providerOrderId,
                             'order_type' => $request->type,
                         ],
                     ]);
 
-                    return response()->json(['success' => true, 'data' => $order]);
+                    return response()->json(['success' => true, 'data' => $order->fresh()]);
                 } catch (\Exception $e) {
                     throw $e;
                 }
@@ -757,56 +750,49 @@ class TradeController extends Controller
 
     public function buy(Request $request): JsonResponse
     {
-        $price = app(MarketService::class)->quote($request->symbol);
-
-        // DEMO MODE
-        if ($request->mode === 'demo') {
-            // update wallet + ledger
-            return response()->json(['status' => 'demo executed']);
-        }
-
-        // LIVE MODE (Alpaca)
-        $alpaca = new AlpacaProvider;
-
-        $order = Http::withHeaders([
-            'APCA-API-KEY-ID' => config('services.alpaca.api_key'),
-            'APCA-API-SECRET-KEY' => config('services.alpaca.secret_key'),
-        ])->post(config('services.alpaca.base_url').'/v2/orders', [
-            'symbol' => $request->symbol,
-            'qty' => $request->qty,
-            'side' => 'buy',
-            'type' => 'market',
-            'time_in_force' => 'gtc',
-        ]);
-
-        return $order->json();
+        return $this->placeSimpleOrder($request, 'buy');
     }
 
     public function sell(Request $request): JsonResponse
     {
-        $price = app(MarketService::class)->quote($request->symbol);
+        return $this->placeSimpleOrder($request, 'sell');
+    }
 
-        // DEMO MODE
+    /**
+     * Execute a market order through the provider-neutral broker layer
+     * instead of calling Alpaca (or any provider) directly from here.
+     */
+    private function placeSimpleOrder(Request $request, string $side): JsonResponse
+    {
         if ($request->mode === 'demo') {
-            // update wallet + ledger
+            // DEMO MODE: simulated execution, never reaches a provider.
             return response()->json(['status' => 'demo executed']);
         }
 
-        // LIVE MODE (Alpaca)
-        $alpaca = new AlpacaProvider;
+        try {
+            $broker = app(TradingExecutionService::class)->brokerFor('GLOBAL');
 
-        $order = Http::withHeaders([
-            'APCA-API-KEY-ID' => config('services.alpaca.api_key'),
-            'APCA-API-SECRET-KEY' => config('services.alpaca.secret_key'),
-        ])->post(config('services.alpaca.base_url').'/v2/orders', [
-            'symbol' => $request->symbol,
-            'qty' => $request->qty,
-            'side' => 'sell',
-            'type' => 'market',
-            'time_in_force' => 'gtc',
-        ]);
+            $result = $side === 'buy'
+                ? $broker->buy([
+                    'symbol' => $request->symbol,
+                    'quantity' => (float) $request->qty,
+                    'type' => 'market',
+                    'time_in_force' => 'gtc',
+                ])
+                : $broker->sell([
+                    'symbol' => $request->symbol,
+                    'quantity' => (float) $request->qty,
+                    'type' => 'market',
+                    'time_in_force' => 'gtc',
+                ]);
 
-        return $order->json();
+            return response()->json($result['response'] ?? []);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function trackSymbol(Request $request): JsonResponse

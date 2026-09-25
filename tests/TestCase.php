@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Tests\Support\AlpacaFixture;
 use Tests\Support\CslFixture;
 
 abstract class TestCase extends BaseTestCase
@@ -10,6 +11,11 @@ abstract class TestCase extends BaseTestCase
     protected function cslFixture(string $name): array
     {
         return CslFixture::get($name);
+    }
+
+    protected function alpacaFixture(string $name): array
+    {
+        return AlpacaFixture::get($name);
     }
 
     public function actingAs($user, $driver = null)

@@ -16,6 +16,7 @@ use App\Models\Wallet;
 use App\Services\CSL\CslOrderService;
 use App\Services\Demo\DemoTradingService;
 use App\Services\LiveTradingService;
+use App\Services\Stocks\AlpacaOrderService;
 use App\Services\Trading\TradingExecutionService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -83,10 +84,34 @@ class OmsController extends Controller
         // Rate-limiting already applied via middleware
         $data['market'] = strtoupper($data['market']);
 
-        $data['quantity'] = (float) ($data['quantity']
-            ?? floor($data['amount'] / $data['market_price']));
+        $isNgx = $data['market'] === 'NGX';
+        $isGlobal = $data['market'] === 'GLOBAL';
 
-        if ($data['quantity'] < 1) {
+        $defaultQuantity = $isGlobal
+            // Global stocks may be fractional, so do not floor the division.
+            ? ($data['amount'] / $data['market_price'])
+            : floor($data['amount'] / $data['market_price']);
+
+        $data['quantity'] = (float) ($data['quantity'] ?? $defaultQuantity);
+
+        if ($isNgx) {
+            // NGX trades whole shares only.
+            if ($data['quantity'] < 1
+                || $data['quantity'] !== floor($data['quantity'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NGX stock quantity must be a whole number of at least one unit.',
+                ], 422);
+            }
+        } elseif ($isGlobal) {
+            // Fractional global quantities are allowed but must be positive.
+            if ($data['quantity'] <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The order amount must purchase a positive quantity.',
+                ], 422);
+            }
+        } elseif ($data['quantity'] < 1) {
             return response()->json([
                 'success' => false,
                 'message' => 'The order amount must purchase at least one unit.',
@@ -102,20 +127,20 @@ class OmsController extends Controller
                 $data
             );
 
+        } elseif (in_array($data['market'], ['NGX', 'GLOBAL'], true)) {
+
+            /*
+             * Stock orders are provider-routed by market inside the execution
+             * service: NGX -> CSL, GLOBAL -> Alpaca. Crypto and Fixed Income
+             * deliberately keep their existing paths.
+             */
+            $order = app(TradingExecutionService::class)
+                ->submit($user, $data);
+
         } else {
 
-            $provider = config('services.stock_broker');
-
-            if ($provider === 'csl' && $data['market'] === 'NGX') {
-
-                $order = app(TradingExecutionService::class)
-                    ->submit($user, $data);
-
-            } else {
-
-                $order = app(LiveTradingService::class)
-                    ->executeTrade($user, $data);
-            }
+            $order = app(LiveTradingService::class)
+                ->executeTrade($user, $data);
         }
 
         return response()->json([
@@ -176,6 +201,34 @@ class OmsController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'CSL did not confirm cancellation. No local funds were released.',
+                ], 422);
+            }
+        }
+
+        if ($order instanceof Order && $order->provider === 'alpaca') {
+            try {
+                app(AlpacaOrderService::class)->cancel($order);
+
+                $order = $order->fresh();
+                $confirmed = $order?->provider_cancellation_status === 'confirmed'
+                    && $order->status === 'canceled';
+
+                return response()->json([
+                    'success' => $confirmed,
+                    'message' => $confirmed
+                        ? 'Order canceled and reconciled.'
+                        : 'Cancellation requested. Alpaca has not confirmed cancellation yet.',
+                    'data' => $order,
+                ], $confirmed ? 200 : 202);
+            } catch (\Throwable $exception) {
+                Log::warning('Alpaca order cancellation was not confirmed.', [
+                    'order_id' => $order->id,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Alpaca did not confirm cancellation. No local funds were released.',
                 ], 422);
             }
         }
