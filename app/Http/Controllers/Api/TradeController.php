@@ -643,7 +643,7 @@ class TradeController extends Controller
             ? (float) $data['limit_price']
             : $currentPrice;
         $totalAmount = (float) $data['qty'] * $effectivePrice;
-        $maxTrade = (float) (SystemSetting::first()->max_trade_amount ?? 0);
+        $maxTrade = (float) (SystemSetting::first()?->max_trade_amount ?? 0);
 
         if ($maxTrade > 0 && $totalAmount > $maxTrade) {
             return response()->json([

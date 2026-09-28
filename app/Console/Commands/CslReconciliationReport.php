@@ -17,17 +17,16 @@ class CslReconciliationReport extends Command
 
         $this->line('CSL RECONCILIATION REPORT');
         $this->line('============================');
-        $this->line('Matched:              '.$query->clone()->where('reconciliation_status', 'matched')->count());
-        $this->line('Fallback matched:     '.$query->clone()->where('reconciliation_status', 'matched_by_fallback')->count());
-        $this->line('Pending:              '.$query->clone()->where('reconciliation_status', 'pending')->count());
+        $this->line('Matched:               '.$query->clone()->where('reconciliation_status', 'matched')->count());
+        $this->line('Fallback matched:      '.$query->clone()->where('reconciliation_status', 'matched_by_fallback')->count());
+        $this->line('Pending:               '.$query->clone()->where('reconciliation_status', 'pending')->count());
+        $this->line('Unknown:               '.$query->clone()->where('reconciliation_status', 'unknown')->count());
+        $this->line('Ambiguous:             '.$query->clone()->where('reconciliation_status', 'ambiguous')->count());
         $this->line('Unmatched:             '.$query->clone()->where('reconciliation_status', 'unmatched')->count());
-        $this->line('Unknown:                '.$query->clone()->where('reconciliation_status', 'unknown')->count());
-        $this->line('Ambiguous:              '.$query->clone()->where('reconciliation_status', 'ambiguous')->count());
-        $this->line('Unmatched:              '.$query->clone()->where('reconciliation_status', 'unmatched')->count());
-        $this->line('Errors:                 '.$query->clone()->where('reconciliation_status', 'error')->count());
-        $this->line('Open:                   '.$query->clone()->where('status', 'open')->count());
-        $this->line('Partially filled:       '.$query->clone()->where('status', 'partially_filled')->count());
-        $this->line('Cancellation requested: '.$query->clone()->where('provider_cancellation_status', 'requested')->count());
+        $this->line('Errors:                '.$query->clone()->where('reconciliation_status', 'error')->count());
+        $this->line('Open:                  '.$query->clone()->where('status', 'open')->count());
+        $this->line('Partially filled:      '.$query->clone()->where('status', 'partially_filled')->count());
+        $this->line('Cancellation requested:'.$query->clone()->where('provider_cancellation_status', 'requested')->count());
 
         $attention = $query->clone()
             ->where(function ($nested) {

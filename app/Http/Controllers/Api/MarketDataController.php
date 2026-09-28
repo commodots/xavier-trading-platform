@@ -13,22 +13,27 @@ class MarketDataController extends Controller
     {
         $symbol = $request->get('symbol', 'AAPL');
         $interval = $request->get('interval', '1');
+        $market = $request->string('market', 'GLOBAL')->toUpperString();
 
-        $data = cache()->remember("candles_{$symbol}_{$interval}", 30, function () use ($symbol, $interval) {
-            $market = new StockMarketService;
-            $indicator = new IndicatorService;
+        $data = cache()->remember(
+            "candles_{$market}_{$symbol}_{$interval}",
+            30,
+            function () use ($symbol, $interval, $market) {
+                $stockMarket = new StockMarketService;
+                $indicator = new IndicatorService;
 
-            $candles = $market->candles(
-                $symbol,
-                $interval,
-                market: $request->string('market', 'GLOBAL')->toUpperString()
-            );
+                $candles = $stockMarket->candles(
+                    $symbol,
+                    $interval,
+                    market: $market
+                );
 
-            return [
-                'candles' => $candles,
-                'ma14' => $indicator->movingAverage($candles, 14),
-            ];
-        });
+                return [
+                    'candles' => $candles,
+                    'ma14' => $indicator->movingAverage($candles, 14),
+                ];
+            }
+        );
 
         return response()->json($data);
     }

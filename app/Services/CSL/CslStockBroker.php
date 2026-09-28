@@ -2,6 +2,8 @@
 
 namespace App\Services\CSL;
 
+use App\Models\Portfolio;
+use App\Models\ProviderAccount;
 use App\Services\Stocks\Contracts\StockBroker;
 use App\Services\Stocks\Contracts\StockBrokerPreflight;
 use RuntimeException;
@@ -10,7 +12,8 @@ class CslStockBroker implements StockBroker, StockBrokerPreflight
 {
     public function __construct(
         protected CslStockClient $st,
-        protected CslTradeXClient $xt
+        protected CslTradeXClient $xt,
+        protected ?CslPortfolioSyncService $portfolioSync = null
     ) {}
 
     public function assertReadyForSubmission(array $data): void
@@ -207,19 +210,43 @@ class CslStockBroker implements StockBroker, StockBrokerPreflight
             ?? null;
     }
 
-    public function portfolio(
-        int $userId
-    ): array {
-        throw new RuntimeException(
-            'Use CslAccountService to resolve CSL account first.'
-        );
+    public function portfolio(int $userId): array
+    {
+        $account = $this->activeAccount($userId);
+        $service = $this->portfolioSync
+            ?? app(CslPortfolioSyncService::class);
+        $service->sync($account);
+
+        return Portfolio::query()
+            ->where('user_id', $userId)
+            ->where('category', 'local')
+            ->get()
+            ->all();
     }
 
-    public function history(
-        int $userId
-    ): array {
-        throw new RuntimeException(
-            'Use CslAccountService to resolve CSL account first.'
+    public function history(int $userId): array
+    {
+        $rows = $this->xt->executedOrders(
+            $this->activeAccount($userId)->market_account_id
         );
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    protected function activeAccount(int $userId): ProviderAccount
+    {
+        $account = ProviderAccount::query()
+            ->where('user_id', $userId)
+            ->where('provider', 'csl')
+            ->where('status', 'active')
+            ->first();
+
+        if (! $account || blank($account->market_account_id)) {
+            throw new RuntimeException(
+                'No active CSL account is mapped to this user.'
+            );
+        }
+
+        return $account;
     }
 }

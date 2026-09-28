@@ -32,7 +32,7 @@ class AlpacaOrderReconciliationService
     {
         $providerOrders = $this->extractOrders($this->provider->orders());
 
-        /*
+        /**
          * Anything still live, plus anything whose outcome is not established
          * yet (a submit that timed out, or an order the provider filled before
          * we stored the response). Settled orders are never revisited.
@@ -274,7 +274,7 @@ class AlpacaOrderReconciliationService
             $portfolio->market_price = $price;
             $portfolio->save();
 
-            /*
+            /**
              * The reserved cash has been spent on shares, so it leaves the
              * wallet entirely rather than returning to the cleared balance.
              */
@@ -402,9 +402,6 @@ class AlpacaOrderReconciliationService
 
     /**
      * Normalise an Alpaca order status into Xavier's order vocabulary.
-     *
-     * orders.status is an enum limited to open | partially_filled | filled |
-     * canceled, so a provider rejection has to be represented as canceled.
      */
     protected function mapStatus(string $status): string
     {
@@ -442,14 +439,12 @@ class AlpacaOrderReconciliationService
         string $status,
         bool $newTrade
     ): void {
-        $activity = match ($status) {
+        ActivityLog::log($order->user_id, match ($status) {
             'partially_filled' => 'stock_order_partially_filled',
             'filled' => 'stock_order_filled',
             'canceled' => 'stock_order_cancelled',
             default => 'provider_order_reconciled',
-        };
-
-        ActivityLog::log($order->user_id, $activity, [
+        }, [
             'order_id' => $order->id,
             'provider' => 'alpaca',
             'provider_order_id' => $order->provider_order_id,

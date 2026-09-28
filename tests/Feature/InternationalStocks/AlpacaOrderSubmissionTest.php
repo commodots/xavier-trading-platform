@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -166,6 +167,66 @@ class AlpacaOrderSubmissionTest extends TestCase
             100000.0,
             (float) Wallet::query()->where('currency', 'NGN')->firstOrFail()->ngn_cleared
         );
+    }
+
+    public function test_shared_alpaca_accounts_are_refused_by_portfolio_sync(): void
+    {
+        $first = $this->alpacaAccount($this->userWithWallets());
+        $secondUser = $this->userWithWallets();
+        $second = ProviderAccount::create([
+            'user_id' => $secondUser->id,
+            'provider' => 'alpaca',
+            'market_id' => 'US1',
+            'market_account_id' => 'ALP-ACC-2',
+            'status' => 'active',
+        ]);
+        $shared = ['alpaca_account_id' => 'shared-paper-account'];
+
+        $first->update(['metadata' => $shared]);
+        $second->update(['metadata' => $shared]);
+        $provider = Mockery::mock(\App\Providers\AlpacaProvider::class);
+        $provider->shouldNotReceive('positions');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Shared Alpaca accounts');
+
+        (new \App\Services\Stocks\AlpacaPortfolioSyncService($provider))
+            ->sync($first->fresh());
+    }
+
+    public function test_definitive_alpaca_rejection_releases_the_reservation(): void
+    {
+        config()->set('services.alpaca.mock', false);
+        config()->set('services.alpaca.live_trading_enabled', true);
+        Http::fake([
+            '*/v2/orders' => Http::response([
+                'message' => 'insufficient buying power',
+            ], 422),
+        ]);
+
+        $user = $this->userWithWallets();
+        $this->alpacaAccount($user);
+
+        try {
+            app(TradingExecutionService::class)->submit($user, [
+                'market' => 'GLOBAL',
+                'symbol' => 'AAPL',
+                'side' => 'buy',
+                'quantity' => 2.5,
+                'type' => 'market',
+                'market_price' => 200,
+            ]);
+            $this->fail('A definitive provider rejection must surface.');
+        } catch (ProviderRequestException $exception) {
+            $this->assertFalse($exception->ambiguous);
+            $this->assertSame(422, $exception->statusCode);
+        }
+
+        $order = Order::where('provider', 'alpaca')->firstOrFail();
+        $this->assertSame('rejected', $order->status);
+        $this->assertSame('rejected', $order->reconciliation_status);
+        $this->assertSame(0.0, (float) Wallet::where('currency', 'USD')->first()->locked);
+        $this->assertSame(5000.0, (float) Wallet::where('currency', 'USD')->first()->usd_cleared);
     }
 
     private function userWithWallets(float $usdCleared = 5000): User
