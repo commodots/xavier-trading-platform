@@ -110,7 +110,14 @@ class CslMarketDataProvider implements MarketDataProvider
         };
     }
 
-    protected function extract(
+    /**
+     * Unwrap a CSL payload for the given endpoint key.
+     *
+     * CSL uses slightly different response wrappers between ST, XT and
+     * the wrapped "result" envelope, so they are normalised here. Public
+     * so csl:diagnose can read the market status without duplicating it.
+     */
+    public function extract(
         array $response,
         string $key
     ): array {

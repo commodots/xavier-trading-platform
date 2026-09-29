@@ -15,7 +15,7 @@ class CslInstrumentService
     {
         $response = $this->st->instruments();
 
-        $rows = $this->extractRows($response);
+        $rows = $this->rows($response);
 
         if ($rows === []) {
             throw new \RuntimeException(
@@ -115,7 +115,13 @@ class CslInstrumentService
             : null;
     }
 
-    protected function extractRows(array $response): array
+    /**
+     * Normalise the CSL ST instrument payload into a plain row list.
+     *
+     * Public so operational tooling (csl:diagnose) can report instrument
+     * availability without duplicating the wrapper handling.
+     */
+    public function rows(array $response): array
     {
         if (
             isset($response['result'][0]['GetCRSTInstruments'])
