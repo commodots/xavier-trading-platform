@@ -56,7 +56,7 @@ class KycProfileObserver
 
         if ($kyc->wasChanged('status') || $kyc->wasChanged('bvn') || $kyc->wasChanged('nin') || $kyc->wasRecentlyCreated) {
             $kyc->user->update([
-                'kyc_status' => $kyc->status,
+                'kyc_status' => $kyc->status === 'approved' ? 'verified' : $kyc->status,
                 'bvn' => $kyc->bvn,
             ]);
         }

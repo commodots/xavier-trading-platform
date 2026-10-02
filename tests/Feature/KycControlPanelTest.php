@@ -61,6 +61,21 @@ class KycControlPanelTest extends TestCase
         $this->assertEquals('verified', $user->kyc_status);
     }
 
+    public function test_approved_kyc_profile_syncs_verified_status_to_user()
+    {
+        $user = User::factory()->create(['kyc_status' => 'pending']);
+
+        KycProfile::create([
+            'user_id' => $user->id,
+            'level' => 'full',
+            'tier' => 3,
+            'daily_limit' => 5000000,
+            'status' => 'approved',
+        ]);
+
+        $this->assertEquals('verified', $user->fresh()->kyc_status);
+    }
+
     public function test_upgrade_from_tier2_to_tier3()
     {
         $admin = User::factory()->create(['role' => 'admin']);
