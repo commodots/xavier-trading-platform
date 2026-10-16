@@ -183,7 +183,7 @@
       </div>
     </div>
 
-    <TransactionDetailsModal 
+    <TransactionDetailsModal v-if="showDetailsModal"
       :show="showDetailsModal" 
       :txn="selectedTransaction" 
       @close="showDetailsModal = false" 
@@ -192,12 +192,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { defineAsyncComponent, ref, computed, onMounted } from "vue";
 import api from "@/api";
 import Orders from "@/Pages/Orders.vue";
 import MainLayout from "@/Layouts/MainLayout.vue";
-import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
-import SkeletonLoader from "@/Components/SkeletonLoader.vue";
+const TransactionDetailsModal = defineAsyncComponent(() => import("@/Components/TransactionDetailsModal.vue"));
 
 const activeView = ref('history');
 const filters = ref({ type: "", status: "", from: "", to: "" });

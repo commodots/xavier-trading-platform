@@ -1,63 +1,16 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 // Auth
-import Login from "@/Pages/Auth/Login.vue";
-import Register from "@/Pages/Auth/Register.vue";
-import ForgotPassword from "@/Pages/Auth/ForgotPassword.vue";
-import ResetPassword from "@/Pages/Auth/ResetPassword.vue";
-import VerifyEmail from "@/Pages/Auth/VerifyEmail.vue";
-
-//Landing page
-import LandingPage from "@/Pages/LandingPage.vue";
-
-// Main User Pages
-import Welcome from "@/Pages/Welcome.vue";
-import Dashboard from "@/Pages/Dashboard.vue";
-import Wallet from "@/Pages/Wallet.vue";
-import Transactions from "@/Pages/Transactions.vue";
-import Portfolio from "@/Pages/Portfolio.vue";
-import NgxMarket from "@/Pages/Market/NGXMarket.vue";
-import GlobalMarket from "@/Pages/Market/GlobalStocks.vue";
-import CryptoMarket from "@/Pages/Market/CryptoMarket.vue";
-import FxMarket from "@/Pages/Market/FxMarket.vue";
-import Profile from "@/Pages/Profile/Index.vue";
-import Settings from "@/Pages/Settings.vue";
-import Reports from "@/Pages/Reports.vue";
-import Support from "@/Pages/Support.vue";
-import Withdraw from "@/Pages/Crypto/Withdraw.vue";
-import Deposit from "@/Pages/Crypto/Deposit.vue";
-import MarketIndex from "@/Pages/Market/MarketIndex.vue";
-// OMS
-import Orders from "@/Pages/Orders.vue";
-import OrderDetails from "@/Pages/OrderDetails.vue";
-import Watchlist from "@/Pages/Watchlist.vue";
-import Advisory from "@/Pages/Advisory.vue";
-import TradingDashboard from "@/Pages/Trading/Dashboard.vue";
-
-// Admin
-import AdminKycReview from "@/Pages/Admin/KycReview.vue";
-import AdminTransactions from "@/Pages/Admin/Transactions.vue";
-import AdminOrders from "@/Pages/Admin/Orders.vue";
-import ControlPanel from "@/Pages/Admin/Control Panel/ControlPanel.vue";
-import AdminActivityLog from "@/Pages/Admin/ActivityLog.vue";
-import AdminNotifications from "@/Pages/Admin/AdminNotifications.vue";
-import AdminFxManagement from "@/Pages/Admin/FxManagement.vue";
-import AdminAdvisoryDashboard from "@/Pages/Admin/AdvisoryDashboard.vue";
-import AdminCryptoSettings from "@/Pages/Admin/AdminCryptoSettings.vue";
-import BillingDashboard from "@/Pages/Admin/BillingDashboard.vue";
-import SettlementDashboard from "@/Pages/Admin/SettlementDashboard.vue";
-import ComplianceDashboard from "@/Pages/Admin/ComplianceDashboard.vue";
-
 const routes = [
   /* ----------------------------------------------
      PUBLIC ROUTE
   ------------------------------------------------*/
-  { path: "/", name: "landing-page", component: LandingPage },
-  { path: "/login", name: "login", component: Login },
-  { path: "/register", name: "register", component: Register },
-  { path: "/forgot-password", name: "forgot-password", component: ForgotPassword },
-  { path: "/reset-password", name: "reset-password", component: ResetPassword },
-  { path: "/verify-email", name: "verify-email", component: VerifyEmail },
+  { path: "/", name: "landing-page", component: () => import("@/Pages/LandingPage.vue") },
+  { path: "/login", name: "login", component: () => import("@/Pages/Auth/Login.vue") },
+  { path: "/register", name: "register", component: () => import("@/Pages/Auth/Register.vue") },
+  { path: "/forgot-password", name: "forgot-password", component: () => import("@/Pages/Auth/ForgotPassword.vue") },
+  { path: "/reset-password", name: "reset-password", component: () => import("@/Pages/Auth/ResetPassword.vue") },
+  { path: "/verify-email", name: "verify-email", component: () => import("@/Pages/Auth/VerifyEmail.vue") },
 
   /* ----------------------------------------------
      USER AUTH PAGES
@@ -65,49 +18,49 @@ const routes = [
   {
     path: "/welcome",
     name: "welcome",
-    component: Welcome,
+    component: () => import("@/Pages/Welcome.vue"),
     meta: { requiresAuth: false },
   },
   {
     path: "/dashboard",
     name: "dashboard",
-    component: Dashboard,
+    component: () => import("@/Pages/Dashboard.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/wallet",
     name: "wallet",
-    component: Wallet,
+    component: () => import("@/Pages/Wallet.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/transactions",
     name: "transactions",
-    component: Transactions,
+    component: () => import("@/Pages/Transactions.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/portfolio",
     name: "portfolio",
-    component: Portfolio,
+    component: () => import("@/Pages/Portfolio.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/settings",
     name: "settings",
-    component: Settings,
+    component: () => import("@/Pages/Settings.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/reports",
     name: "reports",
-    component: Reports,
+    component: () => import("@/Pages/Reports.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/support",
     name: "support",
-    component: Support,
+    component: () => import("@/Pages/Support.vue"),
     meta: { requiresAuth: true },
   },
 
@@ -123,19 +76,19 @@ const routes = [
   {
     path: "/ngx",
     name: "ngx",
-    component: NgxMarket,
+    component: () => import("@/Pages/Market/NGXMarket.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/global-stocks",
     name: "global-stocks",
-    component: GlobalMarket,
+    component: () => import("@/Pages/Market/GlobalStocks.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/crypto",
     name: "crypto",
-    component: CryptoMarket,
+    component: () => import("@/Pages/Market/CryptoMarket.vue"),
     meta: { requiresAuth: true },
   },
   {
@@ -183,13 +136,13 @@ const routes = [
   {
     path: "/fx-market",
     name: "fx-market",
-    component: FxMarket,
+    component: () => import("@/Pages/Market/FxMarket.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/market-index",
     name: "market-index",
-    component: MarketIndex,
+    component: () => import("@/Pages/Market/MarketIndex.vue"),
     meta: { requiresAuth: true },
   },
 
@@ -199,7 +152,19 @@ const routes = [
   {
     path: "/profile",
     name: "profile",
-    component: Profile,
+    component: () => import("@/Pages/Profile/Index.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/kyc/verify",
+    name: "kyc-verify",
+    component: () => import("@/Pages/Kyc/Verify.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/kyc/status",
+    name: "kyc-status",
+    component: () => import("@/Pages/Kyc/KycStatus.vue"),
     meta: { requiresAuth: true },
   },
 
@@ -209,19 +174,19 @@ const routes = [
   {
     path: "/orders",
     name: "orders",
-    component: Orders,
+    component: () => import("@/Pages/Orders.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/watchlist",
     name: "watchlist",
-    component: Watchlist,
+    component: () => import("@/Pages/Watchlist.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/orders/:id",
     name: "order-details",
-    component: OrderDetails,
+    component: () => import("@/Pages/OrderDetails.vue"),
     meta: { requiresAuth: true },
   },
   {
@@ -233,25 +198,25 @@ const routes = [
   {
     path: "/advisory",
     name: "advisory",
-    component: Advisory,
+    component: () => import("@/Pages/Advisory.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/trading/dashboard",
     name: "trading-dashboard",
-    component: TradingDashboard,
+    component: () => import("@/Pages/Trading/Dashboard.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/crypto/deposit",
     name: "deposit",
-    component: Deposit,
+    component: () => import("@/Pages/Crypto/Deposit.vue"),
     meta: { requiresAuth: true },
   },
   {
     path: "/crypto/withdraw",
     name: "withdraw",
-    component: Withdraw,
+    component: () => import("@/Pages/Crypto/Withdraw.vue"),
     meta: { requiresAuth: true },
   },
 
@@ -283,37 +248,37 @@ const routes = [
   {
     path: "/admin/kyc-review/:id",
     name: "admin-kyc-review",
-    component: AdminKycReview,
+    component: () => import("@/Pages/Admin/KycReview.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/transactions",
     name: "admin-transactions",
-    component: AdminTransactions,
+    component: () => import("@/Pages/Admin/Transactions.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/orders",
     name: "admin-orders",
-    component: AdminOrders,
+    component: () => import("@/Pages/Admin/Orders.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: '/admin/orderbook',
     name: 'admin-orderbook',
     component: () => import('@/Pages/Admin/OrderBook.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/control-panel",
     name: "admin-control-panel",
-    component: ControlPanel,
+    component: () => import("@/Pages/Admin/Control Panel/ControlPanel.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/activity-log",
     name: "admin-activity-log",
-    component: AdminActivityLog,
+    component: () => import("@/Pages/Admin/ActivityLog.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
@@ -466,43 +431,43 @@ const routes = [
   {
     path: "/admin/notifications",
     name: "admin-notifications",
-    component: AdminNotifications,
+    component: () => import("@/Pages/Admin/AdminNotifications.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/fx-management",
     name: "admin-fx-management",
-    component: AdminFxManagement,
+    component: () => import("@/Pages/Admin/FxManagement.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/advisory-dashboard",
     name: "admin-advisory-dashboard",
-    component: AdminAdvisoryDashboard,
+    component: () => import("@/Pages/Admin/AdvisoryDashboard.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/crypto-settings",
     name: "admin-crypto-settings",
-    component: AdminCryptoSettings,
+    component: () => import("@/Pages/Admin/AdminCryptoSettings.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/billing",
     name: "admin-billing",
-    component: BillingDashboard,
+    component: () => import("@/Pages/Admin/BillingDashboard.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/settlements",
     name: "admin-settlements",
-    component: SettlementDashboard,
+    component: () => import("@/Pages/Admin/SettlementDashboard.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
   {
     path: "/admin/compliance",
     name: "admin-compliance",
-    component: ComplianceDashboard,
+    component: () => import("@/Pages/Admin/ComplianceDashboard.vue"),
     meta: { requiresAuth: true, adminOnly: true },
   },
 
@@ -510,62 +475,77 @@ const routes = [
   {
     path: '/admin/fixed-income',
     component: () =>
-        import('@/Pages/Admin/FixedIncome/Dashboard.vue')
+          import('@/Pages/Admin/FixedIncome/Dashboard.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+  },
+
+  {
+      path: '/admin/fixed-income/products',
+      component: () =>
+          import('@/Pages/Admin/FixedIncome/Products/Index.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+  },
+
+  {
+      path: '/admin/fixed-income/products/create',
+      component: () =>
+          import('@/Pages/Admin/FixedIncome/Products/Create.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+  },
+
+  {
+      path: '/admin/fixed-income/products/:id/edit',
+      component: () =>
+          import('@/Pages/Admin/FixedIncome/Products/Edit.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+  },
+
+  {
+    path: '/admin/fixed-income/products/:id',
+    component: () => import('@/Pages/Admin/FixedIncome/Products/Show.vue'),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
+
+  {
+      path: '/admin/fixed-income/investments',
+      component: () =>
+          import('@/Pages/Admin/FixedIncome/Investments/Index.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
 },
 
 {
-    path: '/admin/fixed-income/products',
+      path: '/admin/fixed-income/investments/:id',
     component: () =>
-        import('@/Pages/Admin/FixedIncome/Products/Index.vue')
-},
+          import('@/Pages/Admin/FixedIncome/Investments/Show.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+  },
 
-{
-    path: '/admin/fixed-income/products/create',
+  {
+      path: '/admin/fixed-income/reconciliation',
+      component: () =>
+          import('@/Pages/Admin/FixedIncome/Reconciliation.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+  },
+
+  {
+    path: '/admin/fixed-income/maturities',
     component: () =>
-        import('@/Pages/Admin/FixedIncome/Products/Create.vue')
-},
+      import('@/Pages/Admin/FixedIncome/Maturities.vue'),
+    meta: { requiresAuth: true, adminOnly: true },
+  },
 
-{
-    path: '/admin/fixed-income/products/:id/edit',
-    component: () =>
-        import('@/Pages/Admin/FixedIncome/Products/Edit.vue')
-},
-
-{
-  path: '/admin/fixed-income/products/:id',
-  component: () => import('@/Pages/Admin/FixedIncome/Products/Show.vue')
-},
-
-{
-    path: '/admin/fixed-income/investments',
-    component: () =>
-        import('@/Pages/Admin/FixedIncome/Investments/Index.vue')
-},
-
-{
-    path: '/admin/fixed-income/investments/:id',
-    component: () =>
-        import('@/Pages/Admin/FixedIncome/Investments/Show.vue')
-},
-
-{
-    path: '/admin/fixed-income/reconciliation',
-    component: () =>
-        import('@/Pages/Admin/FixedIncome/Reconciliation.vue')
-},
-
-{
-  path: '/admin/fixed-income/maturities',
-  component: () =>
-    import('@/Pages/Admin/FixedIncome/Maturities.vue')
-},
-
-{
-    path: '/admin/fixed-income/reports',
-    component: () =>
-        import('@/Pages/Admin/FixedIncome/Reports.vue')
-}, 
-];
+  {
+      path: '/admin/fixed-income/reports',
+      component: () =>
+          import('@/Pages/Admin/FixedIncome/Reports.vue'),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
+      path: "/:pathMatch(.*)*",
+      name: "not-found",
+      component: () => import("@/Pages/NotFound.vue"),
+    },
+  ];
 
 /* --------------------------------------------------
    ROUTER

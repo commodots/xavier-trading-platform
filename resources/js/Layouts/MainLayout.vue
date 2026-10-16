@@ -123,6 +123,28 @@
         </div>
       </div>
       <div class="p-4 pb-20 md:p-6">
+        <section
+          v-if="needsKyc"
+          class="mb-6 flex flex-col items-start justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 sm:flex-row sm:items-center"
+          aria-labelledby="kyc-banner-title"
+        >
+          <div class="flex items-start gap-3">
+            <span class="text-2xl text-amber-400" aria-hidden="true">⚠️</span>
+            <div>
+              <h2 id="kyc-banner-title" class="font-bold text-amber-300">Complete Your KYC Verification</h2>
+              <p class="mt-1 text-sm text-amber-100/70">
+                Current tier: {{ kycTier }}/3. Complete verification to unlock all account features.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-[#0B132B] transition hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:w-auto"
+            @click="router.push('/kyc/verify')"
+          >
+            Verify identity
+          </button>
+        </section>
         <slot />
       </div>
 
@@ -138,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/api";
 import { useIdleTimeout } from "@/composables/useIdleTimeout";
@@ -172,7 +194,6 @@ const user = ref(getUser());
 
 const isAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
-  const roles = user.value?.roles || [];
   const hasAdminRole = ["super-admin", "admin"].includes(role) ||
     (user.value?.roles || []).some((r) => (typeof r === 'string' ? r : r.name)?.toLowerCase() === 'admin');
   const hasSuperAdminRole = role === "super-admin" ||
@@ -180,6 +201,15 @@ const isAdmin = computed(() => {
   
   return hasAdminRole || hasSuperAdminRole;
 });
+
+const kycTier = computed(() => {
+  const tier = user.value?.kyc?.tier ?? user.value?.verification_level ?? 0;
+  const numericTier = Number(tier);
+  const tierByLevel = { none: 0, basic: 1, identity: 2, biometric: 3 };
+
+  return Number.isFinite(numericTier) ? numericTier : tierByLevel[String(tier).toLowerCase()] ?? 0;
+});
+const needsKyc = computed(() => currentView.value === 'user' && !isAdmin.value && kycTier.value < 3);
 
 const isSuperAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
@@ -327,27 +357,22 @@ const activePath = computed(() => {
   return matches.length > 0 ? matches[0].to : null;
 });
 
-const fetchPermissions = async () => {
-  if (isAdmin.value) return;
+const fetchUserProfile = async () => {
   try {
-    const profileRes = await api.get('/user/profile/show');
+    const profileRes = await api.get('/profile/me');
     const currentUser = profileRes.data.data;
 
-    // Default to an empty array to prevent undefined errors
     user.value = {
       ...user.value,
       ...currentUser,
       permissions: currentUser.permissions || []
     };
 
-    // Update localStorage 
     localStorage.setItem("user", JSON.stringify(user.value));
-  } catch (e) {
-    console.error('Failed to fetch permissions', e);
+  } catch (error) {
+    console.error('Failed to refresh user profile:', error);
   }
 };
-
-onMounted(fetchPermissions);
 
 // Logic: Check if user has ANY staff/admin roles
 const hasStaffAccess = computed(() => {
@@ -373,6 +398,12 @@ const getInitialView = () => {
 };
 
 const currentView = ref(getInitialView());
+
+watch(currentView, (view) => {
+  if (view === 'user') {
+    fetchUserProfile();
+  }
+}, { immediate: true });
 
 // Synchronize currentView with route changes to ensure sidebar and dashboard match
 watch(() => route.path, (path) => {

@@ -468,19 +468,18 @@
           </button>
         </div>
       </div>
-      <TransactionDetailsModal :show="showDetailsModal" :txn="selectedTransaction" @close="showDetailsModal = false" />
+      <TransactionDetailsModal v-if="showDetailsModal" :show="showDetailsModal" :txn="selectedTransaction" @close="showDetailsModal = false" />
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, onUnmounted } from "vue";
+import { defineAsyncComponent, ref, onMounted, computed, watch, onUnmounted } from "vue";
 import api from "@/api";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import VueApexCharts from "vue3-apexcharts";
-import TransactionDetailsModal from "@/Components/TransactionDetailsModal.vue";
+const TransactionDetailsModal = defineAsyncComponent(() => import("@/Components/TransactionDetailsModal.vue"));
 import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
-import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 
 const apexchart = VueApexCharts;
 

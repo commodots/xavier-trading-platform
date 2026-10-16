@@ -1,14 +1,14 @@
 <template>
-  <div class="w-full max-w-xl bg-[#1C1F2E]/90 backdrop-blur-md rounded-2xl p-4 sm:p-8 border border-gray-800 relative">
-    <button @click="$emit('close')" class="absolute text-gray-400 transition-colors top-4 right-4 hover:text-white">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <div class="relative max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-gray-800 bg-[#1C1F2E]/90 p-4 backdrop-blur-md sm:p-8">
+    <button @click="$emit('close')" aria-label="Close identity verification" class="absolute right-2 top-2 flex min-h-11 min-w-11 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 sm:right-3 sm:top-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
       </svg>
     </button>
 
     <div class="mb-8">
       <div class="flex items-center justify-between mb-2">
-        <h2 class="text-xl font-bold">Identity Verification Progress</h2>
+        <h2 class="pr-10 text-lg font-bold sm:pr-0 sm:text-xl">Identity Verification Progress</h2>
         <span class="text-sm font-semibold text-[#00D4FF]">{{ progressPercentage }}% Complete</span>
       </div>
       <div class="w-full h-2 overflow-hidden bg-gray-700 rounded-full">
@@ -21,7 +21,7 @@
       <h3 class="text-lg font-medium">Step 1: Email Verification</h3>
       <p class="text-xs text-gray-400">Confirm your email address to get started!</p>
 
-      <div v-if="internalUser.email_verified_at"
+      <div v-if="verifiedSteps.email"
         class="p-4 text-center border rounded-lg bg-green-500/10 border-green-500/30">
         <p class="text-sm font-bold text-green-400">✓ Email Verified: {{ internalUser.email }}</p>
       </div>
@@ -29,8 +29,8 @@
         <p class="text-sm text-red-400">Email verification pending.</p>
       </div>
 
-      <button @click="currentStep = 2" :disabled="!internalUser.email_verified_at"
-        class="w-full bg-[#00D4FF] text-[#0B132B] py-2.5 rounded-lg font-bold disabled:opacity-40 transition">
+      <button @click="currentStep = 2" :disabled="!verifiedSteps.email"
+        class="min-h-11 w-full rounded-lg bg-[#00D4FF] py-2.5 font-bold text-[#0B132B] transition disabled:opacity-40">
         Continue to BVN
       </button>
     </div>
@@ -116,7 +116,24 @@
 
     <div v-if="currentStep === 5" class="space-y-4">
       
-      <div v-if="finalKycStatus === 'pending'" class="py-4 space-y-4 text-center animate-fade-in">
+      <div v-if="finalKycError" class="py-4 space-y-4 text-center">
+        <h2 class="text-xl font-bold text-amber-300">We couldn't confirm your status</h2>
+        <p class="px-4 text-sm text-gray-400">
+          Your verification may have been submitted, but we couldn't retrieve its latest status. Try again before resubmitting.
+        </p>
+        <button
+          @click="finalize"
+          :disabled="loading"
+          class="w-full rounded-lg bg-amber-500 py-2.5 font-bold text-[#0B132B] transition disabled:opacity-50"
+        >
+          {{ loading ? 'Checking status…' : 'Check status again' }}
+        </button>
+        <button @click="emit('close')" class="w-full py-2 text-sm text-gray-400 transition hover:text-white">
+          Close
+        </button>
+      </div>
+
+      <div v-else-if="finalKycStatus === 'pending'" class="py-4 space-y-4 text-center animate-fade-in">
         <div class="w-16 h-16 bg-blue-500/10 text-[#00D4FF] rounded-full flex items-center justify-center mx-auto border border-blue-500/20">
           <span class="text-2xl animate-pulse">⏳</span>
         </div>
@@ -209,7 +226,7 @@ import WarningModal from '@/Components/WarningModal.vue';
 
 const emit = defineEmits(['close', 'verified']);
 
-const internalUser = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+const internalUser = ref({});
 const verifiedSteps = ref({ email: false, bvn: false, nin: false, selfie: false });
 
 const currentStep = ref(1);
@@ -225,6 +242,7 @@ const nin = ref('');
 const selfieToken = ref(null);
 
 const finalKycStatus = ref(null); // tracking state: null, 'pending', 'approved', 'rejected'
+const finalKycError = ref(false);
 
 const progressPercentage = computed(() => {
   return Math.min((currentStep.value - 1) * 25, 100);
@@ -236,7 +254,14 @@ onMounted(async () => {
     if (statusRes.data?.steps) {
       verifiedSteps.value = statusRes.data.steps;
     }
+  } catch (err) {
+    console.error("Error loading verification status:", err);
+    verifiedSteps.value = { email: false, bvn: false, nin: false, selfie: false };
+    errorMessage.value = "We couldn't load your verification progress. Please refresh and try again.";
+    showErrorModal.value = true;
+  }
 
+  try {
     const profileRes = await api.get('/profile/me');
     const freshUser = profileRes.data?.data || profileRes.data;
     if (freshUser) {
@@ -244,7 +269,7 @@ onMounted(async () => {
       localStorage.setItem("user", JSON.stringify(freshUser));
     }
   } catch (err) {
-    console.error("Error setting up sync context layer:", err);
+    console.error("Error loading profile for verification:", err);
   }
 
   if (window.Connect) {
@@ -254,6 +279,10 @@ onMounted(async () => {
     script.src = "https://widget.dojah.io/widget.js";
     script.type = "text/javascript";
     script.onload = () => { isSdkReady.value = true; };
+    script.onerror = () => {
+      errorMessage.value = "Identity verification could not be loaded. Check your connection and try again.";
+      showErrorModal.value = true;
+    };
     document.body.appendChild(script);
   }
 
@@ -335,20 +364,13 @@ const launchDojahLiveness = () => {
       if (refId) {
         selfieToken.value = refId;
       } else {
-        selfieToken.value = "captured_success_fallback";
+        errorMessage.value = "Identity verification completed, but we couldn't confirm the verification reference. Please try again.";
+        showErrorModal.value = true;
       }
     },
     onError: (err) => {
       console.error("SDK failure details:", err);
       
-      if (isDevMode) {
-        console.warn("Dev Environment Bypass: Injecting dummy token.");
-        selfieToken.value = "sandbox_token_" + Math.random().toString(36).substr(2, 9);
-        verifiedSteps.value.selfie = true;
-        currentStep.value = 5;
-        return;
-      }
-
       errorMessage.value = "Camera init failed. Please ensure device has camera hardware permissions.";
       showErrorModal.value = true;
     }
@@ -389,8 +411,8 @@ const submitSelfie = async () => {
 
 const finalize = async () => {
   loading.value = true;
+  finalKycError.value = false;
   try {
-    
     const response = await api.get('/kyc/status');
     const status = response.data?.kyc_status; // 'pending', 'verified', 'approved', 'rejected'
 
@@ -399,14 +421,14 @@ const finalize = async () => {
       emit('verified');
     } else if (status === 'rejected') {
       finalKycStatus.value = 'rejected';
-    } else {
-      
+    } else if (status === 'pending') {
       finalKycStatus.value = 'pending';
+    } else {
+      finalKycError.value = true;
     }
   } catch (err) {
     console.error("Identity finalization error:", err);
-    // If the check fails, we fallback to showing the pending review design gracefully
-    finalKycStatus.value = 'pending';
+    finalKycError.value = true;
   } finally {
     loading.value = false;
   }

@@ -1,8 +1,6 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
-      <EmailVerificationPrompt v-if="showPrompt" :user="user" />
-      
       <!-- Top Actions Bar -->
       <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight text-white">
@@ -17,7 +15,8 @@
             @keydown.enter="selectFirstSuggestion" 
             type="text" 
             placeholder="Search global stocks..."
-            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-full transition-all" 
+            aria-label="Search global stocks"
+            class="min-h-11 w-full rounded-lg border border-[#1f3348] bg-[#0F1724] px-4 py-2 text-sm text-gray-300 outline-none transition-all focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF]"
           />
           <span v-if="searchLoading" class="absolute text-xs text-gray-400 -translate-y-1/2 right-3 top-1/2">
             Searching…
@@ -25,20 +24,21 @@
 
           <!-- Autocomplete Dropdown -->
           <div v-if="searchSuggestions.length > 0" class="absolute top-full left-0 right-0 mt-1 bg-[#0F1724] border border-[#1f3348] rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto">
-            <div 
+            <button
+              type="button"
               v-for="suggestion in searchSuggestions" 
               :key="suggestion.symbol"
               @click="selectSuggestion(suggestion)"
-              class="p-3 hover:bg-[#16213A] cursor-pointer border-b border-[#1f3348]/50 last:border-0"
+              class="block min-h-11 w-full border-b border-[#1f3348]/50 p-3 text-left hover:bg-[#16213A] last:border-0"
             >
               <div class="flex items-center justify-between">
                 <div class="font-semibold text-[#00D4FF] font-mono">{{ suggestion.symbol }}</div>
                 <span class="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-bold">{{ suggestion.market || 'US' }}</span>
               </div>
               <div class="text-xs text-gray-400 truncate">{{ suggestion.name }}</div>
+            </button>
             </div>
           </div>
-        </div>
       </div>
 
       <!-- Portfolio Summary Bar -->
@@ -61,25 +61,31 @@
       <!-- View Navigation & Layout Engine -->
       <div class="space-y-4">
         <div>
-          <div class="flex items-center justify-between w-full gap-2">
-            <div class="flex p-1 bg-[#0B121D] border border-[#1f3348] rounded-lg self-start overflow-x-auto max-w-full">
+          <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+            <div class="flex max-w-full self-start overflow-x-auto rounded-lg border border-[#1f3348] bg-[#0B121D] p-1">
               <button 
+              type="button"
               @click="activeChart = 'holdings'"
-              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
+              :aria-pressed="activeChart === 'holdings'"
+              class="min-h-11 whitespace-nowrap rounded-md px-3 py-2 text-xs font-bold uppercase transition-all sm:px-4"
               :class="activeChart === 'holdings' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
               Holdings
             </button>
             <button 
+              type="button"
               @click="activeChart = 'insights'"
-              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
+              :aria-pressed="activeChart === 'insights'"
+              class="min-h-11 whitespace-nowrap rounded-md px-3 py-2 text-xs font-bold uppercase transition-all sm:px-4"
               :class="activeChart === 'insights' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
               Market
             </button>
             <button 
+              type="button"
               @click="activeChart = 'history'"
-              class="px-4 py-2 text-xs font-bold uppercase transition-all rounded-md whitespace-nowrap"
+              :aria-pressed="activeChart === 'history'"
+              class="min-h-11 whitespace-nowrap rounded-md px-3 py-2 text-xs font-bold uppercase transition-all sm:px-4"
               :class="activeChart === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'"
             >
               History
@@ -87,11 +93,12 @@
             </div>
             
             <button 
+              type="button"
               @click="handleBuySellClick"
-              :disabled="!canTrade.value || !stocks || stocks.length === 0"
-              class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+              :disabled="!stocks || stocks.length === 0"
+              class="min-h-11 w-full whitespace-nowrap rounded-lg bg-blue-600 px-6 py-2 text-xs font-bold uppercase text-white shadow-lg transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-600 sm:w-auto"
             >
-              {{ !canTrade.value ? 'Verification Required' : 'Buy / Sell' }}
+              {{ !canTrade ? 'Verification Required' : 'Buy / Sell' }}
             </button>
           </div>
 
@@ -107,20 +114,22 @@
                 @input="handleChartSearch" 
                 type="text" 
                 placeholder="Quick find symbol..."
-                class="bg-[#0B121D] border border-[#1f3348] rounded px-3 py-1 text-xs text-gray-300 focus:border-[#00D4FF] outline-none w-40" 
+                aria-label="Find a market chart symbol"
+                class="min-h-11 w-full rounded border border-[#1f3348] bg-[#0B121D] px-3 py-1 text-xs text-gray-300 outline-none focus:border-[#00D4FF] sm:w-40"
               />
               <span v-if="chartSearchLoading" class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-500 italic">
                 Searching...
               </span>
               <div v-if="chartSearchResults.length > 0" class="absolute top-full left-0 right-0 mt-1 bg-[#0F1724] border border-[#1f3348] rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto">
-                <div 
+                <button
+                  type="button"
                   v-for="res in chartSearchResults" 
                   :key="res.symbol" 
                   @click="selectForChart(res)"
-                  class="p-2 hover:bg-[#16213A] cursor-pointer border-b border-[#1f3348]/50 last:border-0 text-xs text-gray-300"
+                  class="block min-h-11 w-full border-b border-[#1f3348]/50 p-2 text-left text-xs text-gray-300 hover:bg-[#16213A] last:border-0"
                 >
                   <span class="font-bold text-[#00D4FF] font-mono">{{ res.symbol }}</span> - {{ res.name }}
-                </div>
+                </button>
               </div>
             </div>
           </div>
@@ -474,22 +483,32 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { useRouter } from "vue-router";
 import MainLayout from "@/Layouts/MainLayout.vue";
 import MarketDetailsModal from "@/Components/MarketDetailsModal.vue";
 import HoldingPerformanceChart from "@/Components/HoldingPerformanceChart.vue";
 import MarketChart from "@/Components/MarketChart.vue";
 import MarketTicker from "@/Components/MarketTicker.vue";
 import TradePanel from "@/Components/TradePanel.vue";
-import EmailVerificationPrompt from '@/Components/EmailVerificationPrompt.vue';
 import api from "@/api";
 import MarketInsights from '@/Components/Markets/MarketInsights.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import MarketList from '@/Pages/Market/MarketList.vue';
 
+const router = useRouter();
+
 // State
-const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  } catch (error) {
+    console.error('Failed to read stored user profile:', error);
+    return {};
+  }
+};
+
+const user = ref(readStoredUser());
 const isDemo = ref(user.value.trading_mode === 'demo');
-const showPrompt = ref(false);
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
 const showTradeModal = ref(false);
@@ -558,15 +577,10 @@ const isAdminUser = (u) => {
   return role.includes('admin');
 };
 
-const isUserVerified = computed(() => {
-  const u = user.value || {};
-  return Boolean(u.email_verified_at) || isAdminUser(u);
-});
-
 const canTrade = computed(() => {
   if (isDemo.value) return true;
-  const level = user.value.verification_level || 0;
-  return level >= 2;
+  const level = Number(user.value.verification_level || user.value.kyc?.tier || 0);
+  return level >= 2 || isAdminUser(user.value);
 });
 
 const userHoldings = computed(() => {
@@ -772,8 +786,7 @@ const showOrderSuccessModal = ref(false);
 
 const handleBuySellClick = () => {
   if (!canTrade.value) {
-    showPrompt.value = true;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    router.push('/kyc/verify');
     return;
   }
   
@@ -975,6 +988,19 @@ const initDashboard = async () => {
 };
 
 onMounted(() => {
+  api.get('/profile/me')
+    .then((response) => {
+      const updatedUser = response.data?.data || response.data;
+      if (updatedUser && typeof updatedUser === 'object') {
+        user.value = updatedUser;
+        isDemo.value = updatedUser.trading_mode === 'demo';
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    })
+    .catch((error) => {
+      console.error('Failed to refresh user KYC status:', error);
+    });
+
   const saved = localStorage.getItem('global_favorite_tickers');
   if (saved) {
     try {

@@ -27,8 +27,56 @@
 </template>
 
 <script setup>
-import * as LucideIcons from 'lucide-vue-next';
-import { TrendingUp, TrendingDown } from 'lucide-vue-next';
+import {
+  Activity,
+  AlertTriangle,
+  Ban,
+  BarChart3,
+  Calendar,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  DollarSign,
+  FileText,
+  Hash,
+  Layers,
+  Lock,
+  PieChart,
+  RefreshCw,
+  Shield,
+  TrendingDown,
+  TrendingUp,
+  UserCheck,
+  Users,
+  XCircle,
+  Zap,
+} from 'lucide-vue-next';
+
+const icons = {
+  Activity,
+  AlertTriangle,
+  Ban,
+  BarChart: BarChart3,
+  Calendar,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  Dollar: DollarSign,
+  DollarSign,
+  FileText,
+  Hash,
+  Layers,
+  Lock,
+  PieChart,
+  RefreshCw,
+  Shield,
+  TrendingDown,
+  TrendingUp,
+  UserCheck,
+  Users,
+  XCircle,
+  Zap,
+};
 
 const props = defineProps({
   cards: {
@@ -47,7 +95,7 @@ const getIcon = (iconName) => {
 
   const pascalName = normalized.charAt(0).toUpperCase() + normalized.slice(1);
 
-  return LucideIcons[pascalName] || LucideIcons[iconName] || null;
+  return icons[pascalName] || icons[iconName] || null;
 };
 
 const formatAmount = (value, prefix = '', isMoney = false, suffix = '') => {

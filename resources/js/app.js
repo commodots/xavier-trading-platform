@@ -1,11 +1,9 @@
 import "./bootstrap";
-import { createApp } from "vue";
+import { createApp, defineAsyncComponent } from "vue";
 import App from "./App.vue";
 import router from "./router";
 import "./style.css"; // Tailwind
 import axios from "axios";
-import VueApexCharts from "vue3-apexcharts";
-
 
 const app = createApp(App);
 
@@ -25,8 +23,7 @@ if (token) {
         console.error('Failed to fetch CSRF cookie', e);
     }
 
-    app.component('apexchart', VueApexCharts);
+    app.component('apexchart', defineAsyncComponent(() => import("vue3-apexcharts")));
     app.use(router);
     app.mount("#app");
 })();
-

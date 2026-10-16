@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\AdvisoryPost;
 use App\Models\Symbol;
 use App\Models\User;
+use App\Services\MarketData\StockMarketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -53,6 +55,38 @@ class MarketAndAdvisoryApiTest extends TestCase
             ->assertJsonPath('data.0.market', 'CRYPTO')
             ->assertJsonPath('data.0.type', 'crypto')
             ->assertJsonPath('data.0.trend', 'flat');
+    }
+
+    public function test_market_candle_endpoints_normalize_market_to_uppercase(): void
+    {
+        config()->set('services.alpaca.mock', true);
+        Cache::forget('candles_GLOBAL_REGRESSION_TEST_1');
+
+        $stockMarket = $this->mock(StockMarketService::class);
+        $stockMarket->shouldReceive('candles')
+            ->once()
+            ->with('REGRESSION_TEST', '1', 100, 'GLOBAL')
+            ->andReturn([
+                ['time' => 1, 'open' => 10, 'high' => 12, 'low' => 9, 'close' => 11],
+            ]);
+        $stockMarket->shouldReceive('candles')
+            ->once()
+            ->with('REGRESSION_TEST', '1D', 100, 'US')
+            ->andReturn([]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->getJson('/api/market/candles?symbol=REGRESSION_TEST&market=global')
+            ->assertOk()
+            ->assertJsonPath('candles.0.close', 11)
+            ->assertJsonPath('is_demo', true);
+
+        $this->actingAs($user)
+            ->getJson('/api/markets/stocks/REGRESSION_TEST/history?market=us')
+            ->assertOk()
+            ->assertJsonPath('symbol', 'REGRESSION_TEST')
+            ->assertJsonPath('history', []);
     }
 
     public function test_advisory_index_filters_by_market_type_and_tier_for_regular_user(): void

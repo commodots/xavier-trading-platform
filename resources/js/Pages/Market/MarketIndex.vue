@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import MainLayout from '@/Layouts/MainLayout.vue';
-import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
 
 const router = useRouter();

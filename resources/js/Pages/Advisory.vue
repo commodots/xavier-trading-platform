@@ -87,7 +87,7 @@
 
         <!-- Loading State using Skeleton Loader Component -->
         <div v-if="isInitialLoading" class="max-w-6xl mx-auto">
-          <SkeletonLoader />
+          <SkeletonLoader type="card" />
         </div>
 
         <div v-else class="space-y-8 animate-fade-in-up">

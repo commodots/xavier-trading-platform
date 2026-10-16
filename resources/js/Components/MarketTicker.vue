@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-3 p-2 bg-[#0F1724] overflow-x-auto no-scrollbar rounded-lg">
-    <div v-for="stock in stocks" :key="stock.s" @click="select(stock.s)" :class="[
-      'flex items-center gap-2 whitespace-nowrap px-2 py-1 cursor-pointer border rounded-md transition-all duration-500',
+    <button type="button" v-for="stock in stocks" :key="stock.s" @click="select(stock.s)" :aria-pressed="stock.s === selectedSymbol" :class="[
+      'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border px-3 py-1 transition-all duration-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300',
       stock.s === selectedSymbol ? 'bg-[#0D1728] border-[#00D4FF]' : 'bg-[#111827] border-[#1f3348]'
     ]">
       <span class="text-xs font-bold text-[#00D4FF]">{{ stock.s }}</span>
@@ -16,7 +16,7 @@
         {{ stock.change >= 0 ? '▲' : '▼' }}
         {{ Math.abs(stock.change).toFixed(2) }}%
       </span>
-    </div>
+    </button>
   </div>
 </template>
 

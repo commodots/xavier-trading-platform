@@ -30,10 +30,10 @@
       <div v-else class="transition-all duration-300">
         <div class="relative p-6 border rounded-xl"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
-          <div class="flex items-center justify-between mb-4 relative">
+          <div class="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="text-lg font-semibold">Allocation Breakdown</h2>
             <button @click="handleTradeAction" :class="[
-              'px-6 py-2 rounded-lg text-white font-bold hover:opacity-90 transition shadow-lg flex items-center gap-2',
+              'flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-6 py-2 font-bold text-white shadow-lg transition hover:opacity-90 sm:w-auto',
               isDemo ? 'bg-gradient-to-r from-yellow-600 to-orange-500' : 'bg-gradient-to-r from-[#0047AB] to-[#00D4FF]'
             ]">
               <span>⇄</span> {{ isDemo ? 'Demo Trade Assets' : 'Trade Assets' }}
@@ -53,7 +53,9 @@
         <div class="p-6 border rounded-xl"
           :class="isDemo ? 'border-yellow-600  bg-yellow-600/10' : 'border-[#1f3348] bg-[#0F1724]'">
           <h2 class="mb-4 text-lg font-semibold">Your Holdings</h2>
-          <table class="w-full text-[11px] md:text-sm">
+          <p class="mb-2 text-xs text-gray-400 sm:hidden">Swipe horizontally to view all holding details.</p>
+          <div class="overflow-x-auto">
+          <table class="w-full min-w-[760px] text-[11px] md:text-sm" aria-label="Portfolio holdings">
             <thead class="text-gray-400 text-xs border-b border-[#1f3348] text-center py-2">
               <tr>
                 <th class="text-left">Asset</th>
@@ -101,6 +103,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>
