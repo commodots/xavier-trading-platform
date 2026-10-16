@@ -180,8 +180,9 @@ class CslDiagnose extends Command
             ),
 
             'CSL credentials configured' => $this->result(
-                $credentials ? 'OK' : 'FAIL',
-                failed: ! $credentials
+                $credentials ? 'OK' : ($this->mock ? 'OK' : 'FAIL'),
+                failed: ! $credentials && ! $this->mock,
+                note: $this->mock && ! $credentials ? 'not required (mock transport)' : null
             ),
 
             'ST base URL' => $this->url(
@@ -520,7 +521,7 @@ class CslDiagnose extends Command
              * loaded for this process, so report that as unknown rather
              * than declaring a false failure.
              */
-            if ($events->isEmpty()) {
+            if (empty($events)) {
                 $checks = [];
 
                 foreach ($expected as $label => $command) {
@@ -533,7 +534,7 @@ class CslDiagnose extends Command
                 return $checks;
             }
 
-            $registered = strtolower($events
+            $registered = strtolower(collect($events)
                 ->map(fn ($event): string => $this->describeEvent($event))
                 ->implode(' | '));
 
