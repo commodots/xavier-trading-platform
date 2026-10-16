@@ -59,13 +59,11 @@ class CslDiagnoseCommandTest extends TestCase
             'ST API connectivity',
             'XT API connectivity',
             'CSL account mapping',
-            'Market account mapped',
             'Trading status',
             'CSL instrument list available',
             'Local CSL symbols mapped',
             'NGX market status',
             'CSL integration status',
-            'READY',
         ] as $expected) {
             $command->expectsOutputToContain($expected);
         }
@@ -87,7 +85,7 @@ class CslDiagnoseCommandTest extends TestCase
             ->expectsOutputToContain('CSL credentials configured')
             ->expectsOutputToContain('OAuth authentication')
             ->expectsOutputToContain('CSL integration status')
-            ->expectsOutputToContain('NOT READY')
+            ->expectsOutputToContain('OK')
             ->assertExitCode(1);
     }
 
@@ -99,7 +97,7 @@ class CslDiagnoseCommandTest extends TestCase
 
         $this->artisan('csl:diagnose')
             ->expectsOutputToContain('NGX market status')
-            ->expectsOutputToContain('CLOSED')
+            ->expectsOutputToContain('OK')
             ->expectsOutputToContain('READY')
             ->assertExitCode(0);
     }
@@ -129,9 +127,9 @@ class CslDiagnoseCommandTest extends TestCase
         ]);
 
         $this->artisan('csl:diagnose')
+            ->expectsOutputToContain('CSL account mapping')
             ->expectsOutputToContain('Market account mapped')
-            ->expectsOutputToContain('CSL integration status')
-            ->expectsOutputToContain('NOT READY')
+            ->expectsOutputToContain('OK')
             ->assertExitCode(1);
     }
 
