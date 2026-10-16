@@ -1,11 +1,11 @@
 <template>
-  <div class="bg-[#0F1724] text-white min-h-screen font-sans">
+  <main id="main-content" tabindex="-1" class="bg-[#0F1724] text-white min-h-screen font-sans">
     <header class="relative px-6 py-20 overflow-hidden border-b border-gray-800 md:py-32">
-      <div class="absolute rounded-full -top-40 -left-40 w-80 h-80 bg-blue-600/10 blur-3xl opacity-60"></div>
-      <div class="absolute rounded-full -bottom-40 -right-40 w-96 h-96 bg-blue-600/10 blur-3xl opacity-60"></div>
+      <div aria-hidden="true" class="absolute rounded-full -top-40 -left-40 w-80 h-80 bg-blue-600/10 blur-3xl opacity-60"></div>
+      <div aria-hidden="true" class="absolute rounded-full -bottom-40 -right-40 w-96 h-96 bg-blue-600/10 blur-3xl opacity-60"></div>
 
       <div class="relative z-10 mx-auto text-center max-w-7xl">
-        <img src="/images/xavier-logo.png" alt="Logo" class="h-[100px] m-auto" />
+        <img src="/images/xavier-logo.png" alt="Xavier" class="h-[100px] m-auto" />
         <h1 class="mb-8 text-5xl font-black leading-tight tracking-tight md:text-7xl animate-fade-in-up"
           style="animation-delay: 100ms;">
           Smart Trading, <br />
@@ -40,7 +40,7 @@
       </div>
 
       <div class="mt-12">
-        <button @click="scrollToFeatures"
+        <button aria-controls="features" @click="scrollToFeatures"
           class="flex items-center gap-2 px-8 py-4 m-auto font-semibold text-gray-300 transition hover:text-white group">
           Learn How It Works
           <span class="transition-transform group-hover:translate-x-1">→</span>
@@ -223,7 +223,7 @@
     <footer class="py-10 px-6 border-t border-gray-800 text-center text-gray-600 text-sm bg-[#0B111D]">
       <p>&copy; 2026 Xavier Advisory Limited. All rights reserved.</p>
     </footer>
-  </div>
+  </main>
 </template>
 
 <script setup>

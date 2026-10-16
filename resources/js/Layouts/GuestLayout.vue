@@ -13,10 +13,12 @@ import { Link } from '@inertiajs/vue3';
             </Link>
         </div>
 
-        <div
+        <main
+            id="main-content"
+            tabindex="-1"
             class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
         >
             <slot />
-        </div>
+        </main>
     </div>
 </template>

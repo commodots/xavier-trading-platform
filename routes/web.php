@@ -16,8 +16,27 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::get('/', function () {
-    return redirect('/dashboard');
+    return view('app', [
+        'seo' => [
+            'title' => 'Smart Trading, Secure & Simplified | Xavier',
+            'description' => 'Access global markets, manage NGN and USD wallets, and trade with Xavier’s secure trading platform.',
+            'robots' => 'index,follow',
+            'canonical' => url('/'),
+        ],
+    ]);
 });
+
+Route::get('/dashboard', function () {
+    return view('app');
+})->name('dashboard');
+
+Route::get('/wallet', function () {
+    return view('app');
+})->name('wallet.index');
+
+Route::get('/profile', function () {
+    return view('app');
+})->name('profile.edit');
 
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
@@ -54,17 +73,10 @@ Route::middleware('auth')->group(function () {
         ->name('logout');
 
     // Profile
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Dashboard
-    Route::get('/dashboard', function () {
-        return view('app');
-    })->name('dashboard');
-
     // Wallet
-    Route::get('/wallet', [WalletController::class, 'index'])->name('wallet.index');
     Route::post('/wallet/deposit', [WalletController::class, 'deposit'])->name('wallet.deposit');
     Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->name('wallet.withdraw');
 });

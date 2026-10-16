@@ -1,36 +1,40 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0B132B] to-[#1C2541] text-white">
+  <main id="main-content" tabindex="-1" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0B132B] to-[#1C2541] text-white">
     <div class="w-full max-w-md bg-[#1C1F2E]/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
 
       <!-- Logo + Title -->
       <div class="mb-10 text-center">
-        <img src="/images/xavier-logo.png" class="h-20 mx-auto mb-4 drop-shadow-lg" />
-        <h1 class="text-3xl font-bold">{{ requires2FA ? 'Two-Factor Auth' : 'Welcome Back' }}</h1>
+        <img src="/images/xavier-logo.png" alt="Xavier" class="h-20 mx-auto mb-4 drop-shadow-lg" />
+        <h1 id="login-title" class="text-3xl font-bold">{{ requires2FA ? 'Two-Factor Auth' : 'Welcome Back' }}</h1>
         <p class="mt-1 text-gray-400">
           {{ requires2FA ? 'Enter the security code from your authenticator app' : 'Sign in to continue' }}
         </p>
       </div>
 
-      <form v-if="!requires2FA" @submit.prevent="submitLogin">
+      <form v-if="!requires2FA" aria-labelledby="login-title" @submit.prevent="submitLogin">
         <div class="mb-4">
-          <label class="block mb-1 text-gray-300">Email</label>
-          <input v-model="email" type="email" class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg outline-none focus:border-[#00D4FF]"
+          <label for="login-email" class="block mb-1 text-gray-300">Email</label>
+          <input id="login-email" v-model="email" type="email" autocomplete="email" class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg outline-none focus:border-[#00D4FF]"
             required />
           <p class="mt-1 text-xs text-gray-500">Enter your registered email address</p>
         </div>
 
         <div class="mb-4">
-          <label class="block mb-1 text-gray-300">Password</label>
+          <label for="login-password" class="block mb-1 text-gray-300">Password</label>
           <div class="relative">
             <input 
-              v-model="password" 
+              id="login-password"
+              v-model="password"
               :type="showPassword ? 'text' : 'password'" 
+              autocomplete="current-password"
               class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg outline-none focus:border-[#00D4FF] pr-12" 
               required 
             />
             <button 
               type="button" 
               @click="showPassword = !showPassword"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              :aria-pressed="showPassword"
               class="absolute text-gray-500 transition-colors -translate-y-1/2 right-3 top-1/2 hover:text-gray-300"
             >
               <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -45,7 +49,7 @@
           <p class="mt-1 text-xs text-gray-500">Enter your account password</p>
         </div>
 
-        <div v-if="errorMessage" class="p-3 mb-4 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/50 animate-fadeIn">
+        <div v-if="errorMessage" role="alert" class="p-3 mb-4 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/50 animate-fadeIn">
           {{ errorMessage }}
         </div>
 
@@ -56,12 +60,15 @@
         </button>
       </form>
 
-      <form v-else @submit.prevent="submit2FA">
+      <form v-else aria-labelledby="login-title" @submit.prevent="submit2FA">
         <div class="mb-6">
-          <label class="block mb-1 text-gray-300">6-Digit Verification Code</label>
+          <label for="login-two-factor-code" class="block mb-1 text-gray-300">6-Digit Verification Code</label>
           <input 
+            id="login-two-factor-code"
             v-model="twoFactorCode" 
             type="text" 
+            inputmode="numeric"
+            autocomplete="one-time-code"
             maxlength="6"
             placeholder="000000"
             class="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-lg outline-none focus:border-[#00D4FF] text-center text-2xl tracking-[0.5em] font-mono"
@@ -71,7 +78,7 @@
           <p class="mt-2 text-xs text-center text-gray-400">Sent to your registered device credentials</p>
         </div>
 
-        <div v-if="errorMessage" class="p-3 mb-4 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/50 animate-fadeIn">
+        <div v-if="errorMessage" role="alert" class="p-3 mb-4 text-sm text-red-400 border rounded-lg bg-red-500/10 border-red-500/50 animate-fadeIn">
           {{ errorMessage }}
         </div>
 
@@ -98,7 +105,7 @@
       </div>
       
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>

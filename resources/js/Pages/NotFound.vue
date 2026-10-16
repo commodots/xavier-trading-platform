@@ -1,5 +1,5 @@
 <template>
-  <main class="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
+  <main id="main-content" tabindex="-1" class="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
     <section class="w-full max-w-lg space-y-6 text-center">
       <p class="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">404 · Page not found</p>
       <h1 class="text-4xl font-bold sm:text-5xl">We couldn't find that page.</h1>

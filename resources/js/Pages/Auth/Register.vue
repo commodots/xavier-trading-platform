@@ -1,42 +1,42 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0B132B] to-[#1C2541] text-white">
+  <main id="main-content" tabindex="-1" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0B132B] to-[#1C2541] text-white">
     <div class="w-full max-w-md bg-[#1C1F2E]/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
 
       <div class="mb-10 text-center">
-        <img src="/images/xavier-logo.png" class="h-20 mx-auto mb-4 drop-shadow-lg" />
-        <h1 class="text-3xl font-bold">Create Account</h1>
+        <img src="/images/xavier-logo.png" alt="Xavier" class="h-20 mx-auto mb-4 drop-shadow-lg" />
+        <h1 id="register-title" class="text-3xl font-bold">Create Account</h1>
         <p class="text-sm text-gray-400 mt-2">Get started with your Xavier trading account</p>
       </div>
 
-      <form @submit.prevent="submit" class="space-y-4">
+      <form aria-labelledby="register-title" @submit.prevent="submit" class="space-y-4">
         
         <div>
-          <label class="block mb-1 text-gray-300">Full Name</label>
-          <input v-model="name" type="text"
+          <label for="register-name" class="block mb-1 text-gray-300">Full Name</label>
+          <input id="register-name" v-model="name" type="text" autocomplete="name"
             class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#00D4FF] outline-none"
             required />
           <p v-if="localErrors.name" class="mt-1 text-sm text-red-400">{{ localErrors.name[0] }}</p>
         </div>
 
         <div>
-          <label class="block mb-1 text-gray-300">Email</label>
-          <input v-model="email" type="email"
+          <label for="register-email" class="block mb-1 text-gray-300">Email</label>
+          <input id="register-email" v-model="email" type="email" autocomplete="email"
             class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#00D4FF] outline-none"
             required />
           <p v-if="localErrors.email" class="mt-1 text-sm text-red-400">{{ localErrors.email[0] }}</p>
         </div>
 
          <div>
-          <label class="block mb-1 text-gray-300">Date of Birth</label>
-          <input v-model="dob" type="date"
+          <label for="register-dob" class="block mb-1 text-gray-300">Date of Birth</label>
+          <input id="register-dob" v-model="dob" type="date" autocomplete="bday"
             class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#00D4FF] outline-none"
             required />
           <p v-if="localErrors.dob" class="mt-1 text-sm text-red-400">{{ localErrors.dob[0] }}</p>
         </div>
 
         <div>
-          <label class="block mb-1 text-gray-300">Password</label>
-          <input v-model="password" type="password"
+          <label for="register-password" class="block mb-1 text-gray-300">Password</label>
+          <input id="register-password" v-model="password" type="password" autocomplete="new-password"
             class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#00D4FF] outline-none"
             required />
           
@@ -52,8 +52,8 @@
         </div>
 
         <div>
-          <label class="block mb-1 text-gray-300">Confirm Password</label>
-          <input v-model="password_confirmation" type="password"
+          <label for="register-password-confirmation" class="block mb-1 text-gray-300">Confirm Password</label>
+          <input id="register-password-confirmation" v-model="password_confirmation" type="password" autocomplete="new-password"
             class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#00D4FF] outline-none"
             required />
           <p v-if="password !== password_confirmation && password_confirmation" class="mt-1 text-xs text-red-400">
@@ -83,7 +83,7 @@
 
     <WarningModal :show="showWarningModal" :message="warningMessage" @close="showWarningModal = false" />
     <ErrorModal :show="showErrorModal" :message="errorMessage" @close="showErrorModal = false" />
-  </div>
+  </main>
 </template>
 
 <script setup>

@@ -14,6 +14,18 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertRedirect('/dashboard');
+        $response->assertOk()
+            ->assertSee('name="description"', false)
+            ->assertSee('name="robots" content="index,follow"', false)
+            ->assertSee('Smart Trading, Secure &amp; Simplified | Xavier', false);
+    }
+
+    public function test_client_application_routes_can_be_loaded_directly_without_a_web_session(): void
+    {
+        foreach (['/dashboard', '/wallet', '/profile'] as $path) {
+            $this->get($path)
+                ->assertOk()
+                ->assertSee('id="app"', false);
+        }
     }
 }

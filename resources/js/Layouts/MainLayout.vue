@@ -4,7 +4,7 @@
     currentView === 'user' ? 'bg-[#0B132B]' : 'bg-[#313753]'
   ]">
 
-    <div v-if="sidebarOpen" @click="sidebarOpen = false"
+    <div v-if="sidebarOpen" @click="sidebarOpen = false" aria-hidden="true"
       class="fixed inset-0 z-40 transition-opacity bg-black/50 backdrop-blur-sm md:hidden"></div>
 
     <aside :class="[
@@ -13,7 +13,7 @@
       sidebarOpen ? 'translate-x-0' : '-translate-x-[75vw]',
       'md:translate-x-0 absolute md:relative inset-y-0 left-0 z-50',
       !sidebarOpen && 'hidden md:block'
-    ]">
+    ]" aria-label="Primary navigation">
       <div>
         <div class="flex items-center justify-center py-6">
           <img src="/images/xavier-logo.png" alt="Logo" class="h-[60px] object-contain" />
@@ -26,7 +26,7 @@
           </button>
         </div>
 
-        <nav class="px-4 mt-4 space-y-1 text-sm">
+        <nav id="primary-navigation" class="px-4 mt-4 space-y-1 text-sm" aria-label="Main menu">
 
           <div v-if="currentView === 'user'">
 
@@ -110,9 +110,16 @@
       </div>
     </aside>
 
-    <main class="flex-1 bg-[#0B132B]">
+    <main id="main-content" tabindex="-1" class="flex-1 bg-[#0B132B]">
       <div class="flex items-center justify-between p-1 md:px-6 bg-[#0B132B]/95 backdrop-blur z-30 sticky top-0">
-        <button class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white " @click="sidebarOpen = !sidebarOpen">
+        <button
+          type="button"
+          class="md:hidden mb-4 bg-[#1C2541] p-2 rounded text-white"
+          aria-controls="primary-navigation"
+          :aria-expanded="sidebarOpen"
+          :aria-label="sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'"
+          @click="sidebarOpen = !sidebarOpen"
+        >
           ☰
         </button>
 

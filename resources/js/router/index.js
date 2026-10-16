@@ -5,7 +5,16 @@ const routes = [
   /* ----------------------------------------------
      PUBLIC ROUTE
   ------------------------------------------------*/
-  { path: "/", name: "landing-page", component: () => import("@/Pages/LandingPage.vue") },
+  {
+    path: "/",
+    name: "landing-page",
+    component: () => import("@/Pages/LandingPage.vue"),
+    meta: {
+      title: "Smart Trading, Secure & Simplified",
+      description: "Access global markets, manage NGN and USD wallets, and trade with Xavier’s secure trading platform.",
+      indexable: true,
+    },
+  },
   { path: "/login", name: "login", component: () => import("@/Pages/Auth/Login.vue") },
   { path: "/register", name: "register", component: () => import("@/Pages/Auth/Register.vue") },
   { path: "/forgot-password", name: "forgot-password", component: () => import("@/Pages/Auth/ForgotPassword.vue") },
@@ -553,6 +562,67 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+const pageTitle = (route) => {
+  if (route.meta.title) {
+    return route.meta.title;
+  }
+
+  const routeName = String(route.name || route.path)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[-_/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return routeName.replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
+const updateMeta = (attribute, key, content) => {
+  let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
+
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute(attribute, key);
+    document.head.appendChild(element);
+  }
+
+  element.setAttribute("content", content);
+};
+
+router.afterEach((to) => {
+  const title = pageTitle(to);
+  const description = to.meta.description
+    || `${title} on Xavier. Manage your investments and access financial markets through our trading platform.`;
+  const canonical = new URL(to.path, window.location.origin).toString();
+  const robots = to.meta.indexable ? "index,follow" : "noindex,nofollow";
+
+  document.title = `${title} | Xavier`;
+  updateMeta("name", "description", description);
+  updateMeta("name", "robots", robots);
+  updateMeta("property", "og:type", "website");
+  updateMeta("property", "og:site_name", "Xavier");
+  updateMeta("property", "og:title", `${title} | Xavier`);
+  updateMeta("property", "og:description", description);
+  updateMeta("property", "og:url", canonical);
+  updateMeta("name", "twitter:card", "summary");
+  updateMeta("name", "twitter:title", `${title} | Xavier`);
+  updateMeta("name", "twitter:description", description);
+
+  let canonicalLink = document.head.querySelector('link[rel="canonical"]');
+  if (!canonicalLink) {
+    canonicalLink = document.createElement("link");
+    canonicalLink.rel = "canonical";
+    document.head.appendChild(canonicalLink);
+  }
+  canonicalLink.href = canonical;
+
+  window.requestAnimationFrame(() => {
+    const announcement = document.getElementById("route-announcer");
+    if (announcement) {
+      announcement.textContent = `${title} page loaded`;
+    }
+  });
 });
 
 /* --------------------------------------------------

@@ -19,7 +19,7 @@ class WalletTest extends TestCase
 
         $this->actingAs($user);
 
-        $response = $this->get('/wallet');
+        $response = $this->getJson('/api/wallet/balances');
 
         $response->assertStatus(200);
         $response->assertJson([
