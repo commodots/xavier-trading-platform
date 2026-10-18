@@ -3,7 +3,7 @@
 **Project:** Xavier Trading Platform  
 **Branch:** stabilization/Steps-1-3  
 **Date:** 2026-10-16  
-**Status:** Step 1 Complete — Baseline established, defects logged
+**Status:** Step 1 Complete — Baseline established, defects logged and prioritized
 
 ---
 
@@ -15,10 +15,9 @@
 | Environment | `php artisan about` | PHP 8.2.12, Composer 2.8.12, env=local |
 | Routes | `php artisan route:list` | 411 routes registered |
 | Migrations | `php artisan migrate:status` | All migrations "Ran" |
-| Tests | `php artisan test` | 5 failures in `CslDiagnoseCommandTest` |
+| Tests (baseline) | `php artisan test` | 5 failures in `CslDiagnoseCommandTest` |
+| Tests (after fixes) | `php vendor/bin/phpunit` | **OK — 304 tests, 1124 assertions** (6 PHPUnit deprecations, non-failing) |
 | Frontend Build | `npm run build` | Vite build succeeds |
-
-**Test Results:** All test suites pass except `Tests\Feature\CSL\CslDiagnoseCommandTest` (5/5 tests fail).
 
 ---
 
@@ -26,106 +25,98 @@
 
 | ID | Defect | Severity | Location | Test Result |
 |----|--------|----------|----------|-------------|
-| DS1-001 | `csl:diagnose` scheduler checks crash: `Call to a member function isEmpty() on array` | Critical | `app/Console/Commands/CslDiagnose.php:516` | Fail |
+| DS1-001 | `csl:diagnose` scheduler checks crash: `Call to a member function isEmpty() on array` | Critical | `app/Console/Commands/CslDiagnose.php:523,537` | Pass (fixed) |
+| DS1-002 | `csl:diagnose` reports "CSL credentials configured: FAIL" even when mock transport is enabled | Medium | `app/Console/Commands/CslDiagnose.php:182-186` | Pass (fixed) |
+| DS1-003 | CSL test credentials not configured in `.env` | High | `.env` (`CSL_CLIENT_ID`, `CSL_CLIENT_SECRET` empty) | Blocked — awaiting credentials |
+| DS1-004 | `CslDiagnoseCommandTest` output expectations overlap, so Mockery's first-match-wins output matching masks command output and produces false failures | Medium | `tests/Feature/CSL/CslDiagnoseCommandTest.php` | Pass (fixed) |
+| DS1-005 | Inconsistent `CSL_MOCK` value between `.env` (true) and `phpunit.xml` (false) | Low | `.env` vs `phpunit.xml` | Pending — documentation decision |
 
 ---
 
 ## Detailed Defect Analysis
 
-### DS1-001: Scheduler `isEmpty()` on array (CRITICAL)
+### DS1-001: Scheduler `isEmpty()` on array (CRITICAL) — FIXED
 
-**Root cause:** In Laravel 12, `Illuminate\Console\Scheduling\Schedule::events()` returns a plain PHP array, not a collection. The `CslDiagnose::checkScheduler()` method calls `$events->isEmpty()` on line 523, which throws:
+**Root cause:** In Laravel 12, `Illuminate\Console\Scheduling\Schedule::events()` returns a plain PHP array, not a collection. `CslDiagnose::checkScheduler()` called `$events->isEmpty()` (and later `$events->map()`), which threw `Call to a member function isEmpty() on array`. The try/catch marked all 4 scheduler checks as `UNAVAILABLE` with `failed: true`, forcing the overall status to NOT READY with exit code 1 regardless of the rest of the integration state.
 
-```
-Call to a member function isEmpty() on array
-```
+**Fix applied:** `empty($events)` instead of `$events->isEmpty()`; `collect($events)->map(...)` instead of `$events->map(...)`. `php artisan csl:diagnose` now reports `READY` with exit code 0 in the local mock environment.
 
-This exception is caught by the try/catch in `checkScheduler()`, which marks all 4 scheduler checks as `UNAVAILABLE` with `failed: true`. Since any `failed: true` check flips the overall status to NOT READY, the command always exits with code 1.
+**Verification:** `CslDiagnoseCommandTest` — 5/5 tests pass (36 assertions).
 
-**Observed output:**
-```
-Scheduler
----------
-  Instrument sync                  UNAVAILABLE  (Call to a member function isEmpty() on array)
-  Order reconciliation             UNAVAILABLE  (Call to a member function isEmpty() on array)
-  Portfolio sync                   UNAVAILABLE  (Call to a member function isEmpty() on array)
-  Account sync                     UNAVAILABLE  (Call to a member function isEmpty() on array)
+### DS1-002: Credentials FAIL in mock mode (MEDIUM) — FIXED
 
-Overall
+**Root cause:** `CslDiagnose::checkConfiguration()` unconditionally checked `CSL_CLIENT_ID`/`CSL_CLIENT_SECRET`, reporting FAIL when empty. When `CSL_MOCK=true` the deterministic mock transport serves every CSL call, so credentials are not required — `CslHealthService::check()` already short-circuits in mock mode, but the configuration section did not.
 
-### DS1-002: Credentials FAIL in mock mode (MEDIUM)
+**Fix applied:** Credentials are reported `OK` (non-failing) when the mock transport is enabled, with the note "not required (mock transport)". A missing-credential FAIL is still raised when mock is disabled, preserving the DS1-003 guarantee.
 
-**Root cause:** `CslDiagnose::checkConfiguration()` unconditionally checks `CSL_CLIENT_ID` and `CSL_CLIENT_SECRET` (lines 182-185), reporting FAIL when they are empty. However, when `CSL_MOCK=true`, the mock transport handles all CSL calls without needing real credentials. `CslHealthService::check()` already handles this correctly by short-circuiting and returning all checks as OK when mock is enabled — but `CslDiagnose::checkConfiguration()` runs independently and does not account for mock mode.
+### DS1-003: CSL test credentials not configured (HIGH) — OPEN (BLOCKED)
 
-**Impact:** Operators running the diagnostic in mock mode see "CSL credentials configured: FAIL" and may incorrectly conclude the integration is broken.
+**Root cause:** `.env` has empty values for `CSL_CLIENT_ID` and `CSL_CLIENT_SECRET`. The application cannot authenticate to the real CSL OAuth endpoint without them.
 
-**Fix:** In `checkConfiguration()`, skip the credentials pass/fail when mock is enabled, or report it as informational only (non-failing) in mock mode.
--------
-  CSL integration status           NOT READY
-```
+**Impact:** Live CSL integration validation cannot proceed. Mock mode works for development and UAT, but acceptance testing against real CSL endpoints requires valid test credentials.
 
-**Impact:** The `csl:diagnose` command is the single operational health check for CSL integration. It cannot be used to verify readiness because it always reports NOT READY due to this bug. All 5 tests in `CslDiagnoseCommandTest` fail as a result.
+**Required fix:** Obtain CSL test credentials from the provider and add them to `.env` (never commit). `CSL_LIVE_TRADING_ENABLED` must remain `false` per project rules.
 
-**Fix:** Change line 523 from:
+**Test result:** Blocked — no code change possible until credentials are supplied.
 
-### DS1-003: CSL credentials not configured (HIGH)
+### DS1-004: Overlapping output expectations in CslDiagnoseCommandTest (MEDIUM) — FIXED
 
-**Root cause:** `.env` has empty values for `CSL_CLIENT_ID` and `CSL_CLIENT_SECRET`. Without these, the application cannot authenticate to the real CSL OAuth endpoint.
+**Root cause:** Laravel's `PendingCommand::mockConsoleOutput()` registers one Mockery expectation per `expectsOutputToContain()` substring, and Mockery serves each `doWrite()` call from the **first** matching expectation (earlier-registered expectations are never exhausted). Substring overlaps therefore masked later expectations:
 
-**Impact:** Live CSL integration cannot be tested. Mock mode works fine for development and UAT, but final acceptance testing against real CSL endpoints requires valid credentials.
+- `"Market"` matched the `"Market account mapped"` row first → its own expectation never fired.
+- `"CSL integration status"` matched the `NOT READY` / `READY` summary line first → `"NOT READY"` / `"READY"` never fired.
 
-**Fix:** Obtain CSL test credentials from the provider and add them to `.env` (never commit to git). `CSL_LIVE_TRADING_ENABLED` must remain `false` per project rules.
-```php
-if ($events->isEmpty()) {
-```
-to:
+The command itself rendered every line correctly (confirmed via temporary per-row debug logging), so these were false negatives.
 
-### DS1-004: Inconsistent CSL_MOCK configuration (LOW)
+**Fix applied:** Expectations were made non-overlapping (specific substrings registered before — and replacing — their overlapping supstrings; e.g. the summary line is asserted via `READY`/`NOT READY` instead of `CSL integration status`). Temporary debug logging was removed afterwards.
 
-**Root cause:** `.env` sets `CSL_MOCK=true` while `phpunit.xml` sets `CSL_MOCK=false`. This means tests run against real CSL endpoints (via `Http::fake()`) while local development uses the deterministic fixture transport.
 
-**Impact:** Subtle behavioral differences between test and local environments. The `CslDiagnoseCommandTest` sets `config()->set('services.csl.mock', false)` explicitly, which disables the mock transport in tests and exercises a different code path than local development.
+### DS1-005: Inconsistent CSL_MOCK configuration (LOW) — OPEN
 
-**Fix:** Either align both to the same value, or document that tests intentionally run with mock disabled to exercise `Http::fake()` paths.
-```php
-if (empty($events)) {
-```
-| DS1-002 | `csl:diagnose` reports "CSL credentials configured: FAIL" even when mock transport is enabled | Medium | `app/Console/Commands/CslDiagnose.php:182-185` | Fail |
-| DS1-003 | CSL credentials not configured in `.env` | High | `.env` lines 166-167 | Pending |
+**Root cause:** `.env` sets `CSL_MOCK=true` (local development uses the deterministic fixture transport) while `phpunit.xml` sets `CSL_MOCK=false` (tests use `Http::fake()`). This is intentional — tests deliberately exercise the non-mock HTTP code path — but it is undocumented.
+
+**Required fix:** Document the intentional difference (e.g. a comment in `phpunit.xml`) or align the values. No behavioural defect observed; `CslDiagnoseCommandTest::setUp()` also sets the config explicitly.
+
+**Test result:** Pending — documentation decision.
+
+---
+
+## Notes
+
+- 6 PHPUnit deprecations remain (`@test` doc-comment metadata in `LoginTest` and `WalletTest`). Non-failing; should be migrated to `#[Test]` attributes before a PHPUnit 12 upgrade. Recorded as a low-priority follow-up.
+- `.env` is correctly git-ignored; no secrets are committed.
 
 ---
 
 ## Verified Working Features (Regression Baseline)
 
-The following areas were confirmed working during Step 1:
+Confirmed by the passing full suite (304 tests, 1124 assertions):
 
-- **Authentication:** Login, registration, password reset, 2FA, email verification — all tests pass
-- **Wallet:** Balances, deposits, minimum amount validation — all tests pass
-- **CSL Services (excluding diagnose command):** Authentication, order submission, cancellation, reconciliation, partial fill, instrument sync, portfolio sync, market data, idempotency, safety guards — all tests pass
-- **Demo mode:** Wallet funding, trading, portfolio, reset — all tests pass
-- **Billing:** Fee deduction, debt handling, suspension — all tests pass
-- **Admin:** Controls, notifications — all tests pass
-- **Security:** Device tracking, 2FA enforcement — all tests pass
-- **Frontend build:** Vite production build succeeds — verified
+- **Authentication:** Login, registration, password reset, 2FA, email verification
+- **Wallet:** Balances, deposits, minimum-amount validation
+- **CSL services:** OAuth/authentication, order submission, cancellation, reconciliation, partial fills, instrument sync, portfolio sync, account sync, market data, idempotency, safety guards, **and the `csl:diagnose` health check**
+- **Demo mode:** Wallet funding, trading, portfolio, reset
+- **Billing:** Fee deduction, debt handling, suspension
+- **Admin/Security:** Controls, notifications, device tracking, 2FA enforcement
+- **Frontend build:** `npm run build` (Vite) succeeds
 
 ---
 
-## Untested Features (Marked as Unverified)
+## Untested / Unverified (Step 1 rule #9)
 
-Per Step 1 rule #9, the following are marked unverified, not completed:
-
-- Live CSL trading (must remain disabled per project rules)
-- Real Paystack/Fincra webhook processing (sandbox keys only)
-- Production database migrations (only SQLite test DB used)
-- Real financial transactions (blocked by project rules)
+- Live CSL trading — intentionally disabled (`CSL_LIVE_TRADING_ENABLED=false`); **unverified**
+- Real CSL OAuth connectivity — blocked on DS1-003; **unverified**
+- Real Paystack/Fincra webhook processing (sandbox keys only) — **unverified**
+- Production database migrations (tests run on SQLite `:memory:`) — **unverified**
+- Real financial transactions — blocked by project rules; **unverified**
 
 ---
 
 ## Next Steps (Step 2)
 
-1. Fix DS1-001 (scheduler `isEmpty()` bug) — critical path unblocker
-2. Fix DS1-002 (credentials check in mock mode)
-3. Re-run `php artisan test` to confirm all tests pass
-4. Configure CSL test credentials in `.env` for live integration validation
-5. Proceed to CSL integration validation and financial workflow testing
-| DS1-004 | Inconsistent `CSL_MOCK` value between `.env` and `phpunit.xml` | Low | `.env:164` vs `phpunit.xml:25` | Pending |
+1. Obtain CSL test credentials and resolve DS1-003.
+2. Run `csl:diagnose` against real CSL test endpoints with mock disabled.
+3. Execute financial workflow testing (deposit → trade → settlement → withdrawal) on a safe test database.
+4. Decide DS1-005 (documentation vs alignment).
+5. Migrate `@test` doc-comments to `#[Test]` attributes (low priority).
+
