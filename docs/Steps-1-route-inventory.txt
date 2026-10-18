@@ -1,0 +1,415 @@
+﻿
+  GET|HEAD        / ......................................................................................... routes/web.php:18
+  POST            _boost/browser-logs .............. boost.browser-logs ΓÇ║ vendor/laravel/boost/src/BoostServiceProvider.php:115
+  GET|HEAD        admin/audit ................................................. admin.audit.index ΓÇ║ Admin\AuditController@index
+  GET|HEAD        admin/audit/export ........................................ admin.audit.export ΓÇ║ Admin\AuditController@export
+  GET|HEAD        admin/dashboard ................................. admin.dashboard ΓÇ║ Admin\SettlementDashboardController@index
+  GET|HEAD        admin/departments ............................................... admin.departments.index ΓÇ║ routes/web.php:94
+  GET|HEAD        admin/notifications ..................... admin.notifications.index ΓÇ║ Admin\AdminNotificationController@index
+  POST            admin/notifications/send .................. admin.notifications.send ΓÇ║ Admin\AdminNotificationController@send
+  GET|HEAD        admin/security/active-sessions ..... admin.security.active-sessions ΓÇ║ Admin\SecurityController@activeSessions
+  GET|HEAD        admin/security/login-history ........... admin.security.login-history ΓÇ║ Admin\SecurityController@loginHistory
+  DELETE          admin/security/sessions/user/{userId} admin.security.logout-all-sessions ΓÇ║ Admin\SecurityController@logoutAlΓÇª
+  DELETE          admin/security/sessions/{id} ......... admin.security.logout-session ΓÇ║ Admin\SecurityController@logoutSession
+  GET|HEAD        admin/settings ................................ admin.settings.index ΓÇ║ Admin\PlatformSettingsController@index
+  POST            admin/settings .............................. admin.settings.update ΓÇ║ Admin\PlatformSettingsController@update
+  POST            admin/settings/clear-cache ......... admin.settings.clear-cache ΓÇ║ Admin\PlatformSettingsController@clearCache
+  POST            api/2fa/verify ...................................................... Api\Security\TwoFactorController@verify
+  GET|HEAD        api/account ..................................................................... Api\TradeController@account
+  GET|HEAD        api/admin/activities .................................................... Api\AdminController@getActivityLogs
+  GET|HEAD        api/admin/advisory-posts ......................... advisory-posts.index ΓÇ║ Admin\AdminAdvisoryController@index
+  POST            api/admin/advisory-posts ......................... advisory-posts.store ΓÇ║ Admin\AdminAdvisoryController@store
+  GET|HEAD        api/admin/advisory-posts/{advisory_post} ........... advisory-posts.show ΓÇ║ Admin\AdminAdvisoryController@show
+  PUT|PATCH       api/admin/advisory-posts/{advisory_post} ....... advisory-posts.update ΓÇ║ Admin\AdminAdvisoryController@update
+  DELETE          api/admin/advisory-posts/{advisory_post} ..... advisory-posts.destroy ΓÇ║ Admin\AdminAdvisoryController@destroy
+  GET|HEAD        api/admin/audit-logs ....................................................... Api\AdminController@getAuditLogs
+  GET|HEAD        api/admin/billing/debts .............................................. Admin\BillingDashboardController@debts
+  GET|HEAD        api/admin/billing/renewals ........................................ Admin\BillingDashboardController@renewals
+  GET|HEAD        api/admin/billing/revenue .......................................... Admin\BillingDashboardController@revenue
+  GET|HEAD        api/admin/billing/summary .......................................... Admin\BillingDashboardController@summary
+  GET|HEAD        api/admin/billing/users .............................................. Admin\BillingDashboardController@users
+  GET|HEAD        api/admin/compliance/kyc/pending ......................................... Admin\ComplianceController@pending
+  GET|HEAD        api/admin/compliance/kyc/rejected ....................................... Admin\ComplianceController@rejected
+  GET|HEAD        api/admin/compliance/kyc/verified ....................................... Admin\ComplianceController@verified
+  GET|HEAD        api/admin/compliance/risk-flags ........................................ Admin\ComplianceController@riskFlags
+  POST            api/admin/compliance/risk-flags/{flag}/dismiss ....................... Admin\ComplianceController@dismissFlag
+  GET|HEAD        api/admin/dashboard ........................................................... Api\AdminController@dashboard
+  GET|HEAD        api/admin/departments ................................................... Admin\ExpenseController@departments
+  GET|HEAD        api/admin/departments/manage ............................................... Admin\DepartmentController@index
+  POST            api/admin/departments/manage ............................................... Admin\DepartmentController@store
+  PUT             api/admin/departments/manage/{department} ................................. Admin\DepartmentController@update
+  DELETE          api/admin/departments/manage/{department} ................................ Admin\DepartmentController@destroy
+  POST            api/admin/departments/manage/{department}/toggle .......................... Admin\DepartmentController@toggle
+  GET|HEAD        api/admin/earnings .......................................................... Api\AdminController@getEarnings
+  GET|HEAD        api/admin/expense-categories ............................................. Admin\ExpenseController@categories
+  GET|HEAD        api/admin/expense-categories/manage ................................. Admin\ExpenseController@indexCategories
+  POST            api/admin/expense-categories/store .................................... Admin\ExpenseController@storeCategory
+  PUT             api/admin/expense-categories/{category} .............................. Admin\ExpenseController@updateCategory
+  POST            api/admin/expense-categories/{category}/toggle ....................... Admin\ExpenseController@toggleCategory
+  GET|HEAD        api/admin/expenses ............................................................ Admin\ExpenseController@index
+  POST            api/admin/expenses ............................................................ Admin\ExpenseController@store
+  GET|HEAD        api/admin/expenses/create .................................................... Admin\ExpenseController@create
+  GET|HEAD        api/admin/expenses/{expense} ................................................... Admin\ExpenseController@show
+  PUT             api/admin/expenses/{expense} ................................................. Admin\ExpenseController@update
+  DELETE          api/admin/expenses/{expense} ................................................ Admin\ExpenseController@destroy
+  POST            api/admin/expenses/{expense}/approve ........................................ Admin\ExpenseController@approve
+  POST            api/admin/expenses/{expense}/cancel .......................................... Admin\ExpenseController@cancel
+  GET|HEAD        api/admin/expenses/{expense}/edit .............................................. Admin\ExpenseController@edit
+  POST            api/admin/expenses/{expense}/pay ........................................... Admin\ExpenseController@markPaid
+  GET|HEAD        api/admin/fixed-income/dashboard ............................. Api\Admin\FixedIncomeDashboardController@index
+  GET|HEAD        api/admin/fixed-income/investments .......................... Api\Admin\FixedIncomeInvestmentController@index
+  GET|HEAD        api/admin/fixed-income/investments/{fixedIncomeInvestment} ... Api\Admin\FixedIncomeInvestmentController@show
+  POST            api/admin/fixed-income/investments/{fixedIncomeInvestment}/activate Api\Admin\FixedIncomeInvestmentControlleΓÇª
+  POST            api/admin/fixed-income/investments/{fixedIncomeInvestment}/cancel Api\Admin\FixedIncomeInvestmentController@ΓÇª
+  POST            api/admin/fixed-income/investments/{fixedIncomeInvestment}/mature Api\Admin\FixedIncomeInvestmentController@ΓÇª
+  POST            api/admin/fixed-income/investments/{fixedIncomeInvestment}/reject Api\Admin\FixedIncomeInvestmentController@ΓÇª
+  GET|HEAD        api/admin/fixed-income/products ................................ Api\Admin\FixedIncomeProductController@index
+  POST            api/admin/fixed-income/products ................................ Api\Admin\FixedIncomeProductController@store
+  GET|HEAD        api/admin/fixed-income/products/{fixedIncomeProduct} ............ Api\Admin\FixedIncomeProductController@show
+  PUT             api/admin/fixed-income/products/{fixedIncomeProduct} .......... Api\Admin\FixedIncomeProductController@update
+  DELETE          api/admin/fixed-income/products/{fixedIncomeProduct} ......... Api\Admin\FixedIncomeProductController@destroy
+  POST            api/admin/fixed-income/products/{fixedIncomeProduct}/activate Api\Admin\FixedIncomeProductController@activate
+  POST            api/admin/fixed-income/products/{fixedIncomeProduct}/close ..... Api\Admin\FixedIncomeProductController@close
+  POST            api/admin/fixed-income/products/{fixedIncomeProduct}/suspend . Api\Admin\FixedIncomeProductController@suspend
+  GET|HEAD        api/admin/fixed-income/reports/investments ................ Api\Admin\FixedIncomeReportController@investments
+  POST            api/admin/fx-rates ............................................................. Admin\FxRateController@store
+  DELETE          api/admin/fx-rates/{id} ...................................................... Admin\FxRateController@destroy
+  GET|HEAD        api/admin/fx/conversions ........................................... Admin\FxManagementController@conversions
+  GET|HEAD        api/admin/fx/health ..................................................... Admin\FxManagementController@health
+  GET|HEAD        api/admin/fx/management .................................................. Admin\FxManagementController@index
+  PUT             api/admin/fx/pairs/{id} ............................................. Admin\FxManagementController@updatePair
+  GET|HEAD        api/admin/fx/reconciliation .............................. Admin\FxReconciliationController@getReconciliation
+  POST            api/admin/fx/run-reconciliation .......................... Admin\FxReconciliationController@runReconciliation
+  POST            api/admin/fx/switch-provider .................................... Admin\FxManagementController@switchProvider
+  POST            api/admin/fx/toggle-auto-convert ............................. Admin\FxManagementController@toggleAutoConvert
+  GET|HEAD        api/admin/kyc-settings ................................................... Api\AdminController@getKycSettings
+  POST            api/admin/kyc-settings ................................................ Api\AdminController@updateKycSettings
+  GET|HEAD        api/admin/kyc/{id} ............................................................... Api\AdminController@getKyc
+  GET|HEAD        api/admin/kycs ..................................................................... Api\AdminController@kycs
+  POST            api/admin/kycs/{id}/review .................................................... Api\AdminController@reviewKyc
+  GET|HEAD        api/admin/model-portfolios ............... model-portfolios.index ΓÇ║ Admin\AdminModelPortfolioController@index
+  POST            api/admin/model-portfolios ............... model-portfolios.store ΓÇ║ Admin\AdminModelPortfolioController@store
+  GET|HEAD        api/admin/model-portfolios/{model_portfolio} model-portfolios.show ΓÇ║ Admin\AdminModelPortfolioController@show
+  PUT|PATCH       api/admin/model-portfolios/{model_portfolio} model-portfolios.update ΓÇ║ Admin\AdminModelPortfolioController@uΓÇª
+  DELETE          api/admin/model-portfolios/{model_portfolio} model-portfolios.destroy ΓÇ║ Admin\AdminModelPortfolioController@ΓÇª
+  GET|HEAD        api/admin/notifications ............................................. Admin\AdminNotificationController@index
+  POST            api/admin/notifications/send ......................................... Admin\AdminNotificationController@send
+  GET|HEAD        api/admin/orders ................................................................. Api\AdminController@orders
+  POST            api/admin/reports/clear-cache ............................................ Admin\ReportsController@clearCache
+  GET|HEAD        api/admin/reports/dashboard ............................................... Admin\ReportsController@dashboard
+  GET|HEAD        api/admin/reports/downloads ............................................... Admin\ReportsController@downloads
+  GET|HEAD        api/admin/reports/exec-dashboard ...................................... Admin\ReportsController@execDashboard
+  GET|HEAD        api/admin/reports/executive-dashboard ............................ Admin\ReportsController@executiveDashboard
+  GET|HEAD        api/admin/reports/expenses ................................................. Admin\ReportsController@expenses
+  POST            api/admin/reports/export ..................................................... Admin\ReportsController@export
+  GET|HEAD        api/admin/reports/financial ............................................... Admin\ReportsController@financial
+  GET|HEAD        api/admin/reports/financial-summary .......................... Admin\ReportsController@financialSummaryReport
+  GET|HEAD        api/admin/reports/financial/summary ................................ Admin\ReportsController@financialSummary
+  GET|HEAD        api/admin/reports/financial/summary/statistics .................. Admin\ReportsController@financialStatistics
+  GET|HEAD        api/admin/reports/investment-plans .................................. Admin\ReportsController@investmentPlans
+  GET|HEAD        api/admin/reports/investments ........................................... Admin\ReportsController@investments
+  GET|HEAD        api/admin/reports/investments/charts ............................... Admin\ReportsController@investmentCharts
+  GET|HEAD        api/admin/reports/investments/distribution ................... Admin\ReportsController@investmentDistribution
+  GET|HEAD        api/admin/reports/investments/filters ............................. Admin\ReportsController@investmentFilters
+  GET|HEAD        api/admin/reports/investments/summary ............................. Admin\ReportsController@investmentSummary
+  GET|HEAD        api/admin/reports/investments/top-investors ............................ Admin\ReportsController@topInvestors
+  GET|HEAD        api/admin/reports/kyc ........................................................... Admin\ReportsController@kyc
+  GET|HEAD        api/admin/reports/login-history ........................................ Admin\ReportsController@loginHistory
+  GET|HEAD        api/admin/reports/logs ..................................................... Admin\ReportsController@viewLogs
+  GET|HEAD        api/admin/reports/maturity ................................................. Admin\ReportsController@maturity
+  POST            api/admin/reports/optimize ................................................. Admin\ReportsController@optimize
+  GET|HEAD        api/admin/reports/profit-loss ............................................ Admin\ReportsController@profitLoss
+  POST            api/admin/reports/queue-restart ........................................ Admin\ReportsController@queueRestart
+  GET|HEAD        api/admin/reports/referrals-subscriptions .................... Admin\ReportsController@referralsSubscriptions
+  GET|HEAD        api/admin/reports/referrals-subscriptions/summary ....... Admin\ReportsController@referralSubscriptionSummary
+  GET|HEAD        api/admin/reports/revenue ................................................... Admin\ReportsController@revenue
+  GET|HEAD        api/admin/reports/roi ........................................................... Admin\ReportsController@roi
+  POST            api/admin/reports/run-scheduler ........................................ Admin\ReportsController@runScheduler
+  GET|HEAD        api/admin/reports/search-users .......................................... Admin\ReportsController@searchUsers
+  GET|HEAD        api/admin/reports/subscriptions ....................................... Admin\ReportsController@subscriptions
+  GET|HEAD        api/admin/reports/system ..................................................... Admin\ReportsController@system
+  GET|HEAD        api/admin/reports/system/integration-health ....................... Admin\ReportsController@integrationHealth
+  GET|HEAD        api/admin/reports/system/logs ............................................ Admin\ReportsController@systemLogs
+  GET|HEAD        api/admin/reports/users ....................................................... Admin\ReportsController@users
+  GET|HEAD        api/admin/reports/users/filters ......................................... Admin\ReportsController@userFilters
+  GET|HEAD        api/admin/reports/users/summary ......................................... Admin\ReportsController@userSummary
+  GET|HEAD        api/admin/reports/users/{id} ............................................. Admin\ReportsController@userDetail
+  GET|HEAD        api/admin/reports/wallet-withdrawals .............................. Admin\ReportsController@walletWithdrawals
+  GET|HEAD        api/admin/reports/wallet-withdrawals/summary ................ Admin\ReportsController@walletWithdrawalSummary
+  GET|HEAD        api/admin/services ......................................................... Api\AdminServiceController@index
+  POST            api/admin/services ......................................................... Api\AdminServiceController@store
+  PUT             api/admin/services/{id} ................................................... Api\AdminServiceController@update
+  PUT             api/admin/services/{id}/mode .......................................... Api\AdminServiceController@updateMode
+  GET|HEAD        api/admin/services/{serviceId}/config .................................. Api\AdminServiceController@getConfig
+  POST            api/admin/services/{serviceId}/config ............................... Api\AdminServiceController@updateConfig
+  POST            api/admin/services/{serviceId}/connection .......................... Api\AdminServiceController@addConnection
+  PATCH           api/admin/services/{serviceId}/toggle .............................. Api\AdminServiceController@toggleService
+  GET|HEAD        api/admin/settings ....................................................... Admin\SystemSettingsController@get
+  POST            api/admin/settings/update ..................................... Admin\SystemSettingsController@updateSettings
+  POST            api/admin/settlements/complete/{trade} ......................... Admin\SettlementDashboardController@complete
+  GET|HEAD        api/admin/settlements/completed ............................... Admin\SettlementDashboardController@completed
+  GET|HEAD        api/admin/settlements/failed ..................................... Admin\SettlementDashboardController@failed
+  GET|HEAD        api/admin/settlements/metrics ................................... Admin\SettlementDashboardController@metrics
+  GET|HEAD        api/admin/settlements/pending ................................... Admin\SettlementDashboardController@pending
+  GET|HEAD        api/admin/stats ................................................................... Api\AdminController@stats
+  GET|HEAD        api/admin/subscription-plans ............. subscription-plans.index ΓÇ║ Admin\AdminSubscriptionController@index
+  POST            api/admin/subscription-plans ............. subscription-plans.store ΓÇ║ Admin\AdminSubscriptionController@store
+  GET|HEAD        api/admin/subscription-plans/{subscription_plan} subscription-plans.show ΓÇ║ Admin\AdminSubscriptionControllerΓÇª
+  PUT|PATCH       api/admin/subscription-plans/{subscription_plan} subscription-plans.update ΓÇ║ Admin\AdminSubscriptionControllΓÇª
+  DELETE          api/admin/subscription-plans/{subscription_plan} subscription-plans.destroy ΓÇ║ Admin\AdminSubscriptionControlΓÇª
+  GET|HEAD        api/admin/transaction-charges ................................................ Api\AdminController@getCharges
+  PUT             api/admin/transaction-charges/{id} ......................................... Api\AdminController@updateCharge
+  GET|HEAD        api/admin/transaction-types ................... transaction-types.index ΓÇ║ Api\TransactionTypeController@index
+  POST            api/admin/transaction-types ................... transaction-types.store ΓÇ║ Api\TransactionTypeController@store
+  GET|HEAD        api/admin/transaction-types/{transaction_type} .. transaction-types.show ΓÇ║ Api\TransactionTypeController@show
+  PUT|PATCH       api/admin/transaction-types/{transaction_type} transaction-types.update ΓÇ║ Api\TransactionTypeController@updaΓÇª
+  DELETE          api/admin/transaction-types/{transaction_type} transaction-types.destroy ΓÇ║ Api\TransactionTypeController@desΓÇª
+  GET|HEAD        api/admin/transactions ..................................................... Api\AdminController@transactions
+  GET|HEAD        api/admin/users ............................................... users.index ΓÇ║ Admin\AdminUserController@index
+  POST            api/admin/users ............................................... users.store ΓÇ║ Admin\AdminUserController@store
+  GET|HEAD        api/admin/users/search ........................................ Admin\AdminNotificationController@searchUsers
+  GET|HEAD        api/admin/users/{user} .......................................... users.show ΓÇ║ Admin\AdminUserController@show
+  PUT|PATCH       api/admin/users/{user} ...................................... users.update ΓÇ║ Admin\AdminUserController@update
+  DELETE          api/admin/users/{user} .................................... users.destroy ΓÇ║ Admin\AdminUserController@destroy
+  POST            api/admin/users/{user}/force-logout ................................... Admin\AdminUserController@forceLogout
+  POST            api/admin/users/{user}/reset-2fa ......................................... Admin\AdminUserController@reset2FA
+  POST            api/admin/users/{user}/role ............................................ Admin\AdminUserController@assignRole
+  POST            api/admin/users/{user}/suspend ............................................ Admin\AdminUserController@suspend
+  POST            api/admin/users/{user}/unsuspend ........................................ Admin\AdminUserController@unsuspend
+  GET|HEAD        api/admin/vendors ........................................................... Admin\ExpenseController@vendors
+  GET|HEAD        api/admin/vendors/manage ............................................... Admin\ExpenseController@indexVendors
+  POST            api/admin/vendors/store ................................................. Admin\ExpenseController@storeVendor
+  PUT             api/admin/vendors/{vendor} ............................................. Admin\ExpenseController@updateVendor
+  POST            api/admin/vendors/{vendor}/toggle ...................................... Admin\ExpenseController@toggleVendor
+  GET|HEAD        api/advisories ..................................................................... AdvisoryController@index
+  POST            api/alpaca/webhook ........................................................... AlpacaWebhookController@handle
+  POST            api/bvn/verify ........................................................... Api\OnboardingController@verifyBvn
+  GET|HEAD        api/companies/search/{query} .............................................. Api\TradeController@searchSymbols
+  GET|HEAD        api/crypto/address .......................................................... Api\CryptoController@getAddress
+  POST            api/crypto/webhook ....................................................... Api\CryptoWebhookController@handle
+  POST            api/crypto/withdraw ........................................................... Api\CryptoController@withdraw
+  POST            api/demo/reset ..................................................................... DemoController@resetDemo
+  POST            api/demo/start ..................................................................... DemoController@startDemo
+  POST            api/demo/trade .................................................................... DemoController@placeTrade
+  POST            api/deposit ............................................................ Api\NewTransactionController@deposit
+  POST            api/dummy/cscs/settle ........................................................ Api\DummyCscsController@settle
+  GET|HEAD        api/dummy/cscs/settlement/{trade_id} ............................... Api\DummyCscsController@settlementStatus
+  GET|HEAD        api/dummy/ngx/market/{symbol} ............................................. Api\DummyNgxController@marketData
+  POST            api/dummy/ngx/orders ...................................................... Api\DummyNgxController@placeOrder
+  GET|HEAD        api/dummy/ngx/orders/{order_id} .......................................... Api\DummyNgxController@orderStatus
+  GET|HEAD        api/dummy/ngx/quotes .................................................... Api\DummyNgxController@marketQuotes
+  POST            api/dummy/ngx/settle/{trade_id} .......................................... Api\DummyNgxController@settleTrade
+  GET|HEAD        api/dummy/ngx/trades .................................................... Api\DummyNgxController@tradeHistory
+  GET|HEAD        api/dummy/ngx/trades/{id} ................................................ Api\DummyNgxController@tradeStatus
+  POST            api/email/verification-notification ...................................................... routes/api.php:138
+  POST            api/fincra/webhook ....................................................... Api\FincraWebhookController@handle
+  GET|HEAD        api/fixed-income/investments ...................................... Api\FixedIncomeInvestmentController@index
+  GET|HEAD        api/fixed-income/investments/{fixedIncomeInvestment} ............... Api\FixedIncomeInvestmentController@show
+  POST            api/fixed-income/investments/{fixedIncomeInvestment}/reinvest .. Api\FixedIncomeInvestmentController@reinvest
+  GET|HEAD        api/fixed-income/products ................................................... Api\FixedIncomeController@index
+  GET|HEAD        api/fixed-income/products/{fixedIncomeProduct} ............................... Api\FixedIncomeController@show
+  POST            api/fixed-income/products/{fixedIncomeProduct}/calculate ................ Api\FixedIncomeController@calculate
+  POST            api/fixed-income/products/{fixedIncomeProduct}/invest ...................... Api\FixedIncomeController@invest
+  POST            api/fixed-income/products/{fixedIncomeProduct}/validate ........ Api\FixedIncomeController@validateInvestment
+  POST            api/forgot-password ............................. api.password.email ΓÇ║ Auth\PasswordResetLinkController@store
+  GET|HEAD        api/fx-rates .................................................................. Api\WalletController@getRates
+  POST            api/fx/convert ........................................................... Api\FxConversionController@convert
+  GET|HEAD        api/fx/history ........................................................... Api\FxConversionController@history
+  POST            api/fx/quote ............................................................... Api\FxConversionController@quote
+  POST            api/kyc/bvn ................................................................ Api\DojahKycController@verifyBvn
+  POST            api/kyc/nin ................................................................ Api\DojahKycController@verifyNin
+  POST            api/kyc/selfie .......................................................... Api\DojahKycController@verifySelfie
+  GET|HEAD        api/kyc/status ................................................................ Api\DojahKycController@status
+  POST            api/kyc/verify-liveness ............................................... Api\DojahKycController@verifyLiveness
+  POST            api/login .......................................................................... Api\AuthController@login
+  POST            api/login/verify-2fa ........................................... Api\Security\TwoFactorController@verifyLogin
+  POST            api/logout ........................................................................ Api\AuthController@logout
+  GET|HEAD        api/market/candles ......................................................... Api\MarketDataController@candles
+  GET|HEAD        api/market/crypto ............................................................... Api\MarketController@crypto
+  GET|HEAD        api/market/fixed-income .................................................... Api\MarketController@fixedIncome
+  GET|HEAD        api/market/global ............................................................... Api\MarketController@global
+  GET|HEAD        api/market/global/insights ........................................... Api\MarketController@getGlobalInsights
+  GET|HEAD        api/market/ngx ..................................................................... Api\MarketController@ngx
+  GET|HEAD        api/market/ngx/insights ................................................. Api\MarketController@getNGXInsights
+  GET|HEAD        api/market/quotes ............................................................... Api\MarketController@quotes
+  POST            api/market/update .......................................................... Api\TradeController@updateMarket
+  GET|HEAD        api/markets ...................................................................... Api\MarketController@index
+  GET|HEAD        api/markets/insights/{market} .................................................. Api\TradeController@insights
+  GET|HEAD        api/markets/stocks/{symbol}/history ................................... Api\MarketDataController@stockHistory
+  POST            api/onboard ................................................................ Api\OnboardingController@onboard
+  GET|HEAD        api/orders ..................................................................... Api\OmsController@listOrders
+  POST            api/orders ..................................................................... Api\OmsController@placeOrder
+  POST            api/orders/{id}/cancel ........................................................ Api\OmsController@cancelOrder
+  GET|POST|HEAD   api/paystack/callback ................................... paystack.callback ΓÇ║ Api\PaystackController@callback
+  POST            api/paystack/initiate ....................................................... Api\PaystackController@initiate
+  GET|HEAD        api/paystack/verify/{reference} ............................................... Api\PaystackController@verify
+  POST            api/paystack/webhook ................................................... Api\PaystackWebhookController@handle
+  GET|HEAD        api/portfolio ................................................................. Api\PortfolioController@index
+  GET|HEAD        api/portfolio/history ................................................... Api\PortfolioController@performance
+  GET|HEAD        api/portfolio/trading ....................................................... Api\PortfolioController@trading
+  GET|HEAD        api/profile/kyc ................................................................ Api\ProfileController@getKyc
+  POST            api/profile/kyc ............................................................. Api\ProfileController@submitKyc
+  GET|HEAD        api/profile/me ................................................................... Api\ProfileController@show
+  POST            api/profile/update ............................................................. Api\ProfileController@update
+  POST            api/qoreid/webhook ....................................................... Api\QoreidWebhookController@handle
+  POST            api/register .................................................................... Api\AuthController@register
+  GET|HEAD        api/reports/account-statement ......................................... Api\ReportController@accountStatement
+  GET|HEAD        api/reports/history ...................................................... Api\ReportController@reportHistory
+  GET|HEAD        api/reports/trading-performance ..................................... Api\ReportController@tradingPerformance
+  POST            api/reset-password .................................... api.password.store ΓÇ║ Auth\NewPasswordController@store
+  POST            api/security/2fa/confirm ............................................ Api\Security\TwoFactorController@verify
+  POST            api/security/2fa/disable ........................................... Api\Security\TwoFactorController@disable
+  POST            api/security/2fa/setup ............................................... Api\Security\TwoFactorController@setup
+  GET|HEAD        api/security/2fa/status ............................................. Api\Security\TwoFactorController@status
+  POST            api/security/2fa/verify ........................................ Api\Security\TwoFactorController@verifyLogin
+  GET|HEAD        api/security/audit-logs ............................................... Api\Security\AuditLogController@index
+  GET|HEAD        api/security/audit-logs/summary ..................................... Api\Security\AuditLogController@summary
+  GET|HEAD        api/security/devices ................................................ Api\Security\UserDeviceController@index
+  POST            api/security/devices/register .................................... Api\Security\UserDeviceController@register
+  DELETE          api/security/devices/{device} ...................................... Api\Security\UserDeviceController@revoke
+  POST            api/security/devices/{device}/trust ................................. Api\Security\UserDeviceController@trust
+  GET|HEAD        api/security/withdrawals ............................................ Api\Security\WithdrawalController@index
+  POST            api/security/withdrawals ............................................ Api\Security\WithdrawalController@store
+  POST            api/security/withdrawals/otp ............................ Api\Security\WithdrawalController@sendWithdrawalOtp
+  GET|HEAD        api/security/withdrawals/{withdrawal} ................................ Api\Security\WithdrawalController@show
+  POST            api/security/withdrawals/{withdrawal}/approve ..................... Api\Security\WithdrawalController@approve
+  POST            api/security/withdrawals/{withdrawal}/reject ....................... Api\Security\WithdrawalController@reject
+  GET|HEAD        api/stocks/search ......................................................... Api\TradeController@searchSymbols
+  POST            api/stocks/track ............................................................ Api\TradeController@trackSymbol
+  POST            api/switch-mode ............................................................ Api\ProfileController@switchMode
+  POST            api/trade/close/{id} .............................................................. Api\TradeController@close
+  POST            api/trade/open ..................................................................... Api\TradeController@open
+  POST            api/trade/place .............................................................. Api\TradeController@placeOrder
+  GET|HEAD        api/trade/positions ............................................................... Api\TradeController@index
+  GET|HEAD        api/trades ........................................................................ Api\TradeController@index
+  GET|HEAD        api/transactions ......................................................... Api\NewTransactionController@index
+  GET|HEAD        api/transactions/{id} ..................................................... Api\NewTransactionController@show
+  POST            api/transfer .......................................................... Api\NewTransactionController@transfer
+  GET|HEAD        api/user ................................................................................. routes/api.php:132
+  POST            api/user/advisory/activate-trial ........................................... AdvisoryController@activateTrial
+  GET|HEAD        api/user/advisory/ai-picks .................................................... PredictionController@topPicks
+  POST            api/user/advisory/cancel .......................................... SubscriptionController@cancelSubscription
+  GET|HEAD        api/user/advisory/model-portfolios ........................................... ModelPortfolioController@index
+  POST            api/user/advisory/model-portfolios/{id}/copy ......................... ModelPortfolioController@copyPortfolio
+  GET|HEAD        api/user/advisory/plans ........................................................ SubscriptionController@plans
+  GET|HEAD        api/user/advisory/premium-posts ............................................. AdvisoryController@premiumPosts
+  GET|HEAD        api/user/advisory/regular-posts ............................................. AdvisoryController@regularPosts
+  POST            api/user/advisory/subscribe ........................................ SubscriptionController@initializePayment
+  GET|HEAD        api/user/advisory/verify-payment ....................................... SubscriptionController@verifyPayment
+  GET|HEAD        api/user/kyc/show .................................................................... Api\KycController@show
+  POST            api/user/kyc/submit ................................................................ Api\KycController@submit
+  GET|HEAD        api/user/linked-accounts/index ....................................... Api\User\LinkedAccountController@index
+  POST            api/user/linked-accounts/store ....................................... Api\User\LinkedAccountController@store
+  DELETE          api/user/linked-accounts/{id} ...................................... Api\User\LinkedAccountController@destroy
+  GET|HEAD        api/user/notifications ................................................... Admin\NotificationController@index
+  GET|HEAD        api/user/notifications/preferences ............................. Admin\NotificationController@showPreferences
+  PUT             api/user/notifications/preferences ........................... Admin\NotificationController@updatePreferences
+  POST            api/user/notifications/read-all .................................. Admin\NotificationController@markAllAsRead
+  POST            api/user/notifications/{id}/read .................................... Admin\NotificationController@markAsRead
+  GET|HEAD        api/user/profile/show ............................................................ Api\ProfileController@show
+  POST            api/user/profile/update ........................................................ Api\ProfileController@update
+  PUT             api/user/security/password ....................................... Api\User\SecurityController@changePassword
+  GET|HEAD        api/user/sessions ............................................. Api\User\SecurityController@getActiveSessions
+  POST            api/user/sessions/logout-others .............................. Api\User\SecurityController@logoutOtherDevices
+  GET|HEAD        api/verify-email/{id}/{hash} ........................... api.verification.verify ΓÇ║ Auth\VerifyEmailController
+  GET|HEAD        api/wallet/balances ........................................................... Api\WalletController@balances
+  POST            api/wallet/convert ............................................................. Api\WalletController@convert
+  GET|HEAD        api/wallet/preview ............................................................. Api\WalletController@preview
+  GET|HEAD        api/watchlist ................................................................. Api\WatchlistController@index
+  POST            api/watchlist ................................................................. Api\WatchlistController@store
+  DELETE          api/watchlist/{id} .......................................................... Api\WatchlistController@destroy
+  POST            api/webhooks/dojah ........................................................ Api\DojahWebhookController@handle
+  GET|HEAD        confirm-password ................................. password.confirm ΓÇ║ Auth\ConfirmablePasswordController@show
+  POST            confirm-password .......................... password.confirm.store ΓÇ║ Auth\ConfirmablePasswordController@store
+  GET|HEAD        dashboard ..................................................................... dashboard ΓÇ║ routes/web.php:29
+  POST            email/verification-notification verification.send ΓÇ║ Laravel\Fortify ΓÇ║ EmailVerificationNotificationControlleΓÇª
+  GET|HEAD        email/verify/{id}/{hash} ............. verification.verify ΓÇ║ Laravel\Fortify ΓÇ║ VerifyEmailController@__invoke
+  POST            forgot-password ........................ password.email ΓÇ║ Laravel\Fortify ΓÇ║ PasswordResetLinkController@store
+  GET|HEAD        health .................................................................................... routes/web.php:54
+  GET|HEAD        livewire-861a0ac4/css/{component}.css vendor/livewire/livewire/src/Features/SupportCssModules/SupportCssModuΓÇª
+  GET|HEAD        livewire-861a0ac4/css/{component}.global.css vendor/livewire/livewire/src/Features/SupportCssModules/SupportΓÇª
+  GET|HEAD        livewire-861a0ac4/js/{component}.js vendor/livewire/livewire/src/Features/SupportJsModules/SupportJsModules.ΓÇª
+  GET|HEAD        livewire-861a0ac4/livewire.csp.min.js.map ...................... Livewire\Mechanisms ΓÇ║ FrontendAssets@cspMaps
+  GET|HEAD        livewire-861a0ac4/livewire.js ................... Livewire\Mechanisms ΓÇ║ FrontendAssets@returnJavaScriptAsFile
+  GET|HEAD        livewire-861a0ac4/livewire.min.js.map ............................. Livewire\Mechanisms ΓÇ║ FrontendAssets@maps
+  GET|HEAD        livewire-861a0ac4/preview-file/{filename} livewire.preview-file ΓÇ║ Livewire\Features ΓÇ║ FilePreviewController@ΓÇª
+  POST            livewire-861a0ac4/update ........ default-livewire.update ΓÇ║ Livewire\Mechanisms ΓÇ║ HandleRequests@handleUpdate
+  POST            livewire-861a0ac4/upload-file ........ livewire.upload-file ΓÇ║ Livewire\Features ΓÇ║ FileUploadController@handle
+  POST            login ............................................................. Auth\AuthenticatedSessionController@store
+  GET|HEAD        login .................................................... login ΓÇ║ Auth\AuthenticatedSessionController@create
+  POST            logout ................................................. logout ΓÇ║ Auth\AuthenticatedSessionController@destroy
+  PUT             password ................................................... password.update ΓÇ║ Auth\PasswordController@update
+  GET|HEAD        profile .................................................................... profile.edit ΓÇ║ routes/web.php:37
+  PATCH           profile ........................................................... profile.update ΓÇ║ ProfileController@update
+  DELETE          profile ......................................................... profile.destroy ΓÇ║ ProfileController@destroy
+  GET|HEAD        pulse ......................................... pulse ΓÇ║ vendor/laravel/pulse/src/PulseServiceProvider.php:116
+  POST            register ................................................................ Auth\RegisteredUserController@store
+  GET|HEAD        register .................................................... register ΓÇ║ Auth\RegisteredUserController@create
+  POST            reset-password ............................................ password.store ΓÇ║ Auth\NewPasswordController@store
+  GET|HEAD        sanctum/csrf-cookie ....................... sanctum.csrf-cookie ΓÇ║ Laravel\Sanctum ΓÇ║ CsrfCookieController@show
+  GET|HEAD        storage/{path} storage.local ΓÇ║ vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemServiceProvider.ΓÇª
+  PUT             storage/{path} storage.local.upload ΓÇ║ vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemServicePrΓÇª
+  POST            telescope/telescope-api/batches ............................ Laravel\Telescope ΓÇ║ QueueBatchesController@index
+  GET|HEAD        telescope/telescope-api/batches/{telescopeEntryId} .......... Laravel\Telescope ΓÇ║ QueueBatchesController@show
+  POST            telescope/telescope-api/cache ..................................... Laravel\Telescope ΓÇ║ CacheController@index
+  GET|HEAD        telescope/telescope-api/cache/{telescopeEntryId} ................... Laravel\Telescope ΓÇ║ CacheController@show
+  POST            telescope/telescope-api/client-requests ................... Laravel\Telescope ΓÇ║ ClientRequestController@index
+  GET|HEAD        telescope/telescope-api/client-requests/{telescopeEntryId} . Laravel\Telescope ΓÇ║ ClientRequestController@show
+  POST            telescope/telescope-api/commands ............................... Laravel\Telescope ΓÇ║ CommandsController@index
+  GET|HEAD        telescope/telescope-api/commands/{telescopeEntryId} ............. Laravel\Telescope ΓÇ║ CommandsController@show
+  POST            telescope/telescope-api/dumps ...................................... Laravel\Telescope ΓÇ║ DumpController@index
+  DELETE          telescope/telescope-api/entries ............................... Laravel\Telescope ΓÇ║ EntriesController@destroy
+  POST            telescope/telescope-api/events ................................... Laravel\Telescope ΓÇ║ EventsController@index
+  GET|HEAD        telescope/telescope-api/events/{telescopeEntryId} ................. Laravel\Telescope ΓÇ║ EventsController@show
+  POST            telescope/telescope-api/exceptions ............................ Laravel\Telescope ΓÇ║ ExceptionController@index
+  GET|HEAD        telescope/telescope-api/exceptions/{telescopeEntryId} .......... Laravel\Telescope ΓÇ║ ExceptionController@show
+  PUT             telescope/telescope-api/exceptions/{telescopeEntryId} ........ Laravel\Telescope ΓÇ║ ExceptionController@update
+  POST            telescope/telescope-api/gates ..................................... Laravel\Telescope ΓÇ║ GatesController@index
+  GET|HEAD        telescope/telescope-api/gates/{telescopeEntryId} ................... Laravel\Telescope ΓÇ║ GatesController@show
+  POST            telescope/telescope-api/jobs ...................................... Laravel\Telescope ΓÇ║ QueueController@index
+  GET|HEAD        telescope/telescope-api/jobs/{telescopeEntryId} .................... Laravel\Telescope ΓÇ║ QueueController@show
+  POST            telescope/telescope-api/logs ........................................ Laravel\Telescope ΓÇ║ LogController@index
+  GET|HEAD        telescope/telescope-api/logs/{telescopeEntryId} ...................... Laravel\Telescope ΓÇ║ LogController@show
+  POST            telescope/telescope-api/mail ....................................... Laravel\Telescope ΓÇ║ MailController@index
+  GET|HEAD        telescope/telescope-api/mail/{telescopeEntryId} ..................... Laravel\Telescope ΓÇ║ MailController@show
+  GET|HEAD        telescope/telescope-api/mail/{telescopeEntryId}/download ......... Laravel\Telescope ΓÇ║ MailEmlController@show
+  GET|HEAD        telescope/telescope-api/mail/{telescopeEntryId}/preview ......... Laravel\Telescope ΓÇ║ MailHtmlController@show
+  POST            telescope/telescope-api/models ................................... Laravel\Telescope ΓÇ║ ModelsController@index
+  GET|HEAD        telescope/telescope-api/models/{telescopeEntryId} ................. Laravel\Telescope ΓÇ║ ModelsController@show
+  GET|HEAD        telescope/telescope-api/monitored-tags ..................... Laravel\Telescope ΓÇ║ MonitoredTagController@index
+  POST            telescope/telescope-api/monitored-tags ..................... Laravel\Telescope ΓÇ║ MonitoredTagController@store
+  POST            telescope/telescope-api/monitored-tags/delete ............ Laravel\Telescope ΓÇ║ MonitoredTagController@destroy
+  POST            telescope/telescope-api/notifications ..................... Laravel\Telescope ΓÇ║ NotificationsController@index
+  GET|HEAD        telescope/telescope-api/notifications/{telescopeEntryId} ... Laravel\Telescope ΓÇ║ NotificationsController@show
+  POST            telescope/telescope-api/queries ................................. Laravel\Telescope ΓÇ║ QueriesController@index
+  GET|HEAD        telescope/telescope-api/queries/{telescopeEntryId} ............... Laravel\Telescope ΓÇ║ QueriesController@show
+  POST            telescope/telescope-api/redis ..................................... Laravel\Telescope ΓÇ║ RedisController@index
+  GET|HEAD        telescope/telescope-api/redis/{telescopeEntryId} ................... Laravel\Telescope ΓÇ║ RedisController@show
+  POST            telescope/telescope-api/requests ............................... Laravel\Telescope ΓÇ║ RequestsController@index
+  GET|HEAD        telescope/telescope-api/requests/{telescopeEntryId} ............. Laravel\Telescope ΓÇ║ RequestsController@show
+  POST            telescope/telescope-api/schedule ............................... Laravel\Telescope ΓÇ║ ScheduleController@index
+  GET|HEAD        telescope/telescope-api/schedule/{telescopeEntryId} ............. Laravel\Telescope ΓÇ║ ScheduleController@show
+  POST            telescope/telescope-api/toggle-recording ..................... Laravel\Telescope ΓÇ║ RecordingController@toggle
+  POST            telescope/telescope-api/views ..................................... Laravel\Telescope ΓÇ║ ViewsController@index
+  GET|HEAD        telescope/telescope-api/views/{telescopeEntryId} ................... Laravel\Telescope ΓÇ║ ViewsController@show
+  GET|HEAD        telescope/{view?} ...................................... telescope ΓÇ║ Laravel\Telescope ΓÇ║ HomeController@index
+  POST            two-factor-challenge two-factor.login.store ΓÇ║ Laravel\Fortify ΓÇ║ TwoFactorAuthenticatedSessionController@store
+  GET|HEAD        up .............. vendor/laravel/framework/src/Illuminate/Foundation/Configuration/ApplicationBuilder.php:219
+  POST            user/confirm-password ........ password.confirm.store ΓÇ║ Laravel\Fortify ΓÇ║ ConfirmablePasswordController@store
+  GET|HEAD        user/confirmed-password-status password.confirmation ΓÇ║ Laravel\Fortify ΓÇ║ ConfirmedPasswordStatusController@sΓÇª
+  POST            user/confirmed-two-factor-authentication two-factor.confirm ΓÇ║ Laravel\Fortify ΓÇ║ ConfirmedTwoFactorAuthenticaΓÇª
+  PUT             user/password ............................ user-password.update ΓÇ║ Laravel\Fortify ΓÇ║ PasswordController@update
+  PUT             user/profile-information user-profile-information.update ΓÇ║ Laravel\Fortify ΓÇ║ ProfileInformationController@upΓÇª
+  POST            user/two-factor-authentication two-factor.enable ΓÇ║ Laravel\Fortify ΓÇ║ TwoFactorAuthenticationController@store
+  DELETE          user/two-factor-authentication two-factor.disable ΓÇ║ Laravel\Fortify ΓÇ║ TwoFactorAuthenticationController@destΓÇª
+  GET|HEAD        user/two-factor-qr-code ............... two-factor.qr-code ΓÇ║ Laravel\Fortify ΓÇ║ TwoFactorQrCodeController@show
+  GET|HEAD        user/two-factor-recovery-codes ... two-factor.recovery-codes ΓÇ║ Laravel\Fortify ΓÇ║ RecoveryCodeController@index
+  POST            user/two-factor-recovery-codes two-factor.regenerate-recovery-codes ΓÇ║ Laravel\Fortify ΓÇ║ RecoveryCodeControllΓÇª
+  GET|HEAD        user/two-factor-secret-key ...... two-factor.secret-key ΓÇ║ Laravel\Fortify ΓÇ║ TwoFactorSecretKeyController@show
+  GET|HEAD        wallet ..................................................................... wallet.index ΓÇ║ routes/web.php:33
+  POST            wallet/deposit ................................................ wallet.deposit ΓÇ║ Api\WalletController@deposit
+  POST            wallet/withdraw ............................................. wallet.withdraw ΓÇ║ Api\WalletController@withdraw
+  GET|HEAD        {any} .................................................................................... routes/web.php:110
+
+                                                                                                           Showing [411] routes
+
