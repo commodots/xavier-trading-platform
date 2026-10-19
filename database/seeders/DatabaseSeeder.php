@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            RolePermissionSeeder::class,
             UserSeeder::class,
             WalletSeeder::class,
             KycSeeder::class,
@@ -27,7 +28,6 @@ class DatabaseSeeder extends Seeder
             OrderSeeder::class,
             PortfolioSeeder::class,
             UserSettingsSeeder::class,
-            RolePermissionSeeder::class,
             FxRateSeeder::class,
             FxConfigSeeder::class,
             FxSettingSeeder::class,
