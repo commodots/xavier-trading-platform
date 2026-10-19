@@ -27,7 +27,10 @@ class VendorSeeder extends Seeder
         ];
 
         foreach ($vendors as $vendor) {
-            Vendor::create($vendor);
+            Vendor::updateOrCreate(
+                ['name' => $vendor['name']],
+                $vendor
+            );
         }
     }
 }

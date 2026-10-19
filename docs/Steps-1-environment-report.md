@@ -133,3 +133,19 @@ Full machine-generated list: **`docs/Steps-1-route-inventory.txt`** (411 routes)
 | Route inventory | `docs/Steps-1-route-inventory.txt` + Section 3 | ✅ |
 | Test results | Section 4 above | ✅ |
 | Prioritized defect register | `docs/Steps-1-3-defect-register.md` | ✅ |
+
+## 7. Revalidation — 2026-10-19
+
+The following checks were repeated on `stabilization/Steps-1-3`:
+
+| Check | Current result |
+|-------|----------------|
+| `php artisan --version` | Laravel Framework 12.62.0 |
+| `php artisan about --only=environment` | OK — PHP 8.2.12, local environment, debug enabled |
+| `php artisan route:list --json` | 411 routes; committed inventory contains 411 route entries plus its header |
+| `php artisan migrate:status` | Latest migration reports `Ran` |
+| Full test suite | 301 passed, 0 failed after seeder and transaction-ownership regressions were added |
+| `npm run build` | Succeeded; Vite warns that at least one generated chunk exceeds 500 kB |
+| Fresh SQLite migration and seed | All migrations and `DatabaseSeeder` completed on a new disposable SQLite database under the system temp directory |
+
+The first fresh seed attempt under the OneDrive workspace was stopped after more than ten minutes while `ComplianceSeeder` was running. Repeating the fresh migration and complete seed under the system temp directory succeeded; writes were substantially faster, confirming workspace synchronization as the main source of the earlier delay. A pre-fix full-suite run returned 297 passing tests; after the seeder and transaction-ownership fixes, the full suite returned 301 tests with zero failures. The current worktree also contains untracked local `.env.test` and SQLite artifacts; these were preserved and not inspected for secrets. The original 2026-10-16 test result remains historical; its 304-test total should not be presented as the current total.

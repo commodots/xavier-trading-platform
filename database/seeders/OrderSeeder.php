@@ -33,34 +33,36 @@ class OrderSeeder extends Seeder
             ],
         ];
 
-        User::all()->each(function ($user) use ($markets) {
-            foreach (range(1, 10) as $i) {
-
-                $config = fake()->randomElement($markets);
-
-                $minPrice = $config['name'] === 'NGX' ? 10 : 50;
-                $maxPrice = $config['name'] === 'NGX' ? 500 : 60000;
-
-                $marketPrice = fake()->randomFloat(2, $minPrice, $maxPrice);
-                $amount = fake()->randomFloat(2, 1000, 50000);
+        User::query()->orderBy('id')->get()->each(function ($user) use ($markets): void {
+            foreach (range(1, 10) as $index) {
+                $config = $markets[($user->id + $index) % count($markets)];
+                $symbol = $config['symbols'][($user->id + $index) % count($config['symbols'])];
+                $marketPrice = $config['name'] === 'NGX'
+                    ? 10 + (($user->id * 13 + $index * 7) % 491)
+                    : 50 + (($user->id * 137 + $index * 211) % 59951);
+                $amount = 1000 + (($user->id * 997 + $index * 613) % 49001);
                 $calculatedUnits = $amount / $marketPrice;
+                $clientReference = sprintf('DEMO-ORDER-%d-%02d', $user->id, $index);
 
-                Order::create([
-                    'user_id' => $user->id,
-                    'symbol' => fake()->randomElement($config['symbols']),
-                    'company' => $config['name'] === 'CRYPTO' ? null : fake()->company(),
-                    'side' => fake()->randomElement(['buy', 'sell']),
-                    'type' => fake()->randomElement(['market', 'limit']),
-                    'market_price' => $marketPrice,
-                    'price' => $marketPrice,
-                    'amount' => $amount,
-                    'units' => $calculatedUnits,
-                    'quantity' => $calculatedUnits,
-                    'status' => fake()->randomElement(['open', 'partially_filled', 'filled', 'canceled']),
-                    'market' => $config['name'],
-                    'currency' => $config['currency'],
-                    'source' => 'WEB_APP',
-                ]);
+                Order::updateOrCreate(
+                    ['provider_client_reference' => $clientReference],
+                    [
+                        'user_id' => $user->id,
+                        'symbol' => $symbol,
+                        'company' => $config['name'] === 'CRYPTO' ? null : 'Demo '.$symbol.' Holdings',
+                        'side' => $index % 2 === 0 ? 'buy' : 'sell',
+                        'type' => $index % 2 === 0 ? 'market' : 'limit',
+                        'market_price' => $marketPrice,
+                        'price' => $marketPrice,
+                        'amount' => $amount,
+                        'units' => $calculatedUnits,
+                        'quantity' => $calculatedUnits,
+                        'status' => ['open', 'partially_filled', 'filled', 'canceled'][$index % 4],
+                        'market' => $config['name'],
+                        'currency' => $config['currency'],
+                        'source' => 'WEB_APP',
+                    ]
+                );
             }
         });
     }

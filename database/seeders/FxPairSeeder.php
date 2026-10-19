@@ -34,7 +34,13 @@ class FxPairSeeder extends Seeder
         ];
 
         foreach ($pairs as $pair) {
-            FxPair::create($pair);
+            FxPair::updateOrCreate(
+                [
+                    'base_currency' => $pair['base_currency'],
+                    'quote_currency' => $pair['quote_currency'],
+                ],
+                $pair
+            );
         }
     }
 }

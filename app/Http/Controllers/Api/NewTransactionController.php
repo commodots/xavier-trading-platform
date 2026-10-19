@@ -149,7 +149,7 @@ class NewTransactionController extends Controller
         $models = $this->resolveModels(auth()->user());
 
         // Find the transaction owned by this user
-        $transaction = $models->transaction
+        $transaction = $models->transaction::query()
             ->where('user_id', auth()->id())
             ->where('id', $id)
             ->first();

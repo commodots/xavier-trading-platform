@@ -70,20 +70,23 @@ class ExpenseSeeder extends Seeder
             $user = $users->random();
             $paymentMethod = $paymentMethods[array_rand($paymentMethods)];
 
-            $expense = Expense::create([
-                'expense_category_id' => $category->id,
-                'vendor_id' => $vendor?->id,
-                'department_id' => $department->id,
-                'requested_by' => $user->id,
-                'amount' => $expenseData['amount'],
-                'currency' => 'NGN',
-                'expense_date' => Carbon::now()->subDays($expenseData['days_ago'])->startOfDay(),
-                'payment_method' => $paymentMethod,
-                'reference' => 'REF-'.strtoupper(uniqid()),
-                'invoice_number' => 'INV-'.date('Y').'-'.str_pad($index + 1, 6, '0', STR_PAD_LEFT),
-                'description' => "Expense for {$expenseData['category']} - {$expenseData['department']}",
-                'status' => $expenseData['status'],
-            ]);
+            $invoiceNumber = 'INV-'.date('Y').'-'.str_pad($index + 1, 6, '0', STR_PAD_LEFT);
+            $expense = Expense::updateOrCreate(
+                ['invoice_number' => $invoiceNumber],
+                [
+                    'expense_category_id' => $category->id,
+                    'vendor_id' => $vendor?->id,
+                    'department_id' => $department->id,
+                    'requested_by' => $user->id,
+                    'amount' => $expenseData['amount'],
+                    'currency' => 'NGN',
+                    'expense_date' => Carbon::now()->subDays($expenseData['days_ago'])->startOfDay(),
+                    'payment_method' => $paymentMethod,
+                    'reference' => 'DEMO-EXPENSE-'.str_pad($index + 1, 6, '0', STR_PAD_LEFT),
+                    'description' => "Expense for {$expenseData['category']} - {$expenseData['department']}",
+                    'status' => $expenseData['status'],
+                ]
+            );
 
             // Assign the ID-derived human-readable expense number (EXP-YYYYMM-000001)
             Expense::assignExpenseNo($expense);

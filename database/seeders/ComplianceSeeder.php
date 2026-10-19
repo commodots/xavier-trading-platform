@@ -10,7 +10,6 @@ use App\Models\UserDevice;
 use App\Models\Wallet;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class ComplianceSeeder extends Seeder
 {
@@ -97,13 +96,15 @@ class ComplianceSeeder extends Seeder
             );
 
             // Create outstanding billing records for debt
-            BillingRecord::create([
-                'user_id' => $user->id,
-                'amount' => $data['wallet_debt'],
-                'type' => 'subscription_fee',
-                'status' => 'pending',
-                'reference' => 'DEBT-'.strtoupper(Str::random(8)),
-            ]);
+            BillingRecord::updateOrCreate(
+                ['reference' => "SEED-DEBT-{$user->id}"],
+                [
+                    'user_id' => $user->id,
+                    'amount' => $data['wallet_debt'],
+                    'type' => 'subscription_fee',
+                    'status' => 'pending',
+                ]
+            );
 
             // Create NGN wallet with negative-ish scenario
             $this->ensureWallet($user, 'NGN', $data['wallet_balance'], 0);
@@ -185,13 +186,14 @@ class ComplianceSeeder extends Seeder
             $this->ensureWallet($user, 'NGN', $data['wallet_balance'], 0);
 
             // Log the suspension activity
-            ActivityLog::create([
-                'user_id' => $user->id,
-                'activity' => 'account_suspended',
-                'details' => ['reason' => $data['suspension_reason']],
-                'ip_address' => fake()->ipv4(),
-                'user_agent' => fake()->userAgent(),
-            ]);
+            ActivityLog::updateOrCreate(
+                ['user_id' => $user->id, 'activity' => 'account_suspended'],
+                [
+                    'details' => ['reason' => $data['suspension_reason']],
+                    'ip_address' => '192.0.2.'.($user->id % 254 + 1),
+                    'user_agent' => 'Xavier Demo Seeder',
+                ]
+            );
         }
 
         /*
@@ -291,20 +293,19 @@ class ComplianceSeeder extends Seeder
             }
 
             // Give risky users multiple devices
-            UserDevice::create([
-                'user_id' => $user->id,
-                'device_name' => 'Chrome on Windows',
-                'ip_address' => '102.89.'.rand(1, 255).'.'.rand(1, 255),
-                'last_active_at' => now()->subHours(rand(1, 72)),
-                'is_trusted' => false,
-            ]);
-            UserDevice::create([
-                'user_id' => $user->id,
-                'device_name' => 'Mobile Safari on iOS',
-                'ip_address' => '185.220.'.rand(1, 255).'.'.rand(1, 255),
-                'last_active_at' => now()->subHours(rand(1, 24)),
-                'is_trusted' => false,
-            ]);
+            foreach ([
+                ['name' => 'Chrome on Windows', 'ip' => '198.51.100.10'],
+                ['name' => 'Mobile Safari on iOS', 'ip' => '198.51.100.20'],
+            ] as $device) {
+                UserDevice::updateOrCreate(
+                    ['user_id' => $user->id, 'device_name' => $device['name']],
+                    [
+                        'ip_address' => $device['ip'],
+                        'last_active_at' => now()->subDay(),
+                        'is_trusted' => false,
+                    ]
+                );
+            }
         }
 
         /*
@@ -413,24 +414,28 @@ class ComplianceSeeder extends Seeder
             $this->ensureWallet($user, 'NGN', $user->wallet_balance, 0);
 
             // Multiple unpaid billing records
-            BillingRecord::create([
-                'user_id' => $user->id,
-                'amount' => $data['amount'],
-                'type' => 'subscription_fee',
-                'status' => 'pending',
-                'reference' => 'INV-'.strtoupper(Str::random(10)),
-                'created_at' => now()->subDays($data['days_overdue']),
-            ]);
+            BillingRecord::updateOrCreate(
+                ['reference' => "SEED-INV-{$user->id}-1"],
+                [
+                    'user_id' => $user->id,
+                    'amount' => $data['amount'],
+                    'type' => 'subscription_fee',
+                    'status' => 'pending',
+                    'created_at' => now()->subDays($data['days_overdue']),
+                ]
+            );
 
             // Add a second older one
-            BillingRecord::create([
-                'user_id' => $user->id,
-                'amount' => $data['amount'] * 0.8,
-                'type' => 'subscription_fee',
-                'status' => 'pending',
-                'reference' => 'INV-'.strtoupper(Str::random(10)),
-                'created_at' => now()->subDays($data['days_overdue'] + 30),
-            ]);
+            BillingRecord::updateOrCreate(
+                ['reference' => "SEED-INV-{$user->id}-2"],
+                [
+                    'user_id' => $user->id,
+                    'amount' => $data['amount'] * 0.8,
+                    'type' => 'subscription_fee',
+                    'status' => 'pending',
+                    'created_at' => now()->subDays($data['days_overdue'] + 30),
+                ]
+            );
         }
 
         /*

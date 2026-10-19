@@ -26,8 +26,7 @@ class PortfolioSeeder extends Seeder
         ];
 
         foreach ($users as $user) {
-
-            $userHoldings = $faker->randomElements($holdings, rand(3, 5));
+            $userHoldings = array_slice($holdings, 0, 3 + ($user->id % 3));
 
             foreach ($userHoldings as $holding) {
 

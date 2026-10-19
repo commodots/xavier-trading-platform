@@ -36,15 +36,32 @@ class NewTransactionSeeder extends Seeder
         TransactionCharge::updateOrCreate(['transaction_type' => 'sell_crypto'], ['charge_type' => 'percentage', 'value' => 0.5]);
         TransactionCharge::updateOrCreate(['transaction_type' => 'fx_conversion'], ['charge_type' => 'percentage', 'value' => 0.05]);
 
-        User::all()->each(function ($user) {
-            $txn = NewTransaction::create([
-                'user_id' => $user->id,
-                'type' => 'deposit',
-                'amount' => 50000,
-                'status' => 'completed',
-            ]);
+        User::query()
+            ->where('email', 'like', 'demo-user-%@example.invalid')
+            ->each(function (User $user): void {
+                $seedKey = "demo-deposit-{$user->id}";
 
-            TransactionService::applyFees($txn);
-        });
+                $transaction = NewTransaction::query()
+                    ->where('user_id', $user->id)
+                    ->where('meta->seed_key', $seedKey)
+                    ->first();
+
+                if ($transaction) {
+                    return;
+                }
+
+                $transaction = NewTransaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'deposit',
+                    'amount' => 50000,
+                    'status' => 'completed',
+                    'meta' => [
+                        'seed_source' => self::class,
+                        'seed_key' => $seedKey,
+                    ],
+                ]);
+
+                TransactionService::applyFees($transaction);
+            });
     }
 }

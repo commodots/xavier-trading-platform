@@ -65,17 +65,21 @@ class UserSettingsSeeder extends Seeder
 
             KycProfile::updateOrCreate(['user_id' => $user->id], $kycData);
 
-            $types = ['bank', 'crypto_wallet'];
-            foreach (array_slice($types, 0, rand(1, 2)) as $type) {
-                LinkedAccount::create([
-                    'user_id' => $user->id,
-                    'type' => $type,
-                    'currency' => $type === 'bank' ? 'NGN' : 'USD',
-                    'provider' => $type === 'bank' ? fake()->company().' Bank' : 'Ethereum Network',
-                    'account_name' => $user->first_name.' '.$user->last_name,
-                    'account_number' => $type === 'bank' ? fake()->bankAccountNumber() : '0x'.Str::random(40),
-                    'is_verified' => fake()->boolean(),
-                ]);
+            foreach (['bank', 'crypto_wallet'] as $type) {
+                $accountNumber = $type === 'bank'
+                    ? 'DEMO'.str_pad((string) $user->id, 16, '0', STR_PAD_LEFT)
+                    : '0x'.str_pad(dechex($user->id), 40, '0', STR_PAD_LEFT);
+
+                LinkedAccount::updateOrCreate(
+                    ['user_id' => $user->id, 'type' => $type],
+                    [
+                        'currency' => $type === 'bank' ? 'NGN' : 'USD',
+                        'provider' => $type === 'bank' ? 'Xavier Demo Bank' : 'Ethereum Network',
+                        'account_name' => $user->first_name.' '.$user->last_name,
+                        'account_number' => $accountNumber,
+                        'is_verified' => $user->id % 2 === 0,
+                    ]
+                );
             }
 
             NotificationPreference::updateOrCreate(

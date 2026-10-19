@@ -34,7 +34,25 @@ class UserSeeder extends Seeder
             $superAdmin->syncRoles(['super-admin']);
         }
 
-        // 20 normal users
-        User::factory()->count(20)->create();
+        // 20 stable normal users; repeat runs update rather than append fixtures.
+        $demoPassword = Hash::make('password');
+
+        for ($userNumber = 1; $userNumber <= 20; $userNumber++) {
+            $email = sprintf('demo-user-%02d@example.invalid', $userNumber);
+            $firstName = 'Demo';
+            $lastName = "User {$userNumber}";
+
+            User::updateOrCreate(
+                ['email' => $email],
+                [
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'name' => "{$firstName} {$lastName}",
+                    'email_verified_at' => now(),
+                    'password' => $demoPassword,
+                    'kyc_status' => 'pending',
+                ]
+            );
+        }
     }
 }
