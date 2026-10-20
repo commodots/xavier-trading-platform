@@ -11,6 +11,8 @@ class ProductionSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             StaffPermissionSeeder::class,
+            SystemAdminSeeder::class,
+            DepartmentSeeder::class,
             ExpenseCategorySeeder::class,
         ]);
     }

@@ -27,7 +27,6 @@ class DummyDataSeeder extends Seeder
             FxConfigSeeder::class,
             FxSettingSeeder::class,
             FxPairSeeder::class,
-            DepartmentSeeder::class,
             VendorSeeder::class,
             ExpenseSeeder::class,
         ]);
