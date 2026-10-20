@@ -11,6 +11,11 @@ class CslClientTest extends TestCase
 {
     public function test_st_markets_endpoint_is_mapped_correctly(): void
     {
+        config()->set('services.csl.mock', false);
+        config()->set('services.csl.oauth_url', 'https://csl.test/oauth/token');
+        config()->set('services.csl.client_id', 'client');
+        config()->set('services.csl.client_secret', 'secret');
+
         Http::fake([
             '*/oauth/token' => Http::response([
                 'access_token' => 'test-token',
@@ -46,6 +51,11 @@ class CslClientTest extends TestCase
 
     public function test_xt_buy_order_uses_correct_wrapper(): void
     {
+        config()->set('services.csl.mock', false);
+        config()->set('services.csl.oauth_url', 'https://csl.test/oauth/token');
+        config()->set('services.csl.client_id', 'client');
+        config()->set('services.csl.client_secret', 'secret');
+
         Http::fake([
             '*/oauth/token' => Http::response([
                 'access_token' => 'test-token',

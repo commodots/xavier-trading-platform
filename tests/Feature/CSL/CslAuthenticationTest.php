@@ -11,6 +11,7 @@ class CslAuthenticationTest extends TestCase
 {
     public function test_access_token_is_cached_after_oauth_response(): void
     {
+        config()->set('services.csl.mock', false);
         config()->set('services.csl.client_id', 'client');
         config()->set('services.csl.client_secret', 'secret');
         config()->set('services.csl.oauth_url', 'https://csl.test/oauth/token');

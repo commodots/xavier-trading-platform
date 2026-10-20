@@ -22,7 +22,7 @@
         <env name="CSL_CLIENT_ID" value="test-client"/>
         <env name="CSL_CLIENT_SECRET" value="test-secret"/>
         <env name="CSL_MODE" value="test"/>
-        <env name="CSL_MOCK" value="false"/>
+        <env name="CSL_MOCK" value="true"/>
         <env name="CSL_LIVE_TRADING_ENABLED" value="false"/>
         <env name="ALPACA_API_KEY" value="test-key"/>
         <env name="ALPACA_SECRET_KEY" value="test-secret"/>
