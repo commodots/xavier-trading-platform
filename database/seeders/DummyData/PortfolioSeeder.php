@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\DummyData;
 
 use App\Models\Portfolio;
 use App\Models\User;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\DummyData;
 
 use App\Models\AdvisoryPost;
 use App\Models\ModelPortfolio;

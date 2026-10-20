@@ -6,7 +6,6 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
 use Tests\TestCase;
 
 class DatabaseSeederTest extends TestCase
@@ -34,12 +33,18 @@ class DatabaseSeederTest extends TestCase
         $this->assertSame($walletsAfterFirstRun, $walletsAfterSecondRun);
     }
 
-    public function test_full_database_seeder_refuses_to_run_in_production(): void
+    public function test_production_database_seeder_creates_only_production_reference_data(): void
     {
         $this->app['env'] = 'production';
-        $this->expectException(RuntimeException::class);
 
         app(DatabaseSeeder::class)->run();
+
+        $this->assertDatabaseHas('roles', ['name' => 'admin', 'guard_name' => 'api']);
+        $this->assertDatabaseHas('permissions', ['name' => 'view_reports', 'guard_name' => 'api']);
+        $this->assertDatabaseHas('expense_categories', ['code' => 'RENT']);
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertDatabaseCount('orders', 0);
     }
 
     /** @return array<string, int> */

@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Models\NewTransaction;
 use App\Models\PlatformEarning;
 use App\Models\User;
-use Database\Seeders\NewTransactionSeeder;
-use Database\Seeders\RolePermissionSeeder;
-use Database\Seeders\UserSeeder;
+use Database\Seeders\DummyData\NewTransactionSeeder;
+use Database\Seeders\DummyData\UserSeeder;
+use Database\Seeders\Production\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

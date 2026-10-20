@@ -6,10 +6,10 @@ use App\Models\Department;
 use App\Models\ExpenseCategory;
 use App\Models\FxPair;
 use App\Models\Vendor;
-use Database\Seeders\DepartmentSeeder;
-use Database\Seeders\ExpenseCategorySeeder;
-use Database\Seeders\FxPairSeeder;
-use Database\Seeders\VendorSeeder;
+use Database\Seeders\DummyData\DepartmentSeeder;
+use Database\Seeders\DummyData\FxPairSeeder;
+use Database\Seeders\DummyData\VendorSeeder;
+use Database\Seeders\Production\ExpenseCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

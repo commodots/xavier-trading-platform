@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\DummyData\DummyDataSeeder;
+use Database\Seeders\Production\ProductionSeeder;
 use Illuminate\Database\Seeder;
-use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,35 +13,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        if (app()->environment('production')) {
-            throw new RuntimeException('DatabaseSeeder includes demo fixtures and cannot run in production.');
-        }
+        $this->call(ProductionSeeder::class);
 
-        $this->call([
-            RolePermissionSeeder::class,
-            UserSeeder::class,
-            ComplianceSeeder::class,
-            WalletSeeder::class,
-            KycSeeder::class,
-            TransactionSeeder::class,
-            ServiceSeeder::class,
-            ServiceConnectionSeeder::class,
-            ServiceConfigSeeder::class,
-            StaffPermissionSeeder::class,
-            AdvisorySeeder::class,
-            CryptoSeeder::class,
-            NewTransactionSeeder::class,
-            OrderSeeder::class,
-            PortfolioSeeder::class,
-            UserSettingsSeeder::class,
-            FxRateSeeder::class,
-            FxConfigSeeder::class,
-            FxSettingSeeder::class,
-            FxPairSeeder::class,
-            DepartmentSeeder::class,
-            ExpenseCategorySeeder::class,
-            VendorSeeder::class,
-            ExpenseSeeder::class,
-        ]);
+        if (app()->environment('local', 'testing')) {
+            $this->call(DummyDataSeeder::class);
+        }
     }
 }

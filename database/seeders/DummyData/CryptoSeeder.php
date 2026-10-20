@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\DummyData;
 
 use App\Models\CryptoAddress;
 use App\Models\User;

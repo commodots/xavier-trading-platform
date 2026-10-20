@@ -16,7 +16,7 @@
 | PHPUnit | 11.5.55 |
 | CSL live trading | Disabled in the test configuration; no live order was submitted |
 
-The stabilization branch is `stabilization/Steps-1-3`. No `.env` file is tracked; local `.env*` files and SQLite database artifacts are ignored. `.env.example` remains trackable. The root `.gitignore` has a self-ignore rule as requested; it remains tracked because ignore rules do not remove files already in the index.
+The stabilization branch is `stabilization/Steps-1-3`. No `.env` file is tracked; local `.env*` files and SQLite database artifacts are ignored. `.env.example` remains trackable. 
 
 ## 2. Commands and results
 
