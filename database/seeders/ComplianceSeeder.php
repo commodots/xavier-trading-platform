@@ -82,7 +82,6 @@ class ComplianceSeeder extends Seeder
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'name' => $data['first_name'].' '.$data['last_name'],
-                    'phone' => fake()->phoneNumber(),
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
                     'role' => 'user',
@@ -91,7 +90,7 @@ class ComplianceSeeder extends Seeder
                     'wallet_balance' => $data['wallet_balance'],
                     'subscription_status' => $data['subscription_status'],
                     'next_fee_due_at' => $data['next_fee_due_at'],
-                    'last_active_at' => now()->subDays(rand(0, 14)),
+                    'last_active_at' => today()->subDays(crc32($data['email']) % 15),
                 ]
             );
 
@@ -169,7 +168,6 @@ class ComplianceSeeder extends Seeder
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'name' => $data['first_name'].' '.$data['last_name'],
-                    'phone' => fake()->phoneNumber(),
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
                     'role' => 'user',
@@ -179,7 +177,7 @@ class ComplianceSeeder extends Seeder
                     'wallet_balance' => $data['wallet_balance'],
                     'wallet_debt' => $data['wallet_debt'],
                     'subscription_status' => 'suspended',
-                    'last_active_at' => now()->subDays(rand(7, 30)),
+                    'last_active_at' => today()->subDays(7 + crc32($data['email']) % 24),
                 ]
             );
 
@@ -265,13 +263,12 @@ class ComplianceSeeder extends Seeder
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'name' => $data['first_name'].' '.$data['last_name'],
-                    'phone' => fake()->phoneNumber(),
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
                     'role' => 'user',
                     'trading_mode' => 'live',
-                    'wallet_debt' => rand(1000, 100000),
-                    'wallet_balance' => rand(100, 50000),
+                    'wallet_debt' => 1000 + crc32($data['email']) % 99001,
+                    'wallet_balance' => 100 + crc32($data['email']) % 49901,
                     'subscription_status' => 'active',
                     'last_active_at' => now(),
                 ]
@@ -359,7 +356,6 @@ class ComplianceSeeder extends Seeder
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'name' => $data['first_name'].' '.$data['last_name'],
-                    'phone' => fake()->phoneNumber(),
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
                     'role' => 'user',
@@ -398,16 +394,15 @@ class ComplianceSeeder extends Seeder
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'name' => $data['first_name'].' '.$data['last_name'],
-                    'phone' => fake()->phoneNumber(),
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
                     'role' => 'user',
                     'trading_mode' => 'live',
-                    'wallet_balance' => rand(0, 5000),
+                    'wallet_balance' => crc32($data['email']) % 5001,
                     'wallet_debt' => $data['amount'],
                     'subscription_status' => 'inactive',
                     'next_fee_due_at' => now()->subDays($data['days_overdue']),
-                    'last_active_at' => now()->subDays(rand(5, 20)),
+                    'last_active_at' => today()->subDays(5 + crc32($data['email']) % 16),
                 ]
             );
 
@@ -421,7 +416,7 @@ class ComplianceSeeder extends Seeder
                     'amount' => $data['amount'],
                     'type' => 'subscription_fee',
                     'status' => 'pending',
-                    'created_at' => now()->subDays($data['days_overdue']),
+                    'created_at' => today()->subDays($data['days_overdue']),
                 ]
             );
 
@@ -433,7 +428,7 @@ class ComplianceSeeder extends Seeder
                     'amount' => $data['amount'] * 0.8,
                     'type' => 'subscription_fee',
                     'status' => 'pending',
-                    'created_at' => now()->subDays($data['days_overdue'] + 30),
+                    'created_at' => today()->subDays($data['days_overdue'] + 30),
                 ]
             );
         }
@@ -515,7 +510,6 @@ class ComplianceSeeder extends Seeder
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'name' => $data['first_name'].' '.$data['last_name'],
-                    'phone' => fake()->phoneNumber(),
                     'password' => Hash::make('password'),
                     'role' => 'user',
                     'trading_mode' => 'live',
@@ -539,7 +533,7 @@ class ComplianceSeeder extends Seeder
         return Wallet::firstOrCreate(
             ['user_id' => $user->id, 'currency' => $currency],
             [
-                'account_number' => 'XAV'.str_pad((string) rand(0, 99999999), 8, '0', STR_PAD_LEFT),
+                'account_number' => 'XAV'.str_pad((string) $user->id, 8, '0', STR_PAD_LEFT),
                 'ngn_cleared' => $currency === 'NGN' ? $cleared : 0,
                 'ngn_uncleared' => $currency === 'NGN' ? $uncleared : 0,
                 'usd_cleared' => $currency === 'USD' ? $cleared : 0,

@@ -9,11 +9,14 @@ class FxConfigSeeder extends Seeder
 {
     public function run(): void
     {
-        FxConfig::create([
-            'min_markup' => 1,
-            'max_markup' => 5,
-            'target_margin_percent' => 2,
-            'volatility_threshold' => 3,
-        ]);
+        FxConfig::updateOrCreate(
+            ['id' => 1],
+            [
+                'min_markup' => 1,
+                'max_markup' => 5,
+                'target_margin_percent' => 2,
+                'volatility_threshold' => 3,
+            ]
+        );
     }
 }

@@ -9,10 +9,12 @@ class FxSettingSeeder extends Seeder
 {
     public function run(): void
     {
-        FxSetting::create([
-            'provider' => 'manual',
-            'enabled' => true,
-            'auto_convert_stocks' => false,
-        ]);
+        FxSetting::updateOrCreate(
+            ['provider' => 'manual'],
+            [
+                'enabled' => true,
+                'auto_convert_stocks' => false,
+            ]
+        );
     }
 }

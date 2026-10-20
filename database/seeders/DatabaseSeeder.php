@@ -20,9 +20,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             UserSeeder::class,
+            ComplianceSeeder::class,
             WalletSeeder::class,
             KycSeeder::class,
-            ComplianceSeeder::class,
             TransactionSeeder::class,
             ServiceSeeder::class,
             ServiceConnectionSeeder::class,

@@ -8,7 +8,6 @@ use App\Models\NotificationPreference;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class UserSettingsSeeder extends Seeder
 {
@@ -21,21 +20,21 @@ class UserSettingsSeeder extends Seeder
         User::all()->each(function ($user) use ($kycSettings, $docs) {
 
             $user->update([
-                'country' => fake()->country(),
-                'next_of_kin' => fake()->name(),
-                'next_of_kin_phone' => fake()->phoneNumber(),
-                'next_of_kin_email' => fake()->email(),
+                'country' => ['Nigeria', 'Ghana', 'Kenya'][$user->id % 3],
+                'next_of_kin' => "Demo Contact {$user->id}",
+                'next_of_kin_phone' => '+234800'.str_pad((string) $user->id, 7, '0', STR_PAD_LEFT),
+                'next_of_kin_email' => "demo-contact-{$user->id}@example.invalid",
             ]);
 
-            $status = fake()->randomElement(['pending', 'verified', 'rejected']);
-            $tier = fake()->numberBetween(1, 3);
+            $status = ['pending', 'verified', 'rejected'][$user->id % 3];
+            $tier = ($user->id % 3) + 1;
 
             $limit = $kycSettings->has($tier) ? $kycSettings[$tier]->daily_limit : 50000;
             $levelName = $kycSettings->has($tier) ? strtolower($kycSettings[$tier]->tier_name) : 'basic';
 
             $reason = ($status === 'rejected') ? 'Document image was blurry or expired..' : null;
 
-            $choice = $docs[array_rand($docs)];
+            $choice = $docs[$user->id % count($docs)];
 
             $kycData = [
                 'tier' => $tier,
@@ -44,10 +43,10 @@ class UserSettingsSeeder extends Seeder
                 'daily_limit' => ($status === 'verified') ? $limit : 0,
 
                 'id_type' => $choice, // Use the random choice
-                'id_number' => strtoupper(substr($choice, 0, 3)).$user->id.rand(1000, 9999),
-                'bvn' => (fake()->numerify('###########')),
-                'nin' => (fake()->numerify('###########')),
-                'tin' => (fake()->numerify('##########')),
+                'id_number' => strtoupper(substr($choice, 0, 3)).str_pad((string) $user->id, 10, '0', STR_PAD_LEFT),
+                'bvn' => str_pad((string) (10000000000 + $user->id), 11, '0', STR_PAD_LEFT),
+                'nin' => str_pad((string) (20000000000 + $user->id), 11, '0', STR_PAD_LEFT),
+                'tin' => str_pad((string) (3000000000 + $user->id), 10, '0', STR_PAD_LEFT),
                 'rejection_reason' => $reason,
             ];
 
@@ -59,7 +58,7 @@ class UserSettingsSeeder extends Seeder
             }
 
             // add a sample proof of address in some cases (from first seeder)
-            if (rand(0, 1)) {
+            if ($user->id % 2 === 0) {
                 $kycData['proof_of_address'] = "kyc/address/poa_{$user->id}.pdf";
             }
 
@@ -86,10 +85,10 @@ class UserSettingsSeeder extends Seeder
                 ['user_id' => $user->id],
                 [
                     'email' => true,
-                    'sms' => fake()->boolean(),
+                    'sms' => $user->id % 2 === 0,
                     'push' => true,
                     'monthly_statements' => true,
-                    'newsletters' => fake()->boolean(),
+                    'newsletters' => $user->id % 3 === 0,
                 ]
             );
         });

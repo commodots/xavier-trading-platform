@@ -4,15 +4,13 @@ namespace Database\Seeders;
 
 use App\Models\Portfolio;
 use App\Models\User;
-use Faker\Factory as Faker;
 use Illuminate\Database\Seeder;
 
 class PortfolioSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Faker::create();
-        $users = User::all();
+        $users = User::query()->orderBy('id')->get();
 
         // Base data for the assets
         $holdings = [
@@ -28,14 +26,14 @@ class PortfolioSeeder extends Seeder
         foreach ($users as $user) {
             $userHoldings = array_slice($holdings, 0, 3 + ($user->id % 3));
 
-            foreach ($userHoldings as $holding) {
+            foreach ($userHoldings as $index => $holding) {
 
                 $quantity = ($holding['category'] === 'crypto')
-                    ? $faker->randomFloat(4, 0.001, 0.5)
-                    : $faker->numberBetween(10, 1000);
+                    ? round(0.001 + (($user->id * 17 + $index * 13) % 500) / 1000, 4)
+                    : 10 + (($user->id * 31 + $index * 17) % 991);
 
-                $variation = $holding['base_price'] * 0.15;
-                $avgPrice = $faker->randomFloat(2, $holding['base_price'] - $variation, $holding['base_price'] + $variation);
+                $variationPercent = (($user->id * 7 + $index * 11) % 31) - 15;
+                $avgPrice = round($holding['base_price'] * (1 + $variationPercent / 100), 2);
 
                 Portfolio::updateOrCreate(
                     ['user_id' => $user->id, 'symbol' => $holding['symbol']],

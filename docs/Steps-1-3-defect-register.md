@@ -2,8 +2,8 @@
 
 **Project:** Xavier Trading Platform  
 **Branch:** stabilization/Steps-1-3  
-**Date:** 2026-10-16  
-**Status:** Step 1 Complete — Baseline established, defects logged and prioritized
+**Date:** 2026-10-19
+**Status:** Steps 1–3 automated stabilization checks pass; authenticated browser workflows and real CSL OAuth remain unverified/blocked.
 
 ---
 
@@ -17,6 +17,7 @@
 | Migrations | `php artisan migrate:status` | All migrations "Ran" |
 | Tests (baseline) | `php artisan test` | 5 failures in `CslDiagnoseCommandTest` |
 | Tests (after fixes) | `php vendor/bin/phpunit` | **OK — 304 tests, 1124 assertions** (6 PHPUnit deprecations, non-failing) |
+| Final Step 3 suite | `php artisan test` | **OK — 311 tests, 1,142 assertions, 0 failures** (6 non-failing PHPUnit metadata deprecations) |
 | Frontend Build | `npm run build` | Vite build succeeds |
 
 ---
@@ -29,11 +30,13 @@
 | DS1-002 | `csl:diagnose` reports "CSL credentials configured: FAIL" even when mock transport is enabled | Medium | `app/Console/Commands/CslDiagnose.php:182-186` | Enable `CSL_MOCK` and leave CSL credentials empty, then run `php artisan csl:diagnose` | Pass (fixed) |
 | DS1-003 | CSL test credentials not configured in `.env` | High | `.env` (`CSL_CLIENT_ID`, `CSL_CLIENT_SECRET` empty) | Attempt real CSL authentication with mock mode disabled; provider request cannot authenticate | Blocked — awaiting credentials |
 | DS1-004 | `CslDiagnoseCommandTest` output expectations overlap, so Mockery's first-match-wins output matching masks command output and produces false failures | Medium | `tests/Feature/CSL/CslDiagnoseCommandTest.php` | Run `php artisan test --filter=CslDiagnoseCommandTest` against the overlapping output expectations | Pass (fixed) |
-| DS1-005 | Inconsistent `CSL_MOCK` value between `.env` (true) and `phpunit.xml` (false) | Low | `.env` vs `phpunit.xml` | Compare the effective local and PHPUnit values of `CSL_MOCK` | Pending — documentation decision |
+| DS1-005 | Inconsistent `CSL_MOCK` value between `.env` (true) and `phpunit.xml` (false) | Low | `.env` vs `phpunit.xml` | Compare the effective local and PHPUnit values of `CSL_MOCK` | Documented intentional difference; real CSL remains blocked |
 | DS2-001 | Re-running `UserSeeder` appended 20 new random users instead of converging on the same fixture set | Medium | `database/seeders/UserSeeder.php` | Run `RolePermissionSeeder`, then run `UserSeeder` twice and compare user counts (21 → 41 before fix) | Pass (fixed; focused regression passes) |
-| DS2-002 | Several demo seeders append new transactions, orders, linked accounts and billing records on each run | Medium | `database/seeders/TransactionSeeder.php`, `OrderSeeder.php`, `UserSettingsSeeder.php`, `ComplianceSeeder.php` | Run `php artisan db:seed` twice on a fresh disposable database and compare record counts and references | Open — first full seed passes in temp; repeat full seed not run |
+| DS2-002 | Full demo seed chain appended records and changed fixture data on repeat runs | Medium | `database/seeders/` reference, transaction, wallet, portfolio, KYC, compliance, and expense seeders | Run the full `DatabaseSeeder` twice on a migrated disposable SQLite DB and compare every table plus wallet balances | Pass (fixed; full repeatability regression passes) |
 | DS2-003 | `NewTransactionSeeder` generated completed deposits and fee earnings for every user on each run | Medium | `database/seeders/NewTransactionSeeder.php` | Run `NewTransactionSeeder` twice and compare seeded transaction and earning counts; before fix 21 → 70 | Pass (fixed; focused regression passes) |
 | DS2-004 | Transaction detail requests returned HTTP 500 because the selected model class string was queried as an object | Medium | `app/Http/Controllers/Api/NewTransactionController.php:147` | Request `/api/transactions/{id}` as the owner and as a different authenticated user; both returned 500 before fix | Pass (fixed; owner and cross-user tests pass) |
+| DS2-005 | `DatabaseSeeder` could seed demo users/data and the shared `password` credential in production | High | `database/seeders/DatabaseSeeder.php` | Invoke `DatabaseSeeder::run()` with the app environment set to production | Pass (fixed; production guard test passes) |
+| DS2-006 | Demo database seeding is slow on synchronized storage | Low | `database/seeders/TransactionSeeder.php`, `OrderSeeder.php`, `UserSettingsSeeder.php`, `ComplianceSeeder.php` | Time the full seed on OneDrive vs a system-temp SQLite database | Open — repeatability passes; performance remains slow and environment-dependent |
 
 ---
 
@@ -93,15 +96,15 @@ The command itself rendered every line correctly (confirmed via temporary per-ro
 
 **Verification:** `tests/Feature/UserSeederTest.php` passes, asserting that the second run does not increase the user count.
 
-### DS2-002: Full demo seeding is slow and append-only in several seeders (MEDIUM) — OPEN
+### DS2-002: Full demo seed chain was not repeatable (MEDIUM) — FIXED
 
-**Evidence:** A fresh migration and complete `DatabaseSeeder` run succeeded against SQLite under the system temp directory. Under the OneDrive workspace, the initial attempt exceeded ten minutes before being stopped. On the synced workspace, earlier seeders reported approximately 59 seconds for `NewTransactionSeeder`, 195 seconds for `OrderSeeder`, 75 seconds for `PortfolioSeeder`, and 99 seconds for `UserSettingsSeeder`; the temp-directory run completed substantially faster. `TransactionSeeder` creates rows with random ULID references; `OrderSeeder`, `UserSettingsSeeder` and `ComplianceSeeder` also use append-only `create()` calls for sample records.
+**Root cause:** Multiple fixture seeders used random values and unconditional `create()` calls; compliance users were created after seeders that enumerate all users. Repeated runs appended transactions, orders, linked accounts, KYC records, notifications, activity/billing/device records, FX singleton settings, advisories, and expenses, and the wallet seeder could overwrite financial fixture values.
 
-**Impact:** A fresh development install can exceed a five-minute seed timeout, and rerunning the full seeder can add additional demo activity and reference records.
+**Fix applied:** Use stable fixture keys and `updateOrCreate`/`firstOrCreate`, deterministic fixture values and user selections, seed compliance users before user-wide data, and guard the demo `DatabaseSeeder` from production.
 
-**Required fix:** Repeat the full migration and seed checks using a disposable SQLite database outside the synchronized workspace, then make the append-only demo fixtures idempotent or clearly isolate them as an explicitly opt-in demo seeder. Optimize only after measuring outside OneDrive to distinguish database write cost from application work.
+**Verification:** `tests/Feature/DatabaseSeederTest.php` runs the full seed chain twice, compares every database table count, compares wallet balances/cleared balances/account references, and confirms required roles and permissions exist. It passes.
 
-**Test result:** Partial — fresh migration and first full seed pass in temp; second full seed and count/reference comparison remain unverified. Workspace-synced seed performance is poor but is not a migration or seeder failure.
+**Test result:** Pass — fresh migration plus two complete seed runs succeeded on disposable SQLite. Repeat seeding on OneDrive remains substantially slower than in a local temp directory; see DS2-006.
 
 ### DS2-003: New transaction seeder duplicates completed deposits (MEDIUM) — FIXED
 
@@ -118,6 +121,24 @@ The command itself rendered every line correctly (confirmed via temporary per-ro
 **Fix applied:** Query through the selected model's static `query()` builder while retaining the `user_id` ownership filter.
 
 **Verification:** `tests/Feature/TransactionOwnershipTest.php` passes for both owner access (200) and cross-user access (404).
+
+### DS2-005: Demo database seeder lacked a production guard (HIGH) — FIXED
+
+**Root cause:** `DatabaseSeeder` includes a known demo admin account using the shared password `password` and several financial demo fixtures, but did not prevent execution in production.
+
+**Fix applied:** `DatabaseSeeder::run()` throws a `RuntimeException` when the application environment is production.
+
+**Verification:** `DatabaseSeederTest::test_full_database_seeder_refuses_to_run_in_production` passes.
+
+### DS2-006: Full seed performance on synchronized storage (LOW) — OPEN
+
+**Evidence:** Fresh migrations and full seed passes complete in a system-temp SQLite database. The same writes are substantially slower under the OneDrive workspace, where a first attempt exceeded ten minutes before it was stopped.
+
+**Impact:** Local developer setup can take several minutes when the project is inside a synchronized folder; this is not a migration failure or repeatability failure.
+
+**Required action:** Prefer a local non-synchronized database path for fresh-install verification. Further batch-write optimization is optional and should be measured outside OneDrive first.
+
+**Test result:** Open performance follow-up; functional repeatability passes.
 
 ---
 
@@ -152,11 +173,11 @@ Confirmed by the passing full suite (304 tests, 1124 assertions):
 
 ---
 
-## Next Steps (Step 2)
+## Remaining Work (Steps 4–6)
 
-1. Obtain CSL test credentials and resolve DS1-003.
-2. Run `csl:diagnose` against real CSL test endpoints with mock disabled.
-3. Execute financial workflow testing (deposit → trade → settlement → withdrawal) on a safe test database.
-4. Decide DS1-005 (documentation vs alignment).
-5. Migrate `@test` doc-comments to `#[Test]` attributes (low priority).
+1. Obtain CSL test credentials securely and run real OAuth/read-only sandbox validation; keep live trading disabled.
+2. Complete financial, fixed-income, settlement, and CSL acceptance work in Steps 4–6 using disposable test data and mock/sandbox providers only.
+3. Run authenticated browser workflows with dedicated admin and end-user test accounts.
+4. Prefer non-synchronized storage for full seed/migration performance checks; DS2-006 remains low severity.
+5. Migrate the six deprecated PHPUnit doc-comment annotations before PHPUnit 12.
 

@@ -67,8 +67,8 @@ class ExpenseSeeder extends Seeder
             $category = $categories->firstWhere('name', $expenseData['category']);
             $vendor = $expenseData['vendor'] ? $vendors->firstWhere('name', $expenseData['vendor']) : null;
             $department = $departments->firstWhere('name', $expenseData['department']);
-            $user = $users->random();
-            $paymentMethod = $paymentMethods[array_rand($paymentMethods)];
+            $user = $users->get($index % $users->count());
+            $paymentMethod = $paymentMethods[$index % count($paymentMethods)];
 
             $invoiceNumber = 'INV-'.date('Y').'-'.str_pad($index + 1, 6, '0', STR_PAD_LEFT);
             $expense = Expense::updateOrCreate(
