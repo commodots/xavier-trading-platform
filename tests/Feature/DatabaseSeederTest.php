@@ -53,7 +53,7 @@ class DatabaseSeederTest extends TestCase
         $this->assertDatabaseHas('permissions', ['name' => 'view_reports', 'guard_name' => 'api']);
         $this->assertDatabaseHas('departments', ['code' => 'TECH']);
         $this->assertDatabaseHas('expense_categories', ['code' => 'RENT']);
-        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('users', 1);
         $this->assertTrue($admin->hasRole('admin'));
         $this->assertTrue($admin->hasRole('super-admin'));
         $this->assertTrue(Hash::check('long-test-password-for-admin', $admin->password));

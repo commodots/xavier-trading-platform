@@ -3,7 +3,17 @@
 **Project:** Xavier Trading Platform  
 **Branch:** `stabilization/Steps-1-3`  
 **Date:** 2026-10-19  
-**Status:** Core Step 2 regression checks pass; authenticated browser workflows remain unverified.
+**Status:** Core Step 2 regression checks pass; authenticated browser workflows remain unverified. Seeder verification is green after correcting a stale production-admin assertion.
+
+## Seeder status
+
+| Seeder area | Status | Notes |
+|---|---|---|
+| Production bootstrap | Pass | `ProductionSeeder` creates required roles/permissions and creates the configured system admin in production when credentials are present. |
+| Demo data seeding | Pass | `DatabaseSeeder` seed chain is repeatable on disposable SQLite and preserves table counts and wallet balances across a second run. |
+| Production guard | Pass | `DatabaseSeeder` refuses to run in production unless the environment is explicitly allowed; demo seed data stays out of production. |
+| Idempotent user/transaction seeders | Pass | `UserSeeder` and `NewTransactionSeeder` remain stable across repeated runs and only target demo-user fixtures. |
+| OneDrive-synchronized runtime | Warning | Full seeding remains slower on synchronized storage, but the logic is valid and the pass/fail outcome is still green on a disposable system-temp database. |
 
 ## Verified checks
 
