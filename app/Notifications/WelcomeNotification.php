@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class WelcomeNotification extends Notification
@@ -13,7 +14,18 @@ class WelcomeNotification extends Notification
 
     public function via($notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail'];
+    }
+
+    public function toMail($notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject('Welcome to Xavier Trading Platform')
+            ->greeting('Welcome to Xavier, '.$this->userName.'!')
+            ->line('Your account is ready. You can now explore the Xavier Trading Platform.')
+            ->line('Verify your email address and complete KYC to unlock account features.')
+            ->action('Go to Dashboard', url('/dashboard'))
+            ->line('Need help? Visit our Help & Support page anytime.');
     }
 
     public function toArray($notifiable): array

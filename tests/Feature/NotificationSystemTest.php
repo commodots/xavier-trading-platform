@@ -11,6 +11,7 @@ use App\Notifications\BillingAlertNotification;
 use App\Notifications\InactivityWarningNotification;
 use App\Notifications\NewDeviceLoginNotification;
 use App\Notifications\TrialEndingNotification;
+use App\Notifications\WelcomeNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -93,6 +94,20 @@ class NotificationSystemTest extends TestCase
         $notification = new BillingAlertNotification(1000, 'Pref test');
 
         $this->assertEquals(['database'], $notification->via($user));
+    }
+
+    public function test_welcome_notification_is_sent_to_database_and_email(): void
+    {
+        $user = User::factory()->create();
+        $notification = new WelcomeNotification('Test User');
+
+        $this->assertSame(['database', 'mail'], $notification->via($user));
+
+        $mailMessage = $notification->toMail($user);
+
+        $this->assertSame('Welcome to Xavier Trading Platform', $mailMessage->subject);
+        $this->assertSame('Go to Dashboard', $mailMessage->actionText);
+        $this->assertSame(url('/dashboard'), $mailMessage->actionUrl);
     }
 
     public function test_mark_single_notification_as_read(): void

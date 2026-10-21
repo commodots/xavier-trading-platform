@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue';
+import { ref, computed, inject, unref, onBeforeUnmount } from 'vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import api from '@/api';
 
@@ -8,11 +8,16 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    global: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const status = ref(null);
 const processing = ref(false);
 const timer = ref(0);
+const layoutBannerVisible = inject('layoutEmailVerificationBannerVisible', false);
 let interval = null;
 
 const startTimer = () => {
@@ -43,6 +48,10 @@ const isVerified = computed(() => {
     const u = props.user || {};
     return (u.role && u.role.toLowerCase().includes('admin'));
 });
+
+const shouldShow = computed(() =>
+    !isVerified.value && (props.global || !unref(layoutBannerVisible))
+);
 
 const submit = async () => {
     if (timer.value > 0 || processing.value) return;
@@ -82,7 +91,7 @@ const goToWelcome = () => {
 </script>
 
 <template>
-    <div v-if="!isVerified" class="p-4 mb-4 bg-white border border-red-400 rounded-md shadow-sm">
+    <div v-if="shouldShow" class="p-4 mb-4 bg-white border border-red-400 rounded-md shadow-sm">
         <div class="flex items-center justify-between">
             <div class="flex-1">
                 <p class="text-sm font-semibold text-red-600">

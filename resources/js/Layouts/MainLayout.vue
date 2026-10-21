@@ -130,6 +130,12 @@
         </div>
       </div>
       <div class="p-4 pb-20 md:p-6">
+        <EmailVerificationPrompt
+          v-if="needsKyc && needsEmailVerification"
+          :user="user"
+          :global="true"
+          class="!mb-0"
+        />
         <section
           v-if="needsKyc"
           class="mb-6 flex flex-col items-start justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 sm:flex-row sm:items-center"
@@ -147,7 +153,7 @@
           <button
             type="button"
             class="flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-[#0B132B] transition hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:w-auto"
-            @click="router.push('/kyc/verify')"
+            @click="showKycModal = true"
           >
             Verify identity
           </button>
@@ -163,15 +169,28 @@
       @stay="stayLoggedIn"
       @logout="executeLogout"
     />
+
+    <div
+      v-if="showKycModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Identity verification"
+      @click.self="showKycModal = false"
+    >
+      <VerifyIdentity @close="showKycModal = false" @verified="refreshKycUser" />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, provide } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/api";
 import { useIdleTimeout } from "@/composables/useIdleTimeout";
 import SessionTimeoutModal from "@/Components/SessionTimeoutModal.vue";
+import VerifyIdentity from "@/Pages/Kyc/VerifyIdentity.vue";
+import EmailVerificationPrompt from "@/Components/EmailVerificationPrompt.vue";
 import {
   Home, Wallet, PieChart, BarChart2, Globe, Bitcoin,
   ShoppingCart, LogOut, Users, ShieldCheck, ShieldAlert,
@@ -186,6 +205,7 @@ import { Star } from "lucide-vue-next";
 const router = useRouter();
 const route = useRoute();
 const sidebarOpen = ref(false);
+const showKycModal = ref(false);
 const year = new Date().getFullYear();
 
 const getUser = () => {
@@ -198,6 +218,19 @@ const getUser = () => {
 };
 
 const user = ref(getUser());
+
+const refreshKycUser = async () => {
+  try {
+    const response = await api.get('/profile/me');
+    const freshUser = response.data?.data || response.data;
+    if (freshUser) {
+      user.value = freshUser;
+      localStorage.setItem('user', JSON.stringify(freshUser));
+    }
+  } catch (error) {
+    console.error('Failed to refresh user after KYC verification:', error);
+  }
+};
 
 const isAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
@@ -217,6 +250,12 @@ const kycTier = computed(() => {
   return Number.isFinite(numericTier) ? numericTier : tierByLevel[String(tier).toLowerCase()] ?? 0;
 });
 const needsKyc = computed(() => currentView.value === 'user' && !isAdmin.value && kycTier.value < 3);
+const needsEmailVerification = computed(() =>
+  Boolean(user.value) && !user.value.email_verified_at
+);
+provide('layoutEmailVerificationBannerVisible', computed(() =>
+  needsKyc.value && needsEmailVerification.value
+));
 
 const isSuperAdmin = computed(() => {
   const role = (user.value?.role || '').toLowerCase();
