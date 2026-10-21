@@ -198,8 +198,8 @@ class CslClient
     }
 
     /**
-     * Return a synthetic 200 response from the mock transport when the
-     * endpoint is mocked. Returns null so callers hit the real CSL API.
+     * Return a synthetic 200 response for a mapped endpoint. Mock mode fails
+     * closed when no fixture exists so it can never reach the live transport.
      */
     protected function mockResponse(string $endpoint): ?Response
     {
@@ -210,7 +210,9 @@ class CslClient
         $payload = $this->mock()->forEndpoint($endpoint);
 
         if ($payload === null) {
-            return null;
+            throw new RuntimeException(
+                "No CSL mock fixture is configured for endpoint: {$endpoint}"
+            );
         }
 
         return new Response(

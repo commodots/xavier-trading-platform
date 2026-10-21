@@ -4,11 +4,28 @@ namespace Tests\Feature\CSL;
 
 use App\Services\CSL\CslStockClient;
 use App\Services\CSL\CslTradeXClient;
+use App\Services\CSL\CslClient;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Tests\TestCase;
 
 class CslClientTest extends TestCase
 {
+    public function test_mock_mode_fails_closed_for_unmapped_endpoints(): void
+    {
+        config()->set('services.csl.mock', true);
+        Http::fake();
+
+        try {
+            app(CslClient::class)->st('GET', '/UnmappedEndpoint');
+            $this->fail('An unmapped mock endpoint must not use real HTTP.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('No CSL mock fixture', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_st_markets_endpoint_is_mapped_correctly(): void
     {
         config()->set('services.csl.mock', false);
