@@ -2,7 +2,8 @@
 
 namespace App\Services\Reports;
 
-use App\Models\Order;
+use App\Models\FixedIncomeInvestment;
+use App\Models\FixedIncomeProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -10,129 +11,104 @@ class InvestmentPlanReportService extends BaseReportService
 {
     use Concerns\InteractsWithCharts;
 
-    /**
-     * Main Report
-     */
     public function generate(Request $request): array
     {
-        $query = Order::query()
+        $query = FixedIncomeProduct::query()
+            ->leftJoin('fixed_income_investments', 'fixed_income_products.id', '=', 'fixed_income_investments.fixed_income_product_id')
             ->select(
-                'market',
-                DB::raw('COUNT(*) as total_investments'),
-                DB::raw('SUM(amount) as total_amount'),
-                DB::raw('AVG(amount) as average_investment')
+                'fixed_income_products.id',
+                'fixed_income_products.name as market',
+                'fixed_income_products.status',
+                DB::raw('COUNT(fixed_income_investments.id) as total_investments'),
+                DB::raw('COALESCE(SUM(fixed_income_investments.principal_amount), 0) as total_amount'),
+                DB::raw('COALESCE(AVG(fixed_income_investments.principal_amount), 0) as average_investment'),
+                DB::raw('COALESCE(SUM(fixed_income_investments.expected_interest), 0) as expected_roi')
             )
-            ->whereNotNull('market')
-            ->groupBy('market');
+            ->groupBy('fixed_income_products.id', 'fixed_income_products.name', 'fixed_income_products.status');
 
-        $this->applyFilters($query, $request);
+        $this->applyPlanFilters($query, $request);
 
-        $this->applySorting($query, $request);
-
-        // Override sort to use aggregate columns safely
-        $query->reorder('total_investments', 'desc');
-
-        $table = $this->paginate($query, $request);
+        $table = $query->orderByDesc('total_investments')->paginate($request->integer('per_page', 20));
 
         return $this->response(
             $this->summary(),
             $table,
-            [
-                $this->investmentChart(),
-                $this->valueChart(),
-            ],
+            [$this->investmentChart(), $this->valueChart()],
             $request->all()
         );
     }
 
-    /**
-     * Summary
-     */
     public function summary(): array
     {
         return [
-            'plans' => Order::select('market')->distinct()->whereNotNull('market')->count(),
-            'active_plans' => Order::select('market')->distinct()->whereNotNull('market')->whereIn('status', ['open', 'pending'])->count(),
-            'inactive_plans' => Order::select('market')->distinct()->whereNotNull('market')->where('status', 'canceled')->count(),
-            'investments' => Order::count(),
-            'principal' => Order::sum(DB::raw('amount * price')),
-            'expected_roi' => 0,
+            'plans' => FixedIncomeProduct::count(),
+            'active_plans' => FixedIncomeProduct::where('status', 'active')->count(),
+            'inactive_plans' => FixedIncomeProduct::where('status', '!=', 'active')->count(),
+            'investments' => FixedIncomeInvestment::count(),
+            'principal' => (float) FixedIncomeInvestment::sum('principal_amount'),
+            'expected_roi' => (float) FixedIncomeInvestment::sum('expected_interest'),
         ];
     }
 
-    /**
-     * Investments Per Plan Chart
-     */
     protected function investmentChart(): array
     {
-        $rows = Order::select('market', DB::raw('COUNT(*) as total'))
-            ->whereNotNull('market')
-            ->groupBy('market')
-            ->orderBy('total', 'desc')
+        $rows = FixedIncomeInvestment::query()
+            ->join('fixed_income_products', 'fixed_income_investments.fixed_income_product_id', '=', 'fixed_income_products.id')
+            ->select('fixed_income_products.name', DB::raw('COUNT(*) as total'))
+            ->groupBy('fixed_income_products.id', 'fixed_income_products.name')
+            ->orderByDesc('total')
             ->get();
 
-        return $this->chart(
-            'Investments Per Plan',
-            $rows->pluck('market')->toArray(),
-            $rows->pluck('total')->toArray()
-        );
+        return $this->chart('Investments Per Plan', $rows->pluck('name')->toArray(), $rows->pluck('total')->toArray());
     }
 
-    /**
-     * Investment Value Per Plan Chart
-     */
     protected function valueChart(): array
     {
-        $rows = Order::select('market', DB::raw('SUM(amount) as total'))
-            ->whereNotNull('market')
-            ->groupBy('market')
-            ->orderBy('total', 'desc')
+        $rows = FixedIncomeInvestment::query()
+            ->join('fixed_income_products', 'fixed_income_investments.fixed_income_product_id', '=', 'fixed_income_products.id')
+            ->select('fixed_income_products.name', DB::raw('SUM(fixed_income_investments.principal_amount) as total'))
+            ->groupBy('fixed_income_products.id', 'fixed_income_products.name')
+            ->orderByDesc('total')
             ->get();
 
-        return $this->chart(
-            'Investment Value',
-            $rows->pluck('market')->toArray(),
-            $rows->pluck('total')->toArray()
-        );
+        return $this->chart('Investment Value', $rows->pluck('name')->toArray(), $rows->pluck('total')->toArray());
     }
 
-    /**
-     * ROI Per Plan Chart
-     */
-    protected function roiChart(): array
+    public function export(Request $request): array
     {
-        $rows = Order::select('market', DB::raw('COUNT(*) as roi'))
-            ->whereNotNull('market')
-            ->whereIn('status', ['open', 'pending'])
-            ->groupBy('market')
-            ->get();
+        $query = FixedIncomeProduct::query()
+            ->leftJoin('fixed_income_investments', 'fixed_income_products.id', '=', 'fixed_income_investments.fixed_income_product_id')
+            ->select(
+                'fixed_income_products.id',
+                'fixed_income_products.name as market',
+                'fixed_income_products.status',
+                DB::raw('COUNT(fixed_income_investments.id) as total_investments'),
+                DB::raw('COALESCE(SUM(fixed_income_investments.principal_amount), 0) as total_amount'),
+                DB::raw('COALESCE(AVG(fixed_income_investments.principal_amount), 0) as average_investment'),
+                DB::raw('COALESCE(SUM(fixed_income_investments.expected_interest), 0) as expected_roi')
+            )
+            ->groupBy('fixed_income_products.id', 'fixed_income_products.name', 'fixed_income_products.status');
 
-        return $this->chart(
-            'ROI By Plan',
-            $rows->pluck('market')->toArray(),
-            $rows->pluck('roi')->toArray()
-        );
+        $this->applyPlanFilters($query, $request);
+
+        return $query->orderByDesc('total_investments')->get()->toArray();
     }
 
-    /**
-     * Export
-     */
-    public function export(Request $request)
-    {
-        return Order::select('market', DB::raw('COUNT(*) as total_investments'), DB::raw('SUM(amount) as total_amount'))
-            ->whereNotNull('market')
-            ->groupBy('market')
-            ->get()
-            ->toArray();
-    }
-
-    /**
-     * Search
-     */
     protected function applySearch($query, string $search): void
     {
-        $query->where(function ($q) use ($search) {
-            $q->where('market', 'like', "%{$search}%");
-        });
+        $query->where('fixed_income_products.name', 'like', "%{$search}%");
+    }
+
+    protected function applyPlanFilters($query, Request $request): void
+    {
+        if ($request->filled('status')) {
+            $query->where('fixed_income_products.status', $request->status);
+        }
+        if ($request->filled('start_date')) {
+            $query->whereDate('fixed_income_investments.investment_date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('fixed_income_investments.investment_date', '<=', $request->end_date);
+        }
     }
 }

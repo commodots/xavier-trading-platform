@@ -3,24 +3,39 @@ import { onMounted, ref } from 'vue';
 import api from '@/api';
 import MainLayout from "@/Layouts/MainLayout.vue";
 import SkeletonLoader from '@/Components/SkeletonLoader.vue'
+import DateFilter from '@/Components/Reports/DateFilter.vue'
+import ExportButton from '@/Components/Reports/ExportButton.vue'
 import { fixedIncomeCurrency, fixedIncomeLabel } from '@/lib/fixedIncomeFormatters'
 
 const rows = ref([]);
 const loading = ref(true);
 const error = ref('')
+const filters = ref({ start_date: '', end_date: '' });
 
-onMounted(
-  async () => {
-    try {
-      rows.value = (await api.get('/admin/fixed-income/reports/investments')).data.data || []
-    }
-    catch (exception) {
-      error.value = exception.response?.data?.message || 'Unable to load report.'
-    }
-    finally {
-      loading.value = false
-    }
-  })
+const fetchRows = async () => {
+  loading.value = true;
+  try {
+    const response = await api.get('/admin/fixed-income/reports/investments', {
+      params: {
+        date_from: filters.value.start_date,
+        date_to: filters.value.end_date,
+      },
+    });
+    rows.value = response.data.data || [];
+    error.value = '';
+  } catch (exception) {
+    error.value = exception.response?.data?.message || 'Unable to load report.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleFilterChange = (payload) => {
+  filters.value = { start_date: payload.start_date || '', end_date: payload.end_date || '' };
+  fetchRows();
+};
+
+onMounted(fetchRows);
 
 </script>
 
@@ -29,6 +44,14 @@ onMounted(
   <div class="space-y-6">
     <div>
       <h1 class="mt-2 text-3xl font-semibold text-white">Fixed Income report</h1>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <DateFilter @filter-change="handleFilterChange" />
+      <ExportButton
+        reportType="fixed-income-investments"
+        :startDate="filters.start_date"
+        :endDate="filters.end_date"
+      />
     </div>
     <p v-if="error" class="text-red-400">{{ error }}</p>
     <SkeletonLoader v-if="loading" type="table" :count="8" class="opacity-40" />

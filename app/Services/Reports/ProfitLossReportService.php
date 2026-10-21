@@ -125,10 +125,15 @@ class ProfitLossReportService extends BaseReportService
     {
         $query = Expense::query();
         $this->applyExpenseFilters($query, $request);
+        $monthExpression = match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', expense_date)",
+            'pgsql' => "TO_CHAR(expense_date, 'YYYY-MM')",
+            default => "DATE_FORMAT(expense_date, '%Y-%m')",
+        };
 
         return $query
             ->select(
-                DB::raw("DATE_FORMAT(expense_date, '%Y-%m') as month"),
+                DB::raw("{$monthExpression} as month"),
                 DB::raw('SUM(amount) as total')
             )
             ->groupBy('month')

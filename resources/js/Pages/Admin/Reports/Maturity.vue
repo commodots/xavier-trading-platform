@@ -92,18 +92,18 @@ const tableColumns = [
   { key: 'plan', label: 'Plan' },
   { key: 'amount', label: 'Principal', type: 'currency' },
   { key: 'status', label: 'Status' },
-  { key: 'start_date', label: 'Start Date', type: 'date' },
+  { key: 'start_date', label: 'Maturity Date', type: 'date' },
 ];
 
 const tableRows = computed(() => {
   if (!table.value || !Array.isArray(table.value.data)) return [];
   return table.value.data.map((row) => ({
-    id: row.id,
+    id: row.reference,
     investor: row.user?.name || 'N/A',
-    plan: row.market || row.symbol || 'N/A',
-    amount: row.amount || (row.price * row.quantity) || 0,
+    plan: row.product?.name || 'N/A',
+    amount: row.principal_amount || 0,
     status: row.status,
-    start_date: row.created_at,
+    start_date: row.maturity_date,
   }));
 });
 

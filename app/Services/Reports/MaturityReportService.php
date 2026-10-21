@@ -2,7 +2,7 @@
 
 namespace App\Services\Reports;
 
-use App\Models\Order;
+use App\Models\FixedIncomeInvestment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -10,145 +10,60 @@ class MaturityReportService extends BaseReportService
 {
     use Concerns\InteractsWithCharts;
 
-    /**
-     * Main Report
-     */
     public function generate(Request $request): array
     {
-        $query = Order::query()
-            ->with(['user:id,name,email']);
+        $query = FixedIncomeInvestment::query()
+            ->with(['user:id,name,email', 'product:id,name']);
 
-        $this->applyFilters($query, $request);
-
-        $this->applySorting($query, $request);
-
-        $table = $this->paginate($query, $request);
+        $this->applyFilters($query, $request, 'maturity_date');
+        $this->applySorting($query, $request, 'maturity_date');
 
         return $this->response(
-            $this->summary(),
-            $table,
+            $this->summary($request),
+            $this->paginate($query, $request),
             [
-                $this->monthlyChart(Order::class, 'created_at', 'id', 'count', 'Monthly Maturity'),
-                $this->statusChart(Order::class, 'status', 'Investment Status'),
+                $this->monthlyChart(FixedIncomeInvestment::class, 'maturity_date', 'id', 'count', 'Monthly Maturities'),
+                $this->statusChart(FixedIncomeInvestment::class, 'status', 'Maturity Status'),
             ],
             $request->all()
         );
     }
 
-    /**
-     * Summary Cards
-     */
-    public function summary(): array
+    public function summary(Request $request): array
     {
+        $query = FixedIncomeInvestment::query();
+        $this->applyFilters($query, $request, 'maturity_date');
+        $openStatuses = ['active', 'maturing', 'matured'];
+
         return [
-            'today' => $this->today(),
-            'seven_days' => $this->sevenDays(),
-            'thirty_days' => $this->thirtyDays(),
-            'overdue' => $this->overdue(),
-            'completed' => $this->completed(),
-            'pending' => $this->pending(),
+            'today' => (clone $query)->whereDate('maturity_date', Carbon::today())->count(),
+            'seven_days' => (clone $query)->whereBetween('maturity_date', [Carbon::today(), Carbon::today()->addDays(7)])->whereIn('status', $openStatuses)->count(),
+            'thirty_days' => (clone $query)->whereBetween('maturity_date', [Carbon::today(), Carbon::today()->addDays(30)])->whereIn('status', $openStatuses)->count(),
+            'overdue' => (clone $query)->where('maturity_date', '<', Carbon::today())->whereIn('status', $openStatuses)->count(),
+            'completed' => (clone $query)->where('status', 'redeemed')->count(),
+            'pending' => (clone $query)->whereIn('status', ['pending', 'pending_execution'])->count(),
         ];
     }
 
-    /**
-     * Due Today
-     */
-    protected function today()
+    public function export(Request $request): array
     {
-        return Order::whereDate(
-            'created_at',
-            Carbon::today()
-        )->count();
+        $query = FixedIncomeInvestment::query()
+            ->with(['user:id,name,email', 'product:id,name']);
+
+        $this->applyFilters($query, $request, 'maturity_date');
+
+        return $query->orderBy('maturity_date')->get()->toArray();
     }
 
-    /**
-     * Due In 7 Days
-     */
-    protected function sevenDays()
-    {
-        return Order::whereBetween(
-            'created_at',
-            [
-                Carbon::today(),
-                Carbon::today()->addDays(7),
-            ]
-        )->count();
-    }
-
-    /**
-     * Due In 30 Days
-     */
-    protected function thirtyDays()
-    {
-        return Order::whereBetween(
-            'created_at',
-            [
-                Carbon::today(),
-                Carbon::today()->addDays(30),
-            ]
-        )->count();
-    }
-
-    /**
-     * Overdue
-     */
-    protected function overdue()
-    {
-        return Order::where(
-            'created_at',
-            '<',
-            Carbon::today()->subDays(30)
-        )
-            ->whereIn('status', ['open', 'pending'])
-            ->count();
-    }
-
-    /**
-     * Completed
-     */
-    protected function completed()
-    {
-        return Order::where(
-            'status',
-            'filled'
-        )->count();
-    }
-
-    /**
-     * Pending
-     */
-    protected function pending()
-    {
-        return Order::where(
-            'status',
-            'pending'
-        )->count();
-    }
-
-    /**
-     * Export
-     */
-    public function export(Request $request)
-    {
-        $query = Order::query()
-            ->with(['user:id,name,email']);
-
-        $this->applyFilters($query, $request);
-
-        return $this->exportCollection($query->get());
-    }
-
-    /**
-     * Search
-     */
     protected function applySearch($query, string $search): void
     {
-        $query->where(function ($q) use ($search) {
-            $q->whereHas('user', function ($user) use ($search) {
-                $user->where('name', 'like', "%{$search}%");
-            })
-                ->orWhere('symbol', 'like', "%{$search}%")
-                ->orWhere('market', 'like', "%{$search}%");
+        $query->where(function ($investment) use ($search) {
+            $investment->whereHas('user', function ($user) use ($search) {
+                $user->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            })->orWhereHas('product', function ($product) use ($search) {
+                $product->where('name', 'like', "%{$search}%");
+            });
         });
     }
 }

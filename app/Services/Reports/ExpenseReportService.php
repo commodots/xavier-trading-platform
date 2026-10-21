@@ -307,6 +307,10 @@ class ExpenseReportService extends BaseReportService
      */
     protected function monthExpression(): string
     {
-        return "DATE_FORMAT(expenses.expense_date, '%Y-%m')";
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', expenses.expense_date)",
+            'pgsql' => "TO_CHAR(expenses.expense_date, 'YYYY-MM')",
+            default => "DATE_FORMAT(expenses.expense_date, '%Y-%m')",
+        };
     }
 }

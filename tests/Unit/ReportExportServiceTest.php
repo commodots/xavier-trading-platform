@@ -33,4 +33,20 @@ class ReportExportServiceTest extends TestCase
         $res = $svc->excel($rows, $headers, 'test-excel');
         $this->assertNotNull($res);
     }
+
+    public function test_generic_report_export_supports_csv_excel_and_pdf()
+    {
+        $service = app(ReportExportService::class);
+        $data = [
+            'headers' => ['Reference', 'Amount'],
+            'rows' => [['RPT-1', 125.50]],
+        ];
+
+        foreach (['csv' => 'report.csv', 'excel' => 'report.xlsx', 'pdf' => 'report.pdf'] as $format => $filename) {
+            $response = $service->export($format, $data, 'report', '2026-01-01', '2026-01-31');
+
+            $this->assertSame(200, $response->getStatusCode());
+            $this->assertStringContainsString($filename, $response->headers->get('content-disposition'));
+        }
+    }
 }

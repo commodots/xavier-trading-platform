@@ -17,8 +17,14 @@ trait InteractsWithCharts
         string $aggregate = 'count',
         string $title = 'Monthly Trend'
     ): array {
+        $monthExpression = match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%m', {$column})",
+            'pgsql' => "EXTRACT(MONTH FROM {$column})",
+            default => "MONTH({$column})",
+        };
+
         $rows = $model::select(
-            DB::raw("MONTH({$column}) month"),
+            DB::raw("{$monthExpression} as month"),
             DB::raw("{$aggregate}({$valueColumn}) total")
         )
             ->groupBy('month')

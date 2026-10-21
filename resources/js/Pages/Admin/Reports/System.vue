@@ -1,6 +1,9 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-white">System Report</h1>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold text-white">System Report</h1>
+      <ExportButton reportType="system" />
+    </div>
 
     <!-- Cards -->
     <SkeletonLoader v-if="loading" type="card" :count="8" class="opacity-40" />
@@ -64,6 +67,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import StatCard from '@/Components/Reports/StatCard.vue';
+import ExportButton from '@/Components/Reports/ExportButton.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import api from '@/api';
 

@@ -16,14 +16,14 @@
       <input
         v-model="startDate"
         type="date"
-        @change="emitFilter"
+        @change="handleDateChange"
         class="bg-[#1C2541] text-white text-xs rounded-lg px-2 py-1.5 border border-[#1f3348] focus:border-[#0047AB] outline-none"
       />
       <span class="text-xs text-gray-500">to</span>
       <input
         v-model="endDate"
         type="date"
-        @change="emitFilter"
+        @change="handleDateChange"
         class="bg-[#1C2541] text-white text-xs rounded-lg px-2 py-1.5 border border-[#1f3348] focus:border-[#0047AB] outline-none"
       />
       <button
@@ -42,7 +42,7 @@ import { ref } from 'vue';
 
 const emit = defineEmits(['filter-change']);
 
-const selectedPreset = ref('month');
+const selectedPreset = ref('custom');
 const startDate = ref('');
 const endDate = ref('');
 
@@ -119,8 +119,13 @@ const emitFilter = () => {
   });
 };
 
+const handleDateChange = () => {
+  selectedPreset.value = 'custom';
+  emitFilter();
+};
+
 const resetFilters = () => {
-  selectedPreset.value = 'month';
+  selectedPreset.value = 'custom';
   startDate.value = '';
   endDate.value = '';
   emitFilter();

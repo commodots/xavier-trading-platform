@@ -8,6 +8,7 @@ use App\Models\ExpenseCategory;
 use App\Models\ReportHistory;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\FixedIncome\FixedIncomeReportService;
 use App\Services\Reports\DashboardReportService;
 use App\Services\Reports\DashboardService;
 use App\Services\Reports\ExecutiveDashboardService;
@@ -154,17 +155,18 @@ class ReportsController extends Controller
     public function financial(Request $request)
     {
         $tab = $request->tab ?? 'deposits';
+        $filters = $this->normalizeReportFilters($request);
 
         $data = match ($tab) {
-            'deposits' => $this->financial->deposits($request->all()),
-            'withdrawals' => $this->financial->withdrawals($request->all()),
-            'wallet_transactions' => $this->financial->walletTransactions($request->all()),
-            'fees' => $this->financial->fees($request->all()),
-            'revenue' => $this->financial->revenue($request->all()),
-            default => $this->financial->deposits($request->all()),
+            'deposits' => $this->financial->deposits($filters),
+            'withdrawals' => $this->financial->withdrawals($filters),
+            'wallet_transactions' => $this->financial->walletTransactions($filters),
+            'fees' => $this->financial->fees($filters),
+            'revenue' => $this->financial->revenue($filters),
+            default => $this->financial->deposits($filters),
         };
 
-        $data['charts'] = $this->financial->charts($tab, $request->all());
+        $data['charts'] = $this->financial->charts($tab, $filters);
 
         return response()->json($data);
     }
@@ -184,7 +186,7 @@ class ReportsController extends Controller
     // Investments
     public function investments(Request $request)
     {
-        return response()->json($this->investment->list($request->all()));
+        return response()->json($this->investment->list($this->normalizeReportFilters($request)));
     }
 
     public function investmentSummary()
@@ -254,12 +256,13 @@ class ReportsController extends Controller
     public function walletWithdrawals(Request $request)
     {
         $tab = $request->tab ?? 'withdrawals';
+        $filters = $this->normalizeReportFilters($request);
 
         return response()->json(match ($tab) {
-            'withdrawals' => $this->withdrawal->list($request->all()),
-            'wallet_ledger' => $this->wallet->ledger($request->all()),
-            'adjustments' => $this->wallet->adjustments($request->all()),
-            default => $this->withdrawal->list($request->all()),
+            'withdrawals' => $this->withdrawal->list($filters),
+            'wallet_ledger' => $this->wallet->ledger($filters),
+            'adjustments' => $this->wallet->adjustments($filters),
+            default => $this->withdrawal->list($filters),
         });
     }
 
@@ -443,17 +446,31 @@ class ReportsController extends Controller
     {
         $request->validate([
             'format' => 'required|in:csv,excel,pdf',
-            'report_type' => 'required|string',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'report_type' => 'required|in:revenue,profit-loss,expenses,users,financial,investments,roi,maturity,investment-plans,subscriptions,kyc,login-history,referrals-subscriptions,wallet-withdrawals,financial-summary,executive-dashboard,system,fixed-income-investments',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'tab' => 'nullable|string',
+        ]);
+
+        if ($request->report_type === 'wallet-withdrawals') {
+            $request->validate(['tab' => 'nullable|in:withdrawals,wallet_ledger,adjustments']);
+        } elseif ($request->report_type === 'referrals-subscriptions') {
+            $request->validate(['tab' => 'nullable|in:referrals,subscriptions']);
+        } elseif ($request->report_type === 'financial') {
+            $request->validate(['tab' => 'nullable|in:deposits,withdrawals,wallet_transactions,fees,revenue']);
+        }
+
+        $request->merge([
+            'from' => $request->start_date,
+            'to' => $request->end_date,
         ]);
 
         $reportType = $request->report_type;
 
         // Get data from appropriate service
         $data = match ($reportType) {
-            'revenue' => app(RevenueReportService::class)->generate($request),
-            'profit-loss' => app(ProfitLossService::class)->generate($request),
+            'revenue' => $this->getRevenueExportData($request),
+            'profit-loss' => $this->getProfitLossExportData($request),
             'expenses' => $this->getExpensesExportData($request),
             'users' => $this->getUsersExportData($request),
             'financial' => $this->getFinancialExportData($request),
@@ -467,8 +484,22 @@ class ReportsController extends Controller
             'referrals-subscriptions' => $this->getReferralsSubscriptionsExportData($request),
             'wallet-withdrawals' => $this->getWalletWithdrawalsExportData($request),
             'financial-summary' => $this->getFinancialSummaryExportData($request),
+            'executive-dashboard' => $this->getExecutiveDashboardExportData($request),
+            'system' => $this->getSystemExportData(),
+            'fixed-income-investments' => $this->getFixedIncomeExportData($request),
             default => throw new \InvalidArgumentException("Unsupported report type: {$reportType}"),
         };
+
+        $fileResponse = app(ReportExportService::class)->export(
+            $request->format,
+            $data,
+            $reportType,
+            $request->start_date ?? '',
+            $request->end_date ?? ''
+        );
+
+        $historyStart = $request->start_date ?? '1900-01-01';
+        $historyEnd = $request->end_date ?? '2099-12-31';
 
         // Log the export
         ReportHistory::create([
@@ -476,19 +507,127 @@ class ReportsController extends Controller
             'name' => ucwords(str_replace('-', ' ', $reportType)).' Report',
             'type' => $reportType,
             'format' => $request->format,
-            'period' => 'custom',
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
+            'period' => $request->start_date || $request->end_date ? 'custom' : 'all-time',
+            'start_date' => $historyStart,
+            'end_date' => $historyEnd,
             'status' => 'completed',
         ]);
 
-        return app(ReportExportService::class)->export(
-            $request->format,
-            $data,
-            $reportType,
-            $request->start_date,
-            $request->end_date
-        );
+        return $fileResponse;
+    }
+
+    protected function getRevenueExportData(Request $request): array
+    {
+        $request->merge(['per_page' => 10000]);
+        $report = app(RevenueReportService::class)->generate($request);
+        $table = $report['table'] ?? [];
+        if (is_object($table) && method_exists($table, 'items')) {
+            $table = $table->items();
+        } elseif (is_array($table) && isset($table['data'])) {
+            $table = $table['data'];
+        }
+
+        return [
+            'headers' => ['Date', 'Source', 'Reference', 'Description', 'User', 'Amount', 'Status'],
+            'rows' => array_map(fn ($row) => [
+                $row['date'] ?? 'N/A',
+                $row['source_label'] ?? $row['source'] ?? 'N/A',
+                $row['reference'] ?? 'N/A',
+                $row['description'] ?? 'N/A',
+                $row['user_id'] ?? 'N/A',
+                $row['amount'] ?? 0,
+                $row['status'] ?? 'N/A',
+            ], $table),
+        ];
+    }
+
+    protected function getProfitLossExportData(Request $request): array
+    {
+        $report = app(ProfitLossReportService::class)->generate($request);
+
+        return [
+            'headers' => ['Month', 'Revenue', 'Expenses', 'Profit', 'Margin'],
+            'rows' => array_map(fn ($row) => [
+                $row['month'] ?? 'N/A',
+                $row['revenue'] ?? 0,
+                $row['expenses'] ?? 0,
+                $row['profit'] ?? 0,
+                ($row['margin'] ?? 0).'%',
+            ], $report['table'] ?? []),
+        ];
+    }
+
+    protected function getExecutiveDashboardExportData(Request $request): array
+    {
+        $report = app(ExecutiveDashboardService::class)->generate($request);
+        $rows = [];
+
+        foreach (['summary', 'business', 'operational'] as $section) {
+            foreach ($report[$section] ?? [] as $metric => $value) {
+                $rows[] = [ucwords(str_replace('_', ' ', $section)), ucwords(str_replace('_', ' ', $metric)), $value];
+            }
+        }
+
+        foreach (['latest_users', 'latest_deposits', 'latest_withdrawals', 'latest_investments'] as $section) {
+            foreach ($report[$section] ?? [] as $record) {
+                $rows[] = [ucwords(str_replace('_', ' ', $section)), json_encode($record), ''];
+            }
+        }
+
+        return ['headers' => ['Section', 'Metric / Record', 'Value'], 'rows' => $rows];
+    }
+
+    protected function getSystemExportData(): array
+    {
+        $report = $this->system->all();
+        $rows = [];
+
+        foreach ($report['cards'] ?? [] as $card) {
+            $rows[] = ['System Metrics', $card['label'] ?? 'Metric', $card['value'] ?? 'N/A'];
+        }
+        foreach ($report['integrations'] ?? [] as $integration) {
+            $rows[] = ['Integration Health', $integration['name'] ?? 'Integration', $integration['status'] ?? 'N/A'];
+        }
+        foreach ($report['logs'] ?? [] as $type => $entries) {
+            foreach ($entries as $entry) {
+                $rows[] = [ucwords(str_replace('_', ' ', $type)), $entry['message'] ?? 'N/A', $entry['time'] ?? ''];
+            }
+        }
+
+        return ['headers' => ['Section', 'Item', 'Value / Time'], 'rows' => $rows];
+    }
+
+    protected function getFixedIncomeExportData(Request $request): array
+    {
+        $data = app(FixedIncomeReportService::class)
+            ->investments(array_merge($request->only([
+                'status', 'product_id', 'currency', 'execution_mode', 'provider',
+            ]), [
+                'date_from' => $request->start_date,
+                'date_to' => $request->end_date,
+            ]));
+
+        return [
+            'headers' => ['Reference', 'Investor', 'Product', 'Principal', 'Currency', 'Interest Rate', 'Expected Interest', 'Actual Interest', 'Expected Maturity Amount', 'Actual Maturity Amount', 'Status', 'Funding Method', 'Execution Mode', 'Provider', 'Investment Date', 'Maturity Date'],
+            'rows' => $data->map(fn ($row) => [
+                $row['reference'] ?? 'N/A',
+                $row['investor'] ?? 'N/A',
+                $row['product'] ?? 'N/A',
+                $row['principal'] ?? 0,
+                $row['currency'] ?? 'N/A',
+                $row['interest_rate'] ?? 0,
+                $row['expected_interest'] ?? 0,
+                $row['actual_interest'] ?? 0,
+                $row['expected_maturity_amount'] ?? 0,
+                $row['actual_maturity_amount'] ?? 0,
+                $row['status'] ?? 'N/A',
+                $row['funding_method'] ?? 'N/A',
+                $row['execution_mode'] ?? 'N/A',
+                $row['provider'] ?? 'N/A',
+                $row['investment_date'] ?? 'N/A',
+                $row['maturity_date'] ?? 'N/A',
+            ])->all(),
+        ];
     }
 
     protected function getUsersExportData(Request $request): array
@@ -595,15 +734,17 @@ class ReportsController extends Controller
     protected function getROIExportData(Request $request): array
     {
         $data = app(ROIReportService::class)->export($request);
-        $headers = ['Reference', 'Investor', 'Plan', 'Principal', 'Expected ROI', 'Status', 'Created'];
+        $headers = ['Reference', 'Investor', 'Product', 'Principal', 'Expected Interest', 'Actual Interest', 'Status', 'Investment Date', 'Maturity Date'];
         $rows = array_map(fn ($item) => [
-            $item['id'] ?? 'N/A',
+            $item['reference'] ?? 'N/A',
             $item['user']['name'] ?? 'N/A',
-            $item['market'] ?? $item['symbol'] ?? 'N/A',
-            $item['amount'] ?? 0,
-            '0%',
+            $item['product']['name'] ?? 'N/A',
+            $item['principal_amount'] ?? 0,
+            $item['expected_interest'] ?? 0,
+            $item['actual_interest'] ?? 0,
             $item['status'] ?? 'N/A',
-            $item['created_at'] ?? 'N/A',
+            $item['investment_date'] ?? 'N/A',
+            $item['maturity_date'] ?? 'N/A',
         ], $data);
 
         return ['headers' => $headers, 'rows' => $rows];
@@ -612,14 +753,16 @@ class ReportsController extends Controller
     protected function getMaturityExportData(Request $request): array
     {
         $data = app(MaturityReportService::class)->export($request);
-        $headers = ['Reference', 'Investor', 'Plan', 'Principal', 'Status', 'Created'];
+        $headers = ['Reference', 'Investor', 'Product', 'Principal', 'Expected Maturity Amount', 'Actual Maturity Amount', 'Status', 'Maturity Date'];
         $rows = array_map(fn ($item) => [
-            $item['id'] ?? 'N/A',
+            $item['reference'] ?? 'N/A',
             $item['user']['name'] ?? 'N/A',
-            $item['market'] ?? $item['symbol'] ?? 'N/A',
-            $item['amount'] ?? 0,
+            $item['product']['name'] ?? 'N/A',
+            $item['principal_amount'] ?? 0,
+            $item['expected_maturity_amount'] ?? 0,
+            $item['actual_maturity_amount'] ?? 0,
             $item['status'] ?? 'N/A',
-            $item['created_at'] ?? 'N/A',
+            $item['maturity_date'] ?? 'N/A',
         ], $data);
 
         return ['headers' => $headers, 'rows' => $rows];
@@ -628,11 +771,14 @@ class ReportsController extends Controller
     protected function getInvestmentPlansExportData(Request $request): array
     {
         $data = app(InvestmentPlanReportService::class)->export($request);
-        $headers = ['Plan', 'Investors', 'Total Amount'];
+        $headers = ['Plan', 'Investors', 'Total Principal', 'Average Principal', 'Expected Interest', 'Status'];
         $rows = array_map(fn ($item) => [
             $item['market'] ?? 'N/A',
             $item['total_investments'] ?? 0,
             $item['total_amount'] ?? 0,
+            $item['average_investment'] ?? 0,
+            $item['expected_roi'] ?? 0,
+            $item['status'] ?? 'N/A',
         ], $data);
 
         return ['headers' => $headers, 'rows' => $rows];
@@ -702,14 +848,15 @@ class ReportsController extends Controller
                 $item['created_at'] ?? 'N/A',
             ], $data);
         } else {
-            $data = app(SubscriptionReportService::class)->list($params);
+            $result = app(SubscriptionReportService::class)->list($params);
+            $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
             $headers = ['User', 'Plan', 'Started', 'Expires', 'Auto Renew', 'Status'];
             $rows = array_map(fn ($item) => [
                 $item['user'] ?? 'N/A',
                 $item['plan'] ?? 'N/A',
                 $item['started'] ?? 'N/A',
                 $item['expires'] ?? 'N/A',
-                $item['auto_renew'] ? 'Yes' : 'No',
+                ($item['auto_renew'] ?? false) ? 'Yes' : 'No',
                 $item['status'] ?? 'N/A',
             ], $data);
         }
@@ -721,7 +868,11 @@ class ReportsController extends Controller
     {
         $tab = $request->get('tab', 'withdrawals');
         $params = array_merge($request->all(), ['per_page' => 10000]);
-        $result = app(WalletReportService::class)->$tab($params);
+        $result = match ($tab) {
+            'withdrawals' => $this->withdrawal->list($params),
+            'wallet_ledger' => $this->wallet->ledger($params),
+            'adjustments' => $this->wallet->adjustments($params),
+        };
         $data = is_array($result) && isset($result['data']) ? $result['data'] : $result;
 
         $headers = match ($tab) {
@@ -747,10 +898,10 @@ class ReportsController extends Controller
                 $item['created_at'] ?? 'N/A',
             ], $data),
             'adjustments' => array_map(fn ($item) => [
-                $item['user'] ?? 'N/A',
+                $item['user'] ?? $item['user_id'] ?? 'N/A',
                 $item['amount'] ?? 0,
                 $item['type'] ?? 'N/A',
-                $item['reason'] ?? 'N/A',
+                $item['reason'] ?? $item['note'] ?? 'N/A',
                 $item['created_at'] ?? 'N/A',
             ], $data),
             default => [],
@@ -775,10 +926,19 @@ class ReportsController extends Controller
         return ['headers' => $headers, 'rows' => $rows];
     }
 
+    protected function normalizeReportFilters(Request $request): array
+    {
+        $filters = $request->all();
+        $filters['from'] = $filters['from'] ?? $filters['start_date'] ?? null;
+        $filters['to'] = $filters['to'] ?? $filters['end_date'] ?? null;
+
+        return $filters;
+    }
+
     protected function getExpensesExportData(Request $request): array
     {
-        $params = array_merge($request->all(), ['per_page' => 10000]);
-        $result = app(ExpenseReportService::class)->generate($params);
+        $request->merge(['per_page' => 10000]);
+        $result = app(ExpenseReportService::class)->generate($request);
 
         // Extract table data from paginator
         $tableData = is_array($result['table']) && isset($result['table']['data'])

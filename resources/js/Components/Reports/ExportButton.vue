@@ -67,12 +67,6 @@ const handleExportClick = () => {
     return;
   }
 
-  // Check if date range is required but not provided
-  if (!props.startDate || !props.endDate) {
-    alert('Please select a date range before exporting. Use the date filter above to set your desired date range.');
-    return;
-  }
-
   showDropdown.value = !showDropdown.value;
 };
 

@@ -330,7 +330,6 @@
 
 <script setup>
 import { ref } from 'vue';
-import html2pdf from 'html2pdf.js';
 
 const props = defineProps(['show', 'txn']);
 defineEmits(['close']);
@@ -385,6 +384,7 @@ const downloadPDF = async () => {
   };
 
   try {
+    const { default: html2pdf } = await import('html2pdf.js/src/index.js');
     const actionButtons = element.querySelector('.no-pdf');
     if (actionButtons) actionButtons.style.display = 'none';
 

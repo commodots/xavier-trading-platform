@@ -89,6 +89,7 @@ const tableColumns = [
   { key: 'total_investments', label: 'Investors' },
   { key: 'total_amount', label: 'Total Amount', type: 'currency' },
   { key: 'average_investment', label: 'Average Investment', type: 'currency' },
+  { key: 'expected_roi', label: 'Expected Interest', type: 'currency' },
   { key: 'status', label: 'Status' },
 ];
 
@@ -99,6 +100,7 @@ const tableRows = computed(() => {
     total_investments: row.total_investments || 0,
     total_amount: row.total_amount || row.amount || 0,
     average_investment: row.average_investment || (row.total_amount && row.total_investments ? row.total_amount / row.total_investments : 0),
+    expected_roi: row.expected_roi || 0,
     status: row.status || 'N/A',
   }));
 });

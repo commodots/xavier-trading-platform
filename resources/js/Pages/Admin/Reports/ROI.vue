@@ -87,13 +87,13 @@ const tableColumns = [
 const tableRows = computed(() => {
   if (!table.value || !Array.isArray(table.value.data)) return [];
   return table.value.data.map((row) => ({
-    id: row.id,
+    id: row.reference,
     investor: row.user?.name || 'N/A',
-    plan: row.market || row.symbol || 'N/A',
-    amount: row.amount || (row.price * row.quantity) || 0,
-    roi: '0%',
+    plan: row.product?.name || 'N/A',
+    amount: row.principal_amount || 0,
+    roi: row.expected_interest || 0,
     status: row.status,
-    start_date: row.created_at,
+    start_date: row.investment_date,
     created_at: row.created_at,
   }));
 });

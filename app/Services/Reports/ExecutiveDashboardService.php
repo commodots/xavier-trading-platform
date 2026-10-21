@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\Expense;
+use App\Models\FixedIncomeInvestment;
 use App\Models\KycProfile;
 use App\Models\Order;
 use App\Models\User;
@@ -167,10 +168,10 @@ class ExecutiveDashboardService extends BaseReportService
 
     protected function maturingInvestmentsCount(): int
     {
-        return Order::whereBetween('created_at', [
+        return FixedIncomeInvestment::whereBetween('maturity_date', [
             Carbon::today(),
             Carbon::today()->addDays(30),
-        ])->count();
+        ])->whereIn('status', ['active', 'maturing'])->count();
     }
 
     protected function activeSubscriptionsCount(): int

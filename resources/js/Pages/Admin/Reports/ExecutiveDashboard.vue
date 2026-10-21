@@ -7,8 +7,13 @@
       </div>
     </div>
 
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-4">
       <DateFilter @filter-change="onFilterChange" />
+      <ExportButton
+        reportType="executive-dashboard"
+        :startDate="filters.start_date"
+        :endDate="filters.end_date"
+      />
     </div>
 
     <div v-if="loading" class="space-y-6">
@@ -200,6 +205,7 @@ import { AlertTriangle, Info, ChevronRight } from 'lucide-vue-next';
 import StatCard from '@/Components/Reports/StatCard.vue';
 import SummaryCard from '@/Components/Reports/SummaryCard.vue';
 import DateFilter from '@/Components/Reports/DateFilter.vue';
+import ExportButton from '@/Components/Reports/ExportButton.vue';
 import SkeletonLoader from '@/Components/SkeletonLoader.vue';
 import ReportChart from '@/Components/Reports/ReportChart.vue';
 import ReportTable from '@/Components/Reports/ReportTable.vue';
