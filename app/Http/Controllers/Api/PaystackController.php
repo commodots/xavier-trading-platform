@@ -336,6 +336,7 @@ class PaystackController extends Controller
         Log::info('[Paystack:redirect] User redirected after payment', [
             'reference' => $reference,
             'trxref' => $trxref,
+            'authenticated' => Auth::check(),
         ]);
 
         if (! $reference) {
@@ -349,8 +350,21 @@ class PaystackController extends Controller
             ->orWhere('meta->reference', $reference)
             ->first();
 
-        if (! Auth::check() || ! $transaction || (int) $transaction->user_id !== (int) Auth::id()) {
-            return redirect('/wallet?payment_error=invalid_reference');
+        if (! $transaction) {
+            Log::warning('[Paystack:redirect] No deposit found for reference', ['reference' => $reference]);
+
+            return redirect('/wallet?payment_error=invalid_reference&reference='.urlencode($reference));
+        }
+
+        // Only enforce session check if a web session explicitly exists. 
+        // Unauthenticated gateway redirects are handled securely via transaction metadata ownership validation below.
+        if (Auth::check() && (int) $transaction->user_id !== (int) Auth::id()) {
+            Log::warning('[Paystack:redirect] Reference belongs to another user', [
+                'reference' => $reference,
+                'authenticated_user_id' => Auth::id(),
+            ]);
+
+            return redirect('/wallet?payment_error=invalid_reference&reference='.urlencode($reference));
         }
 
         try {
