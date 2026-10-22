@@ -150,9 +150,9 @@ class OnboardingController extends Controller
 
             // Send welcome notification
             try {
-                $user->notify(new WelcomeNotification($user->first_name ?: $user->name));
+                $user->notify((new WelcomeNotification($user->first_name ?: $user->name))->afterCommit());
             } catch (\Throwable $e) {
-                Log::warning('Failed to send welcome notification', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+                Log::warning('Failed to queue welcome notification', ['user_id' => $user->id, 'error' => $e->getMessage()]);
             }
 
             ActivityLog::log($user->id, 'Registration', [
