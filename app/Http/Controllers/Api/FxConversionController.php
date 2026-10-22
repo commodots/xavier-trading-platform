@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\Fx\FxConversionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class FxConversionController extends Controller
 {
@@ -14,7 +15,7 @@ class FxConversionController extends Controller
 
     protected function checkKycLevel()
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
         // Demo mode bypass
         if ($user->trading_mode === 'demo') {
@@ -45,7 +46,7 @@ class FxConversionController extends Controller
 
         try {
             $result = $this->fxConversionService->quote(
-                auth()->id(),
+                Auth::id(),
                 strtoupper($request->from_currency),
                 strtoupper($request->to_currency),
                 (float) $request->amount
@@ -65,17 +66,31 @@ class FxConversionController extends Controller
             'from_currency' => 'required|string|size:3',
             'to_currency' => 'required|string|size:3',
             'amount' => 'required|numeric|gt:0',
+            'idempotency_key' => 'required|string|max:128',
         ]);
 
         try {
             $result = $this->fxConversionService->convert(
-                auth()->id(),
+                Auth::id(),
                 strtoupper($request->from_currency),
                 strtoupper($request->to_currency),
-                (float) $request->amount
+                (float) $request->amount,
+                $request->idempotency_key
             );
 
-            return response()->json(['success' => true, 'data' => $result]);
+            $status = match ($result['status']) {
+                'completed' => 200,
+                'processing', 'unknown' => 202,
+                default => 409,
+            };
+
+            return response()->json([
+                'success' => $result['status'] === 'completed',
+                'message' => $result['status'] === 'unknown'
+                    ? 'Provider outcome is unresolved. Do not submit a new conversion; reconciliation is pending.'
+                    : null,
+                'data' => $result,
+            ], $status);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
@@ -88,7 +103,7 @@ class FxConversionController extends Controller
         ]);
 
         $history = $this->fxConversionService->getHistory(
-            auth()->id(),
+            Auth::id(),
             $request->limit ?? 20
         );
 

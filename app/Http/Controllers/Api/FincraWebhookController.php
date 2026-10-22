@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FxConversion;
+use App\Services\Fx\FxConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -74,48 +75,21 @@ class FincraWebhookController extends Controller
      */
     private function handleConversionCompleted(array $data): void
     {
-        $reference = $data['reference'] ?? $data['quoteReference'] ?? null;
-        $conversionReference = $data['conversionReference'] ?? null;
-
-        if (! $reference && ! $conversionReference) {
+        $conversion = $this->findConversion($data);
+        if (! $conversion) {
             Log::warning('Fincra Webhook: No reference found in payload');
 
             return;
         }
 
-        // Find the conversion by quote reference or conversion reference
-        $conversion = FxConversion::where('quote_reference', $reference)
-            ->orWhere('reference', $conversionReference)
-            ->first();
-
-        if (! $conversion) {
-            Log::warning('Fincra Webhook: Conversion not found', [
-                'reference' => $reference,
-                'conversion_reference' => $conversionReference,
-            ]);
-
-            return;
-        }
-
-        // Idempotency check
-        if ($conversion->status === 'completed') {
-            Log::info('Fincra Webhook: Conversion already completed', ['id' => $conversion->id]);
-
-            return;
-        }
-
-        // Update conversion status
-        $conversion->update([
-            'status' => 'completed',
-            'response' => array_merge($conversion->response ?? [], [
-                'webhook' => $data,
-                'completed_at' => now()->toIso8601String(),
-            ]),
+        app(FxConversionService::class)->completeProviderConversion($conversion->reference, [
+            'webhook' => $data,
+            'completed_at' => now()->toIso8601String(),
         ]);
 
         Log::info('Fincra Webhook: Conversion completed', [
             'conversion_id' => $conversion->id,
-            'reference' => $reference,
+            'reference' => $conversion->reference,
         ]);
     }
 
@@ -124,43 +98,23 @@ class FincraWebhookController extends Controller
      */
     private function handleConversionFailed(array $data): void
     {
-        $reference = $data['reference'] ?? $data['quoteReference'] ?? null;
-        $conversionReference = $data['conversionReference'] ?? null;
         $reason = $data['reason'] ?? $data['failureReason'] ?? 'Unknown error';
-
-        if (! $reference && ! $conversionReference) {
-            Log::warning('Fincra Webhook: No reference found in payload');
-
-            return;
-        }
-
-        // Find the conversion
-        $conversion = FxConversion::where('quote_reference', $reference)
-            ->orWhere('reference', $conversionReference)
-            ->first();
-
+        $conversion = $this->findConversion($data);
         if (! $conversion) {
-            Log::warning('Fincra Webhook: Conversion not found', [
-                'reference' => $reference,
-                'conversion_reference' => $conversionReference,
-            ]);
+            Log::warning('Fincra Webhook: Conversion not found');
 
             return;
         }
 
-        // Update conversion status
-        $conversion->update([
-            'status' => 'failed',
-            'response' => array_merge($conversion->response ?? [], [
-                'webhook' => $data,
-                'failed_at' => now()->toIso8601String(),
-                'failure_reason' => $reason,
-            ]),
+        app(FxConversionService::class)->failProviderConversion($conversion->reference, [
+            'webhook' => $data,
+            'failed_at' => now()->toIso8601String(),
+            'failure_reason' => $reason,
         ]);
 
         Log::error('Fincra Webhook: Conversion failed', [
             'conversion_id' => $conversion->id,
-            'reference' => $reference,
+            'reference' => $conversion->reference,
             'reason' => $reason,
         ]);
     }
@@ -170,41 +124,45 @@ class FincraWebhookController extends Controller
      */
     private function handleConversionProcessing(array $data): void
     {
-        $reference = $data['reference'] ?? $data['quoteReference'] ?? null;
-        $conversionReference = $data['conversionReference'] ?? null;
-
-        if (! $reference && ! $conversionReference) {
-            Log::warning('Fincra Webhook: No reference found in payload');
-
-            return;
-        }
-
-        // Find the conversion
-        $conversion = FxConversion::where('quote_reference', $reference)
-            ->orWhere('reference', $conversionReference)
-            ->first();
-
+        $conversion = $this->findConversion($data);
         if (! $conversion) {
-            Log::warning('Fincra Webhook: Conversion not found', [
-                'reference' => $reference,
-                'conversion_reference' => $conversionReference,
-            ]);
+            Log::warning('Fincra Webhook: Conversion not found');
 
             return;
         }
 
-        // Update conversion status
-        $conversion->update([
-            'status' => 'processing',
-            'response' => array_merge($conversion->response ?? [], [
-                'webhook' => $data,
-                'processing_started_at' => now()->toIso8601String(),
-            ]),
+        app(FxConversionService::class)->markProviderProcessing($conversion, [
+            'webhook' => $data,
+            'processing_started_at' => now()->toIso8601String(),
         ]);
 
         Log::info('Fincra Webhook: Conversion processing', [
             'conversion_id' => $conversion->id,
-            'reference' => $reference,
+            'reference' => $conversion->reference,
         ]);
+    }
+
+    private function findConversion(array $data): ?FxConversion
+    {
+        $references = array_filter([
+            $data['customerReference'] ?? null,
+            $data['reference'] ?? null,
+            $data['quoteReference'] ?? null,
+            $data['conversionReference'] ?? null,
+        ]);
+
+        foreach ($references as $reference) {
+            $conversion = FxConversion::query()
+                ->where('reference', $reference)
+                ->orWhere('response->quote_reference', $reference)
+                ->orWhere('response->provider_reference', $reference)
+                ->first();
+
+            if ($conversion) {
+                return $conversion;
+            }
+        }
+
+        return null;
     }
 }

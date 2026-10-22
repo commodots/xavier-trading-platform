@@ -212,15 +212,6 @@ class WithdrawalController extends Controller
             ]);
         }
 
-        $currentKycLevel = (int) ($user->verification_level ?? 0);
-        if ($currentKycLevel < 3) {
-            return response()->json([
-                'message' => 'KYC Level 3 verification required to request a withdrawal OTP.',
-                'verification_level' => $currentKycLevel,
-                'required_level' => 3,
-            ], 403);
-        }
-
         try {
             $this->withdrawalService->sendWithdrawalOtp($user);
 

@@ -12,9 +12,9 @@ class FxRateSeeder extends Seeder
         FxRate::updateOrCreate(
             ['from_currency' => 'NGN', 'to_currency' => 'USD'],
             [
-                'base_rate' => 1500,
-                'markup_percent' => 1.0,
-                'effective_rate' => 1515.0,
+                'base_rate' => 1385,
+                'markup_percent' => 0,
+                'effective_rate' => 1385.0,
             ]
         );
     }

@@ -4,12 +4,19 @@ namespace Tests\Feature;
 
 use App\Models\CryptoAddress;
 use App\Models\FxRate;
+use App\Models\FxPair;
+use App\Models\FxSetting;
+use App\Models\FxConversion;
+use App\Models\Ledger;
+use App\Models\NewTransaction;
 use App\Models\Symbol;
 use App\Models\SystemSetting;
 use App\Models\TransactionCharge;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Models\WalletTransaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -92,6 +99,320 @@ class WalletFunctionsTest extends TestCase
         $response->assertJson(['error' => 'Invalid signature']);
     }
 
+    public function test_paystack_initialization_reuses_reference_after_ambiguous_timeout(): void
+    {
+        config()->set('services.paystack.secret_key', 'paystack-test-secret');
+        $initializationAttempts = 0;
+        Http::fake(function ($request) use (&$initializationAttempts) {
+            $initializationAttempts++;
+            if ($initializationAttempts === 1) {
+                throw new ConnectionException('Simulated timeout after request dispatch.');
+            }
+
+            return Http::response([
+                'status' => true,
+                'data' => [
+                    'reference' => $request['reference'],
+                    'authorization_url' => 'https://checkout.test/payment',
+                    'access_code' => 'checkout-code',
+                ],
+            ]);
+        });
+
+        $payload = [
+            'amount' => 500,
+            'currency' => 'NGN',
+            'idempotency_key' => 'deposit-operation-1',
+        ];
+
+        $firstResponse = $this->actingAs($this->user)
+            ->postJson('/api/paystack/initiate', $payload);
+        $firstResponse->assertStatus(503)->assertJsonPath('pending', true);
+
+        $pending = NewTransaction::where('idempotency_key', 'deposit-operation-1')->firstOrFail();
+
+        $secondResponse = $this->actingAs($this->user)
+            ->postJson('/api/paystack/initiate', $payload);
+        $secondResponse->assertOk();
+
+        $this->assertSame($pending->provider_reference, $secondResponse->json('data.reference'));
+        $this->assertSame(2, $initializationAttempts);
+        $this->assertSame(1, NewTransaction::where('idempotency_key', 'deposit-operation-1')->count());
+        $this->assertSame(0.0, (float) $this->user->fxWallet('NGN')->fresh()->ngn_cleared);
+    }
+
+    public function test_paystack_verification_rejects_another_users_reference_without_provider_request(): void
+    {
+        $transaction = NewTransaction::create([
+            'user_id' => $this->user->id,
+            'type' => 'deposit',
+            'amount' => 500,
+            'currency' => 'NGN',
+            'charge' => 0,
+            'net_amount' => 0,
+            'status' => 'pending',
+            'provider_reference' => 'xavier-owned-reference',
+            'meta' => [
+                'reference' => 'xavier-owned-reference',
+                'provider_amount' => 500,
+                'provider_currency' => 'NGN',
+                'requested_amount' => 500,
+            ],
+        ]);
+        $otherUser = User::factory()->create();
+        Http::fake();
+
+        $response = $this->actingAs($otherUser)
+            ->getJson('/api/paystack/verify/'.$transaction->provider_reference);
+
+        $response->assertNotFound();
+        Http::assertNothingSent();
+        $this->assertSame('pending', $transaction->fresh()->status);
+    }
+
+    public function test_paystack_failed_provider_payment_and_invalid_inputs_never_credit_wallet(): void
+    {
+        config()->set('services.paystack.secret_key', 'paystack-test-secret');
+        Http::fake();
+
+        $this->actingAs($this->user)->postJson('/api/paystack/initiate', [
+            'amount' => 99,
+            'currency' => 'NGN',
+            'idempotency_key' => 'invalid-low-deposit',
+        ])->assertUnprocessable()->assertJsonValidationErrors('amount');
+
+        $this->actingAs($this->user)->postJson('/api/paystack/initiate', [
+            'amount' => 500,
+            'currency' => 'EUR',
+            'idempotency_key' => 'invalid-currency-deposit',
+        ])->assertUnprocessable()->assertJsonValidationErrors('currency');
+        Http::assertNothingSent();
+
+        $transaction = $this->createPendingPaystackDeposit('xavier-failed-payment');
+        Http::fake([
+            '*/transaction/verify/xavier-failed-payment' => Http::response([
+                'status' => true,
+                'data' => [
+                    'status' => 'failed',
+                    'reference' => 'xavier-failed-payment',
+                    'amount' => 50000,
+                    'fees' => 0,
+                    'currency' => 'NGN',
+                    'metadata' => ['user_id' => $this->user->id],
+                ],
+            ]),
+        ]);
+
+        $response = $this->postSignedPaystackWebhook('xavier-failed-payment');
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertSame('pending', $transaction->fresh()->status);
+        $this->assertSame(0, Wallet::where('user_id', $this->user->id)->where('currency', 'NGN')->count());
+        $this->assertSame(0, Ledger::where('reference', 'xavier-failed-payment')->count());
+    }
+
+    public function test_paystack_duplicate_signed_webhooks_credit_a_deposit_once(): void
+    {
+        config()->set('services.paystack.secret_key', 'paystack-test-secret');
+        $transaction = $this->createPendingPaystackDeposit('xavier-webhook-once');
+        Http::fake([
+            '*/transaction/verify/xavier-webhook-once' => Http::response(
+                $this->paystackVerificationResponse($transaction, 'success'),
+                200
+            ),
+        ]);
+
+        $first = $this->postSignedPaystackWebhook('xavier-webhook-once');
+        $second = $this->postSignedPaystackWebhook('xavier-webhook-once');
+
+        $first->assertOk();
+        $second->assertOk();
+        $wallet = Wallet::where('user_id', $this->user->id)->where('currency', 'NGN')->firstOrFail();
+        $this->assertSame(500.0, (float) $wallet->balance);
+        $this->assertSame(500.0, (float) $wallet->ngn_cleared);
+        $this->assertSame('completed', $transaction->fresh()->status);
+        $this->assertSame(1, Ledger::where('reference', 'xavier-webhook-once')->count());
+        $this->assertSame(1, WalletTransaction::where('reference', 'xavier-webhook-once')->count());
+    }
+
+    public function test_paystack_usd_deposit_collects_ngn_and_credits_net_usd_at_saved_rate(): void
+    {
+        config()->set('services.paystack.secret_key', 'paystack-test-secret');
+        FxRate::create([
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'base_rate' => 1500,
+            'markup_percent' => 0,
+            'effective_rate' => 1500,
+        ]);
+
+        $providerPayload = null;
+        $verificationUrl = null;
+        Http::fake(function ($request) use (&$providerPayload, &$verificationUrl) {
+            if (str_contains($request->url(), '/transaction/verify/')) {
+                $verificationUrl = $request->url();
+                $reference = basename($request->url());
+
+                return Http::response([
+                    'status' => true,
+                    'data' => [
+                        'status' => 'success',
+                        'reference' => $reference,
+                        'amount' => 15000000,
+                        'fees' => 15000,
+                        'currency' => 'NGN',
+                        'paid_at' => now()->toIso8601String(),
+                        'metadata' => [
+                            'user_id' => $this->user->id,
+                            'target_currency' => 'USD',
+                            'usd_amount' => 100,
+                            'fx_rate' => 1500,
+                        ],
+                    ],
+                ]);
+            }
+
+            $providerPayload = $request->data();
+
+            return Http::response([
+                'status' => true,
+                'data' => [
+                    'reference' => $providerPayload['reference'],
+                    'authorization_url' => 'https://checkout.test/payment',
+                    'access_code' => 'usd-checkout-code',
+                ],
+            ]);
+        });
+
+        $this->actingAs($this->user)->postJson('/api/paystack/initiate', [
+            'amount' => 100,
+            'currency' => 'USD',
+            'idempotency_key' => 'usd-deposit-operation',
+        ])->assertOk();
+        $this->assertNotNull($providerPayload);
+        $this->assertSame('NGN', $providerPayload['currency']);
+        $this->assertEquals(15000000, $providerPayload['amount']);
+        $this->assertEquals(100, $providerPayload['metadata']['usd_amount']);
+
+        $transaction = NewTransaction::where('idempotency_key', 'usd-deposit-operation')->firstOrFail();
+
+        $this->assertSame('NGN', $transaction->meta['provider_currency']);
+        $this->assertSame(150000.0, (float) $transaction->meta['provider_amount']);
+        $providerResult = app(\App\Services\Payments\Paystack\PaystackService::class)
+            ->verifyPayment($transaction->provider_reference);
+        $this->assertNotNull($verificationUrl);
+        $this->assertStringEndsWith('/transaction/verify/'.$transaction->provider_reference, $verificationUrl);
+        $this->assertSame('success', $providerResult['status']);
+        $this->assertSame('NGN', $providerResult['currency']);
+        $this->assertSame($this->user->id, (int) $providerResult['metadata']['user_id']);
+        $this->assertSame(150000.0, (float) $providerResult['amount']);
+
+        $verificationResponse = $this->actingAs($this->user)
+            ->getJson('/api/paystack/verify/'.$transaction->provider_reference);
+        $this->assertSame(200, $verificationResponse->getStatusCode(), $verificationResponse->getContent());
+
+        $wallet = Wallet::where('user_id', $this->user->id)->where('currency', 'USD')->firstOrFail();
+        $this->assertSame(99.9, (float) $wallet->usd_cleared);
+        $this->assertSame(99.9, (float) $transaction->fresh()->net_amount);
+        $this->assertSame(0.1, (float) $transaction->fresh()->charge);
+        $this->assertDatabaseHas('ledgers', [
+            'reference' => $transaction->provider_reference,
+            'currency' => 'USD',
+            'amount' => 99.9,
+        ]);
+    }
+
+    public function test_delayed_paystack_webhook_is_retried_without_early_credit(): void
+    {
+        config()->set('services.paystack.secret_key', 'paystack-test-secret');
+        $transaction = $this->createPendingPaystackDeposit('xavier-delayed-webhook');
+        $verificationAttempts = 0;
+        Http::fake(function () use (&$verificationAttempts, $transaction) {
+            $verificationAttempts++;
+            return Http::response(
+                $this->paystackVerificationResponse(
+                    $transaction,
+                    $verificationAttempts === 1 ? 'pending' : 'success'
+                ),
+                200
+            );
+        });
+
+        $first = $this->postSignedPaystackWebhook('xavier-delayed-webhook');
+        $this->assertSame(503, $first->getStatusCode());
+        $this->assertSame(0.0, (float) (Wallet::where('user_id', $this->user->id)->where('currency', 'NGN')->value('balance') ?? 0));
+
+        $second = $this->postSignedPaystackWebhook('xavier-delayed-webhook');
+        $second->assertOk();
+        $this->assertSame(500.0, (float) Wallet::where('user_id', $this->user->id)->where('currency', 'NGN')->value('balance'));
+        $this->assertSame(2, $verificationAttempts);
+    }
+
+    private function createPendingPaystackDeposit(string $reference): NewTransaction
+    {
+        return NewTransaction::create([
+            'user_id' => $this->user->id,
+            'type' => 'deposit',
+            'amount' => 500,
+            'currency' => 'NGN',
+            'charge' => 0,
+            'net_amount' => 0,
+            'status' => 'pending',
+            'provider_reference' => $reference,
+            'meta' => [
+                'reference' => $reference,
+                'gateway' => 'paystack',
+                'provider_amount' => 500,
+                'provider_currency' => 'NGN',
+                'requested_amount' => 500,
+                'target_currency' => 'NGN',
+                'user_id' => $this->user->id,
+            ],
+        ]);
+    }
+
+    private function paystackVerificationResponse(NewTransaction $transaction, string $status): array
+    {
+        return [
+            'status' => true,
+            'data' => [
+                'status' => $status,
+                'reference' => $transaction->provider_reference,
+                'amount' => 50000,
+                'currency' => 'NGN',
+                'fees' => 0,
+                'paid_at' => now()->toIso8601String(),
+                'metadata' => [
+                    'user_id' => $transaction->user_id,
+                    'target_currency' => 'NGN',
+                    'usd_amount' => null,
+                ],
+            ],
+        ];
+    }
+
+    private function postSignedPaystackWebhook(string $reference)
+    {
+        $payload = [
+            'event' => 'charge.success',
+            'data' => ['reference' => $reference],
+        ];
+        $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha512', $body, 'paystack-test-secret');
+
+        return $this->call(
+            'POST',
+            '/api/paystack/webhook',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_PAYSTACK_SIGNATURE' => $signature,
+            ],
+            $body
+        );
+    }
+
     public function test_user_can_convert_ngn_to_usd(): void
     {
         $user = User::factory()->create();
@@ -135,6 +456,355 @@ class WalletFunctionsTest extends TestCase
         // Assert: Check USD balance increased
         $usdWallet->refresh();
         $this->assertGreaterThan(0, $usdWallet->usd_cleared);
+    }
+
+    public function test_manual_fx_conversion_is_atomic_and_idempotent(): void
+    {
+        FxPair::create([
+            'base_currency' => 'USD',
+            'quote_currency' => 'NGN',
+            'buy_rate' => 1500,
+            'sell_rate' => 1500,
+            'active' => true,
+        ]);
+        $sourceWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'NGN',
+            'balance' => 100000,
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        $targetWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'USD',
+            'balance' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        $payload = [
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'amount' => 3000,
+            'idempotency_key' => 'manual-fx-operation-1',
+        ];
+
+        $first = $this->actingAs($this->user)->postJson('/api/fx/convert', $payload);
+        $first->assertOk()->assertJsonPath('data.status', 'completed');
+        $second = $this->actingAs($this->user)->postJson('/api/fx/convert', $payload);
+        $second->assertOk()->assertJsonPath('data.reference', $first->json('data.reference'));
+
+        $sourceWallet->refresh();
+        $targetWallet->refresh();
+        $this->assertSame(97000.0, (float) $sourceWallet->ngn_cleared);
+        $this->assertSame(97000.0, (float) $sourceWallet->balance);
+        $this->assertSame(0.0, (float) $sourceWallet->locked);
+        $this->assertSame(2.0, (float) $targetWallet->usd_cleared);
+        $this->assertSame(2.0, (float) $targetWallet->balance);
+        $this->assertSame(1, FxConversion::where('idempotency_key', 'manual-fx-operation-1')->count());
+        $this->assertSame(1, Ledger::where('type', 'FX_CONVERSION')->count());
+        $this->assertSame(2, WalletTransaction::where('type', 'FX_DEBIT')->orWhere('type', 'FX_CREDIT')->count());
+        $this->assertCount(1, app(\App\Services\Fx\FxConversionService::class)->getHistory($this->user->id));
+    }
+
+    public function test_fincra_conversion_waits_for_signed_confirmation_and_does_not_replay_provider_call(): void
+    {
+        config()->set('services.fincra.secret_key', 'fincra-test-secret');
+        config()->set('services.fincra.webhook_key', 'fincra-webhook-secret');
+        config()->set('services.fincra.business_id', 'business-test');
+        config()->set('services.fincra.base_url', 'https://fincra.test');
+        FxSetting::create(['provider' => 'fincra', 'enabled' => true]);
+        $sourceWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'NGN',
+            'balance' => 100000,
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        $targetWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'USD',
+            'balance' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        $requests = 0;
+        $customerReference = null;
+        Http::fake(function ($request) use (&$requests, &$customerReference) {
+            $requests++;
+            if (str_ends_with($request->url(), '/quotes/generate')) {
+                return Http::response(['data' => [
+                    'reference' => 'FINCRA-QUOTE-1',
+                    'rate' => 1500,
+                    'amountToReceive' => 2,
+                ]]);
+            }
+
+            $customerReference = $request['customerReference'];
+
+            return Http::response(['data' => [
+                'reference' => 'FINCRA-CONVERSION-1',
+                'status' => 'processing',
+            ]]);
+        });
+
+        $payload = [
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'amount' => 3000,
+            'idempotency_key' => 'fincra-fx-operation-1',
+        ];
+        $first = $this->actingAs($this->user)->postJson('/api/fx/convert', $payload);
+        $first->assertStatus(202)->assertJsonPath('data.status', 'processing');
+        $second = $this->actingAs($this->user)->postJson('/api/fx/convert', $payload);
+        $second->assertStatus(202)->assertJsonPath('data.reference', $first->json('data.reference'));
+
+        $conversion = FxConversion::where('idempotency_key', 'fincra-fx-operation-1')->firstOrFail();
+        $this->assertSame($conversion->reference, $customerReference);
+        $this->assertSame(2, $requests);
+        $sourceWallet->refresh();
+        $targetWallet->refresh();
+        $this->assertSame(97000.0, (float) $sourceWallet->ngn_cleared);
+        $this->assertSame(3000.0, (float) $sourceWallet->locked);
+        $this->assertSame(0.0, (float) $targetWallet->usd_cleared);
+        $this->assertSame(0, Ledger::where('type', 'FX_CONVERSION')->count());
+
+        $this->postSignedFincraWebhook('conversion.completed', [
+            'customerReference' => $conversion->reference,
+            'conversionReference' => 'FINCRA-CONVERSION-1',
+        ])->assertOk();
+        $this->postSignedFincraWebhook('conversion.completed', [
+            'customerReference' => $conversion->reference,
+            'conversionReference' => 'FINCRA-CONVERSION-1',
+        ])->assertOk();
+        $this->postSignedFincraWebhook('conversion.processing', [
+            'customerReference' => $conversion->reference,
+        ])->assertOk();
+
+        $this->assertSame('completed', $conversion->fresh()->status);
+        $this->assertSame(97000.0, (float) $sourceWallet->fresh()->balance);
+        $this->assertSame(0.0, (float) $sourceWallet->fresh()->locked);
+        $this->assertSame(2.0, (float) $targetWallet->fresh()->usd_cleared);
+        $this->assertSame(1, Ledger::where('reference', $conversion->reference)->count());
+    }
+
+    public function test_fincra_failure_webhook_releases_reservation_without_credit(): void
+    {
+        config()->set('services.fincra.secret_key', 'fincra-test-secret');
+        config()->set('services.fincra.webhook_key', 'fincra-webhook-secret');
+        config()->set('services.fincra.business_id', 'business-test');
+        config()->set('services.fincra.base_url', 'https://fincra.test');
+        FxSetting::create(['provider' => 'fincra', 'enabled' => true]);
+        $sourceWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'NGN',
+            'balance' => 100000,
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'USD',
+            'balance' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        Http::fake([
+            '*/quotes/generate' => Http::response(['data' => [
+                'reference' => 'FINCRA-QUOTE-FAIL',
+                'rate' => 1500,
+                'amountToReceive' => 2,
+            ]]),
+            '*/conversions/initiate' => Http::response(['data' => [
+                'reference' => 'FINCRA-CONVERSION-FAIL',
+                'status' => 'processing',
+            ]]),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/fx/convert', [
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'amount' => 3000,
+            'idempotency_key' => 'fincra-fx-failure-1',
+        ]);
+        $response->assertStatus(202);
+        $conversion = FxConversion::where('idempotency_key', 'fincra-fx-failure-1')->firstOrFail();
+
+        $this->postSignedFincraWebhook('conversion.failed', [
+            'customerReference' => $conversion->reference,
+            'reason' => 'provider rejected conversion',
+        ])->assertOk();
+
+        $this->assertSame('failed', $conversion->fresh()->status);
+        $this->assertSame(100000.0, (float) $sourceWallet->fresh()->ngn_cleared);
+        $this->assertSame(0.0, (float) $sourceWallet->fresh()->locked);
+        $this->assertSame(0, Ledger::where('reference', $conversion->reference)->count());
+    }
+
+    public function test_unavailable_fincra_fails_before_reserving_wallet_funds(): void
+    {
+        config()->set('services.fincra.secret_key', null);
+        FxSetting::create(['provider' => 'fincra', 'enabled' => true]);
+        $sourceWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'NGN',
+            'balance' => 100000,
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'USD',
+            'balance' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
+            'locked' => 0,
+        ]);
+
+        $this->actingAs($this->user)->postJson('/api/fx/convert', [
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'amount' => 3000,
+            'idempotency_key' => 'unavailable-fincra-1',
+        ])->assertStatus(400);
+
+        $sourceWallet->refresh();
+        $this->assertSame(100000.0, (float) $sourceWallet->ngn_cleared);
+        $this->assertSame(0.0, (float) $sourceWallet->locked);
+        $this->assertSame(0, FxConversion::where('idempotency_key', 'unavailable-fincra-1')->count());
+    }
+
+    public function test_manual_fx_database_failure_keeps_reservation_and_same_key_can_resume(): void
+    {
+        FxPair::create([
+            'base_currency' => 'USD',
+            'quote_currency' => 'NGN',
+            'buy_rate' => 1500,
+            'sell_rate' => 1500,
+            'active' => true,
+        ]);
+        $sourceWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'NGN',
+            'balance' => 100000,
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        $targetWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'USD',
+            'balance' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        Ledger::creating(function () {
+            throw new \RuntimeException('simulated ledger failure');
+        });
+
+        $payload = [
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'amount' => 3000,
+            'idempotency_key' => 'manual-fx-recovery-1',
+        ];
+        $this->actingAs($this->user)->postJson('/api/fx/convert', $payload)->assertStatus(400);
+
+        $sourceWallet->refresh();
+        $this->assertSame(97000.0, (float) $sourceWallet->ngn_cleared);
+        $this->assertSame(3000.0, (float) $sourceWallet->locked);
+        $this->assertSame(0.0, (float) $targetWallet->fresh()->usd_cleared);
+        $this->assertSame('pending', FxConversion::where('idempotency_key', 'manual-fx-recovery-1')->value('status'));
+
+        Ledger::flushEventListeners();
+        $this->actingAs($this->user)->postJson('/api/fx/convert', $payload)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed');
+
+        $this->assertSame(2.0, (float) $targetWallet->fresh()->usd_cleared);
+        $this->assertSame(0.0, (float) $sourceWallet->fresh()->locked);
+        $this->assertSame(1, Ledger::where('type', 'FX_CONVERSION')->count());
+    }
+
+    public function test_fincra_ambiguous_server_error_is_unknown_and_not_resent(): void
+    {
+        config()->set('services.fincra.secret_key', 'fincra-test-secret');
+        config()->set('services.fincra.business_id', 'business-test');
+        config()->set('services.fincra.base_url', 'https://fincra.test');
+        FxSetting::create(['provider' => 'fincra', 'enabled' => true]);
+        $sourceWallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'NGN',
+            'balance' => 100000,
+            'ngn_cleared' => 100000,
+            'ngn_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        Wallet::create([
+            'user_id' => $this->user->id,
+            'currency' => 'USD',
+            'balance' => 0,
+            'usd_cleared' => 0,
+            'usd_uncleared' => 0,
+            'locked' => 0,
+        ]);
+        $providerCalls = 0;
+        Http::fake(function ($request) use (&$providerCalls) {
+            $providerCalls++;
+            if (str_ends_with($request->url(), '/quotes/generate')) {
+                return Http::response(['data' => [
+                    'reference' => 'FINCRA-QUOTE-UNKNOWN',
+                    'rate' => 1500,
+                    'amountToReceive' => 2,
+                ]]);
+            }
+
+            return Http::response(['message' => 'Gateway timeout'], 500);
+        });
+
+        $payload = [
+            'from_currency' => 'NGN',
+            'to_currency' => 'USD',
+            'amount' => 3000,
+            'idempotency_key' => 'fincra-unknown-1',
+        ];
+        $first = $this->actingAs($this->user)->postJson('/api/fx/convert', $payload);
+        $first->assertStatus(202)->assertJsonPath('data.status', 'unknown');
+        $second = $this->actingAs($this->user)->postJson('/api/fx/convert', $payload);
+        $second->assertStatus(202)->assertJsonPath('data.status', 'unknown');
+
+        $sourceWallet->refresh();
+        $this->assertSame(97000.0, (float) $sourceWallet->ngn_cleared);
+        $this->assertSame(3000.0, (float) $sourceWallet->locked);
+        $this->assertSame(2, $providerCalls);
+        $this->assertSame(0, Ledger::where('type', 'FX_CONVERSION')->count());
+    }
+
+    private function postSignedFincraWebhook(string $event, array $data)
+    {
+        $payload = ['event' => $event, 'data' => $data];
+        $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $signature = hash_hmac('sha256', $body, 'fincra-webhook-secret');
+
+        return $this->call(
+            'POST',
+            '/api/fincra/webhook',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_FINCRA_SIGNATURE' => $signature,
+            ],
+            $body
+        );
     }
 
     public function test_crypto_market_uses_live_api(): void

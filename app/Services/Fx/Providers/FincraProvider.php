@@ -16,7 +16,7 @@ class FincraProvider implements FxProviderInterface
 
     public function __construct()
     {
-        $this->secretKey = config('services.fincra.secret_key');
+        $this->secretKey = (string) (config('services.fincra.secret_key') ?? '');
         $this->mode = config('services.fincra.mode', 'sandbox');
         $this->baseUrl = config('services.fincra.base_url', 'https://sandboxapi.fincra.com');
     }
@@ -64,7 +64,7 @@ class FincraProvider implements FxProviderInterface
         ];
     }
 
-    public function convert(string $from, string $to, float $amount): array
+    public function convert(string $from, string $to, float $amount, ?string $reference = null, ?array $quote = null): array
     {
         if (empty($this->secretKey)) {
             throw new \Exception('Fincra is not configured. Missing FINCRA_SECRET_KEY in .env');
@@ -72,30 +72,34 @@ class FincraProvider implements FxProviderInterface
 
         $businessId = config('services.fincra.business_id');
 
-        // Step 1: Generate a quote first
-        $quoteResponse = Http::withHeaders([
-            'api-key' => $this->secretKey,
-            'Content-Type' => 'application/json',
-        ])->post($this->baseUrl.'/quotes/generate', [
-            'sourceCurrency' => strtoupper($from),
-            'destinationCurrency' => strtoupper($to),
-            'amount' => (string) $amount,
-            'action' => 'send',
-            'transactionType' => 'conversion',
-            'business' => $businessId,
-            'paymentDestination' => 'fliqpay_wallet',
-        ]);
+        $quoteData = $quote['raw_response'] ?? null;
+        $quoteReference = $quote['reference'] ?? null;
 
-        if ($quoteResponse->failed()) {
-            Log::error('Fincra quote failed', [
-                'status' => $quoteResponse->status(),
-                'body' => $quoteResponse->body(),
+        if (! $quoteData || ! $quoteReference) {
+            $quoteResponse = Http::withHeaders([
+                'api-key' => $this->secretKey,
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl.'/quotes/generate', [
+                'sourceCurrency' => strtoupper($from),
+                'destinationCurrency' => strtoupper($to),
+                'amount' => (string) $amount,
+                'action' => 'send',
+                'transactionType' => 'conversion',
+                'business' => $businessId,
+                'paymentDestination' => 'fliqpay_wallet',
             ]);
-            throw new \Exception('Fincra quote failed (HTTP '.$quoteResponse->status().'): '.$quoteResponse->body());
-        }
 
-        $quoteData = $quoteResponse->json();
-        $quoteReference = $quoteData['data']['reference'] ?? null;
+            if ($quoteResponse->failed()) {
+                Log::error('Fincra quote failed', [
+                    'status' => $quoteResponse->status(),
+                    'body' => $quoteResponse->body(),
+                ]);
+                throw new \Exception('Fincra quote failed (HTTP '.$quoteResponse->status().'): '.$quoteResponse->body());
+            }
+
+            $quoteData = $quoteResponse->json();
+            $quoteReference = $quoteData['data']['reference'] ?? null;
+        }
 
         if (! $quoteReference) {
             throw new \Exception('Fincra quote failed: No reference returned');
@@ -108,7 +112,7 @@ class FincraProvider implements FxProviderInterface
         ])->post($this->baseUrl.'/conversions/initiate', [
             'business' => $businessId,
             'quoteReference' => $quoteReference,
-            'customerReference' => 'CUST-'.uniqid(),
+            'customerReference' => $reference ?? 'FX-'.strtoupper(uniqid()),
         ]);
 
         if ($convertResponse->failed()) {
@@ -116,18 +120,41 @@ class FincraProvider implements FxProviderInterface
                 'status' => $convertResponse->status(),
                 'body' => $convertResponse->body(),
             ]);
-            throw new \Exception('Fincra convert failed (HTTP '.$convertResponse->status().'): '.$convertResponse->body());
+
+            return [
+                'provider' => 'fincra',
+                'status' => $convertResponse->serverError() ? 'unknown' : 'failed',
+                'rate' => $quoteData['data']['rate'] ?? 0,
+                'converted_amount' => $quoteData['data']['amountToReceive'] ?? 0,
+                'reference' => $reference,
+                'quote_reference' => $quoteReference,
+                'provider_reference' => null,
+                'raw_response' => [
+                    'quote' => $quoteData,
+                    'conversion_error' => [
+                        'status' => $convertResponse->status(),
+                        'body' => $convertResponse->body(),
+                    ],
+                ],
+            ];
         }
 
         $convertData = $convertResponse->json();
+        $rawStatus = strtolower((string) ($convertData['data']['status'] ?? 'processing'));
+        $status = match ($rawStatus) {
+            'success', 'successful', 'completed', 'complete' => 'completed',
+            'failed', 'failure', 'rejected', 'cancelled', 'canceled' => 'failed',
+            default => 'processing',
+        };
 
         return [
             'provider' => 'fincra',
-            'status' => 'completed',
+            'status' => $status,
             'rate' => $quoteData['data']['rate'] ?? 0,
             'converted_amount' => $quoteData['data']['amountToReceive'] ?? 0,
-            'reference' => $convertData['data']['reference'] ?? 'FINCRA-'.strtoupper(uniqid()),
+            'reference' => $reference,
             'quote_reference' => $quoteReference,
+            'provider_reference' => $convertData['data']['reference'] ?? null,
             'raw_response' => [
                 'quote' => $quoteData,
                 'conversion' => $convertData,

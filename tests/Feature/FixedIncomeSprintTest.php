@@ -265,6 +265,71 @@ class FixedIncomeSprintTest extends TestCase
         app(FixedIncomeMaturityService::class)->mature($investment);
     }
 
+    public function test_product_capacity_rejects_a_subscription_that_would_exceed_the_limit(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 500000,
+            'balance' => 500000,
+        ]);
+        $product = FixedIncomeProduct::create([
+            'name' => 'Capacity Bond',
+            'code' => 'GB-CAPACITY',
+            'currency' => 'NGN',
+            'status' => 'active',
+            'minimum_amount' => 100000,
+            'maximum_capacity' => 300000,
+            'interest_rate' => 10,
+            'tenor_days' => 30,
+            'execution_mode' => 'manual',
+        ]);
+
+        app(FixedIncomeInvestmentService::class)->createFromWallet($user, $product, 200000);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('insufficient remaining capacity');
+        try {
+            app(FixedIncomeInvestmentService::class)->createFromWallet($user, $product, 150000);
+        } finally {
+            $wallet->refresh();
+            $this->assertSame(300000.0, (float) $wallet->ngn_cleared);
+            $this->assertSame(200000.0, (float) $wallet->locked);
+            $this->assertSame(1, FixedIncomeInvestment::where('fixed_income_product_id', $product->id)->count());
+        }
+    }
+
+    public function test_cancelled_investment_cannot_be_activated_and_releases_reservation(): void
+    {
+        $user = User::factory()->create();
+        $wallet = Wallet::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'NGN',
+            'ngn_cleared' => 300000,
+            'balance' => 300000,
+        ]);
+        $product = FixedIncomeProduct::create([
+            'name' => 'Cancellation Bond',
+            'code' => 'GB-CANCEL',
+            'currency' => 'NGN',
+            'status' => 'active',
+            'minimum_amount' => 100000,
+            'interest_rate' => 10,
+            'tenor_days' => 30,
+            'execution_mode' => 'manual',
+        ]);
+        $investment = app(FixedIncomeInvestmentService::class)->createFromWallet($user, $product, 200000);
+        app(FixedIncomeLifecycleService::class)->cancel($investment);
+
+        $wallet->refresh();
+        $this->assertSame(300000.0, (float) $wallet->ngn_cleared);
+        $this->assertSame(0.0, (float) $wallet->locked);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Investment cannot be activated from its current status.');
+        app(FixedIncomeLifecycleService::class)->activate($investment->fresh());
+    }
+
     public function test_reinvestment_preserves_history_and_creates_a_new_reserved_investment(): void
     {
         $user = User::factory()->create();

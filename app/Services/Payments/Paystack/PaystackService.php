@@ -156,6 +156,7 @@ class PaystackService implements PaymentGateway
             $payload = [
                 'email' => $data['email'],
                 'amount' => $data['amount'] * 100, // Convert to kobo
+                'currency' => $data['currency'] ?? 'NGN',
                 'reference' => $data['reference'],
                 'callback_url' => $data['callback_url'] ?? config('services.paystack.callback_url'),
                 'metadata' => $data['metadata'] ?? [],
@@ -173,7 +174,7 @@ class PaystackService implements PaymentGateway
                 ]);
 
                 return [
-                    'status' => 'failed',
+                    'status' => $response->serverError() ? 'uncertain' : 'failed',
                     'message' => $result['message'] ?? 'Payment initialization failed',
                 ];
             }
@@ -191,8 +192,8 @@ class PaystackService implements PaymentGateway
             ]);
 
             return [
-                'status' => 'failed',
-                'message' => 'Payment initialization service unavailable',
+                'status' => 'uncertain',
+                'message' => 'Payment initialization outcome is uncertain',
             ];
         }
     }
@@ -225,7 +226,9 @@ class PaystackService implements PaymentGateway
                 'reference' => $result['data']['reference'],
                 'amount' => $result['data']['amount'] / 100, // Convert from kobo
                 'currency' => $result['data']['currency'],
+                'fees' => $result['data']['fees'] ?? 0,
                 'metadata' => $result['data']['metadata'] ?? [],
+                'reference' => $result['data']['reference'],
                 'paid_at' => $result['data']['paid_at'] ?? null,
             ];
         } catch (\Exception $e) {

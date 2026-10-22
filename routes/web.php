@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('app', [
         'seo' => [
-            'title' => 'Smart Trading, Secure & Simplified | Xavier',
+            'title' => 'Xavier',
             'description' => 'Access global markets, manage NGN and USD wallets, and trade with Xavier’s secure trading platform.',
             'robots' => 'index,follow',
             'canonical' => url('/'),
@@ -78,7 +78,8 @@ Route::middleware('auth')->group(function () {
 
     // Wallet
     Route::post('/wallet/deposit', [WalletController::class, 'deposit'])->name('wallet.deposit');
-    Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->name('wallet.withdraw');
+    // Withdrawal is handled via API route: POST /api/security/withdrawals (WithdrawalController@store)
+    // Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->name('wallet.withdraw');
 });
 
 // Admin routes

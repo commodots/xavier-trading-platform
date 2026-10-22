@@ -223,7 +223,7 @@
 
           <!-- Currency Conversion Specific Details -->
           <div v-if="txn.type === 'currency_change'"
-            class="p-4 rounded-xl bg-blue-500/5 rounded-xl border border-blue-500/20 space-y-3">
+            class="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-3">
             <div class="flex items-center gap-2 mb-1">
               <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
               <span class="text-[9px] font-black tracking-[0.2em] text-blue-400 uppercase">Conversion Details</span>

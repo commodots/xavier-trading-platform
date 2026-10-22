@@ -12,6 +12,7 @@ class NewTransaction extends Model
     protected $fillable = [
         'user_id', 'type', 'amount', 'currency',
         'charge', 'net_amount', 'status', 'tx_hash', 'confirmations', 'meta',
+        'provider_reference', 'idempotency_key',
     ];
 
     protected $casts = [

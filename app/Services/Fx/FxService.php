@@ -3,6 +3,7 @@
 namespace App\Services\Fx;
 
 use App\Models\FxSetting;
+use App\Contracts\FxProviderInterface;
 
 class FxService
 {
@@ -12,12 +13,17 @@ class FxService
 
     public function quote(string $from, string $to, float $amount): array
     {
-        return $this->resolver->resolve()->quote($from, $to, $amount);
+        return $this->provider()->quote($from, $to, $amount);
     }
 
-    public function convert(string $from, string $to, float $amount): array
+    public function convert(string $from, string $to, float $amount, ?string $reference = null, ?array $quote = null): array
     {
-        return $this->resolver->resolve()->convert($from, $to, $amount);
+        return $this->provider()->convert($from, $to, $amount, $reference, $quote);
+    }
+
+    public function provider(): FxProviderInterface
+    {
+        return $this->resolver->resolve();
     }
 
     public function getProviderName(): string

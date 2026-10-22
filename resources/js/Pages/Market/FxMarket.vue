@@ -251,6 +251,7 @@ const userBalances = ref({
 // Conversion History
 const conversionHistory = ref([]);
 const historyLoading = ref(false);
+const conversionIdempotencyKey = ref(null);
 
 const isAdminUser = (u) => {
   if (!u) return false;
@@ -468,14 +469,17 @@ async function executeConversion() {
   loading.value = true;
   message.value = "";
   try {
+    conversionIdempotencyKey.value ||= crypto.randomUUID();
     const response = await api.post("/fx/convert", {
       from_currency: quoteData.value.from_currency,
       to_currency: quoteData.value.to_currency,
-      amount: quoteData.value.amount
+      amount: quoteData.value.amount,
+      idempotency_key: conversionIdempotencyKey.value,
     });
 
     if (response.data.success) {
       conversionResult.value = response.data.data;
+      conversionIdempotencyKey.value = null;
       quoteModal.value = false;
       showSuccessModal.value = true;
       message.value = "";
@@ -486,6 +490,9 @@ async function executeConversion() {
       setTimeout(() => {
         router.push('/wallet');
       }, 2000);
+    } else if (response.data.data?.status === 'processing' || response.data.data?.status === 'unknown') {
+      message.value = response.data.message || 'Conversion is still being confirmed. Do not submit a new request.';
+      messageType.value = 'info';
     } else {
       throw new Error(response.data.message || 'Conversion failed');
     }

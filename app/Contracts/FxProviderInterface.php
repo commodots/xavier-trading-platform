@@ -6,5 +6,5 @@ interface FxProviderInterface
 {
     public function quote(string $from, string $to, float $amount): array;
 
-    public function convert(string $from, string $to, float $amount): array;
+    public function convert(string $from, string $to, float $amount, ?string $reference = null, ?array $quote = null): array;
 }

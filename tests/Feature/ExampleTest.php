@@ -17,7 +17,7 @@ class ExampleTest extends TestCase
         $response->assertOk()
             ->assertSee('name="description"', false)
             ->assertSee('name="robots" content="index,follow"', false)
-            ->assertSee('Smart Trading, Secure &amp; Simplified | Xavier', false);
+            ->assertSee('Xavier', false);
     }
 
     public function test_client_application_routes_can_be_loaded_directly_without_a_web_session(): void

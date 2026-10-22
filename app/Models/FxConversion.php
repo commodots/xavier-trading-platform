@@ -19,6 +19,7 @@ class FxConversion extends Model
         'converted_amount',
         'status',
         'response',
+        'idempotency_key',
     ];
 
     protected $casts = [

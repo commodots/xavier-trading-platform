@@ -300,7 +300,7 @@
                   <div>
                     <label class="text-sm text-gray-400">Withdrawal OTP</label>
                     <div class="flex gap-2 mt-1">
-                      <input v-model="form.form.otp"
+                      <input v-model="form.otp"
                         class="flex-1 px-4 py-2 text-white bg-[#151a27] border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-center tracking-widest font-bold"
                         placeholder="000000" maxlength="6" required />
                     </div>
@@ -536,6 +536,7 @@ const txnType = ref("");
 const from = ref("NGN");
 const to = computed(() => from.value === 'NGN' ? 'USD' : 'NGN');
 const amount = ref(0);
+const fxIdempotencyKey = ref(null);
 const otpSent = ref(false);
 const quoteResult = ref(null);
 const quoting = ref(false);
@@ -568,6 +569,7 @@ const linkedAccounts = ref([]);
 const selectedAccountId = ref("");
 
 const form = ref({ amount: 0, currency: "NGN", otp: "" });
+const depositIdempotencyKey = ref(null);
 
 const formattedAmount = computed({
   get() { return form.value.amount.toLocaleString(); },
@@ -883,6 +885,13 @@ const openConvertModal = () => {
   openConvert.value = true;
 };
 
+watch(
+  () => [form.value.amount, form.value.currency],
+  () => {
+    depositIdempotencyKey.value = null;
+  }
+);
+
 const submitTransaction = async () => {
   if (form.value.amount <= 0) return;
   if (txnType.value === 'withdrawal' && !selectedAccountId.value) return;
@@ -891,7 +900,12 @@ const submitTransaction = async () => {
 
   if (txnType.value === 'deposit') {
     try {
-      const response = await api.post('/paystack/initiate', { amount: form.value.amount, currency: form.value.currency });
+      depositIdempotencyKey.value ||= crypto.randomUUID();
+      const response = await api.post('/paystack/initiate', {
+        amount: form.value.amount,
+        currency: form.value.currency,
+        idempotency_key: depositIdempotencyKey.value,
+      });
       if (response.data.success) {
         if (response.data.is_demo) {
           message.value = `Demo deposit successful! ${form.value.currency === 'NGN' ? '₦' : '$'}${form.value.amount.toLocaleString()} credited.`;
@@ -953,6 +967,10 @@ const submitTransaction = async () => {
 };
 
 // Watch amount changes for live quote (with debounce)
+watch([amount, from], () => {
+  fxIdempotencyKey.value = null;
+});
+
 watch(amount, (newVal) => {
   if (quoteTimeout) clearTimeout(quoteTimeout);
   if (newVal > 0) {
@@ -1016,10 +1034,12 @@ const convertCurrency = async () => {
   actionType.value = "convert";
   try {
     const toCurrency = from.value === 'NGN' ? 'USD' : 'NGN';
+    fxIdempotencyKey.value ||= crypto.randomUUID();
     const response = await api.post("/fx/convert", {
       from_currency: from.value,
       to_currency: toCurrency,
-      amount: amount.value
+      amount: amount.value,
+      idempotency_key: fxIdempotencyKey.value,
     });
     
     if (response.data.success) {
@@ -1034,6 +1054,7 @@ const convertCurrency = async () => {
         rate: data.rate,
         reference: data.reference
       };
+      fxIdempotencyKey.value = null;
       
       // Close convert modal and show success modal
       openConvert.value = false;
@@ -1041,6 +1062,8 @@ const convertCurrency = async () => {
       
       // Refresh data to update balances
       await refreshData();
+    } else if (response.data.data?.status === 'processing' || response.data.data?.status === 'unknown') {
+      message.value = response.data.message || 'Conversion is being confirmed. Do not submit another request.';
     } else {
       message.value = response.data.message || "Conversion failed";
     }
@@ -1064,7 +1087,7 @@ const closeConversionSuccess = () => {
   };
 };
 
-const FX_CONVERSION_RATE = 1538;
+const FX_CONVERSION_RATE = 1385;
 const combinedSeries = computed(() => [
   {
     name: "NGN",
