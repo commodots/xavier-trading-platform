@@ -78,9 +78,12 @@ All configuration is driven by environment variables. Copy `.env.example` and ad
 |---|---|---|
 | `STOCK_BROKER` | `mock` | `mock`, `csl`, or `alpaca` |
 | `MARKET_DATA_PROVIDER` | `mock` | `mock`, `csl`, or `alpaca` |
+| `MARKET_PROVIDER` | `finnhub` | Market data source (`mock` or `finnhub`) |
+| `FINNHUB_API_KEY` | *(empty)* | Finnhub API key (for US/global market data) |
+| `FINNHUB_SECRET` | *(empty)* | Finnhub incoming webhook secret (for real-time updates) |
 | `CSL_MODE` | `test` | CSL environment |
 | `CSL_MOCK` | `true` | Enable CSL mock transport (local dev) |
-| `CSL_LIVE_TRADING_ENABLED` | `false` | switch for live trading |
+| `CSL_LIVE_TRADING_ENABLED` | `false` | Master switch for live trading |
 
 ### Alpaca (US Stocks/ETFs)
 
@@ -91,7 +94,7 @@ All configuration is driven by environment variables. Copy `.env.example` and ad
 | `ALPACA_BASE_URL` | `https://paper-api.alpaca.markets` | Trading base URL |
 | `ALPACA_DATA_BASE_URL` | `https://data.alpaca.markets/v2` | Market data base URL |
 | `ALPACA_MOCK` | `true` | Use Alpaca paper trading in local dev |
-| `ALPACA_LIVE_TRADING_ENABLED` | `false` | switch for live trading |
+| `ALPACA_LIVE_TRADING_ENABLED` | `false` | Master switch for live trading |
 
 ### Crypto
 
@@ -239,7 +242,30 @@ DB_PASSWORD=your-password
 | **CSL** | Nigerian stockbroker integration | `CSL_*`, `STOCK_BROKER=csl` |
 | **Alpaca** | US stock/ETF trading | `ALPACA_*`, `STOCK_BROKER=alpaca` |
 | **Tatum** | Cryptocurrency wallet & trading | `TATUM_*` |
+| **Finnhub** | Global stock/ETF market data (real-time & historical) | `FINNHUB_API_KEY`, `FINNHUB_SECRET` |
 | **Pusher** | Real-time broadcasting | `PUSHER_*`, `BROADCAST_DRIVER` |
+
+### Loading Global Stock Market Data
+
+This project supports live global stock market data via **Finnhub**. The workflow involves two steps:
+
+1. **Start the market-stream worker** — a Node.js process that subscribes to real-time symbol updates published over Redis and pushes them to connected clients via Pusher broadcasting:
+
+   ```bash
+   node market-stream.js
+   ```
+
+   This worker listens on the `symbol-updates` Redis pub/sub channel. When a symbol is tracked (via `POST /api/trade/track-symbol`), the TradeController publishes a `subscribe` event and the worker begins streaming real-time price ticks for that symbol.
+
+2. **Sync global symbols from Finnhub** — populate the local `symbols` table with US and international stock/ETF symbols:
+
+   ```bash
+   php artisan stocks:sync
+   ```
+
+   This command fetches the complete symbol list from `https://finnhub.io/api/v1/stock/symbol` (for the `US` exchange) and stores them locally. Run this once during initial setup; re-run periodically if you need to refresh the symbol catalog.
+
+   > **Note**: Set `FINNHUB_API_KEY` in your `.env` before running `stocks:sync`. The `FINNHUB_SECRET` is used to verify incoming webhook requests from Finnhub's real-time price feed (handled in `TradeController::updateMarket`).
 
 ### Running with Laravel Sail (Docker)
 
@@ -260,8 +286,8 @@ If you have Docker installed, you can use Laravel Sail:
 
 ## Debugging
 
-- **Laravel Telescope**: Enabled in local environment. Access at `/telescope` when `TELESCOPE_ENABLED=true`.
-- **Laravel Pulse**: Real-time application metrics. Access at `/pulse` when `PULSE_ENABLED=true`.
+- **Laravel Telescope** (`TELESCOPE_ENABLED=true`, `TELESCOPE_PATH=telescope`): Enabled in local environment. Access at `http://localhost/telescope` when `TELESCOPE_ENABLED=true`. The `TELESCOPE_PATH` env var controls the URL path (defaults to `telescope`). Telescope watchers can be individually enabled/disabled in `config/telescope.php`. Note: Telescope is registered only in the `local` environment (see `AppServiceProvider::register()`).
+- **Laravel Pulse** (`PULSE_ENABLED=true`, `PULSE_PATH=pulse`): Real-time application metrics (requests, jobs, exceptions, cache hits). Access at `http://localhost/pulse` when `PULSE_ENABLED=true`. The `PULSE_PATH` env var controls the URL path (defaults to `pulse`). Additional config: `PULSE_STORAGE_DRIVER=database` sets the storage backend; `PULSE_INGEST_DRIVER=storage` controls the ingest driver.
 - **Log files**: `storage/logs/laravel.log` or use `php artisan pail` for real-time log viewing.
 
 ## Documentation
