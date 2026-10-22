@@ -1,66 +1,287 @@
-<<<<<<< HEAD
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Xavier Trading Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A full-stack Laravel + Vue 3 trading platform that provides dual-currency (NGN/USD) wallets, cryptocurrency trading, stock/ETF trading, FX conversions, KYC verification, and payment processing integrations.
 
-## About Laravel
+## Requirements
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **PHP** 8.2+
+- **Composer** 2.8+
+- **Node.js** 20+ (with npm)
+- **Database**: MySQL 8.0+ or SQLite (for testing/development)
+- **Redis** (for session/cache/queue in production; optional for local dev)
+- **Web server**: Laravel's built-in dev server is sufficient for development
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Quick Start
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```bash
+# 1. Clone and install dependencies
+git clone https://github.com/commodots/xavier-trading-platform.git
+cd xavier-trading-platform
+composer install
+npm install
 
-## Learning Laravel
+# 2. Configure environment
+cp .env.example .env
+php artisan key:generate
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+# 3. Run database setup
+php artisan migrate         
+php artisan db:seed          # Seeds demo data, roles, and default admin
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+# 4. Build frontend assets
+npm run build                # or npm run dev for hot-reloading
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# 5. Start the dev server
+composer dev                 # Runs server, queue, log watcher, and Vite concurrently
+```
 
-## Laravel Sponsors
+Then visit `http://localhost` in your browser.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Environment Configuration
 
-### Premium Partners
+All configuration is driven by environment variables. Copy `.env.example` and adjust as needed:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Core
+
+| Variable | Default | Description |
+|---|---|---|
+| `APP_NAME` | `Xavier` | Application name |
+| `APP_ENV` | `local` | `local`, `production`, etc. |
+| `APP_KEY` | *(generate)* | Laravel encryption key — run `php artisan key:generate` |
+| `APP_DEBUG` | `true` | Enable/disable debug mode |
+| `APP_URL` | `http://localhost` | Application base URL |
+| `DB_CONNECTION` | `sqlite` | `sqlite` or `mysql` |
+| `DB_DATABASE` | `database/database.sqlite` | Database name or path |
+
+### Payment Providers
+
+| Variable | Default | Description |
+|---|---|---|
+| `PAYSTACK_PUBLIC_KEY` | *(empty)* | Paystack public key |
+| `PAYSTACK_SECRET_KEY` | *(empty)* | Paystack secret key |
+| `FINCRA_SECRET_KEY` | *(empty)* | Fincra API secret |
+| `FINCRA_BASE_URL` | `https://sandboxapi.fincra.com` | Fincra base URL |
+| `FINCRA_MODE` | `sandbox` | `sandbox` or `live` |
+
+### KYC (Dojah)
+
+| Variable | Default | Description |
+|---|---|---|
+| `KYC_PROVIDER` | `dojah` | KYC provider |
+| `DOJAH_PUBLIC_KEY` | *(empty)* | Dojah public key |
+| `DOJAH_SECRET_KEY` | *(empty)* | Dojah secret key |
+| `DOJAH_BASE_URL` | `https://sandbox.dojah.io` | Dojah sandbox URL |
+
+### Stock Broker / Market Data
+
+| Variable | Default | Description |
+|---|---|---|
+| `STOCK_BROKER` | `mock` | `mock`, `csl`, or `alpaca` |
+| `MARKET_DATA_PROVIDER` | `mock` | `mock`, `csl`, or `alpaca` |
+| `CSL_MODE` | `test` | CSL environment |
+| `CSL_MOCK` | `true` | Enable CSL mock transport (local dev) |
+| `CSL_LIVE_TRADING_ENABLED` | `false` | switch for live trading |
+
+### Alpaca (US Stocks/ETFs)
+
+| Variable | Default | Description |
+|---|---|---|
+| `ALPACA_API_KEY` | *(empty)* | Alpaca API key |
+| `ALPACA_SECRET_KEY` | *(empty)* | Alpaca secret key |
+| `ALPACA_BASE_URL` | `https://paper-api.alpaca.markets` | Trading base URL |
+| `ALPACA_DATA_BASE_URL` | `https://data.alpaca.markets/v2` | Market data base URL |
+| `ALPACA_MOCK` | `true` | Use Alpaca paper trading in local dev |
+| `ALPACA_LIVE_TRADING_ENABLED` | `false` | switch for live trading |
+
+### Crypto
+
+| Variable | Default | Description |
+|---|---|---|
+| `TATUM_API_KEY` | *(empty)* | Tatum API key |
+| `TATUM_BASE_URL` | `https://api.tatum.io/v3` | Tatum API base URL |
+| `TATUM_WEBHOOK_SECRET` | *(empty)* | Tatum webhook verification secret |
+
+### System Admin (first-time bootstrap)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SYSTEM_ADMIN_NAME` | `System Administrator` | Seed name for first admin |
+| `SYSTEM_ADMIN_EMAIL` | *(empty)* | Seed email for first admin |
+| `SYSTEM_ADMIN_PASSWORD` | *(empty)* | Seed password for first admin |
+
+> **Important**: `CSL_LIVE_TRADING_ENABLED` and `ALPACA_LIVE_TRADING_ENABLED` must be `false` in all non-production environments. These act as master kill-switches — real trading and withdrawals are impossible when they are disabled.
+
+## Provider Mock Modes
+
+Xavier uses mock/fake providers by default so the platform can be run locally without real financial credentials or network access. The following mock modes are available:
+
+### 1. Stock Broker — `STOCK_BROKER=mock` (default)
+
+When set to `mock`, the platform uses `MockDriveWealthService` which serves deterministic trading data. No real broker API keys are required. Set to `csl` or `alpaca` to use live integrations.
+
+### 2. Market Data — `MARKET_DATA_PROVIDER=mock` (default)
+
+When set to `mock`, the platform uses `MockPolygonService` for market data feeds. No real market data API key is required. Set to `csl` or `alpaca` to use real feeds.
+
+### 3. CSL (Nigerian Stock Exchange) — `CSL_MOCK=true` (default)
+
+When `true`, the CSL client uses a deterministic fixture transport that answers every API call (OAuth, trades, orders, reconciliations) locally. No CSL credentials are required in this mode. Run `php artisan csl:diagnose` to verify connectivity.
+
+### 4. Alpaca — `ALPACA_MOCK=true` (default)
+
+When `true`, Alpaca operates in paper-trading mode. Combined with `ALPACA_LIVE_TRADING_ENABLED=false`, no real money is at risk.
+
+### 5. Paystack / Fincra — Sandbox
+
+Payment providers default to sandbox/test mode. Paystack requires real API keys for full end-to-end testing but no live transactions will occur when used with test keys. Fincra defaults to `FINCRA_MODE=sandbox`.
+
+### 6. KYC — Dojah Sandbox
+
+Dojah KYC defaults to `https://sandbox.dojah.io`. Mock BVN verification is available for testing.
+
+## Testing
+
+Tests run against an in-memory SQLite database with no real financial transactions possible (live trading is disabled in `phpunit.xml`).
+
+```bash
+# Run the full test suite
+php artisan test
+
+# Or directly via PHPUnit
+php vendor/bin/phpunit
+
+# Run a specific test class
+php artisan test --filter=WalletFunctionsTest
+
+# Run a single test method
+php artisan test --filter=test_user_can_deposit_funds_and_fees_are_applied
+
+# Run with verbose output
+php vendor/bin/phpunit --verbose
+
+# Run only the feature tests
+php vendor/bin/phpunit --testsuite=Feature
+```
+
+### Test Configuration
+
+- **`phpunit.xml`** defines the testing environment with `CSL_MOCK=true`, `ALPACA_MOCK=true`, and `DB_CONNECTION=sqlite` with `DB_DATABASE=:memory:`.
+- Live trading is disabled for all providers in the test environment.
+- 3rd party HTTP calls are either mocked or point to sandbox endpoints.
+
+### Running Tests with a Specific Provider Mode
+
+The test environment defaults to mock mode for all providers. To test against a specific provider, adjust the environment in your `.env` or `phpunit.xml`:
+
+
+## Database
+
+### Running Migrations
+
+```bash
+php artisan migrate          # Run all pending migrations
+php artisan migrate:fresh    # Drop all tables and re-run (for dev)
+php artisan migrate:status   # Check migration status
+```
+
+### Seeding Demo Data
+
+```bash
+php artisan db:seed          # Run all seeders (demo users, portfolios, wallets, etc.)
+php artisan db:seed --class=DatabaseSeeder
+```
+
+Demo credentials (after seeding):
+- **Admin**: typically seeded via `SYSTEM_ADMIN_*` env vars
+- **Demo users**: see `database/seeders/` for seeded user credentials
+
+### Database Configuration
+
+By default, the application uses SQLite for local development. Configure for MySQL:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=xavier
+DB_USERNAME=root
+DB_PASSWORD=your-password
+```
+
+## Development
+
+### Available Scripts
+
+| Script | Description |
+|---|---|
+| `composer dev` | Run Laravel dev server, queue listener, log watcher, and Vite dev server concurrently |
+| `composer setup` | Full setup: install dependencies, configure .env, generate key, run migrations, build assets |
+| `composer test` | Clear config and run test suite |
+| `npm run dev` | Start Vite dev server (hot-reloading) |
+| `npm run build` | Build frontend assets for production |
+| `php artisan csl:diagnose` | Run CSL connectivity diagnostics |
+| `php artisan alpaca:reconciliation-report` | Generate Alpaca reconciliation report |
+
+### Architecture
+
+- **Frontend**: Vue 3 + Tailwind CSS + Inertia.js, also includes Vue Router for some flows, Chart.js & ApexCharts for data visualization.
+- **Backend**: Laravel 12 API + server-rendered views, Spatie RBAC for permissions, Fortify for auth.
+- **Real-time**: Laravel Broadcasting with Pusher for live updates (order books, prices, notifications).
+- **Background jobs**: Redis-backed queue with `php artisan queue:listen`.
+
+### Key Integrations
+
+| Integration | Purpose | Config Variables |
+|---|---|---|
+| **Paystack** | Payment gateway (deposits, withdrawals) | `PAYSTACK_*` |
+| **Fincra** | Payout provider and FX rates | `FINCRA_*` |
+| **Dojah** | KYC verification (BVN, identity verification) | `DOJAH_*` |
+| **CSL** | Nigerian stockbroker integration | `CSL_*`, `STOCK_BROKER=csl` |
+| **Alpaca** | US stock/ETF trading | `ALPACA_*`, `STOCK_BROKER=alpaca` |
+| **Tatum** | Cryptocurrency wallet & trading | `TATUM_*` |
+| **Pusher** | Real-time broadcasting | `PUSHER_*`, `BROADCAST_DRIVER` |
+
+### Running with Laravel Sail (Docker)
+
+If you have Docker installed, you can use Laravel Sail:
+
+```bash
+# Start the Laravel development environment
+./vendor/bin/sail up
+
+# Run tests
+./vendor/bin/sail test
+
+# Run Artisan commands
+./vendor/bin/sail artisan migrate
+```
+
+> Note: Ensure `.env` has the correct `DB_CONNECTION` and database settings for the Sail container.
+
+## Debugging
+
+- **Laravel Telescope**: Enabled in local environment. Access at `/telescope` when `TELESCOPE_ENABLED=true`.
+- **Laravel Pulse**: Real-time application metrics. Access at `/pulse` when `PULSE_ENABLED=true`.
+- **Log files**: `storage/logs/laravel.log` or use `php artisan pail` for real-time log viewing.
+
+## Documentation
+
+Additional project documentation is available in the `docs/` directory:
+- `docs/Steps-1-environment-report.md` — Environment audit report
+- `docs/Steps-1-3-defect-register.md` — Defect register and resolutions
+- `docs/audits/*.md` — Detailed audit reports for security, settlements, KYC, sessions, and more
+
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+1. Create a feature branch: `git checkout -b feature/my-feature`
+2. Make your changes and add tests
+3. Run the test suite: `php artisan test`
+4. Commit and push: `git push origin feature/my-feature`
+5. Open a pull request
 
-## Code of Conduct
+See `.github/copilot-instructions.md` for coding conventions and guidelines.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Security
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-=======
-# xavier-trading-platform
-Xavier OS Application
->>>>>>> a6e5e80fbbbda181b6df73d45dd7f64afbc34873
+If you discover a security vulnerability, please report it directly to the development team.
