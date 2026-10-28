@@ -862,7 +862,7 @@ const sendWithdrawalOtp = async () => {
     message.value = response.data.message || "A verification code has been sent to your email.";
     return true;
   } catch (e) {
-    message.value = e.response?.data?.message || "Failed to send verification code.";
+    message.value = "Failed to send verification code. Please try again.";
     return false;
   } finally {
     loading.value = false;
@@ -920,7 +920,7 @@ const submitTransaction = async () => {
       }
       message.value = response.data.message || "Payment initiation failed";
     } catch (e) {
-      message.value = e.response?.data?.message || "Payment initiation failed";
+      message.value = "Payment initiation failed. Please try again.";
     } finally {
       loading.value = false;
       actionType.value = "";
@@ -958,7 +958,7 @@ const submitTransaction = async () => {
       message.value = `Withdrawal successful! ${currencySymbol}${form.value.amount.toLocaleString()} debited.`;
       setTimeout(() => { showModal.value = false; refreshData(); }, 1500);
     } catch (e) {
-      message.value = e.response?.data?.message || "Transaction failed";
+      message.value = "Transaction failed. Please try again.";
     } finally {
       loading.value = false;
       actionType.value = "";

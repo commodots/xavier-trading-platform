@@ -145,7 +145,7 @@ const submitLogin = async () => {
 
   } catch (err) {
     console.error("Login failed:", err);
-    errorMessage.value = err.response?.data?.message || "Invalid credentials. Please try again.";
+    errorMessage.value = "Login failed. Please check your credentials and try again.";
   } finally {
     loading.value = false;
   }
@@ -169,7 +169,7 @@ const submit2FA = async () => {
 
   } catch (err) {
     console.error("2FA Verification failed:", err);
-    errorMessage.value = err.response?.data?.message || "Invalid 2FA code. Please try again.";
+    errorMessage.value = "2FA verification failed. Please try again.";
   } finally {
     loading.value = false;
   }

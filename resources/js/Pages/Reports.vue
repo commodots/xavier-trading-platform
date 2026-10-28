@@ -529,12 +529,11 @@ const form = reactive({
   } catch (e) {
     console.error(e);
     if (e.response) {
-      const msg = e.response.data?.message || e.response.statusText || "Server error";
-      errorMessage.value = "Error generating report: " + msg;
+      errorMessage.value = "Error generating report. Please try again.";
     } else if (e.request) {
       errorMessage.value = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
     } else {
-      errorMessage.value = "Error generating report: " + e.message;
+      errorMessage.value = "Error generating report. Please try again.";
     }
     showErrorModal.value = true;
   } finally {
@@ -597,8 +596,7 @@ const closeReportModal = () => {
     if (downloadError.code === 'ERR_NETWORK' || downloadError.message?.includes('Network Error')) {
       errorMessage.value = "Network error: Unable to connect to the server. Please check your internet connection and try again.";
     } else if (downloadError.response) {
-      const msg = downloadError.response.data?.message || downloadError.response.statusText || "Server error";
-      errorMessage.value = "Download failed: " + msg;
+      errorMessage.value = "Download failed. Please try again.";
     } else if (downloadError.code === 'ECONNABORTED') {
       errorMessage.value = "Request timed out. The server is taking too long to respond. Please try again.";
     } else {

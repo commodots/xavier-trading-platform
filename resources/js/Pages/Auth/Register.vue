@@ -155,7 +155,7 @@ const submit = async () => {
     if (err.response?.data?.errors) {
       localErrors.value = err.response.data.errors;
     } else {
-      errorMessage.value = err.response?.data?.message || "Registration failure. Please check inputs.";
+      errorMessage.value = "Registration failed. Please try again.";
       showErrorModal.value = true;
     }
   } finally {

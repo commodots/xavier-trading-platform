@@ -325,7 +325,7 @@ const fetchInstruments = async () => {
       currency: product.currency,
     }));
   } catch (error) {
-    marketError.value = error.response?.data?.message || 'Unable to load fixed income products.';
+    marketError.value = 'Unable to load market products. Please try again.';
   } finally {
     isMarketLoading.value = false;
     loading.value = false;

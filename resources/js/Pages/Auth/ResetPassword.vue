@@ -48,7 +48,7 @@ const submit = async () => {
 
         } else if (error.response?.data?.message) {
             // General server message (e.g., token expired)
-            status.value = error.response.data.message;
+            status.value = "Unable to reset password. The reset link may have expired or is invalid.";
 
         } else {
             // Unexpected error

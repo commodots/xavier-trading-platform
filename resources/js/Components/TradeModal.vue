@@ -359,7 +359,7 @@ const handleTrade = async () => {
     }
   } catch (e) {
     feedbackType.value = 'error';
-    feedbackMessage.value = e.response?.data?.error || "Trade failed.";
+    feedbackMessage.value = "Trade failed. Please try again.";
     showFeedback.value = true;
   } finally {
     isProcessing.value = false;

@@ -236,7 +236,7 @@ class PaystackController extends Controller
                 return response()->json([
                     'success' => false,
                     'pending' => true,
-                    'message' => 'Payment initialization status is uncertain. Retry with the same idempotency key.',
+                    'message' => 'Oops! That did not work. Try again!',
                     'reference' => $reference,
                 ], 503);
             } else {
@@ -261,7 +261,7 @@ class PaystackController extends Controller
             return response()->json([
                 'success' => false,
                 'pending' => true,
-                'message' => 'Payment initialization status is uncertain. Retry with the same idempotency key.',
+                'message' => 'Oops! That did not work! Try again.',
                 'reference' => $reference,
             ], 503);
         }

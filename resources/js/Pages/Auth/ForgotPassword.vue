@@ -121,7 +121,7 @@ const submit = async () => {
         if (error.response?.status === 422) {
             form.value.errors = error.response.data.errors;
         } else {
-            errorMessage.value = error.response?.data?.message || "An unexpected error occurred.";
+            errorMessage.value = "Unable to send reset link. Please try again.";
         }
     } finally {
         form.value.processing = false;
