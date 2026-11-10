@@ -1,0 +1,13 @@
+{
+    "GetCRXTMarketTopGainers": [
+        {
+            "symbol_code": "TIP",
+            "symbol_description": "Test Instrument",
+            "market_code": "NGX",
+            "current_price": 105,
+            "price_difference_today": 5,
+            "percent_difference_today": 5,
+            "traded_volume": 5000
+        }
+    ]
+}

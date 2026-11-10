@@ -1,0 +1,13 @@
+{
+    "GetCRXTMarketTopLosers": [
+        {
+            "symbol_code": "LOSS",
+            "symbol_description": "Loss Corp",
+            "market_code": "NGX",
+            "current_price": 50,
+            "price_difference_today": -1,
+            "percent_difference_today": -2,
+            "traded_volume": 1200
+        }
+    ]
+}

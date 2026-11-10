@@ -1,0 +1,8 @@
+{
+    "GetCRXTMarketTopBids": [
+        {
+            "top_bid_price": 104,
+            "top_bid_quantity": 1000
+        }
+    ]
+}

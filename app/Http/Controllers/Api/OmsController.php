@@ -13,6 +13,7 @@ use App\Models\NewTransaction;
 use App\Models\Order;
 use App\Models\Portfolio;
 use App\Models\Wallet;
+use App\Services\CSL\CslMarketDataProvider;
 use App\Services\CSL\CslOrderService;
 use App\Services\Demo\DemoTradingService;
 use App\Services\LiveTradingService;
@@ -87,6 +88,33 @@ class OmsController extends Controller
         $isNgx = $data['market'] === 'NGX';
         $isGlobal = $data['market'] === 'GLOBAL';
 
+        if ($isNgx) {
+            try {
+                $quote = app(CslMarketDataProvider::class)->quote($data['symbol']);
+            } catch (\Throwable $exception) {
+                Log::error('Unable to fetch CSL quote before NGX order submission.', [
+                    'user_id' => $user->id,
+                    'symbol' => $data['symbol'],
+                    'exception' => $exception,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to retrieve a current CSL quote. No order was submitted.',
+                ], 503);
+            }
+
+            if (! is_numeric($quote['price'] ?? null) || (float) $quote['price'] <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSL did not return a valid quote for this NGX symbol. No order was submitted.',
+                ], 422);
+            }
+
+            $data['market_price'] = (float) $quote['price'];
+            $data['company'] = $quote['name'] ?: $data['company'];
+        }
+
         $defaultQuantity = $isGlobal
             // Global stocks may be fractional, so do not floor the division.
             ? ($data['amount'] / $data['market_price'])
@@ -103,6 +131,8 @@ class OmsController extends Controller
                     'message' => 'NGX stock quantity must be a whole number of at least one unit.',
                 ], 422);
             }
+
+            $data['amount'] = $data['quantity'] * (float) ($data['limit_price'] ?? $data['market_price']);
         } elseif ($isGlobal) {
             // Fractional global quantities are allowed but must be positive.
             if ($data['quantity'] <= 0) {

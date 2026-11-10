@@ -32,6 +32,13 @@
         </div>
       </div>
 
+      <div v-if="marketDataError" class="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        {{ marketDataError }}
+      </div>
+      <div v-if="marketInsightsError" class="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        {{ marketInsightsError }}
+      </div>
+
       <!-- Main Display Structural Grid Layout -->
       <div class="space-y-4 lg:col-span-2">
         <!-- View Toggle Segment Buttons -->
@@ -63,10 +70,10 @@
 
           <button 
             @click="handleBuySellClick"
-            :disabled="!canTrade.value"
+            :disabled="!canTrade"
             class="px-6 py-2 text-xs font-bold text-white uppercase transition-all bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
           >
-            {{ !canTrade.value ? 'Verification Required' : 'Buy / Sell' }}
+            {{ !canTrade ? 'Verification Required' : 'Buy / Sell' }}
           </button>
         </div>
 
@@ -143,6 +150,7 @@
               :insightData="ngxMarketInsights" 
               :loading="isInsightsLoading || loading" 
               currencySymbol="₦" 
+              @select="openDetails"
               @trade="openTrade"
             />
           </div>
@@ -245,24 +253,19 @@ const showTradeModal = ref(false);
 const selectedTradeStock = ref(null);
 
 // Quantitative Data Pipelines
-const loading = ref(false); 
+const loading = ref(true);
 const isGraphLoading = ref(false);
 const isInsightsLoading = ref(false);
+const marketDataError = ref("");
+const marketInsightsError = ref("");
 const walletBalances = ref({ cleared_balance_ngn: 0 });
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
-const currentMarketType = ref('ngx');
 const assetCategories = [{ id: 'NGX', name: 'Local Stocks (NGX)', description: 'Nigerian Stock Exchange' }];
 
 const ngxMarketInsights = ref({ gainers: [], losers: [], most_traded: [] });
-
-const stocks = ref([
-  { symbol: "ZENITH", name: "Zenith Bank", price: 51.2, change: 1.5, volume: 1240000, spark: [49, 49.5, 50, 51, 51.2] },
-  { symbol: "GTCO", name: "GT Holdings", price: 45.8, change: -0.8, volume: 870000, spark: [47, 46.8, 46, 45.9, 45.8] },
-  { symbol: "MTNN", name: "MTN Nigeria", price: 235, change: 2.2, volume: 215000, spark: [228, 230, 232, 233, 235] },
-  { symbol: "NB", name: "Nigerian Breweries", price: 72, change: 0.5, volume: 154000, spark: [70, 70.5, 71, 71.5, 72] },
-]);
+const stocks = ref([]);
 
 const sparkOptions = {
   chart: { toolbar: { show: false }, sparkline: { enabled: true }, animations: { enabled: false } },
@@ -341,12 +344,17 @@ const openTrade = (stock) => {
 const fetchMarketInsights = async (silent = false) => {
   if (!silent) isInsightsLoading.value = true;
   try {
-    const response = await api.get(`/market/${currentMarketType.value}/insights`);
-    if (response.data && response.data.data) {
-      ngxMarketInsights.value = response.data.data;
+    const response = await api.get('/market/ngx/insights');
+    const insights = response.data?.data;
+
+    if (!insights || !Array.isArray(insights.gainers) || !Array.isArray(insights.losers)) {
+      throw new Error('CSL returned an invalid NGX market insights response.');
     }
+    ngxMarketInsights.value = insights;
+    marketInsightsError.value = "";
   } catch (error) {
     console.error('Insights fetch payload failure:', error);
+    marketInsightsError.value = error.response?.data?.message || error.message || 'Unable to load NGX market insights from CSL.';
   } finally {
     isInsightsLoading.value = false;
   }
@@ -380,30 +388,44 @@ const fetchPortfolioPerformance = async (range = '1W') => {
   }
 };
 
-const updateMarketPrices = async () => {
-  let pricesUpdated = false;
-  
-  await Promise.all(stocks.value.map(async (stock) => {
-    try {
-      const res = await api.get(`/dummy/ngx/market/${stock.symbol}`);
-      const oldPrice = stock.price;
-      
-      stock.price = Number(res.data.bid);
-      stock.volume = Number(res.data.volume);
-      stock.change = Number((((res.data.bid - 150) / 150) * 100).toFixed(2));
-      
-      stock.spark.push(res.data.bid);
-      if (stock.spark.length > 10) stock.spark.shift();
-      
-      if (oldPrice !== stock.price) pricesUpdated = true;
-    } catch (e) {
-      console.warn(`Could not fetch dummy tick for asset ${stock.symbol}`);
-    }
-  }));
+const updateMarketPrices = async (silent = false) => {
+  try {
+    const response = await api.get('/market/ngx/prices');
+    const prices = response.data?.data;
 
-  // Trigger historical synchronization safely if price mutations occurred
-  if (pricesUpdated && activeView.value === 'holdings') {
-    fetchPortfolioPerformance();
+    if (!Array.isArray(prices)) {
+      throw new Error('CSL returned an invalid NGX market prices response.');
+    }
+
+    const previousStocks = new Map(stocks.value.map(stock => [stock.symbol, stock]));
+    stocks.value = prices.map((quote) => {
+      const symbol = String(quote.symbol || '').toUpperCase();
+      const previous = previousStocks.get(symbol);
+      const price = Number(quote.price || 0);
+      const spark = previous?.spark ? [...previous.spark] : [];
+
+      if (price > 0 && spark[spark.length - 1] !== price) {
+        spark.push(price);
+      }
+
+      return {
+        ...quote,
+        symbol,
+        name: quote.name || symbol,
+        price,
+        change: Number(quote.change_percent ?? quote.change ?? 0),
+        volume: Number(quote.volume || 0),
+        spark: spark.slice(-10),
+        market: 'NGX',
+        currency: 'NGN',
+      };
+    }).filter(stock => stock.symbol && Number.isFinite(stock.price) && stock.price > 0);
+    marketDataError.value = "";
+  } catch (error) {
+    marketDataError.value = error.response?.data?.message || error.message || 'Unable to load NGX market prices from CSL.';
+    console.error('CSL NGX market prices fetch failed:', error);
+  } finally {
+    if (!silent) loading.value = false;
   }
 };
 
@@ -417,7 +439,10 @@ onMounted(() => {
     fetchWalletBalances(),
     fetchMarketInsights()
   ]);
-  pollingInterval = setInterval(updateMarketPrices, 10000);
+  pollingInterval = setInterval(() => {
+    updateMarketPrices(true);
+    fetchMarketInsights(true);
+  }, 30000);
 });
 
 onUnmounted(() => {

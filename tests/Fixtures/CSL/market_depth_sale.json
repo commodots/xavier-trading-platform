@@ -1,0 +1,12 @@
+{
+    "GetCRXTMarketDepthSale": [
+        {
+            "price": 106,
+            "quantity": 900
+        },
+        {
+            "price": 107,
+            "quantity": 1200
+        }
+    ]
+}

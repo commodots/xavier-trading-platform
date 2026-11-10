@@ -243,7 +243,19 @@ const showDetailsModal = ref(false);
 const showPrompt = ref(false);
 const showWatchlistMenu = ref(false);
 
-const getUser = () => JSON.parse(localStorage.getItem('user') || '{}'); 
+const getUser = () => {
+  const storedUser = localStorage.getItem('user');
+  if (!storedUser) {
+    return {};
+  }
+
+  try {
+    const parsedUser = JSON.parse(storedUser);
+    return parsedUser && typeof parsedUser === 'object' && !Array.isArray(parsedUser) ? parsedUser : {};
+  } catch {
+    return {};
+  }
+};
 const user = ref(getUser());
 const isDemo = ref(user.value.trading_mode === 'demo');
 

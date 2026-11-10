@@ -23,25 +23,63 @@
       </div>
 
       <div class="p-6">
-        <div class="grid grid-cols-2 gap-4 mb-8 md:grid-cols-4">
+        <div class="grid grid-cols-2 gap-4 mb-8 md:grid-cols-5">
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-xs text-gray-500 uppercase">Market Cap</p>
-            <p class="font-semibold text-gray-200">{{ item?.marketcap ? currencySymbol + item.marketcap.toLocaleString()
-              : 'N/A' }}</p>
+            <p class="text-xs text-gray-500 uppercase">Previous Close</p>
+            <p class="font-semibold text-gray-200">{{ item?.previous_close != null ? currencySymbol + Number(item.previous_close).toLocaleString() : 'N/A' }}</p>
+          </div>
+          <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
+            <p class="text-xs text-gray-500 uppercase">Open</p>
+            <p class="font-semibold text-gray-200">{{ item?.open != null ? currencySymbol + Number(item.open).toLocaleString() : 'N/A' }}</p>
+          </div>
+          <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
+            <p class="text-xs text-gray-500 uppercase">Day High</p>
+            <p class="font-semibold text-gray-200">{{ item?.high != null ? currencySymbol + Number(item.high).toLocaleString() : 'N/A' }}</p>
+          </div>
+          <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
+            <p class="text-xs text-gray-500 uppercase">Day Low</p>
+            <p class="font-semibold text-gray-200">{{ item?.low != null ? currencySymbol + Number(item.low).toLocaleString() : 'N/A' }}</p>
           </div>
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
             <p class="text-xs text-gray-500 uppercase">Volume (24h)</p>
             <p class="font-semibold text-gray-200">{{ item?.volume ? item.volume.toLocaleString() : 'N/A' }}</p>
           </div>
+        </div>
+
+        <div v-if="isNgx" class="grid gap-4 mb-8 md:grid-cols-2">
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-xs text-gray-500 uppercase">All Time High</p>
-            <p class="font-semibold text-gray-200">{{ currencySymbol }}{{ item?.price ? (item.price *
-              1.2).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}</p>
+            <h3 class="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">Top of book</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-[10px] text-gray-500 uppercase">Best bid</p>
+                <p class="font-mono font-semibold text-green-400">{{ formatBookPrice(orderBook.bids[0]?.price) }}</p>
+                <p class="text-xs text-gray-400">{{ formatBookQuantity(orderBook.bids[0]?.quantity) }} shares</p>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-500 uppercase">Best offer</p>
+                <p class="font-mono font-semibold text-red-400">{{ formatBookPrice(orderBook.offers[0]?.price) }}</p>
+                <p class="text-xs text-gray-400">{{ formatBookQuantity(orderBook.offers[0]?.quantity) }} shares</p>
+              </div>
+            </div>
           </div>
           <div class="bg-[#16213A] p-4 rounded-xl border border-[#1f3348]">
-            <p class="text-xs text-gray-500 uppercase">All Time Low</p>
-            <p class="font-semibold text-gray-200">{{ currencySymbol }}{{ item?.price ? (item.price *
-              0.7).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00' }}</p>
+            <h3 class="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">Market depth</h3>
+            <div class="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <p class="mb-2 text-[10px] text-gray-500 uppercase">Purchase</p>
+                <p v-for="(level, index) in orderBook.purchase_depth.slice(0, 3)" :key="`purchase-${index}`" class="text-green-400">
+                  {{ formatBookPrice(level.price) }} · {{ formatBookQuantity(level.quantity) }}
+                </p>
+                <p v-if="orderBook.purchase_depth.length === 0" class="text-gray-500">No depth data</p>
+              </div>
+              <div>
+                <p class="mb-2 text-[10px] text-gray-500 uppercase">Sale</p>
+                <p v-for="(level, index) in orderBook.sale_depth.slice(0, 3)" :key="`sale-${index}`" class="text-red-400">
+                  {{ formatBookPrice(level.price) }} · {{ formatBookQuantity(level.quantity) }}
+                </p>
+                <p v-if="orderBook.sale_depth.length === 0" class="text-gray-500">No depth data</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -121,6 +159,21 @@ const isLoading = ref(false);
 const chartLabels = ref([]);
 const liveUpdateInterval = ref(null);
 const viewMode = ref('hourly');
+const orderBook = ref({
+  bids: [],
+  offers: [],
+  purchase_depth: [],
+  sale_depth: [],
+});
+const isNgx = computed(() => String(props.item?.market || '').toUpperCase() === 'NGX');
+
+const formatBookPrice = (price) => price !== null && price !== undefined && price !== '' && Number.isFinite(Number(price))
+  ? `${props.currencySymbol}${Number(price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  : 'N/A';
+
+const formatBookQuantity = (quantity) => quantity !== null && quantity !== undefined && quantity !== '' && Number.isFinite(Number(quantity))
+  ? Number(quantity).toLocaleString()
+  : 'N/A';
 
 const fetchMarketHistory = async () => {
   if (!props.item?.symbol) return;
@@ -139,11 +192,14 @@ const fetchMarketHistory = async () => {
       params.range = selectedRange.value.toLowerCase();
     }
 
-    if (selectedRange.value === '1D') {
+    if (selectedRange.value === '1D' && !isNgx.value) {
       params.view = viewMode.value;
     }
 
-    const res = await api.get(`/markets/stocks/${props.item.symbol}/history`, {
+    const url = isNgx.value
+      ? `/market/ngx/history/${encodeURIComponent(props.item.symbol)}`
+      : `/markets/stocks/${encodeURIComponent(props.item.symbol)}/history`;
+    const res = await api.get(url, {
       params: { ...params, t: Date.now() }
     });
 
@@ -152,7 +208,7 @@ const fetchMarketHistory = async () => {
       historyData.value = chartData.map(candle => candle.close);
       chartLabels.value = chartData.map(candle => {
         const d = new Date(candle.date);
-        if (selectedRange.value === '1D') {
+        if (selectedRange.value === '1D' && !isNgx.value) {
           return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         } else if (selectedRange.value === '1Y') {
           return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
@@ -172,6 +228,20 @@ const fetchMarketHistory = async () => {
   }
 };
 
+const fetchOrderBook = async () => {
+  if (!isNgx.value || !props.item?.symbol) {
+    orderBook.value = { bids: [], offers: [], purchase_depth: [], sale_depth: [] };
+    return;
+  }
+
+  try {
+    const response = await api.get(`/market/ngx/order-book/${encodeURIComponent(props.item.symbol)}`);
+    orderBook.value = response.data?.data || { bids: [], offers: [], purchase_depth: [], sale_depth: [] };
+  } catch (error) {
+    console.error('Failed to fetch CSL market depth', error);
+  }
+};
+
 const fetchLiveData = async () => {
   // Logic Fix: Only fetch if range is 1D, minute view, and modal is open
   if (!props.item?.symbol || !props.isOpen || selectedRange.value !== '1D' || viewMode.value !== 'minute') {
@@ -180,14 +250,17 @@ const fetchLiveData = async () => {
   }
 
   try {
-    const res = await api.get(`/trade/quote/${props.item.symbol}`);
+    const res = isNgx.value
+      ? await api.get(`/market/ngx/quote/${encodeURIComponent(props.item.symbol)}`)
+      : await api.get(`/trade/quote/${encodeURIComponent(props.item.symbol)}`);
     if (res.data?.success) {
-      const newPrice = res.data.price || res.data.bid;
+      const quote = res.data.data || res.data;
+      const newPrice = quote.price || quote.bid;
       const currentTime = new Date();
 
       if (props.item) {
         props.item.price = newPrice;
-        props.item.volume = res.data.volume;
+        props.item.volume = quote.volume;
       }
 
       historyData.value.push(newPrice);
@@ -221,6 +294,7 @@ const stopLiveUpdates = () => {
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
     fetchMarketHistory();
+    fetchOrderBook();
     startLiveUpdates();
   } else {
     stopLiveUpdates();
@@ -230,6 +304,7 @@ watch(() => props.isOpen, (newVal) => {
 onMounted(() => {
   if (props.isOpen) {
     fetchMarketHistory();
+    fetchOrderBook();
     startLiveUpdates();
   }
 });

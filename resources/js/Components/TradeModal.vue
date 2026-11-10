@@ -48,6 +48,8 @@
             <div class="text-xs font-bold text-white transition-all duration-300" :class="priceFlashClass">
               ₦{{ selectedTicker.price?.toLocaleString() }}
             </div>
+            <div v-if="quoteLoading" class="text-[9px] text-blue-400">Refreshing CSL quote...</div>
+            <div v-else-if="quoteError" class="text-[9px] text-red-400">{{ quoteError }}</div>
           </div>
         </div>
 
@@ -116,10 +118,12 @@
           </button>
 
           <button @click="handleTrade"
-            :disabled="!selectedTicker || isProcessing || (inputMode === 'amount' ? nairaInput : unitInput) <= 0 || (tradeAction === 'buy' && (inputMode === 'amount' ? nairaInput : unitInput * selectedTicker.price) > nairaBalance) || (tradeAction === 'sell' && unitInput > currentAssetHolding)"
+            :disabled="!selectedTicker || isProcessing || quoteLoading || Boolean(quoteError) || (initialCategory === 'NGX' && !selectedQuote) || (inputMode === 'amount' ? nairaInput : unitInput) <= 0 || (tradeAction === 'buy' && (inputMode === 'amount' ? nairaInput : unitInput * selectedTicker.price) > nairaBalance) || (tradeAction === 'sell' && unitInput > currentAssetHolding)"
             :class="isDemo ? 'from-yellow-600 to-orange-500 shadow-yellow-900/20' : 'from-[#0047AB] to-[#00D4FF] shadow-blue-900/20'"
             class="w-full py-3.5 font-black text-white transition-all rounded-xl bg-gradient-to-r text-sm shadow-lg disabled:opacity-40 disabled:grayscale uppercase tracking-wide">
             <span v-if="!selectedTicker">Select Asset Ticker</span>
+            <span v-else-if="quoteLoading">Loading CSL quote...</span>
+            <span v-else-if="quoteError">Quote unavailable</span>
             <span v-else-if="tradeAction === 'buy' && (inputMode === 'amount' ? nairaInput : unitInput * selectedTicker.price) > nairaBalance">Insufficient Balance</span>
             <span v-else-if="tradeAction === 'sell' && unitInput > currentAssetHolding">Insufficient Units</span>
             <span v-else>{{ isProcessing ? 'Processing...' : (isDemo ? 'Confirm Demo ' : 'Confirm ') + tradeAction }}</span>
@@ -165,6 +169,10 @@ const nairaInput = ref(0);
 const unitInput = ref(0);
 const isProcessing = ref(false);
 const selectedSymbol = ref(null);
+const selectedQuote = ref(null);
+const quoteLoading = ref(false);
+const quoteError = ref('');
+let quoteRequestId = 0;
 
 const priceDirection = ref(null);
 const priceFlashClass = ref('');
@@ -193,7 +201,11 @@ const categoryTickers = computed(() => {
 
 const selectedTicker = computed(() => {
   if (!selectedSymbol.value) return null;
-  return categoryTickers.value.find(t => t.symbol === selectedSymbol.value) || null;
+  const ticker = categoryTickers.value.find(t => t.symbol === selectedSymbol.value) || null;
+
+  return ticker && selectedQuote.value?.symbol === ticker.symbol
+    ? { ...ticker, ...selectedQuote.value }
+    : ticker;
 });
 
 watch(() => selectedTicker.value?.price, (newPrice, oldPrice) => {
@@ -223,6 +235,10 @@ const resetModalState = () => {
   unitInput.value = 0;
   inputMode.value = 'amount'; 
   selectedSymbol.value = props.initialTicker?.symbol || null;
+  selectedQuote.value = null;
+  quoteError.value = '';
+  quoteLoading.value = false;
+  quoteRequestId++;
   showFeedback.value = false;
   priceDirection.value = null;
   priceFlashClass.value = '';
@@ -261,6 +277,42 @@ const handleTickerChange = () => {
   unitInput.value = 0;
   priceDirection.value = null;
   priceFlashClass.value = '';
+  refreshSelectedQuote();
+};
+
+const refreshSelectedQuote = async () => {
+  const requestId = ++quoteRequestId;
+  selectedQuote.value = null;
+  quoteError.value = '';
+
+  if (props.initialCategory !== 'NGX' || !selectedSymbol.value) {
+    quoteLoading.value = false;
+    return;
+  }
+
+  quoteLoading.value = true;
+
+  try {
+    const response = await api.get(`/market/ngx/quote/${encodeURIComponent(selectedSymbol.value)}`);
+    const quote = response.data?.data;
+
+    if (!quote || !Number.isFinite(Number(quote.price)) || Number(quote.price) <= 0) {
+      throw new Error('CSL did not return a valid quote for this stock.');
+    }
+
+    if (requestId === quoteRequestId) {
+      selectedQuote.value = quote;
+    }
+  } catch (error) {
+    if (requestId === quoteRequestId) {
+      quoteError.value = error.response?.data?.message || error.message || 'Unable to refresh the CSL quote.';
+      console.error('Failed to fetch CSL order quote', error);
+    }
+  } finally {
+    if (requestId === quoteRequestId) {
+      quoteLoading.value = false;
+    }
+  }
 };
 
 // Watchlist
@@ -340,12 +392,13 @@ const handleTrade = async () => {
   try {
     const payload = {
       symbol: selectedTicker.value.symbol,
+      company: selectedTicker.value.name || selectedTicker.value.symbol,
       side: tradeAction.value,
       type: 'market',
       quantity: unitInput.value,
-      price: selectedTicker.value.price, 
-      amount: nairaInput.value,
-      market: 'NGX',
+      market_price: Number(selectedTicker.value.price),
+      amount: Number(unitInput.value * selectedTicker.value.price),
+      market: props.initialCategory,
     };
 
     const res = await api.post('/orders', payload);
@@ -359,7 +412,7 @@ const handleTrade = async () => {
     }
   } catch (e) {
     feedbackType.value = 'error';
-    feedbackMessage.value = "Trade failed. Please try again.";
+    feedbackMessage.value = e.response?.data?.message || "Trade failed. Please try again.";
     showFeedback.value = true;
   } finally {
     isProcessing.value = false;
@@ -375,6 +428,7 @@ watch(() => props.show, (newVal) => {
     fetchWatchlist();
     if (props.initialTicker) {
       selectedSymbol.value = props.initialTicker.symbol;
+      refreshSelectedQuote();
     }
   } else { 
     resetModalState(); 

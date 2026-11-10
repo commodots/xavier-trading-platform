@@ -18,7 +18,7 @@ const routes = [
   { path: "/login", name: "login", component: () => import("@/Pages/Auth/Login.vue") },
   { path: "/register", name: "register", component: () => import("@/Pages/Auth/Register.vue") },
   { path: "/forgot-password", name: "forgot-password", component: () => import("@/Pages/Auth/ForgotPassword.vue") },
-  { path: "/reset-password", name: "reset-password", component: () => import("@/Pages/Auth/ResetPassword.vue") },
+  { path: "/reset-password/:token?", name: "reset-password", component: () => import("@/Pages/Auth/ResetPassword.vue") },
   { path: "/verify-email", name: "verify-email", component: () => import("@/Pages/Auth/VerifyEmail.vue") },
 
   /* ----------------------------------------------

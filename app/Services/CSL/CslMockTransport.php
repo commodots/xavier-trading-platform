@@ -24,6 +24,14 @@ class CslMockTransport
         '/GetCRSTSubPortfolios' => 'market_accounts',
         '/GetCRXTMarketStatus' => 'market_status',
         '/GetCRXTMarketStockPrice' => 'quote',
+        '/GetCRXTMarketStockPrices' => 'stock_prices',
+        '/GetCRXTMarketTopBids' => 'top_bids',
+        '/GetCRXTMarketTopOffers' => 'top_offers',
+        '/GetCRXTMarketTopGainers' => 'top_gainers',
+        '/GetCRXTMarketTopLosers' => 'top_losers',
+        '/GetCRXTMarketDepthPurchase' => 'market_depth_purchase',
+        '/GetCRXTMarketDepthSale' => 'market_depth_sale',
+        '/GetCRSTStockByDate' => 'historical_prices',
         '/DoCRXTBuyOrder' => 'buy',
         '/DoCRXTSellOrder' => 'sell',
         '/DoCRXTCancelOrder' => 'cancel_request',
@@ -68,6 +76,22 @@ class CslMockTransport
             'market_status' => $this->fixture('market_status'),
 
             'quote' => $this->fixture('quote'),
+
+            'stock_prices' => $this->fixture('stock_prices'),
+
+            'top_bids' => $this->fixture('top_bids'),
+
+            'top_offers' => $this->fixture('top_offers'),
+
+            'top_gainers' => $this->fixture('top_gainers'),
+
+            'top_losers' => $this->fixture('top_losers'),
+
+            'market_depth_purchase' => $this->fixture('market_depth_purchase'),
+
+            'market_depth_sale' => $this->fixture('market_depth_sale'),
+
+            'historical_prices' => $this->fixture('historical_prices'),
 
             'buy' => $this->fixture('buy_accepted'),
 

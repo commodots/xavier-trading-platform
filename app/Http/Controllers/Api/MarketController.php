@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Symbol;
+use App\Services\CSL\CslMarketDataProvider;
 use App\Services\MarketService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MarketController extends Controller
@@ -114,21 +116,9 @@ class MarketController extends Controller
         return 'stock';
     }
 
-    public function ngx()
+    public function ngx(): JsonResponse
     {
-        $data = Symbol::where(function ($query) {
-            $query->where('exchange', 'NGX')
-                ->orWhere('exchange', 'local')
-                ->orWhere('type', 'local')
-                ->orWhere('symbol', 'like', '%.NG%');
-        })
-            ->get(['symbol', 'name', 'last_price as price', 'change', 'volume'])
-            ->map(function ($item) {
-                $item->exchange = 'NGX';
-                $item->type = 'stock';
-
-                return $this->formatSymbol($item);
-            });
+        $data = app(CslMarketDataProvider::class)->stockPrices();
 
         return response()->json(['success' => true, 'data' => $data]);
     }
@@ -216,17 +206,129 @@ class MarketController extends Controller
         ]);
     }
 
-    public function getNGXInsights()
+    public function getNGXInsights(): JsonResponse
     {
-        $baseStocks = [
-            ['symbol' => 'ZENITH', 'name' => 'Zenith Bank', 'price' => rand(4000, 6000) / 100],
-            ['symbol' => 'GTCO', 'name' => 'GTCO Holdings', 'price' => rand(3000, 5500) / 100],
-            ['symbol' => 'ACCESS', 'name' => 'Access Bank', 'price' => rand(3000, 5500) / 100],
-            ['symbol' => 'MTNN', 'name' => 'MTN Nigeria', 'price' => rand(22000, 25000) / 100],
-            ['symbol' => 'NB', 'name' => 'Nigerian Breweries', 'price' => rand(6500, 7500) / 100],
-        ];
+        $marketData = app(CslMarketDataProvider::class);
+        $mostTraded = collect($marketData->stockPrices())
+            ->sortByDesc('volume')
+            ->take(5)
+            ->map(fn (array $quote) => $this->formatNgxInsight($quote))
+            ->values();
 
-        return response()->json(['success' => true, 'data' => $this->processMockInsights($baseStocks)]);
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'gainers' => collect($marketData->topGainers())
+                    ->take(5)
+                    ->map(fn (array $quote) => $this->formatNgxInsight($quote))
+                    ->values(),
+                'losers' => collect($marketData->topLosers())
+                    ->take(5)
+                    ->map(fn (array $quote) => $this->formatNgxInsight($quote))
+                    ->values(),
+                'most_traded' => $mostTraded,
+            ],
+        ]);
+    }
+
+    public function ngxPrices(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => app(CslMarketDataProvider::class)->stockPrices(),
+        ]);
+    }
+
+    public function ngxQuote(string $symbol): JsonResponse
+    {
+        $quote = app(CslMarketDataProvider::class)->quote(strtoupper($symbol));
+
+        if (! is_numeric($quote['price']) || (float) $quote['price'] <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'CSL did not return a valid quote for this symbol.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $quote,
+        ]);
+    }
+
+    public function ngxOrderBook(string $symbol): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => app(CslMarketDataProvider::class)->orderBook(strtoupper($symbol)),
+        ]);
+    }
+
+    public function ngxHistory(Request $request, string $symbol): JsonResponse
+    {
+        $request->merge([
+            'range' => strtoupper($request->query('range', '1W')),
+        ]);
+
+        $validated = $request->validate([
+            'range' => 'sometimes|in:1D,1W,1M,14D,30D,90D,1Y,ALL,CUSTOM',
+            'start' => 'nullable|required_if:range,CUSTOM|date_format:Y-m-d',
+            'end' => 'nullable|required_if:range,CUSTOM|date_format:Y-m-d|after_or_equal:start',
+        ]);
+
+        $rows = app(CslMarketDataProvider::class)->historical(
+            strtoupper($symbol),
+            strtolower($validated['range'] ?? '1w'),
+            $validated['start'] ?? null,
+            $validated['end'] ?? null
+        );
+
+        $history = collect($rows)
+            ->map(fn (array $row) => [
+                'date' => $row['date']
+                    ?? $row['trade_date']
+                    ?? $row['stock_date']
+                    ?? $row['price_date']
+                    ?? null,
+                'close' => is_numeric(
+                    $row['close']
+                        ?? $row['closing_price']
+                        ?? $row['close_price']
+                        ?? $row['current_price']
+                        ?? $row['stock_price']
+                        ?? $row['price']
+                        ?? null
+                )
+                    ? (float) (
+                        $row['close']
+                            ?? $row['closing_price']
+                            ?? $row['close_price']
+                            ?? $row['current_price']
+                            ?? $row['stock_price']
+                            ?? $row['price']
+                    )
+                    : null,
+            ])
+            ->filter(fn (array $row) => $row['date'] !== null && $row['close'] !== null)
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['data' => $history],
+        ]);
+    }
+
+    private function formatNgxInsight(array $quote): array
+    {
+        return [
+            'symbol' => $quote['symbol'],
+            'name' => $quote['name'],
+            'price' => (float) ($quote['price'] ?? 0),
+            'change' => (float) ($quote['change_percent'] ?? $quote['change'] ?? 0),
+            'volume' => (float) ($quote['volume'] ?? 0),
+            'spark' => [],
+            'market' => 'NGX',
+        ];
     }
 
     public function getGlobalInsights()
@@ -264,37 +366,5 @@ class MarketController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $insights]);
-    }
-
-    private function processMockInsights(array $stocks)
-    {
-        $hydrated = collect($stocks)->map(function ($stock) {
-            $change = rand(-500, 500) / 100;
-            $currentPrice = $stock['price'];
-
-            $spark = [
-                $currentPrice * (1 - ($change * 0.008)),
-                $currentPrice * (1 - ($change * 0.006)),
-                $currentPrice * (1 - ($change * 0.004)),
-                $currentPrice * (1 - ($change * 0.002)),
-                $currentPrice,
-            ];
-
-            return [
-                'symbol' => $stock['symbol'],
-                'name' => $stock['name'],
-                'price' => $currentPrice,
-                'change' => $change,
-                'volume' => rand(100000, 2500000),
-                'spark' => $spark,
-            ];
-        });
-
-        return [
-            'gainers' => $hydrated->sortByDesc('change')->values()->all(),
-            'losers' => $hydrated->sortBy('change')->values()->all(),
-            'most_traded' => $hydrated->sortByDesc('volume')->values()->all(),
-            'least_traded' => $hydrated->sortBy('volume')->values()->all(),
-        ];
     }
 }

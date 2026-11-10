@@ -171,6 +171,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/market/global', [MarketController::class, 'global']);
         Route::get('/market/crypto', [MarketController::class, 'crypto']);
         Route::get('/market/fixed-income', [MarketController::class, 'fixedIncome']);
+        Route::get('/market/ngx/prices', [MarketController::class, 'ngxPrices']);
+        Route::get('/market/ngx/quote/{symbol}', [MarketController::class, 'ngxQuote']);
+        Route::get('/market/ngx/order-book/{symbol}', [MarketController::class, 'ngxOrderBook']);
+        Route::get('/market/ngx/history/{symbol}', [MarketController::class, 'ngxHistory']);
         Route::get('/companies/search/{query}', [TradeController::class, 'searchSymbols']);
         Route::get('/market/ngx/insights', [MarketController::class, 'getNGXInsights']);
         Route::get('/market/global/insights', [MarketController::class, 'getGlobalInsights']);

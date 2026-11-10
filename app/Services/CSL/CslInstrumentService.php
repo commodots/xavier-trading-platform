@@ -54,13 +54,14 @@ class CslInstrumentService
                     continue;
                 }
 
+                // `symbol` is the unique-constrained column on the symbols table,
+                // so key the upsert on it to avoid a duplicate-key insert when a
+                // symbol already exists under a different provider_symbol_id.
                 Symbol::updateOrCreate(
+                    ['symbol' => $symbol],
                     [
                         'provider' => 'csl',
                         'provider_symbol_id' => $providerSymbolId,
-                    ],
-                    [
-                        'symbol' => $symbol,
 
                         'name' => $row['symbol_description']
                             ?? $row['description']

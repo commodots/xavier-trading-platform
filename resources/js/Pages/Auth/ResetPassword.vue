@@ -4,9 +4,14 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import axios from 'axios';
 import { useRouter, useRoute } from 'vue-router';
+
+const props = defineProps({
+    email: { type: String, default: '' },
+    token: { type: String, default: '' },
+});
 
 const router = useRouter();
 const route = useRoute();
@@ -14,9 +19,10 @@ const route = useRoute();
 const status = ref(null);
 
 const form = ref({
-    // Get token and email from the URL query parameters
-    token: route.query.token,
-    email: route.query.email,
+    // Token comes from the URL route parameter (:token?) or Inertia prop
+    token: props.token || route.params.token || route.query.token || '',
+    // Email comes from the Inertia prop or URL query parameter
+    email: props.email || route.query.email || '',
 
     password: '',
     password_confirmation: '',

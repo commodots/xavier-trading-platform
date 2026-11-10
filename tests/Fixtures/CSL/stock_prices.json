@@ -1,0 +1,40 @@
+{
+    "GetCRXTMarketStockPrices": [
+        {
+            "symbol_code": "TIP",
+            "symbol_description": "Test Instrument",
+            "market_code": "NGX",
+            "previous_close_price": 100,
+            "opening_price": 102,
+            "high_price": 108,
+            "low_price": 101,
+            "current_price": 105,
+            "price_difference_today": 5,
+            "percent_difference_today": 5,
+            "top_bid_price": 104,
+            "top_bid_quantity": 1000,
+            "top_offer_price": 106,
+            "top_offer_quantity": 1000,
+            "traded_volume": 5000,
+            "traded_value": 525000
+        },
+        {
+            "symbol_code": "DANGCEM",
+            "symbol_description": "Dangote Cement",
+            "market_code": "NGX",
+            "previous_close_price": 500,
+            "opening_price": 505,
+            "high_price": 515,
+            "low_price": 498,
+            "current_price": 510,
+            "price_difference_today": 10,
+            "percent_difference_today": 2,
+            "top_bid_price": 509,
+            "top_bid_quantity": 500,
+            "top_offer_price": 511,
+            "top_offer_quantity": 400,
+            "traded_volume": 2500,
+            "traded_value": 1275000
+        }
+    ]
+}
