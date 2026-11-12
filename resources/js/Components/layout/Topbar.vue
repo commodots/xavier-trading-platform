@@ -20,26 +20,14 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
 import NotificationBell from "@/Components/Notifications/NotificationBell.vue";
-import api from "@/lib/axios";
+import { logoutImmediately } from '@/auth/logout';
 
-const router = useRouter();
 const user = ref({});
 
 onMounted(() => {
   user.value = JSON.parse(localStorage.getItem("user") || "{}");
 });
 
-const logout = async () => {
-  try {
-    await api.post('/logout');
-  } catch (e) {
-    console.warn("Session already expired on server");
-  } finally {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = "/login";
-  }
-};
+const logout = logoutImmediately;
 </script>

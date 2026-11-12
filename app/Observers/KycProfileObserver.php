@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Jobs\CreateCslIndividualCustomer;
 use App\Models\KycProfile;
 use App\Notifications\KycStatusNotification;
 use App\Services\KycService;
@@ -52,6 +53,10 @@ class KycProfileObserver
     {
         if (! $kyc->user) {
             return;
+        }
+
+        if ($kyc->wasChanged('status') && $kyc->isVerified() && $kyc->user->cslCustomerProfile()->exists()) {
+            CreateCslIndividualCustomer::dispatch($kyc->user_id)->afterCommit();
         }
 
         if ($kyc->wasChanged('status') || $kyc->wasChanged('bvn') || $kyc->wasChanged('nin') || $kyc->wasRecentlyCreated) {

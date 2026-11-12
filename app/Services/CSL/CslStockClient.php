@@ -39,6 +39,16 @@ class CslStockClient
         return $this->get('/GetCRSTPortfolioTypes');
     }
 
+    public function countries(): array
+    {
+        return $this->get('/GetCRCSCountries');
+    }
+
+    public function banks(): array
+    {
+        return $this->get('/GetCRCSBanks');
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Customer / Accounts
@@ -51,6 +61,16 @@ class CslStockClient
         return $this->get(
             '/GetCRSTMarketAccounts/'
             .rawurlencode($customerId)
+        );
+    }
+
+    public function createIndividualCustomer(array $customer): array
+    {
+        return $this->post(
+            '/DoCRCSNewIndividualCustomer',
+            [
+                'customer' => [$customer],
+            ]
         );
     }
 

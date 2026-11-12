@@ -1,0 +1,16 @@
+{
+  "GetCRCSBanks": [
+    {
+      "BANK_CODE": "001",
+      "BANK_DESCRIPTION": "Example Bank",
+      "BANK_TYPE_DESCRIPTION": "Commercial",
+      "NIBSS_ID": "000001"
+    },
+    {
+      "BANK_CODE": "002",
+      "BANK_DESCRIPTION": "Sample Bank",
+      "BANK_TYPE_DESCRIPTION": "Commercial",
+      "NIBSS_ID": "000002"
+    }
+  ]
+}

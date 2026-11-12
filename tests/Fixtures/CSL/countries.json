@@ -1,0 +1,14 @@
+{
+  "GetCRCSCountries": [
+    {
+      "COUNTRY_CODE": "NG",
+      "COUNTRY_DESCRIPTION": "Nigeria",
+      "HOME_YESNO": "Y"
+    },
+    {
+      "COUNTRY_CODE": "GH",
+      "COUNTRY_DESCRIPTION": "Ghana",
+      "HOME_YESNO": "N"
+    }
+  ]
+}

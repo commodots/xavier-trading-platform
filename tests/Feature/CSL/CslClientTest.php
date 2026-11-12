@@ -2,9 +2,10 @@
 
 namespace Tests\Feature\CSL;
 
+use App\Services\CSL\CslClient;
 use App\Services\CSL\CslStockClient;
 use App\Services\CSL\CslTradeXClient;
-use App\Services\CSL\CslClient;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
@@ -64,6 +65,39 @@ class CslClientTest extends TestCase
                 '/GetCRSTMarkets'
             );
         });
+    }
+
+    public function test_endpoints_are_routed_to_their_csl_service_prefix(): void
+    {
+        config()->set('services.csl.mock', false);
+        config()->set('services.csl.oauth_url', 'https://csl.test/oauth/token');
+        config()->set('services.csl.base_url', 'https://csl.test/cslzp/xml');
+        config()->set('services.csl.client_id', 'client');
+        config()->set('services.csl.client_secret', 'secret');
+        Cache::forget('csl.oauth.access_token');
+
+        Http::fake([
+            'https://csl.test/oauth/token' => Http::response([
+                'access_token' => 'test-token',
+                'expires_in' => 3600,
+            ]),
+            'https://csl.test/cslzp/xml/*' => Http::response([]),
+        ]);
+
+        $client = app(CslClient::class);
+        $client->st('GET', '/GetCRCSCountries');
+        $client->st('GET', '/GetCRDDEndpoint');
+        $client->st('GET', '/GetCRSTMarkets');
+        $client->xt('GET', '/GetCRXTMarketStatus');
+
+        foreach ([
+            '/cslzp/xml/scs/GetCRCSCountries',
+            '/cslzp/xml/sdd/GetCRDDEndpoint',
+            '/cslzp/xml/sst/GetCRSTMarkets',
+            '/cslzp/xml/sxt/GetCRXTMarketStatus',
+        ] as $expectedPath) {
+            Http::assertSent(fn ($request): bool => parse_url($request->url(), PHP_URL_PATH) === $expectedPath);
+        }
     }
 
     public function test_xt_buy_order_uses_correct_wrapper(): void

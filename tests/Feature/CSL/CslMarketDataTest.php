@@ -271,6 +271,33 @@ class CslMarketDataTest extends TestCase
             ->assertJsonPath('data.data.0.close', 105);
     }
 
+    public function test_ngx_market_insights_return_up_to_fifteen_stocks_per_category(): void
+    {
+        $quotes = collect(range(1, 17))
+            ->map(fn (int $number) => [
+                'symbol' => 'STOCK'.$number,
+                'name' => 'Stock '.$number,
+                'price' => 100 + $number,
+                'change_percent' => $number,
+                'volume' => $number,
+            ])
+            ->all();
+
+        $provider = Mockery::mock(CslMarketDataProvider::class);
+        $provider->shouldReceive('stockPrices')->once()->andReturn($quotes);
+        $provider->shouldReceive('topGainers')->once()->andReturn($quotes);
+        $provider->shouldReceive('topLosers')->once()->andReturn($quotes);
+        $this->app->instance(CslMarketDataProvider::class, $provider);
+
+        $response = $this->actingAs(User::factory()->create())
+            ->getJson('/api/market/ngx/insights')
+            ->assertOk();
+
+        $response->assertJsonCount(15, 'data.gainers')
+            ->assertJsonCount(15, 'data.losers')
+            ->assertJsonCount(15, 'data.most_traded');
+    }
+
     public function test_ngx_order_uses_a_fresh_csl_quote_for_order_pricing(): void
     {
         $provider = Mockery::mock(CslMarketDataProvider::class);

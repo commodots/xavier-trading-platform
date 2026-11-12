@@ -15,6 +15,7 @@ class CslEnvironment extends Command
         $mode = config('services.csl.mode');
         $mock = config('services.csl.mock');
         $liveTrading = config('services.csl.live_trading_enabled');
+        $baseUrl = rtrim((string) config('services.csl.base_url'), '/');
 
         $this->table(
             ['Setting', 'Value'],
@@ -22,8 +23,10 @@ class CslEnvironment extends Command
                 ['CSL Mode', $mode],
                 ['CSL Mock', $mock ? 'YES' : 'NO'],
                 ['Live Trading Enabled', $liveTrading ? 'YES' : 'NO'],
-                ['ST Base URL', config('services.csl.st_base_url')],
-                ['XT Base URL', config('services.csl.xt_base_url')],
+                ['CSL XML Base URL', $baseUrl ?: 'NOT CONFIGURED'],
+                ['CRCS URL', $baseUrl ? $baseUrl.'/scs' : 'NOT CONFIGURED'],
+                ['CRST URL', $baseUrl ? $baseUrl.'/sst' : 'NOT CONFIGURED'],
+                ['CRXT URL', $baseUrl ? $baseUrl.'/sxt' : 'NOT CONFIGURED'],
                 ['OAuth URL', config('services.csl.oauth_url')],
                 [
                     'Client ID Configured',

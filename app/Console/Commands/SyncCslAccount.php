@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\CslCustomerProfile;
 use App\Models\ProviderAccount;
 use App\Services\CSL\CslAccountService;
 use Illuminate\Console\Command;
@@ -42,12 +43,20 @@ class SyncCslAccount extends Command
             }
         }
 
-        $mappings = ProviderAccount::query()
+        $providerMappings = ProviderAccount::query()
             ->where('provider', 'csl')
             ->whereNotNull('customer_id')
             ->select(['user_id', 'customer_id'])
             ->distinct()
             ->get();
+        $customerMappings = CslCustomerProfile::query()
+            ->where('status', 'approved')
+            ->whereNotNull('customer_id')
+            ->get(['user_id', 'customer_id']);
+        $mappings = $providerMappings
+            ->concat($customerMappings)
+            ->unique(fn ($mapping): string => $mapping->user_id.':'.$mapping->customer_id)
+            ->values();
         $failed = false;
 
         foreach ($mappings as $mapping) {

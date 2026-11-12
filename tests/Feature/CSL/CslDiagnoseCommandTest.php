@@ -30,8 +30,7 @@ class CslDiagnoseCommandTest extends TestCase
         config()->set('services.csl.client_id', 'client');
         config()->set('services.csl.client_secret', 'super-secret-value');
         config()->set('services.csl.oauth_url', 'https://csl.test/oauth/token');
-        config()->set('services.csl.st_base_url', 'https://csl.test/st');
-        config()->set('services.csl.xt_base_url', 'https://csl.test/xt');
+        config()->set('services.csl.base_url', 'https://csl.test/symplustest/cslapi/cslzp/xml');
 
         Cache::forget('csl.oauth.access_token');
     }
@@ -140,13 +139,13 @@ class CslDiagnoseCommandTest extends TestCase
                 'access_token' => 'super-secret-token',
                 'expires_in' => 3600,
             ]),
-            'https://csl.test/st/GetCRSTInstruments' => Http::response(
+            'https://csl.test/symplustest/cslapi/cslzp/xml/sst/GetCRSTInstruments' => Http::response(
                 CslFixture::get('instruments')
             ),
-            'https://csl.test/st/*' => Http::response(
+            'https://csl.test/symplustest/cslapi/cslzp/xml/sst/*' => Http::response(
                 CslFixture::get('markets')
             ),
-            'https://csl.test/xt/*' => Http::response([
+            'https://csl.test/symplustest/cslapi/cslzp/xml/sxt/*' => Http::response([
                 'GetCRXTMarketStatus' => [[
                     'market_code' => 'NGX',
                     'market_description' => 'Nigerian Exchange',

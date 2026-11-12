@@ -137,14 +137,9 @@ return [
             FILTER_VALIDATE_BOOL
         ),
 
-        'st_base_url' => env(
-            'CSL_ST_BASE_URL',
-            'https://csltapiv3.fcmb.com/symplustest/cslapi/v5/cor/sst'
-        ),
-
-        'xt_base_url' => env(
-            'CSL_XT_BASE_URL',
-            'https://csltapiv3.fcmb.com/symplustest/cslapi/v5/cor/sxt'
+        'base_url' => env(
+            'CSL_BASE_URL',
+            'https://csltapiv3.fcmb.com/symplustest/cslapi/cslzp/xml'
         ),
         'oauth_url' => env(
             'CSL_OAUTH_URL',
@@ -155,8 +150,10 @@ return [
 
         'connect_timeout' => (int) env('CSL_CONNECT_TIMEOUT', 10),
 
+        'ca_bundle' => env('CSL_CA_BUNDLE'),
+
         'mock' => filter_var(
-            env('CSL_MOCK', true),
+            env('CSL_MOCK', false),
             FILTER_VALIDATE_BOOL
         ),
 

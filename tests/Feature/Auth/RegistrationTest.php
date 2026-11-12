@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Actions\Fortify\CreateNewUser;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -28,6 +30,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(201);
@@ -37,6 +50,128 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'name' => 'Test User',
         ]);
+
+        $user = User::where('email', 'test@example.com')->firstOrFail();
+        $cslProfile = $user->cslCustomerProfile()->firstOrFail();
+
+        $this->assertSame('not_submitted', $cslProfile->status);
+        $this->assertSame('0123456789', $cslProfile->bank_account_no);
+        $this->assertNotSame(
+            '0123456789',
+            DB::table('csl_customer_profiles')->where('user_id', $user->id)->value('bank_account_no')
+        );
+        $this->assertSame('12345678901', $user->kyc()->firstOrFail()->bvn);
+    }
+
+    public function test_web_registration_accepts_legacy_phone_field(): void
+    {
+        $response = $this->postJson('/register', [
+            'name' => 'Web User',
+            'email' => 'web@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
+            'phone' => '08098765432',
+            'gender_cd' => 'F',
+            'address_street' => '2 Example Street',
+            'address_city' => 'Abuja',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '002',
+            'bank_account_name' => 'Web User',
+            'bank_account_no' => '9876543210',
+            'bank_branch_name' => 'Abuja',
+            'bank_address_details' => '2 Example Bank Street, Abuja',
+            'bank_bvn_no' => '10987654321',
+        ]);
+
+        $response->assertOk();
+
+        $user = User::where('email', 'web@example.com')->firstOrFail();
+        $this->assertSame('08098765432', $user->phone);
+        $this->assertSame('not_submitted', $user->cslCustomerProfile()->firstOrFail()->status);
+    }
+
+    public function test_api_registration_accepts_legacy_phone_field(): void
+    {
+        $response = $this->postJson('/api/register', [
+            'name' => 'Legacy User',
+            'email' => 'legacy@example.com',
+            'password' => 'password',
+            'dob' => '1990-01-01',
+            'phone' => '08011112222',
+            'gender_cd' => 'M',
+            'address_street' => '4 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Legacy User',
+            'bank_account_no' => '1234509876',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '4 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345098765',
+        ]);
+
+        $response->assertCreated();
+
+        $user = User::where('email', 'legacy@example.com')->firstOrFail();
+        $this->assertSame('08011112222', $user->phone);
+        $this->assertSame(
+            '08011112222',
+            $user->cslCustomerProfile()->firstOrFail()->mobile_phone_no
+        );
+    }
+
+    public function test_fortify_user_creation_persists_the_csl_customer_profile(): void
+    {
+        $user = (new CreateNewUser)->create([
+            'name' => 'Fortify User',
+            'email' => 'fortify@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
+            'mobile_phone_no' => '08098765000',
+            'gender_cd' => 'F',
+            'address_street' => '3 Example Street',
+            'address_city' => 'Abuja',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '003',
+            'bank_account_name' => 'Fortify User',
+            'bank_account_no' => '9876543211',
+            'bank_branch_name' => 'Abuja',
+            'bank_address_details' => '3 Example Bank Street, Abuja',
+            'bank_bvn_no' => '10987654322',
+        ]);
+
+        $this->assertSame('fortify@example.com', $user->email);
+        $this->assertSame('not_submitted', $user->cslCustomerProfile()->firstOrFail()->status);
+    }
+
+    public function test_fortify_user_creation_accepts_legacy_phone_field(): void
+    {
+        $user = (new CreateNewUser)->create([
+            'name' => 'Fortify Legacy',
+            'email' => 'fortify-legacy@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'dob' => '1990-01-01',
+            'phone' => '08022223333',
+            'gender_cd' => 'F',
+            'address_street' => '5 Example Street',
+            'address_city' => 'Abuja',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '002',
+            'bank_account_name' => 'Fortify Legacy',
+            'bank_account_no' => '2345610987',
+            'bank_branch_name' => 'Abuja',
+            'bank_address_details' => '5 Example Bank Street, Abuja',
+            'bank_bvn_no' => '23456109876',
+        ]);
+
+        $this->assertSame('08022223333', $user->phone);
+        $this->assertSame(
+            '08022223333',
+            $user->cslCustomerProfile()->firstOrFail()->mobile_phone_no
+        );
     }
 
     public function test_user_can_register_via_api(): void
@@ -47,6 +182,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(201);
@@ -89,6 +235,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $user = User::where('email', 'test@example.com')->first();
@@ -121,6 +278,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(422);
@@ -135,6 +303,17 @@ class RegistrationTest extends TestCase
             'password' => 'short',
             'password_confirmation' => 'short',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(422);
@@ -151,6 +330,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(422);
@@ -165,6 +355,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(201);
@@ -179,6 +380,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $user = User::where('email', 'test@example.com')->first();
@@ -198,8 +410,18 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
-            'phone' => '1234567890',
+            'mobile_phone_no' => '1234567890',
             'dob' => '1990-01-01',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(201);
@@ -217,6 +439,17 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
             'dob' => '1990-01-01',
+            'mobile_phone_no' => '08012345678',
+            'gender_cd' => 'M',
+            'address_street' => '1 Example Street',
+            'address_city' => 'Lagos',
+            'address_country_cd' => 'NG',
+            'bank_cd' => '001',
+            'bank_account_name' => 'Test User',
+            'bank_account_no' => '0123456789',
+            'bank_branch_name' => 'Lagos',
+            'bank_address_details' => '1 Example Bank Street, Lagos',
+            'bank_bvn_no' => '12345678901',
         ]);
 
         $response->assertStatus(201);

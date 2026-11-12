@@ -1,13 +1,11 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '@/api';
+import { logoutImmediately } from '@/auth/logout';
 
 const INACTIVITY_LIMIT = 14 * 60 * 1000; // 14 minutes
 const WARNING_DURATION = 60 * 1000; // 60 seconds warning
 const TOTAL_TIMEOUT = 15 * 60 * 1000; // 15 minutes total
 
 export function useIdleTimeout() {
-  const router = useRouter();
   const showWarning = ref(false);
   const countdown = ref(60);
   const isExpired = ref(false);
@@ -49,23 +47,12 @@ export function useIdleTimeout() {
     resetTimers();
   };
 
-  const executeLogout = async () => {
+  const executeLogout = () => {
     isExpired.value = true;
     showWarning.value = false;
     clearTimeout(warningTimer);
     clearInterval(countdownInterval);
-
-    try {
-      await api.post('/logout');
-    } catch (e) {
-      console.error('Backend logout failed, clearing local state anyway.');
-    } finally {
-      localStorage.removeItem('xavier_token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('active_view');
-      router.push('/');
-    }
+    logoutImmediately();
   };
 
   const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];

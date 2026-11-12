@@ -9,6 +9,7 @@ use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Crypt;
@@ -113,6 +114,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         // return $this->hasOne(Kyc::class);
         return $this->hasOne(KycProfile::class, 'user_id');
+    }
+
+    public function cslCustomerProfile(): HasOne
+    {
+        return $this->hasOne(CslCustomerProfile::class);
     }
 
     /**

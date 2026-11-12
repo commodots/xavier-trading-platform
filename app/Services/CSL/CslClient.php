@@ -47,6 +47,7 @@ class CslClient
 
         $response = Http::asForm()
             ->withBasicAuth($clientId, $clientSecret)
+            ->withOptions($this->tlsOptions())
             ->timeout(config('services.csl.timeout', 30))
             ->connectTimeout(
                 config('services.csl.connect_timeout', 10)
@@ -91,15 +92,11 @@ class CslClient
      * Execute an authenticated CSL request.
      */
     public function request(
-        string $baseUrl,
         string $method,
         string $endpoint,
         array $data = []
     ): Response {
-
-        $url = rtrim($baseUrl, '/')
-            .'/'
-            .ltrim($endpoint, '/');
+        $url = $this->endpointUrl($endpoint);
 
         $request = $this->http()
             ->withToken($this->getAccessToken());
@@ -130,12 +127,7 @@ class CslClient
             return $mock;
         }
 
-        return $this->request(
-            config('services.csl.st_base_url'),
-            $method,
-            $endpoint,
-            $data
-        );
+        return $this->request($method, $endpoint, $data);
     }
 
     public function xt(
@@ -147,12 +139,7 @@ class CslClient
             return $mock;
         }
 
-        return $this->request(
-            config('services.csl.xt_base_url'),
-            $method,
-            $endpoint,
-            $data
-        );
+        return $this->request($method, $endpoint, $data);
     }
 
     public function orderRequest(
@@ -164,8 +151,7 @@ class CslClient
             return $mock;
         }
 
-        $url = rtrim(config('services.csl.xt_base_url'), '/')
-            .'/'.ltrim($endpoint, '/');
+        $url = $this->endpointUrl($endpoint);
 
         $request = $this->httpWithoutRetry()
             ->withToken($this->getAccessToken());
@@ -227,6 +213,7 @@ class CslClient
     protected function http(): PendingRequest
     {
         return Http::acceptJson()
+            ->withOptions($this->tlsOptions())
             ->timeout(config('services.csl.timeout', 30))
             ->connectTimeout(
                 config('services.csl.connect_timeout', 10)
@@ -237,8 +224,18 @@ class CslClient
     protected function httpWithoutRetry(): PendingRequest
     {
         return Http::acceptJson()
+            ->withOptions($this->tlsOptions())
             ->timeout(config('services.csl.timeout', 30))
             ->connectTimeout(config('services.csl.connect_timeout', 10));
+    }
+
+    protected function tlsOptions(): array
+    {
+        $caBundle = config('services.csl.ca_bundle');
+
+        return [
+            'verify' => filled($caBundle) ? $caBundle : true,
+        ];
     }
 
     /**
@@ -282,5 +279,24 @@ class CslClient
     public function clearToken(): void
     {
         Cache::forget($this->tokenCacheKey);
+    }
+
+    protected function endpointUrl(string $endpoint): string
+    {
+        $endpoint = ltrim($endpoint, '/');
+
+        if (! preg_match('/^(?:Get|Do)CR(CS|DD|ST|XT)/', $endpoint, $matches)) {
+            throw new RuntimeException("Unable to determine CSL endpoint group: {$endpoint}");
+        }
+
+        $group = match ($matches[1]) {
+            'CS' => 'scs',
+            'DD' => 'sdd',
+            'ST' => 'sst',
+            'XT' => 'sxt',
+        };
+
+        return rtrim(config('services.csl.base_url'), '/')
+            .'/'.$group.'/'.$endpoint;
     }
 }

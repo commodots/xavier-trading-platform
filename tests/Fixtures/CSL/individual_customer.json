@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "result": [
+    {
+      "code": "P",
+      "remarks": "Customer application is pending approval",
+      "reference": {
+        "customer_source_reference": "XAVIER-MOCK"
+      }
+    }
+  ]
+}

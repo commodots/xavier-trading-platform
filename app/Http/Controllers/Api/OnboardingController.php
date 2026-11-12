@@ -24,21 +24,35 @@ class OnboardingController extends Controller
 {
     public function onboard(Request $request)
     {
+        $request->merge([
+            'phone' => $request->input('mobile_phone_no') ?: $request->input('phone'),
+        ]);
+
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'max:255', 'regex:/^\s*\S+\s+\S+.*$/'],
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'required|string|max:30|unique:users,phone',
+            'mobile_phone_no' => 'nullable|string|max:30',
+            'gender_cd' => 'required|string|max:20',
+            'address_street' => 'required|string|max:255',
+            'address_city' => 'required|string|max:100',
+            'address_country_cd' => 'required|string|max:20',
+            'bank_cd' => 'required|string|max:50',
+            'bank_account_name' => 'required|string|max:255',
+            'bank_account_no' => 'required|string|max:50',
+            'bank_branch_name' => 'required|string|max:255',
+            'bank_address_details' => 'required|string|max:500',
+            'bank_bvn_no' => 'required|digits:11',
             'dob' => 'required|date',
             'bvn' => 'nullable|string|digits:11',
             'nin' => 'nullable|string|digits:11',
             'profile_image' => 'nullable|string', // Changed from required to nullable
         ]);
 
-        // Break name down into parts helper
-        $nameParts = explode(' ', trim($validated['name']), 2);
-        $firstName = trim($nameParts[0]);
-        $lastName = trim($nameParts[1] ?? '');
+        $nameParts = preg_split('/\s+/', trim($validated['name']), -1, PREG_SPLIT_NO_EMPTY);
+        $firstName = array_shift($nameParts);
+        $lastName = implode(' ', $nameParts);
 
         DB::beginTransaction();
 
@@ -51,7 +65,10 @@ class OnboardingController extends Controller
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'email' => $validated['email'],
-                'phone' => $validated['phone'] ?? null,
+                'phone' => $validated['phone'],
+                'gender' => $validated['gender_cd'],
+                'address' => $validated['address_street'].', '.$validated['address_city'],
+                'country' => $validated['address_country_cd'],
                 'dob' => $validated['dob'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'trading_mode' => 'live',
@@ -60,6 +77,20 @@ class OnboardingController extends Controller
                 'next_fee_due_at' => now()->addDays($trialDays),
                 'last_active_at' => now(),
                 'kyc_status' => 'pending',
+            ]);
+
+            $user->cslCustomerProfile()->create([
+                'mobile_phone_no' => $validated['phone'],
+                'gender_cd' => $validated['gender_cd'],
+                'address_street' => $validated['address_street'],
+                'address_city' => $validated['address_city'],
+                'address_country_cd' => $validated['address_country_cd'],
+                'bank_cd' => $validated['bank_cd'],
+                'bank_account_name' => $validated['bank_account_name'],
+                'bank_account_no' => $validated['bank_account_no'],
+                'bank_branch_name' => $validated['bank_branch_name'],
+                'bank_address_details' => $validated['bank_address_details'],
+                'bank_bvn_no' => $validated['bank_bvn_no'],
             ]);
 
             // Step 2: Handle saving profile image string/metadata safely
@@ -130,7 +161,7 @@ class OnboardingController extends Controller
                 'status' => 'pending',
                 'level' => 'none',
                 'tier' => 0,
-                'bvn' => $validated['bvn'] ?? null,
+                'bvn' => $validated['bvn'] ?? $validated['bank_bvn_no'],
                 'nin' => $validated['nin'] ?? null,
             ]);
 

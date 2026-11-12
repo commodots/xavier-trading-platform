@@ -188,6 +188,7 @@ import { ref, computed, watch, provide } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/api";
 import { useIdleTimeout } from "@/composables/useIdleTimeout";
+import { logoutImmediately } from "@/auth/logout";
 import SessionTimeoutModal from "@/Components/SessionTimeoutModal.vue";
 import VerifyIdentity from "@/Pages/Kyc/VerifyIdentity.vue";
 import EmailVerificationPrompt from "@/Components/EmailVerificationPrompt.vue";
@@ -487,20 +488,5 @@ const toggleAccountMode = () => {
 
 const { showWarning, countdown, stayLoggedIn, executeLogout } = useIdleTimeout();
 
-const logout = async () => {
-  try {
-    // Tell Laravel to delete the token
-    await api.post('/logout');
-  } catch (e) {
-    console.error("Backend logout failed, clearing local state anyway.");
-  } finally {
-    //Clear all local data
-    localStorage.removeItem("xavier_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("active_view");
-
-    // Redirect to landing page
-    router.push("/");
-  }
-};
+const logout = logoutImmediately;
 </script>

@@ -155,6 +155,8 @@ class CslDiagnose extends Command
         $credentials = filled(config('services.csl.client_id'))
             && filled(config('services.csl.client_secret'));
 
+        $baseUrl = rtrim((string) config('services.csl.base_url'), '/');
+
         return [
             'Mode' => $this->result(
                 (string) config('services.csl.mode', 'test')
@@ -185,13 +187,13 @@ class CslDiagnose extends Command
                 note: $this->mock && ! $credentials ? 'not required (mock transport)' : null
             ),
 
-            'ST base URL' => $this->url(
-                config('services.csl.st_base_url')
-            ),
+            'CSL XML base URL' => $this->url($baseUrl),
 
-            'XT base URL' => $this->url(
-                config('services.csl.xt_base_url')
-            ),
+            'CRCS URL' => $this->url($baseUrl ? $baseUrl.'/scs' : null),
+
+            'CRST URL' => $this->url($baseUrl ? $baseUrl.'/sst' : null),
+
+            'CRXT URL' => $this->url($baseUrl ? $baseUrl.'/sxt' : null),
 
             'OAuth URL' => $this->url(
                 config('services.csl.oauth_url')

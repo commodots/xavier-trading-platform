@@ -211,7 +211,7 @@ class MarketController extends Controller
         $marketData = app(CslMarketDataProvider::class);
         $mostTraded = collect($marketData->stockPrices())
             ->sortByDesc('volume')
-            ->take(5)
+            ->take(15)
             ->map(fn (array $quote) => $this->formatNgxInsight($quote))
             ->values();
 
@@ -219,11 +219,11 @@ class MarketController extends Controller
             'success' => true,
             'data' => [
                 'gainers' => collect($marketData->topGainers())
-                    ->take(5)
+                    ->take(15)
                     ->map(fn (array $quote) => $this->formatNgxInsight($quote))
                     ->values(),
                 'losers' => collect($marketData->topLosers())
-                    ->take(5)
+                    ->take(15)
                     ->map(fn (array $quote) => $this->formatNgxInsight($quote))
                     ->values(),
                 'most_traded' => $mostTraded,

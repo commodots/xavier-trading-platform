@@ -3,17 +3,9 @@
     <div class="space-y-6">
       <EmailVerificationPrompt v-if="showPrompt" :user="user" />
       
-      <!-- Top Bar: Header and Search -->
+      <!-- Top Bar -->
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold">📈 NGX</h1>
-        <div class="relative">
-          <input 
-            v-model="search" 
-            type="text" 
-            placeholder="Search stocks..."
-            class="bg-[#0F1724] border border-[#1f3348] rounded-lg px-4 py-2 text-sm text-gray-300 focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] outline-none w-64 transition-all" 
-          />
-        </div>
       </div>
 
       <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-8">
@@ -92,12 +84,19 @@
             />
 
             <!-- Holdings Table Section -->
-            <div v-if="loading" class="mt-6">
+            <div v-if="loading || holdingsLoading" class="mt-6">
               <SkeletonLoader type="table" class="opacity-40" />
             </div>
             <div v-else class="bg-[#0F1724] rounded-xl border border-[#1f3348] overflow-hidden mt-6 transition-all duration-300">
               <div class="p-4 border-b border-[#1f3348] flex justify-between items-center bg-[#131C2E]">
-                <span class="text-xs text-gray-500">{{ filteredStocks.length }} Assets Available</span>
+                <span class="text-xs text-gray-500">{{ filteredStocks.length }} Current Holdings</span>
+                <input
+                  v-model="holdingsSearch"
+                  type="search"
+                  placeholder="Search my holdings..."
+                  aria-label="Search my holdings"
+                  class="w-full rounded-lg border border-[#1f3348] bg-[#0F1724] px-3 py-2 text-xs text-gray-300 outline-none transition focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF] sm:w-56"
+                />
               </div>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -105,9 +104,11 @@
                     <tr>
                       <th class="px-6 py-4 font-medium text-left">Symbol</th>
                       <th class="font-medium text-left">Company</th>
+                      <th class="font-medium text-right">Quantity</th>
+                      <th class="font-medium text-right">Avg. Cost (₦)</th>
                       <th class="font-medium text-right">Price (₦)</th>
+                      <th class="font-medium text-right">Value (₦)</th>
                       <th class="font-medium text-right">24h Change</th>
-                      <th class="font-medium text-right">Volume</th>
                       <th class="px-6 font-medium text-right">Trend</th>
                       <th class="font-medium text-center" colspan="2">Action</th>
                     </tr>
@@ -115,12 +116,14 @@
                   <tbody class="divide-y divide-[#1f3348]">
                     <tr v-for="stock in filteredStocks" :key="stock.symbol" class="hover:bg-[#16213A] transition">
                       <td class="px-6 py-4 font-bold text-[#00D4FF]">{{ stock.symbol }}</td>
-                      <td class="text-gray-300">{{ stock.name }}</td>
+                      <td class="min-w-40 whitespace-normal break-words text-gray-300">{{ stock.name }}</td>
+                      <td class="font-mono text-right text-gray-300">{{ stock.quantity.toLocaleString() }}</td>
+                      <td class="font-mono text-right text-gray-400">₦{{ Number(stock.avg_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
                       <td class="font-mono font-semibold text-right text-white">₦{{ stock.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+                      <td class="font-mono text-right text-white">₦{{ stock.current_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
                       <td class="font-mono text-right" :class="stock.change >= 0 ? 'text-green-400' : 'text-red-400'">
                         {{ stock.change >= 0 ? '+' : '' }}{{ stock.change }}%
                       </td>
-                      <td class="font-mono text-right text-gray-400">{{ stock.volume.toLocaleString() }}</td>
                       <td class="w-32 px-6 text-right">
                         <apexchart v-if="stock.spark && stock.spark.length > 0" type="line" height="30" :options="sparkOptions" :series="[{ data: stock.spark }]" />
                       </td>
@@ -136,7 +139,9 @@
                       </td>
                     </tr>
                     <tr v-if="filteredStocks.length === 0">
-                      <td colspan="8" class="p-10 italic text-center text-gray-500">No tickers matching your criteria are listed.</td>
+                      <td colspan="10" class="p-10 italic text-center text-gray-500">
+                        {{ holdingsError || (holdingsSearch.trim() ? 'No holdings match your search.' : userHoldings.length === 0 ? 'You do not have any current NGX holdings.' : 'Market prices are not available for your current NGX holdings.') }}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -148,6 +153,7 @@
           <div v-else-if="activeView === 'market'">
             <MarketInsights 
               :insightData="ngxMarketInsights" 
+              :allData="stocks"
               :loading="isInsightsLoading || loading" 
               currencySymbol="₦" 
               @select="openDetails"
@@ -245,7 +251,7 @@ const isDemo = ref(user.value.trading_mode === 'demo');
 const showPrompt = ref(false);
 
 // Structural Layout Navigation Switchboards
-const search = ref("");
+const holdingsSearch = ref("");
 const activeView = ref('holdings');
 const isModalOpen = ref(false);
 const selectedItem = ref(null);
@@ -258,7 +264,10 @@ const isGraphLoading = ref(false);
 const isInsightsLoading = ref(false);
 const marketDataError = ref("");
 const marketInsightsError = ref("");
+const holdingsError = ref("");
 const walletBalances = ref({ cleared_balance_ngn: 0 });
+const userHoldings = ref([]);
+const holdingsLoading = ref(true);
 const portfolioData = ref([]);
 const totalValue = ref(0);
 const changePercent = ref(0);
@@ -299,12 +308,32 @@ const tradeTickers = computed(() => ({
 }));
 
 const filteredStocks = computed(() => {
-  const query = search.value.toLowerCase().trim();
-  if (!query) return stocks.value;
-  return stocks.value.filter(s =>
-    s.name.toLowerCase().includes(query) ||
-    s.symbol.toLowerCase().includes(query)
-  );
+  const query = holdingsSearch.value.toLowerCase().trim();
+  const pricesBySymbol = new Map(stocks.value.map(stock => [stock.symbol, stock]));
+
+  return userHoldings.value
+    .map(holding => {
+      const marketPrice = pricesBySymbol.get(holding.symbol);
+      const price = marketPrice?.price ?? Number(holding.current_price ?? holding.market_price ?? 0);
+      const quantity = Number(holding.quantity || 0);
+
+      return {
+        ...marketPrice,
+        ...holding,
+        symbol: holding.symbol,
+        name: marketPrice?.name || holding.name || holding.symbol,
+        price,
+        change: Number(marketPrice?.change ?? 0),
+        quantity,
+        avg_price: Number(holding.avg_price || 0),
+        current_value: quantity * price,
+        spark: marketPrice?.spark || [],
+      };
+    })
+    .filter(stock => !query ||
+      stock.name.toLowerCase().includes(query) ||
+      stock.symbol.toLowerCase().includes(query)
+    );
 });
 
 // Structural Actions
@@ -366,6 +395,34 @@ const fetchWalletBalances = async () => {
     walletBalances.value = response.data.data;
   } catch (error) {
     console.error('Failed to fetch wallet balances', error);
+  }
+};
+
+const fetchUserHoldings = async () => {
+  holdingsLoading.value = true;
+
+  try {
+    const response = await api.get('/portfolio');
+    const holdings = response.data?.data?.holdings;
+
+    if (!Array.isArray(holdings)) {
+      throw new Error('The portfolio response did not contain a holdings list.');
+    }
+
+    userHoldings.value = holdings.filter(holding =>
+      holding.category === 'local' &&
+      Number(holding.quantity) > 0
+    ).map(holding => ({
+      ...holding,
+      symbol: String(holding.symbol || '').toUpperCase(),
+    })).filter(holding => holding.symbol);
+    holdingsError.value = "";
+  } catch (error) {
+    console.error('Failed to fetch current NGX holdings:', error);
+    holdingsError.value = error.response?.data?.message || error.message || 'Unable to load your current NGX holdings.';
+    userHoldings.value = [];
+  } finally {
+    holdingsLoading.value = false;
   }
 };
 
@@ -435,6 +492,7 @@ let pollingInterval = null;
 onMounted(() => {
   Promise.allSettled([
     fetchPortfolioPerformance(),
+    fetchUserHoldings(),
     updateMarketPrices(),
     fetchWalletBalances(),
     fetchMarketInsights()

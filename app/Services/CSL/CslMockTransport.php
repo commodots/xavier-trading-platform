@@ -19,7 +19,10 @@ class CslMockTransport
     protected const ENDPOINT_OPERATIONS = [
         '/GetCRSTMarkets' => 'markets',
         '/GetCRSTInstruments' => 'instruments',
+        '/GetCRCSCountries' => 'countries',
+        '/GetCRCSBanks' => 'banks',
         '/GetCRSTMarketAccounts' => 'market_accounts',
+        '/DoCRCSNewIndividualCustomer' => 'individual_customer',
         '/GetCRSTStockPortfolio' => 'portfolio',
         '/GetCRSTSubPortfolios' => 'market_accounts',
         '/GetCRXTMarketStatus' => 'market_status',
@@ -69,7 +72,13 @@ class CslMockTransport
 
             'instruments' => $this->fixture('instruments'),
 
+            'countries' => $this->fixture('countries'),
+
+            'banks' => $this->fixture('banks'),
+
             'market_accounts' => $this->fixture('market_accounts'),
+
+            'individual_customer' => $this->fixture('individual_customer'),
 
             'portfolio' => $this->fixture('portfolio'),
 

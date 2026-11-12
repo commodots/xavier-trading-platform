@@ -33,8 +33,8 @@
 
 <script setup>
 import { computed, ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
 import api from '@/api';
+import { logoutImmediately } from '@/auth/logout';
 
 import SidebarLink from "@/Components/SidebarLink.vue";
 
@@ -70,8 +70,6 @@ const props = defineProps({
 
 
 // Router
-const router = useRouter();
-
 // Load user from localStorage
 const user = ref({});
 try {
@@ -151,19 +149,7 @@ const filteredMenu = computed(() => {
 });
 
 // Logout function
-const logout = async () => {
-  try {
-
-    await api.post('/logout');
-  } catch (e) {
-    console.warn("Session already expired on server");
-  } finally {
-    localStorage.clear();
-    sessionStorage.clear();
-
-    window.location.href = "/login";
-  }
-};
+const logout = logoutImmediately;
 </script>
 
 <style scoped>
